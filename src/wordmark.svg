@@ -2,5 +2,5 @@
   <circle cx="28" cy="28.5" r="18" fill="none" stroke="#ff7a59" stroke-width="7"/>
   <circle cx="28" cy="28.5" r="5" fill="#ff7a59"/>
   <rect x="25" y="2" width="6" height="10" rx="3" fill="#ff7a59"/>
-  <text x="58" y="38" font-family="Lexend Deca, Helvetica, Arial, sans-serif" font-size="26" font-weight="600" fill="#006162">Plataforma</text>
+  <text x="58" y="38" font-family="Lexend Deca, Helvetica, Arial, sans-serif" font-size="28" font-weight="600" letter-spacing="1" fill="#006162">Omni</text>
 </svg>

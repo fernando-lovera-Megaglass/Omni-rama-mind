@@ -125,8 +125,8 @@ export function mountShell({ root, active, sub }) {
     btn.querySelector('.sidenav__collapse-ico').textContent = wide ? '‹' : '›';
   };
   sidenav.innerHTML = `
-    <a class="sidenav__logo" href="${root}" aria-label="Inicio">
-      <span class="sidenav__mark" aria-hidden="true"></span>
+    <a class="sidenav__logo" href="${root}" aria-label="Omni · Inicio" title="Omni">
+      <span class="sidenav__mark" aria-hidden="true"></span><span class="sidenav__brand" aria-hidden="true">Omni</span>
     </a>
     <nav class="sidenav__list" aria-label="Principal">
       <a class="sidenav__item sidenav__item--bookmark" href="#" data-soon="1" title="Marcadores"><span class="ico ico--bookmark"></span><span class="sidenav__label">Marcadores</span></a>
@@ -157,11 +157,11 @@ export function mountShell({ root, active, sub }) {
       <span></span><span></span><span></span>
     </button>
     <div class="topbar__search menu" id="global-search">
-      <input type="search" placeholder="Buscar en la cuenta" aria-label="Buscar en la cuenta" autocomplete="off" />
+      <input type="search" placeholder="Buscar en Omni" aria-label="Buscar en Omni" autocomplete="off" />
       <span class="ico ico--search" aria-hidden="true"></span>
       <div class="menu__panel menu__panel--search" id="global-results"></div>
     </div>
-    <button class="topbar__assistant" type="button"><span class="ai-spark">✦</span> Asistente</button>
+    <button class="topbar__assistant" type="button"><span class="ai-spark">✦</span> Asistente de Omni</button>
     <div class="topbar__right">
       <button class="topbar__icon" type="button" aria-label="Mejorar"><span class="ico ico--rocket"></span></button>
       <div class="menu">

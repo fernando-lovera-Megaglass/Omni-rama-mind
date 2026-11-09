@@ -163,6 +163,26 @@ h1 {
   border-radius: 50%;
   border: 6px solid var(--c-primary);
   box-sizing: border-box;
+  flex: none;
+}
+
+/* Product name next to the mark, shown when the navigation is expanded */
+.sidenav__brand {
+  display: none;
+  margin-left: var(--sp-10);
+  color: var(--c-white);
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.app--navwide .sidenav__logo {
+  justify-content: flex-start;
+  padding-left: var(--sp-20);
+}
+
+.app--navwide .sidenav__brand {
+  display: inline;
 }
 
 .sidenav__list {
