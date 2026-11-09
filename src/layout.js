@@ -1,7 +1,7 @@
 // Record page layout editor ("Personalizar"): arrange cards in the three columns,
 // rename sections and tabs, add cards/sections/tabs, undo/redo, assign teams, save.
 import { toast, wireMenus, closeMenus } from './shell.js';
-import { cardCatalog, defaultLayout, loadLayout, saveLayout, TEAMS, TYPE_META } from './layout-defaults.js';
+import { cardCatalog, defaultLayout, loadLayout, saveLayout, teamViewLayout, loadViewLayout, saveViewLayout, VIEW_KEY, TEAMS, TYPE_META } from './layout-defaults.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
 const params = new URLSearchParams(location.search);
@@ -9,10 +9,16 @@ const type = TYPE_META[params.get('type')] ? params.get('type') : 'contacts';
 const recordId = params.get('id') || '';
 const meta = TYPE_META[type];
 const CATALOG = cardCatalog(type);
-const backHref = recordId ? `../${type}/record/?id=${recordId}` : `../${type}/`;
+// Team views ("Crear vista de equipo" / "Editar vista" in Configuración › Objetos) are edited here too.
+const isNewView = params.get('new') === '1';
+const viewParam = params.get('view');
+const teamView = isNewView || Boolean(viewParam);
+let viewName = viewParam || null;
+const backHref = teamView ? `../settings/#obj-${type}:record` : recordId ? `../${type}/record/?id=${recordId}` : `../${type}/`;
+const stampNow = () => { const d = new Date(); const p = (n) => String(n).padStart(2, '0'); return `${p(d.getDate())}/${p(d.getMonth() + 1)}/${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`; };
 
-let layout = loadLayout(type);
-let saved = JSON.stringify(layout);
+let layout = isNewView ? teamViewLayout(type, `Nuevo página de registro ${meta.s} - (${stampNow()})`) : viewParam ? loadViewLayout(type, viewParam) : loadLayout(type);
+let saved = isNewView ? '' : JSON.stringify(layout);
 const undoStack = [];
 const redoStack = [];
 let activeTab = 'overview';
@@ -90,6 +96,7 @@ function render() {
       </nav>
       <div class="ledit__subright">
         <span class="ledit__status ${dirty() ? 'is-dirty' : ''}" title="${dirty() ? 'Cambios sin guardar' : 'Todo guardado'}">${dirty() ? '●' : '✓'}</span>
+        ${teamView && !layout.teams.length ? '<span class="ledit__warn tip" tabindex="0"><span aria-hidden="true">⚠</span><span class="tip__text">Esta vista aún no está asignada a ningún equipo: nadie la verá hasta que la asignes.</span></span>' : ''}
         <button class="pill" type="button" data-lc="teams">▣ Asignar equipos${layout.teams.length ? ` (${layout.teams.length})` : ''}</button>
       </div>
     </div>
@@ -218,9 +225,22 @@ function listFor(zone, si) {
   return tab && tab.sections && tab.sections[si] ? tab.sections[si].cards : null;
 }
 function doSave(exit) {
-  saveLayout(type, layout);
+  if (teamView) {
+    // Team view: its own layout plus an entry in the views table of Configuración › Objetos.
+    const key = `crm:${type}:recordviews`;
+    let list = [];
+    try { list = JSON.parse(localStorage.getItem(key)) || []; } catch { list = []; }
+    if (viewName && viewName !== layout.name) { localStorage.removeItem(VIEW_KEY(type, viewName)); list = list.filter((v) => v.name !== viewName); }
+    list = list.filter((v) => v.name !== layout.name);
+    list.push({ name: layout.name, teams: [...layout.teams], updated: new Date().toISOString(), by: 'Fernando Lovera Colin' });
+    localStorage.setItem(key, JSON.stringify(list));
+    saveViewLayout(type, layout.name, layout);
+    viewName = layout.name;
+  } else {
+    saveLayout(type, layout);
+  }
   saved = JSON.stringify(layout);
-  toast('Diseño guardado');
+  toast(teamView ? 'Vista de equipo guardada' : 'Diseño guardado');
   if (exit) location.href = backHref;
   else render();
 }

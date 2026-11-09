@@ -649,7 +649,7 @@ function objectRecordHtml(type) {
   return `<p class="odesc">Crea vistas para personalizar el diseño y el contenido de los registros de ${m.s}.</p><hr class="cd-sep" />
     <div class="rvbar">
       <div class="search search--sm ptoolbar__search"><input type="search" id="rv-q" value="${esc(state.rvQuery)}" placeholder="Buscar por nombre de vista" aria-label="Buscar por nombre de vista" /><span class="ico ico--search" aria-hidden="true"></span></div>
-      <button class="pill pill--lg" type="button" data-act="new-recordview" data-type="${type}">Crear vista de equipo</button>
+      <a class="pill pill--lg" href="../layout/?type=${type}&new=1" id="rv-new">Crear vista de equipo</a>
     </div>
     <table class="mini-table stable proptable rvtable"><thead><tr><th class="pcheck"><input type="checkbox" aria-label="Seleccionar todo" data-rv-check-all ${rows.filter((v) => !v.isDefault).length && rows.filter((v) => !v.isDefault).every((v) => state.rvSel.has(v.name)) ? 'checked' : ''} /></th>${th('name', 'Ver nombre')}${th('teams', 'Asignado a')}${th('updated', 'Última actualización')}<th class="num">Acciones</th></tr></thead><tbody>
       ${rows.map((v) => `<tr><td class="pcheck">${v.isDefault ? '<input type="checkbox" disabled aria-label="Vista predeterminada" />' : `<input type="checkbox" data-rv-check="${esc(v.name)}" ${state.rvSel.has(v.name) ? 'checked' : ''} aria-label="Seleccionar ${esc(v.name)}" />`}</td>

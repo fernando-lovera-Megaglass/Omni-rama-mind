@@ -38,7 +38,44 @@ export function cardCatalog(type) {
     const km = TYPE_META[k];
     cards[`assoc-${k}`] = { label: km.p, desc: `${km.p} Tarjeta de asociación (valor predeterminado)`, zone: 'right', assoc: k };
   });
+  // Extra cards available to team views (as in the original editor).
+  cards.collaborators = { label: 'Colaboradores', desc: 'Colaboradores (valor predeterminado)', zone: 'left' };
+  if (type === 'deals') cards.dealscore = { label: 'Calificación de negocios', desc: 'Calificación de negocios (valor predeterminado)', zone: 'middle' };
+  const extraAssoc = type === 'deals' ? ['Cotizaciones', 'Tickets', 'Enlaces de pago', 'Pagos', 'Negocios', 'Facturas', 'Suscripciones', 'Pedidos', 'Carritos', 'Contratos', 'Notas de crédito'] : type === 'companies' ? ['Cotizaciones', 'Facturas', 'Suscripciones', 'Pedidos', 'Contratos'] : type === 'contacts' ? ['Cotizaciones', 'Pagos', 'Suscripciones', 'Pedidos', 'Carritos'] : ['Negocios', 'Empresas'];
+  extraAssoc.forEach((label, i) => { cards[`x-${i}-${label.toLowerCase().replace(/[^a-z]+/g, '')}`] = { label, desc: `${label} Tarjeta de asociación (valor predeterminado)`, zone: 'right', extra: true }; });
+  cards.gdrive = { label: 'Archivos adjuntos de Google Drive', desc: 'Google Drive Attachments (valor predeterminado)', zone: 'right' };
   return cards;
+}
+
+// Layout of a brand-new team view: the original starts with a slimmer page than the default view.
+export function teamViewLayout(type, name) {
+  const cards = cardCatalog(type);
+  const right = (ASSOC_KINDS[type] || []).map((k) => `assoc-${k}`).concat(Object.keys(cards).filter((id) => cards[id].extra), ['gdrive']);
+  return {
+    name,
+    teams: [],
+    isDefault: false,
+    left: ['about', 'collaborators'],
+    tabs: [
+      { id: 'overview', label: 'Información destacada', sections: [{ title: 'Vista general', cards: ['summary'] }, { title: 'Salud', cards: type === 'deals' ? ['dealscore'] : ['sentiment'] }] },
+      { id: 'description', label: 'Información', fixed: true },
+      { id: 'activity', label: 'Actividades', fixed: true },
+    ],
+    right,
+  };
+}
+export const VIEW_KEY = (type, name) => `crm:${type}:layout:${name}`;
+export function loadViewLayout(type, name) {
+  try {
+    const saved = JSON.parse(localStorage.getItem(VIEW_KEY(type, name)));
+    if (saved && Array.isArray(saved.tabs)) return saved;
+  } catch {
+    /* ignore */
+  }
+  return teamViewLayout(type, name);
+}
+export function saveViewLayout(type, name, layout) {
+  localStorage.setItem(VIEW_KEY(type, name), JSON.stringify(layout));
 }
 
 export function defaultLayout(type) {

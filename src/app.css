@@ -6773,6 +6773,24 @@ textarea.cellpop__input {
   cursor: default;
 }
 
+.ledit__warn {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  color: #f5a623;
+  font-size: 20px;
+  cursor: help;
+}
+
+.ledit__warn .tip__text {
+  white-space: normal;
+  width: 260px;
+  right: 0;
+  left: auto;
+  transform: none;
+}
+
 /* Record views tab */
 .rvbar {
   display: flex;

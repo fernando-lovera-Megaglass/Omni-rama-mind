@@ -112,9 +112,11 @@ log('close mode days:', JSON.parse(mem['crm:settings:obj-deals']).closeMode, '| 
 click(document.querySelector('[data-objects-tab="record"]'));
 log('record tab rows:', document.querySelectorAll('.rvtable tbody tr').length, '| headers:', [...document.querySelectorAll('.rvtable thead th')].map((t) => t.textContent.trim()).filter(Boolean).join(' | '), '| first:', document.querySelector('.rvtable tbody tr').textContent.replace(/\s+/g, ' ').trim().slice(0, 90));
 log('team chips:', [...document.querySelectorAll('.rvchip')].map((c) => c.textContent).join(' | '));
-click(document.querySelector('[data-act="new-recordview"]'));
-document.querySelector('#pm-form [name="name"]').value = 'Vista SACA';
-document.getElementById('pm-form').dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true }));
+log('create button opens editor:', document.getElementById('rv-new').getAttribute('href'));
+// simulate a view saved by the editor
+mem['crm:deals:recordviews'] = JSON.stringify([...JSON.parse(mem['crm:deals:recordviews'] || 'null') || [{ name: 'Ventas Extranjero', teams: ['Ventas en el Extranjero'], updated: new Date().toISOString(), by: '' }, { name: 'Vista de Acristala', teams: ['Acristala'], updated: new Date().toISOString(), by: '' }, { name: 'Proyectos+ 100', teams: ['Proyectos'], updated: new Date().toISOString(), by: '' }], { name: 'Vista SACA', teams: ['SACA'], updated: new Date().toISOString(), by: 'Fernando Lovera Colin' }]);
+window.dispatchEvent(new dom.window.Event('hashchange'));
+click(document.querySelector('[data-objects-tab="record"]'));
 log('view created:', JSON.parse(mem['crm:deals:recordviews']).slice(-1)[0].name, '| rows:', document.querySelectorAll('.rvtable tbody tr').length);
 $('rv-q').value = 'saca';
 $('rv-q').dispatchEvent(new dom.window.Event('input', { bubbles: true }));
