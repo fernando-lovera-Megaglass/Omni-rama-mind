@@ -6504,6 +6504,141 @@ textarea.cellpop__input {
   background: var(--c-white);
 }
 
+/* Propiedades page */
+.phead__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-20);
+}
+
+.phead__actions .link-btn {
+  font-weight: 600;
+}
+
+.objsel--props {
+  justify-content: flex-start;
+}
+
+.objsel__link {
+  margin-left: auto;
+  font-weight: 600;
+}
+
+.pchips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-8) var(--sp-24);
+  margin: 0 0 var(--sp-16);
+}
+
+.pchips .qchip {
+  font-weight: 600;
+}
+
+.pbulk {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-16);
+  padding: var(--sp-10) var(--sp-16);
+  margin-bottom: var(--sp-8);
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-md);
+  background: var(--c-head);
+}
+
+.proptable th {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 15px;
+  font-weight: 400;
+  color: var(--c-muted);
+  white-space: nowrap;
+}
+
+.proptable td {
+  padding-top: var(--sp-16);
+  padding-bottom: var(--sp-16);
+  font-size: 15px;
+  vertical-align: middle;
+}
+
+.proptable .pcheck {
+  width: 36px;
+}
+
+.proptable .pcheck input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--c-link);
+}
+
+.proptable td .olink {
+  font-size: 15px;
+}
+
+.proptable .rowact {
+  display: inline-flex;
+}
+
+.psort {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.psort.is-active {
+  color: var(--c-text);
+}
+
+.ppager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: var(--sp-20);
+}
+
+.ppager__nav {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+}
+
+.ppager__nav .link-btn[disabled] {
+  color: var(--c-muted);
+  cursor: default;
+}
+
+.ppager__num {
+  min-width: 32px;
+  height: 32px;
+  border: 1px solid transparent;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--c-text);
+  font-family: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ppager__num.is-active {
+  border-color: var(--c-text);
+}
+
+.pempty {
+  padding: var(--sp-32);
+  border: 1px dashed var(--c-border);
+  border-radius: var(--r-md);
+  text-align: center;
+  color: var(--c-muted);
+}
+
+.olink--sm {
+  font-size: var(--fs-sm);
+}
+
 /* Deal pipelines tab */
 .ptabs {
   display: flex;

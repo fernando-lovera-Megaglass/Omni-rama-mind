@@ -1,7 +1,7 @@
 // Account settings (the gear in the top bar): a full settings tree with a pane per section.
 import { boot } from './page.js';
 import { toast, wireMenus, closeMenus } from './shell.js';
-import { OWNERS, DEAL_STAGES, TICKET_STATUSES, PIPELINE_KEY, ASSOC_LABELS_KEY, assocLabels, ALL, formatDate, formatMoney, dealPipelines, saveDealPipelines, dealPipelineDefs, saveDealPipelineDefs, newPipelineDef, setField } from './data.js';
+import { OWNERS, DEAL_STAGES, TICKET_STATUSES, PIPELINE_KEY, ASSOC_LABELS_KEY, assocLabels, ALL, formatDate, formatMoney, dealPipelines, saveDealPipelines, dealPipelineDefs, saveDealPipelineDefs, newPipelineDef, setField, LIFECYCLES, download } from './data.js';
 import { propertyGroups, customProperties, saveCustomProperties, propertyList } from './properties.js';
 import { TEAMS, loadLayout, cardCatalog } from './layout-defaults.js';
 import { getSignature, setSignature, emailTemplates } from './compose.js';
@@ -266,21 +266,73 @@ function paneBilling() {
 
 // ---------- panes: data management ----------
 const KINDS = { text: 'Texto de una línea', number: 'Número', currency: 'Número (moneda)', percent: 'Número (porcentaje)', date: 'Selector de fecha', datetime: 'Fecha y hora', enum: 'Selección desplegable', bool: 'Casilla de verificación', user: 'Usuario', email: 'Texto (correo)', phone: 'Número de teléfono', url: 'Texto (URL)', id: 'Identificador', stage: 'Etapa', status: 'Estado', priority: 'Prioridad' };
+// Propiedades page: object card, tabs, filter chips, sortable paged table (as in the original).
+Object.assign(state, { propsTab: 'list', propsKind: '', propsUser: '', propsFilter: '', propsSort: { key: 'label', dir: 1 }, propsPage: 1, propsSize: 10, propsSel: new Set() });
+const PROP_SINGULAR = { contacts: 'Contacto', companies: 'Empresa', deals: 'Negocio', tickets: 'Ticket', tasks: 'Tarea' };
+const propGroupsStore = (type) => load(`crm:propgroups:${type}`, []);
+function propertyRows(type) {
+  const records = ALL[type] ? ALL[type]() : [];
+  const custom = customProperties(type);
+  const customMap = new Map(custom.map((p) => [p.key, p]));
+  const used = (k) => records.filter((r) => r[k] !== undefined && r[k] !== null && r[k] !== '').length;
+  return propertyList(type).map((p) => {
+    const c = customMap.get(p.key);
+    const n = used(p.key);
+    return { ...p, custom: Boolean(c), creator: c ? 'Fernando Lovera Colin' : 'Omni', used: n, rate: records.length ? Math.round((n / records.length) * 10000) / 100 : 0 };
+  });
+}
 function paneProperties() {
   const type = state.propsObject;
-  const groups = propertyGroups(type);
-  const custom = new Set(customProperties(type).map((p) => p.key));
-  const q = state.propsQuery.toLowerCase();
-  const rows = groups.flatMap((g) => g.items.map(([k, l, kind]) => ({ k, l, kind, g: g.title }))).filter((r) => (!state.propsGroup || r.g === state.propsGroup) && (!q || r.l.toLowerCase().includes(q) || r.k.toLowerCase().includes(q)));
-  return `<div class="shead"><h2>Propiedades</h2><button class="btn btn--primary" type="button" data-act="new-prop">Crear propiedad</button></div>
-    <p class="muted">Las propiedades guardan la información de cada registro. Las personalizadas se pueden editar o eliminar; las predeterminadas solo consultarse.</p>
-    <div class="sbar">
-      <label class="field field--inline"><span>Objeto</span><select data-props-object>${OBJECTS.map(([k, l]) => `<option value="${k}" ${type === k ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
-      <div class="search search--sm"><span class="ico ico--search" aria-hidden="true"></span><input type="search" id="props-q" value="${esc(state.propsQuery)}" placeholder="Buscar propiedades" /></div>
-      <label class="field field--inline"><span>Grupo</span><select data-props-group><option value="">Todos los grupos</option>${groups.map((g) => `<option ${state.propsGroup === g.title ? 'selected' : ''}>${esc(g.title)}</option>`).join('')}</select></label>
-      <span class="muted">${rows.length} propiedades</span>
-    </div>
-    ${simpleTable(['Nombre', 'Nombre interno', 'Tipo', 'Grupo', 'Creada por', ''], rows.slice(0, 200).map((r) => [`<strong>${esc(r.l)}</strong>`, `<span class="muted">${esc(r.k)}</span>`, KINDS[r.kind] || esc(r.kind), esc(r.g), custom.has(r.k) ? 'Tú' : 'Sistema', custom.has(r.k) ? `<button class="link-btn" type="button" data-prop-edit="${r.k}">Editar</button> <button class="link-btn" type="button" data-prop-rm="${r.k}">Eliminar</button>` : `<button class="link-btn" type="button" data-prop-view="${r.k}">Ver</button>`]))}`;
+  const sing = PROP_SINGULAR[type];
+  const plural = OBJECTS.find((o) => o[0] === type)[1];
+  const all = propertyRows(type);
+  const archived = customProperties(type).filter((p) => p.archived);
+  const groups = [...new Set(all.map((p) => p.group)), ...propGroupsStore(type).filter((g) => !all.some((p) => p.group === g))];
+  const kinds = [...new Set(all.map((p) => p.kind))];
+  const q = state.propsQuery.trim().toLowerCase();
+  let rows = all.filter((p) => (!state.propsGroup || p.group === state.propsGroup) && (!state.propsKind || p.kind === state.propsKind) && (!state.propsUser || (state.propsUser === 'me' ? p.custom : !p.custom)) && (!state.propsFilter || (state.propsFilter === 'used' ? p.used > 0 : state.propsFilter === 'unused' ? p.used === 0 : p.custom)) && (!q || p.label.toLowerCase().includes(q) || p.key.toLowerCase().includes(q)));
+  const { key, dir } = state.propsSort;
+  rows.sort((a, b) => (typeof a[key] === 'number' ? (a[key] - b[key]) : String(a[key]).localeCompare(String(b[key]), 'es')) * dir);
+  const pages = Math.max(1, Math.ceil(rows.length / state.propsSize));
+  if (state.propsPage > pages) state.propsPage = pages;
+  const page = rows.slice((state.propsPage - 1) * state.propsSize, state.propsPage * state.propsSize);
+  const chip = (name, label, current, options) => `<div class="menu"><button class="qchip" type="button" aria-haspopup="true" aria-expanded="false">${esc(current ? (options.find((o) => o[0] === current) || [current, current])[1] : label)} <span class="caret"></span></button><div class="menu__panel"><button class="menu__item${!current ? ' is-current' : ''}" type="button" data-props-set="${name}" data-value="">${label}</button>${options.map(([v, l]) => `<button class="menu__item${current === v ? ' is-current' : ''}" type="button" data-props-set="${name}" data-value="${esc(v)}">${esc(l)}</button>`).join('')}</div></div>`;
+  const sortTh = (k, label, cls = '') => `<th class="${cls}"><button class="psort${key === k ? ' is-active' : ''}" type="button" data-props-sort="${k}">${label} <span aria-hidden="true">${key === k ? (dir > 0 ? '↑' : '↓') : '⇅'}</span></button></th>`;
+  const tabs = [['list', `Propiedades (${all.length})`], ['logic', 'Lógica condicional'], ['groups', 'Grupos'], ['archived', `Archivado (${archived.length})`]];
+  let body = '';
+  if (state.propsTab === 'list') {
+    const selCount = [...state.propsSel].filter((k) => all.some((p) => p.key === k)).length;
+    body = `<div class="pchips">${chip('group', 'Todos los grupos', state.propsGroup, groups.map((g) => [g, g]))}${chip('kind', 'Todos los tipos de campos', state.propsKind, kinds.map((k) => [k, KINDS[k] || k]))}${chip('user', 'Todos los usuarios', state.propsUser, [['me', 'Fernando Lovera Colin'], ['system', 'Omni']])}${chip('filter', 'Todas las propiedades', state.propsFilter, [['used', 'Propiedades en uso'], ['unused', 'Propiedades sin usar'], ['custom', 'Propiedades personalizadas']])}</div>
+      <div class="ptoolbar">
+        <div class="search search--sm ptoolbar__search"><input type="search" id="props-q" value="${esc(state.propsQuery)}" placeholder="Buscar propiedades" aria-label="Buscar propiedades" /><span class="ico ico--search" aria-hidden="true"></span></div>
+        <div class="ptoolbar__right"><span class="muted">🔒 La monitorización de la calidad de los datos está desactivado</span><button class="btn btn--primary" type="button" data-act="new-prop">Crear propiedad</button></div>
+      </div>
+      ${selCount ? `<div class="pbulk"><strong>${selCount} seleccionada${selCount > 1 ? 's' : ''}</strong><button class="link-btn" type="button" data-act="props-export-sel">Exportar selección</button><button class="link-btn" type="button" data-act="props-archive-sel">Archivar personalizadas</button><button class="link-btn" type="button" data-act="props-clear-sel">Limpiar</button></div>` : ''}
+      <table class="mini-table stable proptable"><thead><tr><th class="pcheck"><input type="checkbox" data-props-check-all ${page.length && page.every((p) => state.propsSel.has(p.key)) ? 'checked' : ''} aria-label="Seleccionar todo" /></th>${sortTh('label', 'Nombre')}${sortTh('group', 'Grupo')}${sortTh('creator', 'Creado por')}${sortTh('used', 'Se usa en', 'num')}<th class="num">Tasa de completación</th><th></th></tr></thead><tbody>
+        ${page.length ? page.map((p) => `<tr><td class="pcheck"><input type="checkbox" data-props-check="${esc(p.key)}" ${state.propsSel.has(p.key) ? 'checked' : ''} aria-label="Seleccionar ${esc(p.label)}" /></td><td><button class="olink" type="button" data-prop-${p.custom ? 'edit' : 'view'}="${esc(p.key)}">${esc(p.label)}</button><br /><span class="muted">${esc(KINDS[p.kind] || p.kind)}</span></td><td>${esc(p.group)}</td><td>${esc(p.creator)}</td><td class="num">${p.used ? `<a class="plink" href="../${type}/">${p.used}</a>` : '0'}</td><td class="num">${p.rate.toLocaleString('es-ES', { minimumFractionDigits: p.rate % 1 ? 2 : 0, maximumFractionDigits: 2 })}%</td><td class="num"><div class="menu"><button class="icon-btn icon-btn--sm rowact" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Acciones">⋮</button><div class="menu__panel menu__panel--right"><button class="menu__item" type="button" data-prop-view="${esc(p.key)}">Ver detalles</button>${p.custom ? `<button class="menu__item" type="button" data-prop-edit="${esc(p.key)}">Editar</button><button class="menu__item" type="button" data-prop-archive="${esc(p.key)}">Archivar</button><button class="menu__item menu__item--danger" type="button" data-prop-rm="${esc(p.key)}">Eliminar</button>` : `<button class="menu__item" type="button" data-copy="${esc(p.key)}">Copiar nombre interno</button>`}</div></div></td></tr>`).join('') : '<tr><td colspan="7" class="muted">No hay propiedades que coincidan.</td></tr>'}
+      </tbody></table>
+      <div class="ppager">
+        <span></span>
+        <nav class="ppager__nav" aria-label="Páginas"><button class="link-btn" type="button" data-props-page="${state.propsPage - 1}" ${state.propsPage <= 1 ? 'disabled' : ''}>‹ Anterior</button>${Array.from({ length: pages }, (_, i) => i + 1).filter((n) => pages <= 12 || n <= 10 || n === pages || Math.abs(n - state.propsPage) < 2).map((n, i, arr) => `${i && arr[i - 1] !== n - 1 ? '<span class="muted">…</span>' : ''}<button class="ppager__num${n === state.propsPage ? ' is-active' : ''}" type="button" data-props-page="${n}">${n}</button>`).join('')}<button class="link-btn" type="button" data-props-page="${state.propsPage + 1}" ${state.propsPage >= pages ? 'disabled' : ''}>Siguiente ›</button></nav>
+        <div class="menu"><button class="qchip" type="button" aria-haspopup="true" aria-expanded="false">${state.propsSize} por página <span class="caret"></span></button><div class="menu__panel menu__panel--right">${[10, 25, 50, 100].map((n) => `<button class="menu__item${state.propsSize === n ? ' is-current' : ''}" type="button" data-props-size="${n}">${n} por página</button>`).join('')}</div></div>
+      </div>`;
+  } else if (state.propsTab === 'logic') {
+    const rules = type === 'deals' ? dealPipelineDefs().flatMap((p) => Object.entries(p.logic || {}).filter(([, l]) => l.props && l.props.length).map(([k, l]) => ({ pipe: p.name, stage: labelOfStage(p, k), props: l.props }))) : [];
+    body = `<div class="shead"><div><h3>Lógica condicional</h3><p class="muted">Muestra o exige propiedades según el valor de otra. Las reglas de las etapas de negocio se crean desde Objetos › Negocios › Pipelines.</p></div>${type === 'deals' ? '<a class="btn btn--primary" href="#obj-deals:pipelines">Crear regla de lógica</a>' : toastBtn('Crear regla de lógica', 'La lógica condicional para este objeto estará disponible próximamente.', 'btn btn--primary')}</div>
+      ${rules.length ? simpleTable(['Propiedad de control', 'Valor', 'Propiedades dependientes', 'Pipeline'], rules.map((r) => ['Etapa del negocio', esc(r.stage), r.props.map((x) => `${esc(x.name)}${x.required ? ' <em class="req">*</em>' : ''}`).join(', '), esc(r.pipe)])) : '<p class="pempty">Todavía no hay reglas de lógica condicional para este objeto.</p>'}`;
+  } else if (state.propsTab === 'groups') {
+    const counts = Object.fromEntries(groups.map((g) => [g, all.filter((p) => p.group === g).length]));
+    body = `<div class="shead"><div><h3>Grupos de propiedades</h3><p class="muted">Los grupos ordenan las propiedades en las fichas y en el editor de columnas.</p></div><button class="btn btn--primary" type="button" data-act="new-propgroup">Crear grupo</button></div>
+      ${simpleTable(['Nombre del grupo', 'Propiedades', 'Creado por', ''], groups.map((g) => [`<strong>${esc(g)}</strong>`, String(counts[g] || 0), propGroupsStore(type).includes(g) ? 'Fernando Lovera Colin' : 'Omni', propGroupsStore(type).includes(g) ? `<button class="link-btn" type="button" data-propgroup-rm="${esc(g)}" ${counts[g] ? 'disabled title="Tiene propiedades"' : ''}>Eliminar</button> <button class="link-btn" type="button" data-props-set="group" data-value="${esc(g)}" data-goto-list>Ver propiedades</button>` : `<button class="link-btn" type="button" data-props-set="group" data-value="${esc(g)}" data-goto-list>Ver propiedades</button>`]))}`;
+  } else {
+    body = `<h3>Propiedades archivadas</h3><p class="muted">Las propiedades archivadas dejan de verse en las fichas y listas. Se eliminan definitivamente a los 90 días.</p>
+      ${archived.length ? simpleTable(['Nombre', 'Tipo', 'Grupo', ''], archived.map((p) => [`<strong>${esc(p.label)}</strong>`, esc(KINDS[p.kind] || p.kind), esc(p.group), `<button class="link-btn" type="button" data-prop-restore="${esc(p.key)}">Restaurar</button> <button class="link-btn" type="button" data-prop-rm="${esc(p.key)}">Eliminar</button>`])) : '<p class="pempty">No hay propiedades archivadas.</p>'}`;
+  }
+  return `<div class="shead"><h2>Propiedades</h2><div class="phead__actions">${toastBtn('✦ Agente de datos', 'El agente de datos revisa tus propiedades y sugiere limpiezas.', 'link-btn')}${toastBtn('🔒 Calidad de los datos', 'La monitorización de la calidad de los datos no está incluida en tu plan.', 'link-btn')}<button class="btn btn--ghost" type="button" data-act="props-export">Exportar propiedades</button></div></div>
+    <p class="odesc">Las propiedades se usan para reunir y almacenar información acerca de tus registros en Omni. Por ejemplo, un contacto podría tener propiedades como Nombre o Estado del lead.</p>
+    <div class="objsel objsel--props"><strong>Selecciona un objeto:</strong><span class="objsel__pick"><select class="ginput" data-props-object aria-label="Objeto">${OBJECTS.map(([k, l]) => `<option value="${k}" ${type === k ? 'selected' : ''}>Propiedades de ${PROP_SINGULAR[k]}</option>`).join('')}</select></span><a class="objsel__link" href="#obj-${type}">Ir a la configuración de ${plural}</a></div>
+    <div class="otabs"><div class="otabs__tabs">${tabs.map(([k, l]) => `<button type="button" class="${state.propsTab === k ? 'is-active' : ''}" data-props-tab="${k}">${l}</button>`).join('')}</div></div>
+    <div class="obody">${body}</div>`;
 }
 function objectPipelineHtml(type) {
   if (type === 'deals') return dealPipelinesHtml();
@@ -495,7 +547,6 @@ function objectConfigHtml(type) {
         ${objRadio('deals', 'closeMode', 'days', 'Tiempo a partir de la creación del Negocio <span class="info">ⓘ</span>', s.closeMode === 'days', `<span class="oinline"><input class="ginput ginput--xs" type="number" min="1" max="365" data-objsetting="closeDays" data-type="deals" value="${s.closeDays}" ${s.closeMode === 'days' ? '' : 'disabled'} /> días</span>`)}
       </div>` : ''}
     ${type === 'contacts' ? objCheck('contacts', 'autoAssign', 'Asignar automáticamente los Contactos nuevos a quien los crea', 'Si no se elige un propietario, el Contacto se asigna al usuario que lo creó.', s.autoAssign) : ''}
-    ${type === 'companies' ? objCheck('companies', 'autoCreate', 'Crear y asociar empresas automáticamente', 'Cuando un contacto nuevo tiene un dominio de correo de empresa, se crea la Empresa y se asocia.', s.autoCreate !== false) : ''}
     ${type === 'tasks' ? objCheck('tasks', 'autoAssign', 'Asignar las Tareas nuevas a quien las crea', 'Si no se indica, la Tarea queda asignada al usuario que la creó.', s.autoAssign !== false) : ''}
     ${objCheck(type, 'dupes', `Avisar de ${lower} duplicados`, 'Al crear un registro parecido a otro existente se muestra un aviso.', s.dupes)}
     ${type === 'deals' || type === 'tickets' ? objCheck(type, 'assocReq', 'Exigir un contacto o una empresa asociados', 'No permite guardar el registro sin una asociación.', s.assocReq) : ''}`;
@@ -503,8 +554,25 @@ function objectConfigHtml(type) {
     ${objCheck(type, 'followOwn', `Seguir automáticamente los ${m.p} que creas`, 'Recibirás notificaciones de la actividad de esos registros.', s.followOwn)}
     ${objCheck(type, 'comments', `Permitir comentarios en los ${m.p}`, 'Los usuarios pueden dejar comentarios y mencionar a compañeros.', s.comments)}
     ${objCheck(type, 'notifyOwner', 'Notificar al propietario al asignar un registro', 'Se envía una notificación al nuevo propietario.', s.notifyOwner)}`;
+  const excluded = load('crm:companies:excluded-domains', ['gmail.com', 'hotmail.com', 'outlook.com', 'yahoo.com']);
+  const automation = type === 'companies' ? `<h3>Automatización</h3>
+    ${objCheck('companies', 'autoCreate', 'Crea y asocia Empresas con Contactos', `Asocia Contactos actuales y agregados recientemente con Empresas basándote en la dirección de correo de un Contacto y el dominio de una Empresa.<br /><button class="olink olink--sm" type="button" data-act="excluded-domains">Excluye un dominio de la asociación automática</button> <span class="muted">(${excluded.length} excluidos)</span>`, s.autoCreate !== false)}` : '';
   const danger = `<h3>Eliminación</h3><p class="muted">Los ${lower} eliminados se guardan 90 días en la papelera y después se borran definitivamente.</p><p><a class="link-btn" href="../${type}/">Ver ${lower} eliminados en la lista ↗</a></p>`;
-  return `<p class="odesc">${m.desc}</p><hr class="cd-sep" />${props}${assoc}${creating}${collab}${['contacts', 'companies', 'deals', 'tickets', 'tasks'].includes(type) ? danger : ''}`;
+  return `<p class="odesc">${m.desc}</p><hr class="cd-sep" />${props}${assoc}${creating}${automation}${collab}${['contacts', 'companies', 'deals', 'tickets', 'tasks'].includes(type) ? danger : ''}`;
+}
+// "Etapa del ciclo de vida" tab for contacts and companies.
+function lifecycleHtml(type) {
+  const m = OBJ_META[type];
+  const records = ALL[type]();
+  const s = objSetting(type);
+  const sync = type === 'companies' ? objCheck('companies', 'syncLifecycle', 'Sincronizar la etapa con los contactos asociados', 'Cuando una empresa cambia de etapa, sus contactos avanzan a la misma etapa si están por detrás.', s.syncLifecycle !== false) : objCheck('contacts', 'syncLifecycle', 'Sincronizar la etapa con la empresa asociada', 'Cuando un contacto avanza de etapa, la empresa asociada también avanza si está por detrás.', s.syncLifecycle !== false);
+  return `<h3>Etapa del ciclo de vida</h3><p class="muted">La etapa del ciclo de vida indica en qué punto del proceso de marketing y ventas están tus ${m.p.toLowerCase()}. Las etapas se comparten entre contactos y empresas.</p>
+    ${simpleTable(['Etapa', 'Nombre interno', `${m.p} en la etapa`, ''], LIFECYCLES.map((l, i) => [`<strong>${esc(l)}</strong>`, `<span class="muted">${slug(l)}</span>`, String(records.filter((r) => r.lifecycle === l).length), `<a class="link-btn" href="../${type}/">Ver ${m.p.toLowerCase()}</a>${i === 0 ? ' <span class="tag tag--new">Predeterminada</span>' : ''}`]))}
+    <h3>Comportamiento</h3>
+    ${sync}
+    ${objCheck(type, 'lifecycleForward', 'Solo permitir avanzar de etapa', 'La etapa no retrocede automáticamente cuando se actualiza por un flujo o una importación.', s.lifecycleForward !== false)}
+    ${objCheck(type, 'lifecycleOnDeal', 'Pasar a Oportunidad al crear un negocio', `Cuando se crea un negocio asociado, ${m.p.toLowerCase()} en etapas anteriores pasan a "Oportunidad".`, s.lifecycleOnDeal !== false)}
+    ${objCheck(type, 'lifecycleOnWon', 'Pasar a Cliente al ganar un negocio', `Cuando se gana un negocio asociado, ${m.p.toLowerCase()} pasan a "Cliente".`, s.lifecycleOnWon !== false)}`;
 }
 function objectRecordHtml(type) {
   const m = OBJ_META[type];
@@ -565,13 +633,15 @@ function paneObjects() {
   // Managing one deal pipeline takes over the whole page, as in the original.
   if (type === 'deals' && state.objectsTab === 'pipelines' && state.pipeEdit !== null) return pipelineEditorHtml(dealPipelineDefs(), ALL.deals());
   const hasPipelines = type === 'deals' || type === 'tickets';
-  const tabs = [['config', 'Configuración'], ...(hasPipelines ? [['pipelines', 'Pipelines']] : []), ['record', 'Personalización de registros'], ['preview', 'Previsualizar personalización'], ['index', 'Personalización del índice']];
+  const hasLifecycle = type === 'contacts' || type === 'companies';
+  const tabs = [['config', 'Configuración'], ...(hasPipelines ? [['pipelines', 'Pipelines']] : []), ...(hasLifecycle ? [['lifecycle', 'Etapa del ciclo de vida']] : []), ['record', 'Personalización de registros'], ['preview', 'Previsualizar personalización'], ['index', 'Personalización del índice']];
   if (!tabs.some((t) => t[0] === state.objectsTab) && state.objectsTab !== 'assoc') state.objectsTab = 'config';
   let body = '';
   if (type === 'products') body = paneProducts().replace(/<h2>.*?<\/h2>/, '');
   else if (type === 'custom') body = paneCustomObjects().replace(/<h2>.*?<\/h2>/, '');
   else if (state.objectsTab === 'config') body = objectConfigHtml(type);
   else if (state.objectsTab === 'pipelines') body = objectPipelineHtml(type);
+  else if (state.objectsTab === 'lifecycle') body = lifecycleHtml(type);
   else if (state.objectsTab === 'record') body = objectRecordHtml(type);
   else if (state.objectsTab === 'preview') body = objectPreviewHtml(type);
   else if (state.objectsTab === 'index') body = objectIndexHtml(type);
@@ -710,7 +780,7 @@ function propertyForm(type, existing) {
   return `<form id="prop-form" class="ad-form">
       <label class="field"><span>Etiqueta</span><input name="label" required value="${esc(existing ? existing.label : '')}" placeholder="Por ejemplo: Tipo de vidrio" /></label>
       <label class="field"><span>Objeto</span><input value="${esc(OBJECTS.find((o) => o[0] === type)[1])}" disabled /></label>
-      <label class="field"><span>Grupo</span><select name="group">${['Propiedades personalizadas', ...groups.map((g) => g.title).filter((t) => t !== 'Propiedades personalizadas')].map((g) => `<option ${existing && existing.group === g ? 'selected' : ''}>${esc(g)}</option>`).join('')}</select></label>
+      <label class="field"><span>Grupo</span><select name="group">${[...new Set(['Propiedades personalizadas', ...propGroupsStore(type), ...groups.map((g) => g.title)])].map((g) => `<option ${existing && existing.group === g ? 'selected' : ''}>${esc(g)}</option>`).join('')}</select></label>
       <label class="field"><span>Tipo de campo</span><select name="kind" id="prop-kind">${PROP_KINDS.map(([k, l]) => `<option value="${k}" ${existing && existing.kind === k ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
       <label class="field" id="prop-options-field" ${existing && existing.kind === 'enum' ? '' : 'hidden'}><span>Opciones (una por línea)</span><textarea name="options" rows="4">${esc(existing && existing.options ? existing.options.join('\n') : '')}</textarea></label>
       <label class="field"><span>Descripción</span><input name="desc" value="${esc(existing ? existing.desc || '' : '')}" /></label>
@@ -798,8 +868,10 @@ root.addEventListener('change', (e) => {
     toast('Ajuste guardado');
     if (t.type === 'checkbox' || t.type === 'radio') render();
   }
-  else if (t.hasAttribute('data-props-object')) { state.propsObject = t.value; state.propsGroup = ''; render(); }
+  else if (t.hasAttribute('data-props-object')) { state.propsObject = t.value; state.propsGroup = ''; state.propsKind = ''; state.propsPage = 1; state.propsSel = new Set(); render(); }
   else if (t.hasAttribute('data-props-group')) { state.propsGroup = t.value; render(); }
+  else if (t.hasAttribute('data-props-check-all')) { root.querySelectorAll('[data-props-check]').forEach((c) => { if (t.checked) state.propsSel.add(c.dataset.propsCheck); else state.propsSel.delete(c.dataset.propsCheck); }); render(); }
+  else if (t.hasAttribute('data-props-check')) { if (t.checked) state.propsSel.add(t.dataset.propsCheck); else state.propsSel.delete(t.dataset.propsCheck); render(); }
   else if (t.id === 'prop-kind') { document.getElementById('prop-options-field').hidden = t.value !== 'enum'; }
   else if (t.id === 'pf-region') { const s = REGIONS[t.value]; document.getElementById('pf-sample').textContent = `Formato: ${s[0]}, ${s[1]}, ${s[2]} y ${s[3]}`; }
   else if (t.id === 'avatar-file') {
@@ -919,7 +991,21 @@ root.addEventListener('click', (e) => {
   const ut = e.target.closest('[data-user-toggle]');
   if (ut) { const us = users(); const u = us[Number(ut.dataset.userToggle)]; u.status = u.status === 'Activo' ? 'Desactivado' : 'Activo'; save('crm:users', us); render(); toast(`Usuario ${u.status.toLowerCase()}`); return; }
   const pl = e.target.closest('[data-props-object-link]');
-  if (pl) { state.propsObject = pl.dataset.propsObjectLink; state.propsGroup = ''; state.propsQuery = ''; }
+  if (pl) { state.propsObject = pl.dataset.propsObjectLink; state.propsGroup = ''; state.propsQuery = ''; state.propsTab = 'list'; state.propsPage = 1; }
+  const ptab2 = e.target.closest('[data-props-tab]');
+  if (ptab2) { state.propsTab = ptab2.dataset.propsTab; render(); return; }
+  const pset = e.target.closest('[data-props-set]');
+  if (pset) { closeMenus(); const map = { group: 'propsGroup', kind: 'propsKind', user: 'propsUser', filter: 'propsFilter' }; state[map[pset.dataset.propsSet]] = pset.dataset.value; state.propsPage = 1; if (pset.hasAttribute('data-goto-list')) state.propsTab = 'list'; render(); return; }
+  const psort = e.target.closest('[data-props-sort]');
+  if (psort) { const k = psort.dataset.propsSort; state.propsSort = { key: k, dir: state.propsSort.key === k ? -state.propsSort.dir : 1 }; render(); return; }
+  const ppage = e.target.closest('[data-props-page]');
+  if (ppage && !ppage.disabled) { state.propsPage = Math.max(1, Number(ppage.dataset.propsPage)); render(); return; }
+  const psize = e.target.closest('[data-props-size]');
+  if (psize) { closeMenus(); state.propsSize = Number(psize.dataset.propsSize); state.propsPage = 1; render(); return; }
+  const parch = e.target.closest('[data-prop-archive], [data-prop-restore]');
+  if (parch) { closeMenus(); const k = parch.dataset.propArchive || parch.dataset.propRestore; const list = customProperties(state.propsObject); const p = list.find((x) => x.key === k); if (p) { p.archived = Boolean(parch.dataset.propArchive); saveCustomProperties(state.propsObject, list); } render(); toast(parch.dataset.propArchive ? 'Propiedad archivada' : 'Propiedad restaurada'); return; }
+  const pgrm = e.target.closest('[data-propgroup-rm]');
+  if (pgrm) { save(`crm:propgroups:${state.propsObject}`, propGroupsStore(state.propsObject).filter((g) => g !== pgrm.dataset.propgroupRm)); render(); toast('Grupo eliminado'); return; }
   const rm = e.target.closest('[data-team-rm], [data-label-rm], [data-app-rm], [data-hook-rm], [data-pipeline-rm], [data-recordview-rm]');
   if (rm) {
     const d = rm.dataset;
@@ -978,6 +1064,22 @@ root.addEventListener('click', (e) => {
   }
   else if (a === 'new-pipeline') promptModal('Crear pipeline', [['name', 'Nombre del pipeline']], 'Crear', (d) => { const list = dealPipelines(); const name = d.name.trim(); if (!name) return; if (list.includes(name)) { toast('Ya existe un pipeline con ese nombre'); return; } list.push(name); saveDealPipelines(list); toast(`Pipeline "${name}" creado`); });
   else if (a === 'avatar-rm') { const p = profile(); delete p.avatar; save('crm:profile', p); render(); toast('Imagen de perfil quitada'); }
+  else if (a === 'props-export' || a === 'props-export-sel') {
+    const rows = propertyRows(state.propsObject).filter((p) => a === 'props-export' || state.propsSel.has(p.key));
+    const csv = ['Nombre;Nombre interno;Tipo;Grupo;Creado por;Se usa en;Tasa de completación', ...rows.map((p) => [p.label, p.key, KINDS[p.kind] || p.kind, p.group, p.creator, p.used, `${p.rate}%`].map((v) => `"${String(v).replace(/"/g, '""')}"`).join(';'))].join('\n');
+    download(`propiedades-${state.propsObject}.csv`, csv);
+    toast(`${rows.length} propiedades exportadas`);
+  }
+  else if (a === 'props-archive-sel') { const list = customProperties(state.propsObject); let n = 0; list.forEach((p) => { if (state.propsSel.has(p.key) && !p.archived) { p.archived = true; n += 1; } }); saveCustomProperties(state.propsObject, list); state.propsSel = new Set(); render(); toast(n ? `${n} propiedad${n > 1 ? 'es' : ''} archivada${n > 1 ? 's' : ''}` : 'Solo se pueden archivar propiedades personalizadas'); }
+  else if (a === 'props-clear-sel') { state.propsSel = new Set(); render(); }
+  else if (a === 'excluded-domains') {
+    const list = load('crm:companies:excluded-domains', ['gmail.com', 'hotmail.com', 'outlook.com', 'yahoo.com']);
+    openModal('Dominios excluidos de la asociación automática', `<p class="muted">Los contactos con estos dominios de correo no crean ni se asocian a una empresa automáticamente.</p><ul class="chips-list" id="exd-list">${list.map((d, i) => `<li><span class="chip">${esc(d)} <button class="chip__x" type="button" data-exd-rm="${i}" aria-label="Quitar">×</button></span></li>`).join('')}</ul><form id="exd-form" class="sform sform--inline"><input class="cellpop__input cellpop__input--sm" name="d" placeholder="ejemplo.com" required /><button class="btn btn--primary" type="submit">Añadir</button></form>`, `<button class="btn btn--ghost" type="button" data-close>Cerrar</button>`);
+    const saveList = (l) => { save('crm:companies:excluded-domains', l); closeModal(); render(); act.click(); };
+    document.getElementById('exd-form').onsubmit = (ev) => { ev.preventDefault(); const d = ev.target.elements.d.value.trim().toLowerCase(); if (d && !list.includes(d)) list.push(d); saveList(list); toast('Dominio excluido'); };
+    document.getElementById('exd-list').addEventListener('click', (ev) => { const b = ev.target.closest('[data-exd-rm]'); if (!b) return; list.splice(Number(b.dataset.exdRm), 1); saveList(list); toast('Dominio quitado'); });
+  }
+  else if (a === 'new-propgroup') promptModal('Crear grupo de propiedades', [['name', 'Nombre del grupo']], 'Crear', (d) => { const list = propGroupsStore(state.propsObject); const name = d.name.trim(); if (name && !list.includes(name)) list.push(name); save(`crm:propgroups:${state.propsObject}`, list); toast(`Grupo "${name}" creado`); });
   else if (a === 'new-prop') { openModal('Crear propiedad', propertyForm(state.propsObject), `<button class="btn btn--primary" type="button" id="prop-save">Crear</button><button class="btn btn--ghost" type="button" data-close>Cancelar</button>`); document.getElementById('prop-save').onclick = () => saveProperty(state.propsObject); }
   else if (a === 'new-user') promptModal('Crear usuario', [['name', 'Nombre'], ['email', 'Correo', 'email'], ['team', 'Equipo', 'select', teams().map((t) => t.name)], ['role', 'Rol', 'select', ['Usuario', 'Administrador', 'Solo lectura']]], 'Enviar invitación', (d) => { const us = users(); us.push({ ...d, status: 'Invitado' }); save('crm:users', us); toast(`Invitación enviada a ${d.email}`); });
   else if (a === 'new-team') promptModal('Crear equipo', [['name', 'Nombre del equipo']], 'Crear', (d) => { const ts = teams(); ts.push({ name: d.name }); save('crm:teams', ts); toast('Equipo creado'); });
