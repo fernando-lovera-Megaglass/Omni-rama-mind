@@ -1,0 +1,77 @@
+import { boot } from './page.js';
+import { mountList, avatarName, ownerHtml } from './list.js';
+import { allCompanies, allContacts, allDeals, OWNERS, LIFECYCLES, formatDate, formatMoney, formatShortDate, TODAY } from './data.js';
+
+boot({ root: '../', active: 'crm', sub: 'Empresas', title: 'Empresas' });
+
+const days = (iso) => (TODAY - new Date(iso)) / 86400000;
+const contactCount = (id) => allContacts().filter((c) => Number(c.companyId) === Number(id)).length;
+const openDeals = (id) => allDeals().filter((d) => Number(d.companyId) === Number(id) && d.stage !== 'won' && d.stage !== 'lost').length;
+
+mountList({
+  type: 'companies',
+  title: 'Empresas',
+  singular: 'Empresa',
+  plural: 'empresas',
+  addLabel: 'Agregar empresas',
+  createLabel: 'Crear empresa',
+  board: {
+    key: 'lifecycle',
+    groups: LIFECYCLES.map((l) => [l, l]),
+    lines: (r) => [
+      ['Propietario de la empresa', r.owner],
+      ['Número de contactos asociados', String(contactCount(r.id))],
+      ['Negocios abiertos', String(openDeals(r.id))],
+      ['Último contacto', formatShortDate(r.lastActivity)],
+    ],
+    sub: (r) => (r.domain ? { name: r.domain, href: '#' } : null),
+  },
+  editors: {
+    owner: OWNERS.map((o) => [o, o]),
+    lifecycle: LIFECYCLES.map((l) => [l, l]),
+    industry: ['Construcción', 'Arquitectura', 'Reformas', 'Inmobiliaria', 'Decoración'].map((x) => [x, x]),
+  },
+  readOnly: ['contacts', 'deals'],
+  previewFields: ['domain', 'phone', 'owner', 'industry', 'city', 'state', 'country', 'employees', 'revenue', 'lifecycle'],
+  searchPlaceholder: 'Buscar nombre, dominio, teléfono...',
+  searchKeys: ['name', 'domain', 'phone', 'city', 'industry'],
+  rows: allCompanies,
+  views: [
+    { key: 'all', label: 'Todas las empresas' },
+    { key: 'mine', label: 'Mis empresas', filter: (r) => r.owner === 'Fernando L.' },
+    { key: 'customers', label: 'Clientes', filter: (r) => r.lifecycle === 'Cliente' },
+  ],
+  filters: [
+    { key: 'owner', label: 'Propietario de la empresa', options: OWNERS.map((o) => [o, o]), test: (r, v) => r.owner === v },
+    { key: 'created', label: 'Fecha de creación', options: [['90', 'Últimos 90 días'], ['365', 'Este año']], test: (r, v) => days(r.created) <= Number(v) },
+    { key: 'activity', label: 'Última actividad', options: [['7', 'Últimos 7 días'], ['30', 'Últimos 30 días']], test: (r, v) => days(r.lastActivity) <= Number(v) },
+    { key: 'industry', label: 'Sector', options: ['Construcción', 'Arquitectura', 'Reformas', 'Inmobiliaria', 'Decoración'].map((x) => [x, x]), test: (r, v) => r.industry === v },
+    { key: 'lifecycle', label: 'Etapa del ciclo de vida', options: LIFECYCLES.map((l) => [l, l]), test: (r, v) => r.lifecycle === v },
+  ],
+  columns: [
+    { key: 'name', label: 'Nombre de la empresa', render: (r) => avatarName(r.id, r.name, `./record/?id=${r.id}`) },
+    { key: 'domain', label: 'Dominio', render: (r) => (r.domain ? `<a href="#">${r.domain}</a>` : '<span class="muted">—</span>') },
+    { key: 'phone', label: 'Número de teléfono' },
+    { key: 'owner', label: 'Propietario de la empresa', render: (r) => ownerHtml(r.owner) },
+    { key: 'industry', label: 'Sector' },
+    { key: 'city', label: 'Ciudad' },
+    { key: 'contacts', label: 'Contactos', text: (r) => contactCount(r.id), sortValue: (r) => contactCount(r.id) },
+    { key: 'deals', label: 'Negocios abiertos', text: (r) => openDeals(r.id), sortValue: (r) => openDeals(r.id) },
+    { key: 'employees', label: 'Empleados', default: false },
+    { key: 'revenue', label: 'Ingresos anuales', default: false, text: (r) => formatMoney(r.revenue), sortValue: (r) => Number(r.revenue) || 0 },
+    { key: 'lifecycle', label: 'Etapa del ciclo de vida', default: false },
+    { key: 'lastActivity', label: 'Última actividad', default: false, text: (r) => formatDate(r.lastActivity), sortValue: (r) => new Date(r.lastActivity).getTime() },
+    { key: 'created', label: 'Fecha de creación', text: (r) => formatDate(r.created), sortValue: (r) => new Date(r.created).getTime() },
+  ],
+  createFields: [
+    { name: 'domain', label: 'Dominio', placeholder: 'empresa.es' },
+    { name: 'name', label: 'Nombre de la empresa', required: true },
+    { name: 'phone', label: 'Número de teléfono', type: 'tel' },
+    { name: 'industry', label: 'Sector', type: 'select', options: ['Construcción', 'Arquitectura', 'Reformas', 'Inmobiliaria', 'Decoración'].map((x) => [x, x]) },
+    { name: 'city', label: 'Ciudad' },
+    { name: 'employees', label: 'Empleados', type: 'number' },
+    { name: 'owner', label: 'Propietario de la empresa', type: 'select', options: OWNERS.map((o) => [o, o]) },
+    { name: 'lifecycle', label: 'Etapa del ciclo de vida', type: 'select', options: LIFECYCLES.map((l) => [l, l]) },
+  ],
+  normalize: (d) => ({ ...d, owner: d.owner || 'Sin asignar', lifecycle: d.lifecycle || 'Lead', lastActivity: TODAY.toISOString(), revenue: 0 }),
+});

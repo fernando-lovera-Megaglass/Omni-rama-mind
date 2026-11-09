@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="es-es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Inicio de sesión</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Lexend+Deca:wght@300;400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./src/style.css" />
+  </head>
+  <body>
+    <main class="page">
+      <a class="logo" href="#" aria-label="Página principal">
+        <img class="logo__img" src="./src/wordmark.svg" width="180" height="51" alt="Página principal" />
+      </a>
+
+      <section class="login">
+        <p class="login__title">Iniciar sesión</p>
+        <p class="login__alt">o <a href="#">crear una cuenta</a></p>
+
+        <div class="alert" role="alert">
+          <p class="alert__title">La autenticación caducó</p>
+          <p class="alert__body">Inicia sesión de nuevo para continuar.</p>
+        </div>
+
+        <form class="form" id="login-form" method="get" action="" novalidate>
+          <label class="form__label" for="username">Correo</label>
+          <input
+            class="form__input"
+            id="username"
+            type="email"
+            placeholder="Introduce tu correo"
+            autocomplete="email"
+          />
+          <button class="form__submit" id="submit" type="submit">Continuar</button>
+        </form>
+      </section>
+
+      <div class="demo">
+        <p class="demo__text">Descubre cómo esta app puede ayudarte a alcanzar tus metas de crecimiento.</p>
+        <a class="demo__btn" href="#">Solicitar demostración</a>
+      </div>
+    </main>
+
+    <footer class="footer">
+      <span class="footer__copy">©2026 Empresa, Inc. Todos los derechos reservados.</span>
+      <span class="footer__links"><a class="footer__link" href="#">Política de privacidad</a><a class="footer__link" href="#" role="button" id="footer-cookies">Administrar las cookies</a></span>
+    </footer>
+
+    <div class="cookie" id="cookie-banner" role="dialog" aria-label="Aviso de cookies">
+      <button class="cookie__close" id="cookie-close" type="button">
+        <span aria-hidden="true">×</span><span class="sr-only">Cerrar</span>
+      </button>
+      <div class="cookie__inner">
+        <p class="cookie__text">
+          Usamos cookies para mejorar este sitio web. Algunas son esenciales para mantener el buen
+          funcionamiento del sitio y de nuestros servicios. Otras son opcionales y permiten
+          personalizar tu experiencia y los anuncios, además de generar estadísticas. Puedes aceptar
+          todas las cookies, rechazar todas las opcionales o permitir solo las que prefieras en cada
+          categoría. Si no escoges nada, aplicaremos nuestra configuración de cookies predeterminada. Podrás cambiar
+          tus preferencias en cualquier momento. Si quieres saber más, consulta nuestra
+          <a class="cookie__link" href="#">Política de cookies</a>.
+        </p>
+        <div class="cookie__actions">
+          <button class="cookie__btn" id="cookie-accept" type="button">Aceptar Todas</button>
+          <button class="cookie__btn" id="cookie-decline" type="button">Rechazar Todas</button>
+          <button class="cookie__btn cookie__btn--ghost" id="cookie-settings" type="button">
+            Administrar Las Cookies
+            <svg class="cookie__ext" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+              <path
+                d="M2.5 3.5h5v1.5h-3.5v7h7v-3.5h1.5v5h-10zM9.5 1.5h5v5h-1.5V4.1l-5.2 5.2-1.1-1.1 5.2-5.2H9.5z"
+                fill="currentColor"
+              />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>

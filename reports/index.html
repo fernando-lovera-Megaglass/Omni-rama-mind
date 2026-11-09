@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="es-es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Paneles</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Lexend+Deca:wght@300;400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../src/app.css" />
+  </head>
+  <body class="app">
+    <aside class="sidenav" id="sidenav"></aside>
+
+    <div class="shell">
+      <header class="topbar" id="topbar"></header>
+
+      <main class="content">
+        <div class="page-head">
+          <div class="page-head__title">
+            <div class="menu">
+              <button class="dash-title" type="button" aria-haspopup="true" aria-expanded="false">
+                <h1 id="dash-name">Panel de ventas</h1> <span class="caret"></span>
+              </button>
+              <div class="menu__panel" id="dash-menu">
+                <button class="menu__item" type="button" data-dash="ventas">Panel de ventas</button>
+                <button class="menu__item" type="button" data-dash="marketing">Panel de marketing</button>
+                <button class="menu__item" type="button" data-dash="servicio">Panel de servicio</button>
+              </div>
+            </div>
+            <p class="muted" id="dash-sub">Compartido con todos · Actualizado hace 5 minutos</p>
+          </div>
+          <div class="page-head__actions">
+            <div class="menu">
+              <button class="btn btn--ghost" type="button" aria-haspopup="true" aria-expanded="false" id="range-btn">Últimos 30 días <span class="caret"></span></button>
+              <div class="menu__panel" id="range-menu">
+                <button class="menu__item" type="button" data-range="7">Últimos 7 días</button>
+                <button class="menu__item" type="button" data-range="30">Últimos 30 días</button>
+                <button class="menu__item" type="button" data-range="90">Últimos 90 días</button>
+                <button class="menu__item" type="button" data-range="365">Este año</button>
+              </div>
+            </div>
+            <div class="menu">
+              <button class="btn btn--ghost" type="button" aria-haspopup="true" aria-expanded="false">Acciones <span class="caret"></span></button>
+              <div class="menu__panel">
+                <button class="menu__item" type="button" data-action="share">Compartir</button>
+                <button class="menu__item" type="button" data-action="clone">Clonar panel</button>
+                <button class="menu__item" type="button" data-action="export">Exportar</button>
+              </div>
+            </div>
+            <button class="btn btn--primary" type="button" data-action="add-report">Añadir informe</button>
+          </div>
+        </div>
+
+        <div class="kpis" id="kpis"></div>
+
+        <div class="grid" id="grid"></div>
+      </main>
+    </div>
+
+    <div class="scrim" id="scrim"></div>
+    <script type="module" src="../src/reports.js"></script>
+  </body>
+</html>

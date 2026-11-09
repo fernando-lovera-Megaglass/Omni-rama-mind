@@ -1,0 +1,30 @@
+import { defineConfig } from 'vite';
+import { resolve } from 'node:path';
+
+const pages = {
+  main: 'index.html',
+  reports: 'reports/index.html',
+  contacts: 'contacts/index.html',
+  'contacts-record': 'contacts/record/index.html',
+  companies: 'companies/index.html',
+  'companies-record': 'companies/record/index.html',
+  deals: 'deals/index.html',
+  'deals-record': 'deals/record/index.html',
+  tickets: 'tickets/index.html',
+  'tickets-record': 'tickets/record/index.html',
+  tasks: 'tasks/index.html',
+  'tasks-record': 'tasks/record/index.html',
+  layout: 'layout/index.html',
+  settings: 'settings/index.html',
+};
+
+export default defineConfig({
+  base: './',
+  build: {
+    outDir: 'dist',
+    emptyOutDir: true,
+    rollupOptions: {
+      input: Object.fromEntries(Object.entries(pages).map(([k, p]) => [k, resolve(__dirname, p)])),
+    },
+  },
+});

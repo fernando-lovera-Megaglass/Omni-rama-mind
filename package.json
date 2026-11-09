@@ -1,0 +1,13 @@
+{
+  "name": "login-page-rebuild",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "vite build"
+  },
+  "devDependencies": {
+    "jsdom": "^31.0.0",
+    "vite": "^5.4.0"
+  }
+}
