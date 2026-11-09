@@ -6639,6 +6639,123 @@ textarea.cellpop__input {
   font-size: var(--fs-sm);
 }
 
+/* "Asignar usuarios y equipos" drawer */
+.acc__intro {
+  margin: 0 0 var(--sp-20);
+  font-size: var(--fs-sm);
+  line-height: 1.5;
+}
+
+.acc__more {
+  font-weight: 600;
+}
+
+.acc__modes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-12);
+  margin-bottom: var(--sp-20);
+}
+
+.acc__radio {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-10);
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.acc__radio input {
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  flex: none;
+  accent-color: var(--c-link);
+}
+
+.acc__search {
+  position: relative;
+}
+
+.acc__search input {
+  width: 100%;
+  height: 44px;
+  padding: 0 40px 0 var(--sp-16);
+  border: 1px solid #99acc2;
+  border-radius: var(--r-sm);
+  font-family: inherit;
+  font-size: var(--fs-sm);
+}
+
+.acc__search .caret {
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.acc__tabs {
+  display: flex;
+  gap: var(--sp-24);
+  border-bottom: 1px solid var(--c-border);
+  margin: var(--sp-12) 0 var(--sp-16);
+}
+
+.acc__tabs button {
+  padding: var(--sp-8) var(--sp-24);
+  margin-bottom: -1px;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  background: transparent;
+  color: var(--c-text);
+  font-family: inherit;
+  font-size: var(--fs-sm);
+  cursor: pointer;
+}
+
+.acc__tabs button.is-active {
+  border-bottom-color: var(--c-nav);
+  font-weight: 600;
+}
+
+.acc__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 50vh;
+  overflow-y: auto;
+}
+
+.acc__list li {
+  padding: var(--sp-8) 0;
+}
+
+.acc__list label {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-10);
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.acc__list input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  flex: none;
+  accent-color: var(--c-link);
+}
+
+.acc__ico {
+  font-size: 14px;
+  opacity: 0.7;
+}
+
+#s-modal .btn[disabled] {
+  opacity: 0.5;
+  cursor: default;
+}
+
 /* Deal pipelines tab */
 .ptabs {
   display: flex;

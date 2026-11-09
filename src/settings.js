@@ -370,7 +370,7 @@ function dealPipelinesHtml() {
         <div class="menu"><button class="btn btn--primary" type="button" aria-haspopup="true" aria-expanded="false">Crear pipeline <span class="caret"></span></button><div class="menu__panel menu__panel--right"><button class="menu__item" type="button" data-act="new-pipeline">Crear pipeline desde cero</button><button class="menu__item" type="button" data-act="clone-pipeline">Clonar un pipeline existente</button></div></div></div>
     </div>
     <table class="mini-table stable ptable"><thead><tr><th></th><th>Pipeline <span class="muted">⇅</span></th><th>Descripción del pipeline</th><th class="num">Propiedades calculadas de etapa <span class="info">ⓘ</span></th><th class="num">Etiquetas de negocios</th><th class="num">Reglas del pipeline <span class="info">ⓘ</span></th><th class="num">Número de etapas</th><th class="num">Negocios</th><th class="num">ID interno</th><th class="num">Acciones</th></tr></thead><tbody data-dnd="pipes">
-      ${rows.length ? rows.map(({ p, i }) => { const acc = p.access || { mode: 'all' }; return `<tr data-row="${i}"><td class="phandle" title="Arrastra para cambiar el orden" aria-hidden="true">⋮⋮</td><td><button class="olink" type="button" data-pipe-edit="${i}">${esc(p.name)}</button>${i === 0 ? ' <span class="tag tag--new">Predeterminado</span>' : ''}${acc.mode === 'teams' ? ` <span class="tag tag--none" title="Acceso restringido a ${esc([...(acc.teams || []), ...(acc.users || [])].join(', '))}">🔒 ${(acc.teams || []).length + (acc.users || []).length}</span>` : ''}</td><td class="pdesccell"><span class="muted">${p.desc ? esc(p.desc) : '--'}</span><button class="icon-btn icon-btn--round icon-btn--sm rowact" type="button" data-pipe-desc="${i}" aria-label="Editar descripción">✎</button></td><td class="num">${p.stages.length * 4}</td><td class="num">${labelsOf(p).length}</td><td class="num">${rulesCount(p)}</td><td class="num">${p.stages.length}</td><td class="num">${inPipe(p)}</td><td class="num muted pidcell">${p.id}<button class="icon-btn icon-btn--sm rowact" type="button" data-copy="${p.id}" aria-label="Copiar ID">⧉</button></td><td class="num"><div class="menu"><button class="icon-btn icon-btn--sm" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Acciones del pipeline">⋮</button><div class="menu__panel menu__panel--right"><button class="menu__item" type="button" data-pipe-access="${i}">Gestionar acceso</button><button class="menu__item" type="button" data-pipe-clone="${i}">Clonar</button><button class="menu__item menu__item--danger" type="button" data-pipe-rm="${i}" ${defs.length < 2 ? 'disabled' : ''}>Eliminar</button></div></div></td></tr>`; }).join('') : '<tr><td colspan="10" class="muted">No hay pipelines que coincidan con la búsqueda.</td></tr>'}
+      ${rows.length ? rows.map(({ p, i }) => { const acc = p.access || { mode: 'all' }; return `<tr data-row="${i}"><td class="phandle" title="Arrastra para cambiar el orden" aria-hidden="true">⋮⋮</td><td><button class="olink" type="button" data-pipe-edit="${i}">${esc(p.name)}</button>${i === 0 ? ' <span class="tag tag--new">Predeterminado</span>' : ''}${acc.mode === 'private' ? ' <span class="tag tag--none" title="Privado para ti">🔒 Privado</span>' : acc.mode === 'teams' || acc.mode === 'select' ? ` <span class="tag tag--none" title="Acceso restringido a ${esc([...(acc.teams || []), ...(acc.users || [])].join(', '))}">🔒 ${(acc.teams || []).length + (acc.users || []).length}</span>` : ''}</td><td class="pdesccell"><span class="muted">${p.desc ? esc(p.desc) : '--'}</span><button class="icon-btn icon-btn--round icon-btn--sm rowact" type="button" data-pipe-desc="${i}" aria-label="Editar descripción">✎</button></td><td class="num">${p.stages.length * 4}</td><td class="num">${labelsOf(p).length}</td><td class="num">${rulesCount(p)}</td><td class="num">${p.stages.length}</td><td class="num">${inPipe(p)}</td><td class="num muted pidcell">${p.id}<button class="icon-btn icon-btn--sm rowact" type="button" data-copy="${p.id}" aria-label="Copiar ID">⧉</button></td><td class="num"><div class="menu"><button class="icon-btn icon-btn--sm" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Acciones del pipeline">⋮</button><div class="menu__panel menu__panel--right"><button class="menu__item" type="button" data-pipe-access="${i}">Gestionar acceso</button><button class="menu__item" type="button" data-pipe-clone="${i}">Clonar</button><button class="menu__item menu__item--danger" type="button" data-pipe-rm="${i}" ${defs.length < 2 ? 'disabled' : ''}>Eliminar</button></div></div></td></tr>`; }).join('') : '<tr><td colspan="10" class="muted">No hay pipelines que coincidan con la búsqueda.</td></tr>'}
     </tbody></table>`;
 }
 // Rules a pipeline can enforce on its deals (checked by the deals board when a card is dragged).
@@ -504,6 +504,57 @@ function collectPipeline(p) {
     if (d) s[3] = d.value.trim();
   });
   return p;
+}
+// "Asignar usuarios y equipos" drawer for one pipeline (private / everyone / selected teams & users).
+function openAccessDrawer(i) {
+  const defs = dealPipelineDefs();
+  const p = defs[i];
+  const saved = { mode: 'all', teams: [], users: [], ...(p.access || {}) };
+  if (saved.mode === 'teams') saved.mode = 'select';
+  const draft = { mode: saved.mode, teams: [...saved.teams], users: [...saved.users] };
+  let tab = 'teams';
+  let q = '';
+  const dirty = () => JSON.stringify(draft) !== JSON.stringify({ mode: saved.mode, teams: saved.teams, users: saved.users });
+  const body = () => {
+    const list = tab === 'teams' ? teams().map((t) => t.name) : users().map((u) => u.name);
+    const sel = tab === 'teams' ? draft.teams : draft.users;
+    const items = list.filter((n) => !q || n.toLowerCase().includes(q.toLowerCase()));
+    return `<div class="acc">
+      <p class="acc__intro">Esto solo restringe el acceso de los usuarios al pipeline, no a los registros de este.<br /><a href="#" class="acc__more" onclick="return false">Más información ↗</a></p>
+      <div class="acc__modes">
+        ${[['private', 'Privado para mí'], ['all', 'Disponible para todos'], ['select', 'Selecciona usuarios y equipos que pueden editar']].map(([v, l]) => `<label class="acc__radio"><input type="radio" name="acc-mode" value="${v}" ${draft.mode === v ? 'checked' : ''} /><span>${l}</span></label>`).join('')}
+      </div>
+      ${draft.mode === 'select' ? `
+      <div class="acc__pick">
+        <div class="acc__search"><input type="search" id="acc-q" placeholder="Buscar" value="${esc(q)}" aria-label="Buscar usuarios y equipos" /><span class="caret" aria-hidden="true"></span></div>
+        <div class="acc__tabs"><button type="button" class="${tab === 'teams' ? 'is-active' : ''}" data-acc-tab="teams">Equipos${draft.teams.length ? ` (${draft.teams.length})` : ''}</button><button type="button" class="${tab === 'users' ? 'is-active' : ''}" data-acc-tab="users">Usuarios${draft.users.length ? ` (${draft.users.length})` : ''}</button></div>
+        <ul class="acc__list">${items.length ? items.map((n) => `<li><label><input type="checkbox" data-acc-item="${esc(n)}" ${sel.includes(n) ? 'checked' : ''} /><span class="acc__ico" aria-hidden="true">${tab === 'teams' ? '👥' : '👤'}</span><span>${esc(n)}</span></label></li>`).join('') : '<li class="muted">Sin resultados</li>'}</ul>
+      </div>` : ''}
+    </div>`;
+  };
+  const paint = () => {
+    document.getElementById('s-modal-body').innerHTML = body();
+    const saveBtn = document.getElementById('acc-save');
+    saveBtn.disabled = !dirty() || (draft.mode === 'select' && !draft.teams.length && !draft.users.length);
+    const qInput = document.getElementById('acc-q');
+    if (qInput && q) { qInput.focus(); qInput.setSelectionRange(q.length, q.length); }
+  };
+  openModal('Asignar usuarios y equipos', '', `<button class="btn btn--primary" type="button" id="acc-save">Guardar</button><button class="btn btn--ghost" type="button" data-close>Cancelar</button>`);
+  const modalBody = document.getElementById('s-modal-body');
+  modalBody.addEventListener('change', (ev) => {
+    const t = ev.target;
+    if (t.name === 'acc-mode') { draft.mode = t.value; paint(); }
+    else if (t.dataset.accItem !== undefined) { const arr = tab === 'teams' ? draft.teams : draft.users; const n = t.dataset.accItem; if (t.checked) { if (!arr.includes(n)) arr.push(n); } else arr.splice(arr.indexOf(n), 1); paint(); }
+  });
+  modalBody.addEventListener('input', (ev) => { if (ev.target.id === 'acc-q') { q = ev.target.value; paint(); } });
+  modalBody.addEventListener('click', (ev) => { const b = ev.target.closest('[data-acc-tab]'); if (b) { tab = b.dataset.accTab; q = ''; paint(); } });
+  document.getElementById('acc-save').onclick = () => {
+    p.access = draft.mode === 'all' ? { mode: 'all' } : draft.mode === 'private' ? { mode: 'private', teams: [], users: ['Fernando L.'] } : { mode: 'select', teams: draft.teams, users: draft.users };
+    persistPipelines(defs, draft.mode === 'all' ? 'Pipeline disponible para todos' : draft.mode === 'private' ? 'Pipeline privado para ti' : 'Acceso al pipeline guardado');
+    closeModal();
+    render();
+  };
+  paint();
 }
 function persistPipelines(defs, msg) {
   saveDealPipelineDefs(defs);
@@ -956,21 +1007,7 @@ root.addEventListener('click', (e) => {
   const pacc = e.target.closest('[data-pipe-access]');
   if (pacc) {
     closeMenus();
-    const defs = dealPipelineDefs(); const i = Number(pacc.dataset.pipeAccess); const p = defs[i]; const acc = { mode: 'all', teams: [], users: [], ...(p.access || {}) };
-    openModal(`Gestionar acceso: ${esc(p.name)}`, `<p class="muted">Decide quién puede ver y usar este pipeline en la lista y el tablero de negocios.</p><form id="acc-form">
-        <label class="oradio"><input type="radio" name="mode" value="all" ${acc.mode === 'all' ? 'checked' : ''} /><span>Todos los usuarios</span></label>
-        <label class="oradio"><input type="radio" name="mode" value="teams" ${acc.mode === 'teams' ? 'checked' : ''} /><span>Equipos y usuarios específicos</span></label>
-        <div class="oindent ${acc.mode === 'teams' ? '' : 'is-disabled'}" id="acc-pick"><strong>Equipos</strong><div class="ocardgrid ocardgrid--modal">${teams().map((t) => `<label class="ocheck ocheck--sm"><input type="checkbox" name="team" value="${esc(t.name)}" ${acc.teams.includes(t.name) ? 'checked' : ''} /><span>${esc(t.name)}</span></label>`).join('')}</div><strong>Usuarios</strong><div class="ocardgrid ocardgrid--modal">${users().map((u) => `<label class="ocheck ocheck--sm"><input type="checkbox" name="user" value="${esc(u.name)}" ${acc.users.includes(u.name) ? 'checked' : ''} /><span>${esc(u.name)}</span></label>`).join('')}</div></div>
-      </form>`, `<button class="btn btn--primary" type="button" id="acc-save">Guardar</button><button class="btn btn--ghost" type="button" data-close>Cancelar</button>`);
-    const form = document.getElementById('acc-form');
-    form.addEventListener('change', (ev) => { if (ev.target.name === 'mode') document.getElementById('acc-pick').classList.toggle('is-disabled', ev.target.value !== 'teams'); });
-    document.getElementById('acc-save').onclick = () => {
-      const mode = form.querySelector('[name="mode"]:checked').value;
-      const pick = (n) => [...form.querySelectorAll(`[name="${n}"]:checked`)].map((x) => x.value);
-      p.access = mode === 'all' ? { mode: 'all' } : { mode: 'teams', teams: pick('team'), users: pick('user') };
-      if (mode === 'teams' && !p.access.teams.length && !p.access.users.length) { toast('Elige al menos un equipo o usuario'); return; }
-      persistPipelines(defs, mode === 'all' ? 'Acceso abierto a todos los usuarios' : 'Acceso guardado'); closeModal(); render();
-    };
+    openAccessDrawer(Number(pacc.dataset.pipeAccess));
     return;
   }
   const pclone = e.target.closest('[data-pipe-clone]');

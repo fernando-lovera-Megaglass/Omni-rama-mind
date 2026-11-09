@@ -85,5 +85,5 @@ export function saveLayout(type, layout) {
   localStorage.setItem(LAYOUT_KEY(type), JSON.stringify(layout));
 }
 
-export const TEAMS = ['Ventas Norte', 'Ventas Sur', 'Soporte', 'Marketing', 'Dirección'];
+export const TEAMS = ['Acristala', 'Gerentes', 'JFC cargo destino', 'Mercadotecnia', 'Proyectos', 'SACA', 'Sistemas', 'Ventas en el Extranjero'];
 export { TYPE_META };
