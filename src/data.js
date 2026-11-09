@@ -1,6 +1,9 @@
 // Sample data for the app (placeholder people and companies, not real records).
-// Edits, additions and deletions are kept in localStorage so the demo remembers them.
+// When VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are set, records live in
+// Supabase and all edits go to the database. Without them, edits, additions
+// and deletions are kept in localStorage so the demo remembers them.
 import { propertyList } from './properties.js';
+import { supabase, DB_MODE } from './supabaseClient.js';
 
 const FIRST = ['Ana', 'Luis', 'Marta', 'Pedro', 'Lucía', 'Javier', 'Carmen', 'Diego', 'Elena', 'Raúl', 'Sara', 'Hugo', 'Paula', 'Álvaro', 'Nuria', 'Iván', 'Laura', 'Sergio', 'Irene', 'Mario', 'Clara', 'Andrés', 'Beatriz', 'Tomás', 'Rocío', 'Daniel', 'Eva', 'Jorge', 'Alicia', 'Pablo', 'Silvia', 'Rubén', 'María José', 'Juan Carlos', 'Guadalupe', 'Ximena', 'Rodrigo', 'Valentina', 'Mateo', 'Camila', 'Santiago', 'Renata', 'Emilio', 'Fernanda', 'Joaquín', 'Patricia', 'Óscar', 'Verónica', 'Ignacio', 'Lorena'];
 const LAST = ['Torres', 'Martín', 'Gómez', 'Ruiz', 'Fernández', 'López', 'Díaz', 'Sánchez', 'Navarro', 'Moreno', 'Jiménez', 'Romero', 'Ortega', 'Castro', 'Serrano', 'Molina', 'Garrido', 'Pascual', 'Blanco', 'Herrera', 'Vidal', 'Peña', 'Cano', 'Ibáñez', 'Reyes', 'Prieto', 'Campos', 'Vargas', 'Lozano', 'Méndez', 'Gil', 'Santos', 'Zurita Rico', 'Cubas Vicencio', 'Hernández Zuviri', 'Zúñiga Verde', 'Garduño', 'De la Fuente', 'Ochoa', 'Salazar', 'Quintero', 'Villanueva', 'Esparza', 'Beltrán'];
@@ -201,13 +204,73 @@ function write(key, value) {
 }
 const K = (type, what) => `crm:${type}:${what}`;
 
+// ---------- Supabase mapping ----------
+// JS records use camelCase; the database uses snake_case columns.
+const CAMEL_TO_DB = {
+  contacts: { companyId: 'company_id', lastActivity: 'last_activity', lastActivityType: 'last_activity_type', jobTitle: 'job_title' },
+  companies: { lastActivity: 'last_activity', lastActivityType: 'last_activity_type' },
+  deals: { closeDate: 'close_date', companyId: 'company_id', contactId: 'contact_id', lastActivity: 'last_activity' },
+  tickets: { contactId: 'contact_id', lastActivity: 'last_activity' },
+  tasks: { contactId: 'contact_id', lastActivity: 'last_activity' },
+};
+const DB_TO_CAMEL = Object.fromEntries(
+  Object.entries(CAMEL_TO_DB).map(([t, m]) => [t, Object.fromEntries(Object.entries(m).map(([a, b]) => [b, a]))])
+);
+const TABLE_COLS = {
+  contacts: ['id', 'first', 'last', 'name', 'email', 'phone', 'mobilephone', 'owner', 'company_id', 'company', 'status', 'created', 'last_activity', 'last_activity_type', 'lifecycle', 'city', 'country', 'source', 'job_title', 'customer_type'],
+  companies: ['id', 'name', 'domain', 'phone', 'owner', 'industry', 'city', 'country', 'employees', 'revenue', 'lifecycle', 'created', 'last_activity', 'last_activity_type'],
+  deals: ['id', 'name', 'amount', 'stage', 'pipeline', 'close_date', 'owner', 'company_id', 'company', 'contact_id', 'created', 'last_activity', 'priority', 'type'],
+  tickets: ['id', 'name', 'status', 'priority', 'pipeline', 'owner', 'contact_id', 'source', 'created', 'last_activity', 'description'],
+  tasks: ['id', 'name', 'type', 'status', 'priority', 'owner', 'contact_id', 'contact', 'due', 'created', 'last_activity'],
+};
+// Catalog properties (sample decoration) and real columns never go to `extra`;
+// anything else (associations, custom fields) is stored in the extra jsonb column.
+// Numeric/date columns reject empty strings in Postgres; store null instead.
+const EMPTY_AS_NULL = new Set(['company_id', 'contact_id', 'employees', 'revenue', 'amount', 'created', 'last_activity', 'close_date', 'due']);
+function toDb(type, rec) {
+  const props = PROP_CACHE[type] || propertyList(type);
+  const propKeys = new Set(props.map((p) => p.key));
+  const out = {};
+  const extra = { ...(rec.extra || {}) };
+  for (const [k, v] of Object.entries(rec)) {
+    if (v === undefined || k === 'extra') continue;
+    const col = (CAMEL_TO_DB[type] && CAMEL_TO_DB[type][k]) || k;
+    if (TABLE_COLS[type].includes(col)) out[col] = v === '' && EMPTY_AS_NULL.has(col) ? null : v;
+    else if (!propKeys.has(k)) extra[k] = v;
+  }
+  out.extra = extra;
+  return out;
+}
+function fromDb(type, row) {
+  const out = {};
+  for (const [k, v] of Object.entries(row)) {
+    if (k === 'extra') continue;
+    out[(DB_TO_CAMEL[type] && DB_TO_CAMEL[type][k]) || k] = v;
+  }
+  return { ...out, ...(row.extra || {}) };
+}
+// Writes are applied to the in-memory cache immediately (the UI stays
+// synchronous) and then sent to Supabase in order, in the background.
+let writeQueue = Promise.resolve();
+function dbWrite(fn) {
+  writeQueue = writeQueue.then(fn).catch((e) => console.error('[supabase]', e));
+}
+const dbRows = {};
+const nextId = {};
+// Starts optimistic; initFromSupabase() flips it to false if the database
+// cannot be reached, in which case everything falls back to localStorage.
+let dbLive = DB_MODE;
+
 export function getExtra(type) {
+  if (dbLive) return [];
   return read(K(type, 'extra'), []);
 }
 export function getOverrides(type) {
+  if (dbLive) return {};
   return read(K(type, 'overrides'), {});
 }
 export function getDeleted(type) {
+  if (dbLive) return new Set();
   return new Set(read(K(type, 'deleted'), []));
 }
 export function getPrefs(type) {
@@ -225,22 +288,86 @@ export function setViewStore(type, store) {
 }
 
 export function setField(type, id, field, value) {
+  if (dbLive) {
+    const rec = (dbRows[type] || []).find((r) => Number(r.id) === Number(id));
+    if (rec) rec[field] = value;
+    bump();
+    const col = (CAMEL_TO_DB[type] && CAMEL_TO_DB[type][field]) || field;
+    dbWrite(async () => {
+      if (TABLE_COLS[type].includes(col)) {
+        const { error } = await supabase.from(type).update({ [col]: value }).eq('id', id);
+        if (error) console.error('[supabase] update', type, error);
+      } else {
+        const { data: row, error: readErr } = await supabase.from(type).select('extra').eq('id', id).single();
+        if (readErr) { console.error('[supabase] read extra', type, readErr); return; }
+        const extra = { ...(row?.extra || {}), [field]: value };
+        const { error } = await supabase.from(type).update({ extra }).eq('id', id);
+        if (error) console.error('[supabase] update extra', type, error);
+      }
+    });
+    return;
+  }
   const o = getOverrides(type);
   o[id] = { ...(o[id] || {}), [field]: value };
   write(K(type, 'overrides'), o);
 }
 
 export function deleteRecords(type, ids) {
+  if (dbLive) {
+    const rows = dbRows[type] || [];
+    const doomed = new Set(ids.map(Number));
+    for (let i = rows.length - 1; i >= 0; i -= 1) {
+      if (doomed.has(Number(rows[i].id))) rows.splice(i, 1);
+    }
+    bump();
+    dbWrite(async () => {
+      const { error } = await supabase.from(type).delete().in('id', [...doomed]);
+      if (error) console.error('[supabase] delete', type, error);
+    });
+    return;
+  }
   const d = getDeleted(type);
   ids.forEach((id) => d.add(Number(id)));
   write(K(type, 'deleted'), [...d]);
 }
 
 export function restoreAll(type) {
+  if (dbLive) {
+    // In database mode deletes are real, so "restore" re-inserts the sample
+    // records whose ids are missing.
+    const rows = dbRows[type] || [];
+    const have = new Set(rows.map((r) => Number(r.id)));
+    const missing = [];
+    for (let i = 0; i < COUNTS[type]; i += 1) {
+      if (!have.has(i + 1)) missing.push(BUILDERS[type](i));
+    }
+    if (!missing.length) return;
+    missing.forEach((r) => rows.push(augment(type, { ...r })));
+    rows.sort((a, b) => Number(a.id) - Number(b.id));
+    bump();
+    dbWrite(async () => {
+      const payload = missing.map((r) => toDb(type, r));
+      const { error } = await supabase.from(type).insert(payload);
+      if (error) console.error('[supabase] restore', type, error);
+    });
+    return;
+  }
   write(K(type, 'deleted'), []);
 }
 
 export function addRecord(type, fields) {
+  if (dbLive) {
+    const id = nextId[type];
+    nextId[type] += 1;
+    const rec = { id, created: TODAY.toISOString(), ...fields };
+    (dbRows[type] = dbRows[type] || []).unshift(augment(type, { ...rec }));
+    bump();
+    dbWrite(async () => {
+      const { error } = await supabase.from(type).insert(toDb(type, rec));
+      if (error) console.error('[supabase] insert', type, error);
+    });
+    return rec;
+  }
   const extra = getExtra(type);
   const rec = { id: 1000 + extra.length + 1, created: TODAY.toISOString(), ...fields };
   extra.unshift(rec);
@@ -471,7 +598,11 @@ const baseCache = {};
 let version = 0;
 const bump = () => { version += 1; };
 function baseRecords(type) {
-  if (!baseCache[type]) baseCache[type] = Array.from({ length: COUNTS[type] }, (_, i) => augment(type, BUILDERS[type](i)));
+  if (!baseCache[type]) {
+    baseCache[type] = dbLive
+      ? dbRows[type] || []
+      : Array.from({ length: COUNTS[type] }, (_, i) => augment(type, BUILDERS[type](i)));
+  }
   return baseCache[type];
 }
 const mergedCache = {};
@@ -533,4 +664,59 @@ export function download(name, text) {
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+// ---------- Supabase bootstrap ----------
+async function fetchTable(type) {
+  const all = [];
+  const PAGE = 1000;
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await supabase
+      .from(type)
+      .select('*')
+      .order('id')
+      .range(from, from + PAGE - 1);
+    if (error) throw error;
+    all.push(...data);
+    if (data.length < PAGE) break;
+  }
+  return all.map((r) => augment(type, fromDb(type, r)));
+}
+
+async function seedAll() {
+  // First run with an empty database: load the sample dataset so the CRM
+  // looks exactly like the demo, but now persisted in Supabase.
+  for (const type of ['companies', 'contacts', 'deals', 'tickets', 'tasks']) {
+    const rows = Array.from({ length: COUNTS[type] }, (_, i) => toDb(type, BUILDERS[type](i)));
+    for (let j = 0; j < rows.length; j += 200) {
+      const { error } = await supabase.from(type).insert(rows.slice(j, j + 200));
+      if (error) console.error('[supabase] seed', type, error);
+    }
+  }
+}
+
+async function initFromSupabase() {
+  try {
+    for (const type of Object.keys(BUILDERS)) {
+      dbRows[type] = await fetchTable(type);
+    }
+    if (!dbRows.contacts.length && !dbRows.companies.length) {
+      await seedAll();
+      for (const type of Object.keys(BUILDERS)) {
+        dbRows[type] = await fetchTable(type);
+      }
+    }
+    for (const type of Object.keys(BUILDERS)) {
+      nextId[type] = dbRows[type].reduce((m, r) => Math.max(m, Number(r.id) || 0), 0) + 1;
+    }
+  } catch (e) {
+    console.error('[supabase] no se pudieron cargar los datos; se usa el modo demo con localStorage.', e);
+    dbLive = false;
+  }
+}
+
+// Top-level await: every page imports data.js before rendering, so awaiting
+// here guarantees the records are ready before the UI is painted.
+if (dbLive) {
+  await initFromSupabase();
 }

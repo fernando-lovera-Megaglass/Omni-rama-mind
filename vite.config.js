@@ -23,6 +23,8 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     emptyOutDir: true,
+    // es2022: data.js uses top-level await to load Supabase before first render.
+    target: 'es2022',
     rollupOptions: {
       input: Object.fromEntries(Object.entries(pages).map(([k, p]) => [k, resolve(__dirname, p)])),
     },
