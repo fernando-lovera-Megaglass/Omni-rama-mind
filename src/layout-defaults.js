@@ -83,6 +83,8 @@ export function loadLayout(type) {
 
 export function saveLayout(type, layout) {
   localStorage.setItem(LAYOUT_KEY(type), JSON.stringify(layout));
+  // Shown as "Última actualización" of the default view in Configuración › Objetos.
+  localStorage.setItem(`crm:${type}:layout-updated`, JSON.stringify(new Date().toISOString()));
 }
 
 export const TEAMS = ['Acristala', 'Gerentes', 'JFC cargo destino', 'Mercadotecnia', 'Proyectos', 'SACA', 'Sistemas', 'Ventas en el Extranjero'];

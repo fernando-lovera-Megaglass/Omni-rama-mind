@@ -625,19 +625,44 @@ function lifecycleHtml(type) {
     ${objCheck(type, 'lifecycleOnDeal', 'Pasar a Oportunidad al crear un negocio', `Cuando se crea un negocio asociado, ${m.p.toLowerCase()} en etapas anteriores pasan a "Oportunidad".`, s.lifecycleOnDeal !== false)}
     ${objCheck(type, 'lifecycleOnWon', 'Pasar a Cliente al ganar un negocio', `Cuando se gana un negocio asociado, ${m.p.toLowerCase()} pasan a "Cliente".`, s.lifecycleOnWon !== false)}`;
 }
+// Record views ("Personalización de registros"): the default view plus team views.
+Object.assign(state, { rvQuery: '', rvSort: { key: 'name', dir: 1 }, rvSel: new Set() });
+const RV_DEFAULT_UPDATED = new Date(2026, 2, 23, 11, 23).toISOString();
+const RV_SEEDS = {
+  deals: [{ name: 'Ventas Extranjero', teams: ['Ventas en el Extranjero'], updated: new Date(2026, 6, 10, 11, 13).toISOString(), by: 'Fernando Lovera Colin' }, { name: 'Vista de Acristala', teams: ['Acristala'], updated: new Date(2026, 6, 10, 11, 13).toISOString(), by: 'Fernando Lovera Colin' }, { name: 'Proyectos+ 100', teams: ['Proyectos'], updated: RV_DEFAULT_UPDATED, by: '' }],
+  contacts: [{ name: 'Vista de ventas', teams: ['Ventas en el Extranjero', 'SACA'], updated: new Date(2026, 4, 2, 9, 40).toISOString(), by: 'Fernando Lovera Colin' }],
+  companies: [{ name: 'Cuentas clave', teams: ['Gerentes'], updated: new Date(2026, 5, 18, 16, 5).toISOString(), by: 'Fernando Lovera Colin' }],
+};
+const recordViews = (type) => load(`crm:${type}:recordviews`, RV_SEEDS[type] || []);
+const saveRecordViews = (type, list) => save(`crm:${type}:recordviews`, list);
+const MONTHS_ES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+const rvDate = (iso) => { const d = new Date(iso); return `${d.getDate()} de ${MONTHS_ES[d.getMonth()]}. de ${d.getFullYear()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')} CST`; };
 function objectRecordHtml(type) {
   const m = OBJ_META[type];
   const layout = loadLayout(type);
-  const views = [{ name: layout.name || 'Vista predeterminada', teams: 'Todos los usuarios', updated: formatDate(new Date()), isDefault: true }, ...load(`crm:${type}:recordviews`, [])];
-  return `<div class="shead"><h3>Vistas de registro</h3><button class="btn btn--primary btn--sm" type="button" data-act="new-recordview" data-type="${type}">Crear vista de registro</button></div>
-    <p class="muted">Decide qué pestañas, secciones y tarjetas ven los usuarios en la ficha de ${m.p.toLowerCase()}. Cada equipo puede tener su propia vista.</p>
-    ${simpleTable(['Nombre de la vista', 'Asignada a', 'Última edición', ''], views.map((v, i) => [`<strong>${esc(v.name)}</strong>${v.isDefault ? ' <span class="tag tag--new">Predeterminada</span>' : ''}`, esc(v.teams), esc(v.updated), `<a class="link-btn" href="../layout/?type=${type}">Editar</a>${v.isDefault ? '' : ` <button class="link-btn" type="button" data-recordview-rm="${i - 1}" data-type="${type}">Eliminar</button>`}`]))}
-    <h3>Qué incluye la vista predeterminada</h3>
-    <div class="ocols">
-      <div><strong>Barra lateral izquierda</strong><ul>${layout.left.map((c) => `<li>${esc((cardCatalog(type)[c] || { label: c }).label)}</li>`).join('')}</ul></div>
-      <div><strong>Columna central</strong><ul>${layout.tabs.map((t) => `<li>${esc(t.label)}</li>`).join('')}</ul></div>
-      <div><strong>Barra lateral derecha</strong><ul>${layout.right.map((c) => `<li>${esc((cardCatalog(type)[c] || { label: c }).label)}</li>`).join('')}</ul></div>
-    </div>`;
+  const stored = recordViews(type);
+  const q = state.rvQuery.trim().toLowerCase();
+  const all = [{ name: layout.name || 'Vista predeterminada', teams: [], updated: load(`crm:${type}:layout-updated`, RV_DEFAULT_UPDATED), by: '', isDefault: true, i: -1 }, ...stored.map((v, i) => ({ ...v, i }))];
+  const { key, dir } = state.rvSort;
+  const rows = all.filter((v) => !q || v.name.toLowerCase().includes(q)).sort((a, b) => (a.isDefault ? -1 : b.isDefault ? 1 : (key === 'updated' ? new Date(a.updated) - new Date(b.updated) : String(key === 'teams' ? a.teams.join() : a.name).localeCompare(String(key === 'teams' ? b.teams.join() : b.name), 'es')) * dir));
+  const th = (k, label) => `<th><button class="psort${key === k ? ' is-active' : ''}" type="button" data-rv-sort="${k}">${label} <span aria-hidden="true">${key === k ? (dir > 0 ? '↑' : '↓') : '⇅'}</span></button></th>`;
+  return `<p class="odesc">Crea vistas para personalizar el diseño y el contenido de los registros de ${m.s}.</p><hr class="cd-sep" />
+    <div class="rvbar">
+      <div class="search search--sm ptoolbar__search"><input type="search" id="rv-q" value="${esc(state.rvQuery)}" placeholder="Buscar por nombre de vista" aria-label="Buscar por nombre de vista" /><span class="ico ico--search" aria-hidden="true"></span></div>
+      <button class="pill pill--lg" type="button" data-act="new-recordview" data-type="${type}">Crear vista de equipo</button>
+    </div>
+    <table class="mini-table stable proptable rvtable"><thead><tr><th class="pcheck"><input type="checkbox" aria-label="Seleccionar todo" data-rv-check-all ${rows.filter((v) => !v.isDefault).length && rows.filter((v) => !v.isDefault).every((v) => state.rvSel.has(v.name)) ? 'checked' : ''} /></th>${th('name', 'Ver nombre')}${th('teams', 'Asignado a')}${th('updated', 'Última actualización')}<th class="num">Acciones</th></tr></thead><tbody>
+      ${rows.map((v) => `<tr><td class="pcheck">${v.isDefault ? '<input type="checkbox" disabled aria-label="Vista predeterminada" />' : `<input type="checkbox" data-rv-check="${esc(v.name)}" ${state.rvSel.has(v.name) ? 'checked' : ''} aria-label="Seleccionar ${esc(v.name)}" />`}</td>
+        <td>${v.isDefault ? '<span class="rvpin" aria-hidden="true">📌</span> ' : ''}<a class="olink" href="../layout/?type=${type}${v.isDefault ? '' : `&view=${encodeURIComponent(v.name)}`}">${esc(v.name)}</a></td>
+        <td>${v.isDefault ? 'Todos los equipos y usuarios sin asignar' : v.teams.length ? v.teams.map((t) => `<span class="rvchip">${esc(t)}</span>`).join(' ') : '<span class="muted">Sin asignar</span>'}</td>
+        <td><div>${rvDate(v.updated)}</div>${v.by ? `<div class="muted">${esc(v.by)}</div>` : ''}</td>
+        <td class="num"><div class="menu"><button class="icon-btn icon-btn--round" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Acciones">⋯</button><div class="menu__panel menu__panel--right">
+          <a class="menu__item" href="../layout/?type=${type}${v.isDefault ? '' : `&view=${encodeURIComponent(v.name)}`}">Editar vista</a>
+          ${v.isDefault ? `<button class="menu__item" type="button" data-rv-reset="${type}">Restablecer la vista predeterminada</button>` : `<button class="menu__item" type="button" data-rv-rename="${v.i}">Cambiar nombre</button><button class="menu__item" type="button" data-rv-teams="${v.i}">Asignar equipos</button><button class="menu__item" type="button" data-rv-clone="${v.i}">Clonar</button><button class="menu__item menu__item--danger" type="button" data-rv-rm="${v.i}">Eliminar</button>`}
+        </div></div></td></tr>`).join('')}
+    </tbody></table>
+    ${state.rvSel.size ? `<div class="pbulk"><strong>${state.rvSel.size} seleccionada${state.rvSel.size > 1 ? 's' : ''}</strong><button class="link-btn" type="button" data-act="rv-delete-sel" data-type="${type}">Eliminar</button><button class="link-btn" type="button" data-act="rv-clear-sel">Limpiar</button></div>` : ''}
+    <div class="ppager ppager--center"><nav class="ppager__nav" aria-label="Páginas"><button class="link-btn" type="button" disabled>‹ Anterior</button><button class="ppager__num is-active" type="button">1</button><button class="link-btn" type="button" disabled>Siguiente ›</button></nav></div>`;
 }
 function objectPreviewHtml(type) {
   const m = OBJ_META[type];
@@ -921,6 +946,8 @@ root.addEventListener('change', (e) => {
   }
   else if (t.hasAttribute('data-props-object')) { state.propsObject = t.value; state.propsGroup = ''; state.propsKind = ''; state.propsPage = 1; state.propsSel = new Set(); render(); }
   else if (t.hasAttribute('data-props-group')) { state.propsGroup = t.value; render(); }
+  else if (t.hasAttribute('data-rv-check-all')) { root.querySelectorAll('[data-rv-check]').forEach((c) => { if (t.checked) state.rvSel.add(c.dataset.rvCheck); else state.rvSel.delete(c.dataset.rvCheck); }); render(); }
+  else if (t.hasAttribute('data-rv-check')) { if (t.checked) state.rvSel.add(t.dataset.rvCheck); else state.rvSel.delete(t.dataset.rvCheck); render(); }
   else if (t.hasAttribute('data-props-check-all')) { root.querySelectorAll('[data-props-check]').forEach((c) => { if (t.checked) state.propsSel.add(c.dataset.propsCheck); else state.propsSel.delete(c.dataset.propsCheck); }); render(); }
   else if (t.hasAttribute('data-props-check')) { if (t.checked) state.propsSel.add(t.dataset.propsCheck); else state.propsSel.delete(t.dataset.propsCheck); render(); }
   else if (t.id === 'prop-kind') { document.getElementById('prop-options-field').hidden = t.value !== 'enum'; }
@@ -936,6 +963,7 @@ root.addEventListener('change', (e) => {
 });
 root.addEventListener('input', (e) => {
   if (e.target.id === 'props-q') { state.propsQuery = e.target.value; render(); }
+  if (e.target.id === 'rv-q') { state.rvQuery = e.target.value; render(); const q = document.getElementById('rv-q'); if (q) { q.focus(); q.setSelectionRange(q.value.length, q.value.length); } }
   if (e.target.id === 'pipe-q') { state.pipeQuery = e.target.value; render(); const q = document.getElementById('pipe-q'); if (q) { q.focus(); q.setSelectionRange(q.value.length, q.value.length); } }
   if (e.target.id === 'snav-q') {
     const q = e.target.value.trim().toLowerCase();
@@ -989,6 +1017,27 @@ root.addEventListener('click', (e) => {
     if (hit('[data-logic-prop-cancel]')) { L.addingProp = false; render(); return; }
     if (hit('[data-logic-prop-apply]')) { const pick = root.querySelector('[data-prop-pick]'); if (pick && pick.value) d.props.push({ name: pick.value, required: root.querySelector('[data-prop-pick-req]').checked }); L.addingProp = false; render(); return; }
     const pr = hit('[data-logic-prop-rm]'); if (pr) { d.props.splice(Number(pr.dataset.logicPropRm), 1); render(); return; }
+  }
+  // record views (Personalización de registros)
+  const rvs = e.target.closest('[data-rv-sort]');
+  if (rvs) { const k = rvs.dataset.rvSort; state.rvSort = { key: k, dir: state.rvSort.key === k ? -state.rvSort.dir : 1 }; render(); return; }
+  const rvAct = e.target.closest('[data-rv-rename], [data-rv-teams], [data-rv-clone], [data-rv-rm], [data-rv-reset]');
+  if (rvAct) {
+    closeMenus();
+    const type = state.objectsObject;
+    const list = recordViews(type);
+    const d = rvAct.dataset;
+    const stamp = (v) => { v.updated = new Date().toISOString(); v.by = 'Fernando Lovera Colin'; };
+    if (d.rvReset !== undefined) { if (window.confirm('¿Restablecer la vista predeterminada a su diseño original?')) { localStorage.removeItem(`crm:${type}:layout`); localStorage.removeItem(`crm:${type}:layout-updated`); render(); toast('Vista predeterminada restablecida'); } return; }
+    const v = list[Number(d.rvRename ?? d.rvTeams ?? d.rvClone ?? d.rvRm)];
+    if (!v) return;
+    if (d.rvRename !== undefined) promptModal('Cambiar nombre de la vista', [['name', 'Nombre de la vista', 'text', v.name]], 'Guardar', (f) => { const name = f.name.trim(); if (!name) return; state.rvSel.delete(v.name); v.name = name; stamp(v); saveRecordViews(type, list); toast('Nombre guardado'); });
+    else if (d.rvTeams !== undefined) {
+      openModal(`Asignar equipos: ${esc(v.name)}`, `<p class="muted">Los usuarios de estos equipos verán esta vista al abrir un ${OBJ_META[type].s.toLowerCase()}.</p><ul class="acc__list" id="rvt-list">${teams().map((t) => `<li><label><input type="checkbox" value="${esc(t.name)}" ${v.teams.includes(t.name) ? 'checked' : ''} /><span class="acc__ico" aria-hidden="true">👥</span><span>${esc(t.name)}</span></label></li>`).join('')}</ul>`, `<button class="btn btn--primary" type="button" id="rvt-save">Guardar</button><button class="btn btn--ghost" type="button" data-close>Cancelar</button>`);
+      document.getElementById('rvt-save').onclick = () => { v.teams = [...document.querySelectorAll('#rvt-list input:checked')].map((i) => i.value); stamp(v); saveRecordViews(type, list); closeModal(); render(); toast('Equipos asignados'); };
+    } else if (d.rvClone !== undefined) { const copy = { ...v, name: `${v.name} (copia)`, teams: [] }; stamp(copy); list.push(copy); saveRecordViews(type, list); render(); toast(`Vista "${copy.name}" creada`); }
+    else if (d.rvRm !== undefined) { if (window.confirm(`¿Eliminar la vista "${v.name}"?`)) { list.splice(list.indexOf(v), 1); state.rvSel.delete(v.name); saveRecordViews(type, list); render(); toast('Vista eliminada'); } }
+    return;
   }
   const psub = e.target.closest('[data-pipe-sub]');
   if (psub) { const defs = dealPipelineDefs(); collectPipeline(defs[state.pipeEdit]); saveDealPipelineDefs(defs); state.pipeSub = psub.dataset.pipeSub; render(); return; }
@@ -1047,7 +1096,7 @@ root.addEventListener('click', (e) => {
   if (rm) {
     const d = rm.dataset;
     if (d.pipelineRm !== undefined) { const list = dealPipelines(); const [p] = list.splice(Number(d.pipelineRm), 1); saveDealPipelines(list); toast(`Pipeline "${p}" eliminado`); }
-    else if (d.recordviewRm !== undefined) { const list = load(`crm:${d.type}:recordviews`, []); list.splice(Number(d.recordviewRm), 1); save(`crm:${d.type}:recordviews`, list); toast('Vista eliminada'); }
+    else if (d.recordviewRm !== undefined) { const list = recordViews(d.type); list.splice(Number(d.recordviewRm), 1); saveRecordViews(d.type, list); toast('Vista eliminada'); }
     else if (d.teamRm !== undefined) { const ts = teams(); const [t] = ts.splice(Number(d.teamRm), 1); save('crm:teams', ts); toast(`Equipo "${t.name}" eliminado`); }
     else if (d.labelRm !== undefined) { const labels = assocLabels(); labels.splice(Number(d.labelRm), 1); save(ASSOC_LABELS_KEY, labels); toast('Etiqueta quitada'); }
     else if (d.appRm !== undefined) { const apps = load('crm:privateapps', []); apps.splice(Number(d.appRm), 1); save('crm:privateapps', apps); toast('Aplicación eliminada'); }
@@ -1091,7 +1140,9 @@ root.addEventListener('click', (e) => {
   else if (a === 'clone-pipeline') promptModal('Clonar un pipeline existente', [['src', 'Pipeline de origen', 'select', dealPipelines()], ['name', 'Nombre del nuevo pipeline']], 'Clonar', (d) => { const defs = dealPipelineDefs(); const src = defs.find((p) => p.name === d.src) || defs[0]; const copy = newPipelineDef(d.name.trim() || `${src.name} (copia)`, src.stages); defs.push(copy); persistPipelines(defs, `Pipeline "${copy.name}" creado`); });
   else if (a === 'snav-toggle') { state.navCollapsed = !state.navCollapsed; localStorage.setItem(SNAV_KEY, state.navCollapsed ? '1' : '0'); render(); }
   else if (a === 'reset-boardcard') { localStorage.removeItem(`crm:${act.dataset.type}:boardcard`); render(); toast('Tarjetas del tablero restablecidas'); }
-  else if (a === 'new-recordview') promptModal('Crear vista de registro', [['name', 'Nombre de la vista'], ['teams', 'Asignar a', 'select', TEAMS]], 'Crear', (d) => { const list = load(`crm:${act.dataset.type}:recordviews`, []); list.push({ name: d.name, teams: d.teams, updated: formatDate(new Date()) }); save(`crm:${act.dataset.type}:recordviews`, list); toast(`Vista "${d.name}" creada`); });
+  else if (a === 'new-recordview') promptModal('Crear vista de equipo', [['name', 'Nombre de la vista'], ['teams', 'Asignar al equipo', 'select', teams().map((t) => t.name)]], 'Crear', (d) => { const type = act.dataset.type; const list = recordViews(type); const name = d.name.trim(); if (!name) return; if (list.some((v) => v.name.toLowerCase() === name.toLowerCase())) { toast('Ya existe una vista con ese nombre'); return; } list.push({ name, teams: [d.teams], updated: new Date().toISOString(), by: 'Fernando Lovera Colin' }); saveRecordViews(type, list); toast(`Vista "${name}" creada`); });
+  else if (a === 'rv-delete-sel') { const type = act.dataset.type; const list = recordViews(type).filter((v) => !state.rvSel.has(v.name)); saveRecordViews(type, list); state.rvSel = new Set(); render(); toast('Vistas eliminadas'); }
+  else if (a === 'rv-clear-sel') { state.rvSel = new Set(); render(); }
   else if (a === 'customize-create') {
     const type = act.dataset.type;
     const saved = load(`crm:${type}:createform`, null);

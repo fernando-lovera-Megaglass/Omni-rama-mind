@@ -6773,6 +6773,57 @@ textarea.cellpop__input {
   cursor: default;
 }
 
+/* Record views tab */
+.rvbar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-16);
+  margin: var(--sp-24) 0 var(--sp-20);
+}
+
+.pill--lg {
+  height: 44px;
+  padding: 0 var(--sp-24);
+  border-color: #7c98b6;
+  color: var(--c-text);
+  font-weight: 600;
+}
+
+.rvtable td {
+  padding-top: var(--sp-16);
+  padding-bottom: var(--sp-16);
+}
+
+.rvtable tbody tr:first-child td {
+  background: #fafbfc;
+}
+
+.rvpin {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  margin-right: 4px;
+  border-radius: 50%;
+  background: #eaf0f6;
+  font-size: 11px;
+  vertical-align: middle;
+}
+
+.rvchip {
+  display: inline-block;
+  padding: 3px 10px;
+  border: 1px solid #99acc2;
+  border-radius: var(--r-sm);
+  background: var(--c-white);
+  font-size: var(--fs-xs);
+  white-space: nowrap;
+}
+
+.ppager--center {
+  justify-content: center;
+}
+
 /* Deal pipelines tab */
 .ptabs {
   display: flex;
