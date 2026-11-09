@@ -1,7 +1,7 @@
 // Generic object list: views, filter menus, search, sort, paging, selection,
 // column editor (full property catalog), advanced filters, CSV export/import, create drawer.
 import { wireMenus, closeMenus, toast } from './shell.js';
-import { addRecord, deleteRecords, restoreAll, getPrefs, setPrefs, getViewStore, setViewStore, matches, strip, toCsv, download, formatDate, formatMoney, formatShortDate, relativeTime, setField, TODAY } from './data.js';
+import { addRecord, deleteRecords, restoreAll, getPrefs, setPrefs, getViewStore, setViewStore, matches, strip, toCsv, download, formatDate, formatMoney, formatShortDate, relativeTime, setField, TODAY, ALL } from './data.js';
 import { propertyGroups, propertyMap } from './properties.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
@@ -326,6 +326,7 @@ export function mountList(cfg) {
         </div>
         <dl class="props" id="pv-props"></dl>
       </div>
+      <div class="preview__extra" id="pv-extra"></div>
       <div class="preview__foot"><a class="btn btn--primary btn--block btn--pillx" id="pv-open" href="#">Ver registro</a></div>
     </aside>
 
@@ -1509,7 +1510,26 @@ export function mountList(cfg) {
     const mail = r.email || r.domain || '';
     $('pv-mail').innerHTML = mail ? `<a href="${mail.includes('@') ? `mailto:${esc(mail)}` : '#'}">${esc(mail)}</a> <span class="ext">↗</span> <button class="copy" type="button" data-copy="${esc(mail)}" aria-label="Copiar">⧉</button>` : '';
     $('pv-type').textContent = cfg.singular[0].toUpperCase() + cfg.singular.slice(1);
-    const fields = cfg.previewFields || state.columns.slice(0, 10);
+    // The preview panel layout comes from Configuración › Objetos › Previsualizar personalización when saved there.
+    let pvLayout = null;
+    try { const saved = JSON.parse(localStorage.getItem(`crm:${cfg.type}:preview:default`)); if (saved && Array.isArray(saved.right) && Array.isArray(saved.props)) pvLayout = saved; } catch { /* ignore */ }
+    const fields = pvLayout ? pvLayout.props : cfg.previewFields || state.columns.slice(0, 10);
+    $('pv-props').closest('.preview__about').hidden = Boolean(pvLayout) && !pvLayout.right.includes('about');
+    $('pv-extra').innerHTML = pvLayout
+      ? pvLayout.right.filter((c) => c !== 'about').map((c) => {
+          if (c.startsWith('assoc-')) {
+            const kind = c.slice(6);
+            const label = { contacts: 'Contactos', companies: 'Empresas', deals: 'Negocios', tickets: 'Tickets', tasks: 'Tareas' }[kind] || kind;
+            const related = kind === 'companies' ? (r.company ? [{ name: r.company, href: `../companies/record/?id=${r.companyId || ''}` }] : []) : kind === 'contacts' ? (r.contact ? [{ name: r.contact, href: `../contacts/record/?id=${r.contactId || ''}` }] : (ALL.contacts ? ALL.contacts().filter((x) => (cfg.type === 'companies' ? Number(x.companyId) === Number(r.id) : false)).slice(0, 3).map((x) => ({ name: x.name, href: `../contacts/record/?id=${x.id}` })) : [])) : (ALL[kind] ? ALL[kind]().filter((x) => (cfg.type === 'contacts' ? Number(x.contactId) === Number(r.id) : Number(x.companyId) === Number(r.id))).slice(0, 3).map((x) => ({ name: x.name, href: `../${kind}/record/?id=${x.id}` })) : []);
+            return `<section class="pvcard"><h3 class="pvcard__title">${label} <span class="muted">(${related.length})</span></h3>${related.length ? `<ul class="pvcard__list">${related.map((x) => `<li><a href="${x.href}">${esc(x.name)}</a></li>`).join('')}</ul>` : '<p class="muted">Sin registros asociados.</p>'}</section>`;
+          }
+          if (c === 'activity') return `<section class="pvcard"><h3 class="pvcard__title">Actividad reciente</h3><p>${esc(relativeTime(r.lastActivity || r.created))} · ${esc({ email: 'Correo', call: 'Llamada', meeting: 'Reunión', note: 'Nota', task: 'Tarea' }[r.lastActivityType] || 'Actividad')}</p><p class="muted">Creado el ${esc(formatDate(r.created))}</p></section>`;
+          if (c === 'summary') return `<section class="pvcard"><h3 class="pvcard__title">Resumen de registros <span class="ai-badge">✦ AI</span></h3><p class="muted">${esc(r.name)} · propietario ${esc(r.owner || 'sin asignar')} · última actividad ${esc(relativeTime(r.lastActivity || r.created))}.</p></section>`;
+          if (c === 'attachments') { let n = 0; try { n = (JSON.parse(localStorage.getItem(`crm:${cfg.type}:files:${r.id}`)) || []).length; } catch { n = 0; } return `<section class="pvcard"><h3 class="pvcard__title">Archivos adjuntos <span class="muted">(${n})</span></h3><p class="muted">${n ? `${n} archivo${n > 1 ? 's' : ''} adjunto${n > 1 ? 's' : ''}.` : 'Sin archivos adjuntos.'}</p></section>`; }
+          if (c === 'tasks') { const ts = ALL.tasks ? ALL.tasks().filter((t) => t.status !== 'done' && (cfg.type === 'contacts' ? Number(t.contactId) === Number(r.id) : t.owner === r.owner)).slice(0, 3) : []; return `<section class="pvcard"><h3 class="pvcard__title">Tareas <span class="muted">(${ts.length})</span></h3>${ts.length ? `<ul class="pvcard__list">${ts.map((t) => `<li><a href="../tasks/record/?id=${t.id}">${esc(t.name)}</a></li>`).join('')}</ul>` : '<p class="muted">Sin tareas pendientes.</p>'}</section>`; }
+          return '';
+        }).join('')
+      : '';
     $('pv-props').innerHTML = fields
       .map((f) => {
         const key = Array.isArray(f) ? f[0] : f;

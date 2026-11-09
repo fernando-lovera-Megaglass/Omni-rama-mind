@@ -1,30 +1,35 @@
 // Record page layout editor ("Personalizar"): arrange cards in the three columns,
 // rename sections and tabs, add cards/sections/tabs, undo/redo, assign teams, save.
 import { toast, wireMenus, closeMenus } from './shell.js';
-import { cardCatalog, defaultLayout, loadLayout, saveLayout, teamViewLayout, loadViewLayout, saveViewLayout, VIEW_KEY, TEAMS, TYPE_META } from './layout-defaults.js';
+import { cardCatalog, defaultLayout, loadLayout, saveLayout, teamViewLayout, loadViewLayout, saveViewLayout, VIEW_KEY, previewCatalog, defaultPreview, loadPreview, savePreview, PREVIEW_KEY, TEAMS, TYPE_META } from './layout-defaults.js';
+import { propertyList } from './properties.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
 const params = new URLSearchParams(location.search);
 const type = TYPE_META[params.get('type')] ? params.get('type') : 'contacts';
 const recordId = params.get('id') || '';
 const meta = TYPE_META[type];
-const CATALOG = cardCatalog(type);
+// preview=1 edits the "Vista previa" side panel of the lists instead of the record page.
+const previewMode = params.get('preview') === '1';
+const CATALOG = previewMode ? previewCatalog(type) : cardCatalog(type);
 // Team views ("Crear vista de equipo" / "Editar vista" in Configuración › Objetos) are edited here too.
 const isNewView = params.get('new') === '1';
 const viewParam = params.get('view');
 const teamView = isNewView || Boolean(viewParam);
 let viewName = viewParam || null;
-const backHref = teamView ? `../settings/#obj-${type}:record` : recordId ? `../${type}/record/?id=${recordId}` : `../${type}/`;
+const backHref = previewMode ? `../settings/#obj-${type}:preview` : teamView ? `../settings/#obj-${type}:record` : recordId ? `../${type}/record/?id=${recordId}` : `../${type}/`;
 const stampNow = () => { const d = new Date(); const p = (n) => String(n).padStart(2, '0'); return `${p(d.getDate())}/${p(d.getMonth() + 1)}/${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`; };
 
-let layout = isNewView ? teamViewLayout(type, `Nuevo página de registro ${meta.s} - (${stampNow()})`) : viewParam ? loadViewLayout(type, viewParam) : loadLayout(type);
+let layout = previewMode
+  ? (isNewView ? defaultPreview(type, `Nueva vista previa ${meta.s} - (${stampNow()})`) : loadPreview(type, viewParam || undefined))
+  : isNewView ? teamViewLayout(type, `Nuevo página de registro ${meta.s} - (${stampNow()})`) : viewParam ? loadViewLayout(type, viewParam) : loadLayout(type);
 let saved = isNewView ? '' : JSON.stringify(layout);
 const undoStack = [];
 const redoStack = [];
 let activeTab = 'overview';
 let page = 'design'; // design | config
 const root = document.getElementById('layout-root');
-document.title = `${meta.s} página de registro`;
+document.title = previewMode ? `${meta.s} panel de vista previa` : `${meta.s} página de registro`;
 
 const clone = (o) => JSON.parse(JSON.stringify(o));
 function commit(mutator) {
@@ -49,7 +54,7 @@ function cardHtml(id, zone, extra = '') {
         <div class="lcard__desc">${esc(c.desc)}</div>
       </div>
       <span class="lcard__tools">
-        ${isAssoc || id === 'about' || id === 'insights' ? `<button class="icon-btn" type="button" data-lc="edit" data-card="${id}" aria-label="Editar">✎</button>` : ''}
+        ${isAssoc || id === 'about' || id === 'insights' || c.props ? `<button class="icon-btn" type="button" data-lc="edit" data-card="${id}" aria-label="Editar">✎</button>` : ''}
         <div class="menu"><button class="icon-btn" type="button" aria-haspopup="true" aria-label="Más">⋯</button>
           <div class="menu__panel menu__panel--right">
             ${zone === 'middle' ? `<button class="menu__item" type="button" data-lc="move-section" data-card="${id}">Mover a otra sección</button>` : ''}
@@ -83,7 +88,7 @@ function render() {
         <button class="ledit__hist" type="button" data-lc="undo" ${undoStack.length ? '' : 'disabled'} aria-label="Deshacer">↶</button>
         <button class="ledit__hist" type="button" data-lc="redo" ${redoStack.length ? '' : 'disabled'} aria-label="Rehacer">↷</button>
       </div>
-      <div class="ledit__title">${esc(meta.s)} página de registro <span class="ledit__sep">|</span> <span id="view-name">${esc(layout.name)}</span> <button class="ledit__pencil" type="button" data-lc="rename-view" aria-label="Cambiar nombre de la vista">✎</button></div>
+      <div class="ledit__title">${esc(meta.s)} ${previewMode ? 'panel de vista previa' : 'página de registro'} <span class="ledit__sep">|</span> <span id="view-name">${esc(layout.name)}</span> <button class="ledit__pencil" type="button" data-lc="rename-view" aria-label="Cambiar nombre de la vista">✎</button></div>
       <div class="ledit__right">
         <button class="pill pill--dark" type="button" data-lc="save" ${dirty() ? '' : 'disabled'}>Guardar</button>
         <button class="pill pill--light" type="button" data-lc="save-exit">Guardar y salir</button>
@@ -100,7 +105,7 @@ function render() {
         <button class="pill" type="button" data-lc="teams">▣ Asignar equipos${layout.teams.length ? ` (${layout.teams.length})` : ''}</button>
       </div>
     </div>
-    ${page === 'config' ? renderConfig() : renderDesign(tab)}
+    ${page === 'config' ? renderConfig() : previewMode ? renderPreviewEditor() : renderDesign(tab)}
     <div class="drawer drawer--modal" id="l-modal" aria-hidden="true">
       <div class="drawer__panel drawer__panel--dialog" role="dialog" aria-labelledby="l-modal-title">
         <div class="drawer__head drawer__head--light"><h2 id="l-modal-title">—</h2><button class="drawer__close" type="button" data-close aria-label="Cerrar">×</button></div>
@@ -173,6 +178,40 @@ function renderDesign(tab) {
     </div>`;
 }
 
+// Preview-panel editor: the card list on the left, a live mock of the side panel on the right.
+function renderPreviewEditor() {
+  const props = propertyList(type);
+  const labelOf = (k) => (props.find((p) => p.key === k) || { label: k }).label;
+  const sample = { name: `${meta.s} de ejemplo`, sub: type === 'deals' ? '12.500 € · Acristala Proyectos' : type === 'contacts' ? 'Megaglass' : 'megaglass.us' };
+  const mockCard = (id) => {
+    const c = CATALOG[id] || { label: id };
+    if (id === 'about') return `<section class="pvmock__card"><h4>⌄ ${esc(c.label)}</h4><dl>${layout.props.map((k) => `<div><dt>${esc(labelOf(k))}</dt><dd>—</dd></div>`).join('') || '<p class="muted">Sin propiedades: usa ✎ para elegirlas.</p>'}</dl></section>`;
+    if (id === 'activity') return `<section class="pvmock__card"><h4>⌄ ${esc(c.label)}</h4><p>hace 3 días · Correo</p><p class="muted">Creado el 12 ago 2026</p></section>`;
+    if (id === 'summary') return `<section class="pvmock__card"><h4>⌄ ${esc(c.label)} <span class="ai-badge">✦ AI</span></h4><p class="muted">Resumen generado del registro.</p></section>`;
+    if (id === 'attachments') return `<section class="pvmock__card"><h4>⌄ ${esc(c.label)} <span class="muted">(0)</span></h4><p class="muted">Sin archivos adjuntos.</p></section>`;
+    if (id === 'tasks') return `<section class="pvmock__card"><h4>⌄ ${esc(c.label)} <span class="muted">(2)</span></h4><ul><li>Llamar para confirmar medidas</li><li>Enviar cotización</li></ul></section>`;
+    return `<section class="pvmock__card"><h4>⌄ ${esc(c.label)} <span class="muted">(1)</span></h4><ul><li><a href="#" onclick="return false">Registro asociado</a></li></ul></section>`;
+  };
+  return `
+    <div class="pvedit">
+      <section class="pvedit__cards">
+        <h2>Tarjetas del panel de vista previa</h2>
+        <p class="muted">Arrastra las tarjetas para ordenarlas; cada cambio se refleja al instante en el panel de la derecha. Usa ✎ en "Acerca de" para elegir sus propiedades.</p>
+        <div class="ladd-row ladd-row--top">${addMenu('right')}</div>
+        <div class="llist" data-zone="right">${layout.right.map((id) => cardHtml(id, 'right')).join('') || '<p class="muted llist__empty">Arrastra aquí una tarjeta.</p>'}</div>
+      </section>
+      <section class="pvedit__mock">
+        <h2>Así se verá en la lista</h2>
+        <aside class="pvmock">
+          <header class="pvmock__head"><span class="avatar avatar--soft">${esc(meta.s.slice(0, 2).toUpperCase())}</span><div><strong>${esc(sample.name)}</strong><small class="muted">${esc(sample.sub)}</small></div><span class="pvmock__x">×</span></header>
+          <div class="pvmock__quick">${['✎ Nota', '✉ Correo', '☏ Llamada', '☑ Tarea', '▦ Reunión', '⋯ Más'].map((q) => `<span>${q}</span>`).join('')}</div>
+          ${layout.right.map(mockCard).join('') || '<p class="muted pvmock__empty">El panel está vacío.</p>'}
+          <footer class="pvmock__foot"><span class="btn btn--primary btn--block btn--pillx">Ver registro</span></footer>
+        </aside>
+      </section>
+    </div>`;
+}
+
 function renderConfig() {
   return `
     <div class="lconfig">
@@ -225,6 +264,28 @@ function listFor(zone, si) {
   return tab && tab.sections && tab.sections[si] ? tab.sections[si].cards : null;
 }
 function doSave(exit) {
+  if (previewMode) {
+    // Preview panel: the default layout feeds the lists' side panel; team views are listed in Configuración.
+    if (teamView) {
+      const key = `crm:${type}:previewviews`;
+      let list = [];
+      try { list = JSON.parse(localStorage.getItem(key)) || []; } catch { list = []; }
+      if (viewName && viewName !== layout.name) { localStorage.removeItem(PREVIEW_KEY(type, viewName)); list = list.filter((v) => v.name !== viewName); }
+      list = list.filter((v) => v.name !== layout.name);
+      list.push({ name: layout.name, teams: [...layout.teams], updated: new Date().toISOString(), by: 'Fernando Lovera Colin' });
+      localStorage.setItem(key, JSON.stringify(list));
+      savePreview(type, layout.name, layout);
+      viewName = layout.name;
+    } else {
+      savePreview(type, null, layout);
+      localStorage.setItem(`crm:${type}:preview-updated`, JSON.stringify(new Date().toISOString()));
+    }
+    saved = JSON.stringify(layout);
+    toast(teamView ? 'Vista previa de equipo guardada' : 'Panel de vista previa guardado: ya se usa en la lista');
+    if (exit) location.href = backHref;
+    else render();
+    return;
+  }
   if (teamView) {
     // Team view: its own layout plus an entry in the views table of Configuración › Objetos.
     const key = `crm:${type}:recordviews`;
@@ -308,6 +369,15 @@ root.addEventListener('click', (e) => {
     }
     case 'edit': {
       const c = CATALOG[id];
+      if (previewMode && c && c.props) {
+        // Pick the properties shown in the "Acerca de" card of the preview panel.
+        const all = propertyList(type);
+        const chosen = layout.props;
+        openModal('Propiedades de la vista previa', `<p class="muted">Marca las propiedades que aparecen en el panel; se muestran en este orden.</p><input class="ginput" type="search" id="l-pp-q" placeholder="Buscar propiedad" /><div class="ocardgrid ocardgrid--modal" id="l-pp">${[...chosen.map((k) => all.find((p) => p.key === k) || { key: k, label: k }), ...all.filter((p) => !chosen.includes(p.key))].slice(0, 400).map((p) => `<label class="ocheck ocheck--sm" data-name="${esc(p.label.toLowerCase())}"><input type="checkbox" value="${esc(p.key)}" ${chosen.includes(p.key) ? 'checked' : ''} /><span>${esc(p.label)}</span></label>`).join('')}</div>`, `<button class="btn btn--primary" type="button" id="l-pp-ok">Aplicar</button><button class="btn btn--ghost" type="button" data-close>Cancelar</button>`);
+        document.getElementById('l-pp-q').oninput = (ev) => { const q = ev.target.value.trim().toLowerCase(); document.querySelectorAll('#l-pp label').forEach((l) => { l.hidden = Boolean(q) && !l.dataset.name.includes(q); }); };
+        document.getElementById('l-pp-ok').onclick = () => { const keys = [...document.querySelectorAll('#l-pp input:checked')].map((i) => i.value); commit((l) => { l.props = keys; }); closeModal(); toast(`${keys.length} propiedades en la vista previa`); };
+        break;
+      }
       if (c && c.assoc) toast(`Las propiedades de la tarjeta "${c.label}" se editan desde su engranaje en la ficha.`);
       else toast(`Las propiedades de "${c ? c.label : id}" se editan desde su engranaje en la ficha.`);
       break;
@@ -326,7 +396,7 @@ root.addEventListener('click', (e) => {
       toast('Configuración aplicada. Recuerda guardar.');
       break;
     case 'reset-layout':
-      if (window.confirm('¿Restablecer el diseño predeterminado? Se perderán los cambios de esta vista.')) commit(() => { layout = defaultLayout(type); });
+      if (window.confirm('¿Restablecer el diseño predeterminado? Se perderán los cambios de esta vista.')) commit(() => { layout = previewMode ? defaultPreview(type, layout.name) : defaultLayout(type); });
       break;
     default: break;
   }

@@ -64,6 +64,43 @@ export function teamViewLayout(type, name) {
     right,
   };
 }
+// ---------- Preview panel ("Vista previa" sidebar on the lists) ----------
+export const PREVIEW_PROPS = {
+  contacts: ['mobilephone', 'phone', 'email', 'status', 'owner', 'company', 'lifecycle', 'city', 'jobTitle', 'source'],
+  companies: ['domain', 'phone', 'owner', 'industry', 'city', 'lifecycle', 'employees', 'revenue'],
+  deals: ['amount', 'stage', 'pipeline', 'closeDate', 'owner', 'company', 'priority', 'type', 'created'],
+  tickets: ['status', 'priority', 'owner', 'contact', 'source', 'pipeline', 'created'],
+  tasks: ['status', 'due', 'type', 'priority', 'owner', 'contact', 'created'],
+};
+export function previewCatalog(type) {
+  const m = TYPE_META[type] || TYPE_META.contacts;
+  const cards = {
+    about: { label: `Acerca de este objeto ${m.s}`, desc: 'Propiedades del registro (valor predeterminado)', zone: 'right', props: true },
+    activity: { label: 'Actividad reciente', desc: 'Última actividad y próximos pasos (valor predeterminado)', zone: 'right' },
+    summary: { label: 'Resumen de registros', desc: 'Resumen generado automáticamente', zone: 'right' },
+    attachments: { label: 'Archivos adjuntos', desc: 'Archivos adjuntos (valor predeterminado)', zone: 'right' },
+    tasks: { label: 'Tareas', desc: 'Tareas pendientes del registro', zone: 'right' },
+  };
+  (ASSOC_KINDS[type] || []).forEach((k) => { const km = TYPE_META[k]; cards[`assoc-${k}`] = { label: km.p, desc: `${km.p} asociados (valor predeterminado)`, zone: 'right', assoc: k }; });
+  return cards;
+}
+export function defaultPreview(type, name = 'Vista predeterminada') {
+  return { name, teams: [], isDefault: name === 'Vista predeterminada', props: [...(PREVIEW_PROPS[type] || PREVIEW_PROPS.contacts)], left: [], tabs: [], right: ['about', ...(ASSOC_KINDS[type] || []).slice(0, 2).map((k) => `assoc-${k}`), 'activity'] };
+}
+export const PREVIEW_KEY = (type, name) => `crm:${type}:preview:${name || 'default'}`;
+export function loadPreview(type, name) {
+  try {
+    const saved = JSON.parse(localStorage.getItem(PREVIEW_KEY(type, name)));
+    if (saved && Array.isArray(saved.right) && Array.isArray(saved.props)) return saved;
+  } catch {
+    /* ignore */
+  }
+  return defaultPreview(type, name || 'Vista predeterminada');
+}
+export function savePreview(type, name, layout) {
+  localStorage.setItem(PREVIEW_KEY(type, name), JSON.stringify(layout));
+}
+
 export const VIEW_KEY = (type, name) => `crm:${type}:layout:${name}`;
 export function loadViewLayout(type, name) {
   try {

@@ -683,38 +683,45 @@ const RV_SEEDS = {
   contacts: [{ name: 'Vista de ventas', teams: ['Ventas en el Extranjero', 'SACA'], updated: new Date(2026, 4, 2, 9, 40).toISOString(), by: 'Fernando Lovera Colin' }],
   companies: [{ name: 'Cuentas clave', teams: ['Gerentes'], updated: new Date(2026, 5, 18, 16, 5).toISOString(), by: 'Fernando Lovera Colin' }],
 };
-const recordViews = (type) => load(`crm:${type}:recordviews`, RV_SEEDS[type] || []);
-const saveRecordViews = (type, list) => save(`crm:${type}:recordviews`, list);
+// The same views table serves "Personalización de registros" (record page) and "Previsualizar personalización" (preview panel).
+const PV_SEEDS = { deals: [{ name: 'Ventas Extranjero', teams: ['Ventas en el Extranjero'], updated: new Date(2026, 10, 9, 17, 39).toISOString(), by: 'Fernando Lovera Colin' }] };
+const viewsKind = () => (state.objectsTab === 'preview' ? 'preview' : 'record');
+const viewsKey = (type) => `crm:${type}:${viewsKind() === 'preview' ? 'previewviews' : 'recordviews'}`;
+const recordViews = (type) => load(viewsKey(type), (viewsKind() === 'preview' ? PV_SEEDS : RV_SEEDS)[type] || []);
+const saveRecordViews = (type, list) => save(viewsKey(type), list);
 const MONTHS_ES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 const rvDate = (iso) => { const d = new Date(iso); return `${d.getDate()} de ${MONTHS_ES[d.getMonth()]}. de ${d.getFullYear()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')} CST`; };
 function objectRecordHtml(type) {
   const m = OBJ_META[type];
-  const layout = loadLayout(type);
+  const isPreview = viewsKind() === 'preview';
+  const layout = isPreview ? { name: 'Vista predeterminada' } : loadLayout(type);
+  const editorHref = (view) => `../layout/?type=${type}${isPreview ? '&preview=1' : ''}${view ? `&view=${encodeURIComponent(view)}` : ''}`;
   const stored = recordViews(type);
   const q = state.rvQuery.trim().toLowerCase();
-  const all = [{ name: layout.name || 'Vista predeterminada', teams: [], updated: load(`crm:${type}:layout-updated`, RV_DEFAULT_UPDATED), by: '', isDefault: true, i: -1 }, ...stored.map((v, i) => ({ ...v, i }))];
+  const all = [{ name: layout.name || 'Vista predeterminada', teams: [], updated: load(isPreview ? `crm:${type}:preview-updated` : `crm:${type}:layout-updated`, isPreview ? new Date(2024, 11, 9, 16, 28).toISOString() : RV_DEFAULT_UPDATED), by: '', isDefault: true, i: -1 }, ...stored.map((v, i) => ({ ...v, i }))];
   const { key, dir } = state.rvSort;
   const rows = all.filter((v) => !q || v.name.toLowerCase().includes(q)).sort((a, b) => (a.isDefault ? -1 : b.isDefault ? 1 : (key === 'updated' ? new Date(a.updated) - new Date(b.updated) : String(key === 'teams' ? a.teams.join() : a.name).localeCompare(String(key === 'teams' ? b.teams.join() : b.name), 'es')) * dir));
   const th = (k, label) => `<th><button class="psort${key === k ? ' is-active' : ''}" type="button" data-rv-sort="${k}">${label} <span aria-hidden="true">${key === k ? (dir > 0 ? '↑' : '↓') : '⇅'}</span></button></th>`;
-  return `<p class="odesc">Crea vistas para personalizar el diseño y el contenido de los registros de ${m.s}.</p><hr class="cd-sep" />
+  return `<p class="odesc">${isPreview ? `Personaliza el panel de vista previa de ${m.s} registros. También puedes <a href="../${type}/">actualizar tarjetas de vista previa</a> que aparecen fuera del CRM. <span class="info">ⓘ</span>` : `Crea vistas para personalizar el diseño y el contenido de los registros de ${m.s}.`}</p><hr class="cd-sep" />
     <div class="rvbar">
       <div class="search search--sm ptoolbar__search"><input type="search" id="rv-q" value="${esc(state.rvQuery)}" placeholder="Buscar por nombre de vista" aria-label="Buscar por nombre de vista" /><span class="ico ico--search" aria-hidden="true"></span></div>
-      <a class="pill pill--lg" href="../layout/?type=${type}&new=1" id="rv-new">Crear vista de equipo</a>
+      <a class="pill pill--lg" href="${editorHref('')}&new=1" id="rv-new">Crear vista de equipo</a>
     </div>
     <table class="mini-table stable proptable rvtable"><thead><tr><th class="pcheck"><input type="checkbox" aria-label="Seleccionar todo" data-rv-check-all ${rows.filter((v) => !v.isDefault).length && rows.filter((v) => !v.isDefault).every((v) => state.rvSel.has(v.name)) ? 'checked' : ''} /></th>${th('name', 'Ver nombre')}${th('teams', 'Asignado a')}${th('updated', 'Última actualización')}<th class="num">Acciones</th></tr></thead><tbody>
       ${rows.map((v) => `<tr><td class="pcheck">${v.isDefault ? '<input type="checkbox" disabled aria-label="Vista predeterminada" />' : `<input type="checkbox" data-rv-check="${esc(v.name)}" ${state.rvSel.has(v.name) ? 'checked' : ''} aria-label="Seleccionar ${esc(v.name)}" />`}</td>
-        <td>${v.isDefault ? '<span class="rvpin" aria-hidden="true">📌</span> ' : ''}<a class="olink" href="../layout/?type=${type}${v.isDefault ? '' : `&view=${encodeURIComponent(v.name)}`}">${esc(v.name)}</a></td>
+        <td>${v.isDefault ? '<span class="rvpin" aria-hidden="true">📌</span> ' : ''}<a class="olink" href="${editorHref(v.isDefault ? '' : v.name)}">${esc(v.name)}</a></td>
         <td>${v.isDefault ? 'Todos los equipos y usuarios sin asignar' : v.teams.length ? v.teams.map((t) => `<span class="rvchip">${esc(t)}</span>`).join(' ') : '<span class="muted">Sin asignar</span>'}</td>
         <td><div>${rvDate(v.updated)}</div>${v.by ? `<div class="muted">${esc(v.by)}</div>` : ''}</td>
         <td class="num"><div class="menu"><button class="icon-btn icon-btn--round" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Acciones">⋯</button><div class="menu__panel menu__panel--right">
-          <a class="menu__item" href="../layout/?type=${type}${v.isDefault ? '' : `&view=${encodeURIComponent(v.name)}`}">Editar vista</a>
+          <a class="menu__item" href="${editorHref(v.isDefault ? '' : v.name)}">Editar vista</a>
           ${v.isDefault ? `<button class="menu__item" type="button" data-rv-reset="${type}">Restablecer la vista predeterminada</button>` : `<button class="menu__item" type="button" data-rv-rename="${v.i}">Cambiar nombre</button><button class="menu__item" type="button" data-rv-teams="${v.i}">Asignar equipos</button><button class="menu__item" type="button" data-rv-clone="${v.i}">Clonar</button><button class="menu__item menu__item--danger" type="button" data-rv-rm="${v.i}">Eliminar</button>`}
         </div></div></td></tr>`).join('')}
     </tbody></table>
     ${state.rvSel.size ? `<div class="pbulk"><strong>${state.rvSel.size} seleccionada${state.rvSel.size > 1 ? 's' : ''}</strong><button class="link-btn" type="button" data-act="rv-delete-sel" data-type="${type}">Eliminar</button><button class="link-btn" type="button" data-act="rv-clear-sel">Limpiar</button></div>` : ''}
     <div class="ppager ppager--center"><nav class="ppager__nav" aria-label="Páginas"><button class="link-btn" type="button" disabled>‹ Anterior</button><button class="ppager__num is-active" type="button">1</button><button class="link-btn" type="button" disabled>Siguiente ›</button></nav></div>`;
 }
-function objectPreviewHtml(type) {
+const objectPreviewHtml = (type) => objectRecordHtml(type);
+function objectPreviewHtmlOld(type) {
   const m = OBJ_META[type];
   const layout = loadLayout(type);
   const cards = cardCatalog(type);
@@ -1078,7 +1085,7 @@ root.addEventListener('click', (e) => {
     const list = recordViews(type);
     const d = rvAct.dataset;
     const stamp = (v) => { v.updated = new Date().toISOString(); v.by = 'Fernando Lovera Colin'; };
-    if (d.rvReset !== undefined) { if (window.confirm('¿Restablecer la vista predeterminada a su diseño original?')) { localStorage.removeItem(`crm:${type}:layout`); localStorage.removeItem(`crm:${type}:layout-updated`); render(); toast('Vista predeterminada restablecida'); } return; }
+    if (d.rvReset !== undefined) { if (window.confirm('¿Restablecer la vista predeterminada a su diseño original?')) { if (viewsKind() === 'preview') { localStorage.removeItem(`crm:${type}:preview:default`); localStorage.removeItem(`crm:${type}:preview-updated`); } else { localStorage.removeItem(`crm:${type}:layout`); localStorage.removeItem(`crm:${type}:layout-updated`); } render(); toast('Vista predeterminada restablecida'); } return; }
     const v = list[Number(d.rvRename ?? d.rvTeams ?? d.rvClone ?? d.rvRm)];
     if (!v) return;
     if (d.rvRename !== undefined) promptModal('Cambiar nombre de la vista', [['name', 'Nombre de la vista', 'text', v.name]], 'Guardar', (f) => { const name = f.name.trim(); if (!name) return; state.rvSel.delete(v.name); v.name = name; stamp(v); saveRecordViews(type, list); toast('Nombre guardado'); });

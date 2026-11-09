@@ -128,7 +128,7 @@ log('cloned:', JSON.parse(mem['crm:deals:recordviews']).slice(-1)[0].name);
 click(document.querySelector('[data-rv-rm="4"]'));
 log('after delete:', JSON.parse(mem['crm:deals:recordviews']).length);
 click(document.querySelector('[data-objects-tab="preview"]'));
-log('preview cards:', document.querySelectorAll('.opreview__card').length, '| tabs:', document.querySelectorAll('.opreview__tabs span').length);
+log('preview tab rows:', document.querySelectorAll('.rvtable tbody tr').length, '| create href:', document.getElementById('rv-new').getAttribute('href'), '| default link:', document.querySelector('.rvtable tbody .olink').getAttribute('href'), '| desc:', document.querySelector('.odesc').textContent.slice(0, 50));
 click(document.querySelector('[data-objects-tab="index"]'));
 const bcForm = document.querySelector('form[data-boardcard]');
 [...bcForm.querySelectorAll('input[name="k"]')].slice(0, 2).forEach((i) => { i.checked = true; });
