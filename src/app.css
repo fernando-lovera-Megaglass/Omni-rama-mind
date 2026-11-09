@@ -6639,6 +6639,53 @@ textarea.cellpop__input {
   font-size: var(--fs-sm);
 }
 
+/* "Crear pipeline" panel */
+.cp {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-20);
+}
+
+.cp__intro {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.cp .gfield > span {
+  display: block;
+  margin-bottom: var(--sp-8);
+  font-weight: 600;
+}
+
+.cp__count {
+  display: block;
+  margin-top: 4px;
+  text-align: right;
+  color: var(--c-muted);
+  font-size: var(--fs-xs);
+}
+
+.cp__error {
+  display: block;
+  margin-top: 4px;
+  color: #c4381c;
+  font-size: var(--fs-sm);
+}
+
+.cp__stages ol {
+  margin: var(--sp-8) 0 0;
+  padding-left: var(--sp-20);
+  columns: 2;
+  font-size: 15px;
+  line-height: 1.8;
+}
+
+.cp__note {
+  margin: 0;
+  font-size: var(--fs-sm);
+}
+
 /* "Asignar usuarios y equipos" drawer */
 /* Wider side panel for the settings dialogs (access, logic, forms) */
 #s-modal .drawer__panel--dialog {

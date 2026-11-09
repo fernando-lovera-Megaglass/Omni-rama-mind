@@ -367,7 +367,7 @@ function dealPipelinesHtml() {
     <div class="ptoolbar">
       <div class="search search--sm ptoolbar__search"><input type="search" id="pipe-q" placeholder="Buscar pipelines" aria-label="Buscar pipelines" value="${esc(state.pipeQuery)}" /><span class="ico ico--search" aria-hidden="true"></span></div>
       <div class="ptoolbar__right"><span>${defs.length} pipelines de objetos del tipo negocio | <strong class="plink">${100 - defs.length} pipelines restantes</strong></span>
-        <div class="menu"><button class="btn btn--primary" type="button" aria-haspopup="true" aria-expanded="false">Crear pipeline <span class="caret"></span></button><div class="menu__panel menu__panel--right"><button class="menu__item" type="button" data-act="new-pipeline">Crear pipeline desde cero</button><button class="menu__item" type="button" data-act="clone-pipeline">Clonar un pipeline existente</button></div></div></div>
+        <div class="menu"><button class="btn btn--primary" type="button" aria-haspopup="true" aria-expanded="false">Crear pipeline <span class="caret"></span></button><div class="menu__panel menu__panel--right"><button class="menu__item" type="button" data-act="new-pipeline">Crear desde cero</button><button class="menu__item" type="button" data-act="clone-pipeline">Clonar</button></div></div></div>
     </div>
     <table class="mini-table stable ptable"><thead><tr><th></th><th>Pipeline <span class="muted">⇅</span></th><th>Descripción del pipeline</th><th class="num">Propiedades calculadas de etapa <span class="info">ⓘ</span></th><th class="num">Etiquetas de negocios</th><th class="num">Reglas del pipeline <span class="info">ⓘ</span></th><th class="num">Número de etapas</th><th class="num">Negocios</th><th class="num">ID interno</th><th class="num">Acciones</th></tr></thead><tbody data-dnd="pipes">
       ${rows.length ? rows.map(({ p, i }) => { const acc = p.access || { mode: 'all' }; return `<tr data-row="${i}"><td class="phandle" title="Arrastra para cambiar el orden" aria-hidden="true">⋮⋮</td><td><button class="olink" type="button" data-pipe-edit="${i}">${esc(p.name)}</button>${i === 0 ? ' <span class="tag tag--new">Predeterminado</span>' : ''}${acc.mode === 'private' ? ' <span class="tag tag--none" title="Privado para ti">🔒 Privado</span>' : acc.mode === 'teams' || acc.mode === 'select' ? ` <span class="tag tag--none" title="Acceso restringido a ${esc([...(acc.teams || []), ...(acc.users || [])].join(', '))}">🔒 ${(acc.teams || []).length + (acc.users || []).length}</span>` : ''}</td><td class="pdesccell"><span class="muted">${p.desc ? esc(p.desc) : '--'}</span><button class="icon-btn icon-btn--round icon-btn--sm rowact" type="button" data-pipe-desc="${i}" aria-label="Editar descripción">✎</button></td><td class="num">${p.stages.length * 4}</td><td class="num">${labelsOf(p).length}</td><td class="num">${rulesCount(p)}</td><td class="num">${p.stages.length}</td><td class="num">${inPipe(p)}</td><td class="num muted pidcell">${p.id}<button class="icon-btn icon-btn--sm rowact" type="button" data-copy="${p.id}" aria-label="Copiar ID">⧉</button></td><td class="num"><div class="menu"><button class="icon-btn icon-btn--sm" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Acciones del pipeline">⋮</button><div class="menu__panel menu__panel--right"><button class="menu__item" type="button" data-pipe-access="${i}">Gestionar acceso</button><button class="menu__item" type="button" data-pipe-clone="${i}">Clonar</button><button class="menu__item menu__item--danger" type="button" data-pipe-rm="${i}" ${defs.length < 2 ? 'disabled' : ''}>Eliminar</button></div></div></td></tr>`; }).join('') : '<tr><td colspan="10" class="muted">No hay pipelines que coincidan con la búsqueda.</td></tr>'}
@@ -504,6 +504,56 @@ function collectPipeline(p) {
     if (d) s[3] = d.value.trim();
   });
   return p;
+}
+// "Crear pipeline" side panel: from scratch (name only, default stages) or cloning an existing one.
+// After creating, the new pipeline opens in its "Administrar" page so its stages can be edited.
+function openPipelinePanel(mode) {
+  const defs = dealPipelineDefs();
+  const MAX = 60;
+  const isClone = mode === 'clone';
+  const srcDefault = defs[state.pipeEdit !== null ? state.pipeEdit : 0];
+  const body = `<form id="cp-form" class="cp">
+      ${isClone ? `<p class="cp__intro">Se copiarán las etapas, sus probabilidades y, si lo marcas, las reglas y automatizaciones del pipeline elegido. Los negocios no se copian.</p>
+      <label class="gfield"><span>Pipeline que se va a clonar</span><select class="ginput" name="src">${defs.map((p) => `<option ${p === srcDefault ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select></label>` : '<p class="cp__intro">El pipeline nuevo empieza con las etapas predeterminadas de negocios; podrás cambiarlas, añadir más o reordenarlas en el siguiente paso.</p>'}
+      <label class="gfield"><span>Nombre del pipeline <em class="req">*</em></span><input class="ginput" name="name" maxlength="${MAX}" autocomplete="off" value="${isClone ? esc(`${srcDefault.name} (copia)`) : ''}" placeholder="Por ejemplo: Ventas nacionales" /><small class="cp__count"><span id="cp-count">${isClone ? `${srcDefault.name} (copia)`.length : 0}</span>/${MAX}</small><small class="cp__error" id="cp-error" hidden>Ya existe un pipeline con ese nombre.</small></label>
+      ${isClone ? '<label class="ocheck"><input type="checkbox" name="rules" checked /><span><strong>Incluir reglas y automatizaciones</strong><small>Reglas del pipeline, lógica condicional de las etapas y acciones automáticas.</small></span></label>' : `<div class="cp__stages"><strong>Etapas iniciales</strong><ol>${DEAL_STAGES.map(([, l, p]) => `<li>${esc(l)} <span class="muted">${p}%</span></li>`).join('')}</ol></div>`}
+      <p class="muted cp__note">Solo los superadministradores y los usuarios con permiso para editar la configuración de la propiedad podrán modificar este pipeline.</p>
+    </form>`;
+  openModal(isClone ? 'Clonar pipeline' : 'Crear pipeline', body, `<button class="btn btn--primary" type="submit" form="cp-form" id="cp-save" disabled>${isClone ? 'Clonar' : 'Crear'}</button><button class="btn btn--ghost" type="button" data-close>Cancelar</button>`);
+  const form = document.getElementById('cp-form');
+  const nameInput = form.elements.name;
+  const validate = () => {
+    const name = nameInput.value.trim();
+    const dup = defs.some((p) => p.name.toLowerCase() === name.toLowerCase());
+    document.getElementById('cp-count').textContent = nameInput.value.length;
+    document.getElementById('cp-error').hidden = !dup;
+    document.getElementById('cp-save').disabled = !name || dup;
+  };
+  nameInput.addEventListener('input', validate);
+  if (isClone) form.elements.src.addEventListener('change', () => { nameInput.value = `${form.elements.src.value} (copia)`; validate(); });
+  form.addEventListener('submit', (ev) => {
+    ev.preventDefault();
+    const name = nameInput.value.trim();
+    if (!name || defs.some((p) => p.name.toLowerCase() === name.toLowerCase())) return;
+    let created;
+    if (isClone) {
+      const src = defs.find((p) => p.name === form.elements.src.value) || defs[0];
+      created = newPipelineDef(name, src.stages);
+      created.desc = src.desc || '';
+      if (form.elements.rules.checked) { created.rules = { ...(src.rules || {}) }; created.automation = JSON.parse(JSON.stringify(src.automation || {})); created.logic = JSON.parse(JSON.stringify(src.logic || {})); created.required = JSON.parse(JSON.stringify(src.required || {})); }
+    } else {
+      created = newPipelineDef(name);
+    }
+    defs.push(created);
+    persistPipelines(defs, isClone ? `Pipeline "${name}" clonado` : `Pipeline "${name}" creado: configura sus etapas`);
+    closeModal();
+    state.pipeEdit = defs.length - 1;
+    state.pipeSub = 'configure';
+    render();
+  });
+  validate();
+  nameInput.focus();
+  if (isClone) nameInput.select();
 }
 // "Asignar usuarios y equipos" drawer for one pipeline (private / everyone / selected teams & users).
 function openAccessDrawer(i) {
@@ -1137,7 +1187,7 @@ root.addEventListener('click', (e) => {
     persistPipelines(defs, 'Etapa añadida: cámbiale el nombre'); render();
     const inp = root.querySelector(`[data-stage-label="${key}"]`); if (inp) { inp.focus(); inp.select(); }
   }
-  else if (a === 'clone-pipeline') promptModal('Clonar un pipeline existente', [['src', 'Pipeline de origen', 'select', dealPipelines()], ['name', 'Nombre del nuevo pipeline']], 'Clonar', (d) => { const defs = dealPipelineDefs(); const src = defs.find((p) => p.name === d.src) || defs[0]; const copy = newPipelineDef(d.name.trim() || `${src.name} (copia)`, src.stages); defs.push(copy); persistPipelines(defs, `Pipeline "${copy.name}" creado`); });
+  else if (a === 'clone-pipeline') openPipelinePanel('clone');
   else if (a === 'snav-toggle') { state.navCollapsed = !state.navCollapsed; localStorage.setItem(SNAV_KEY, state.navCollapsed ? '1' : '0'); render(); }
   else if (a === 'reset-boardcard') { localStorage.removeItem(`crm:${act.dataset.type}:boardcard`); render(); toast('Tarjetas del tablero restablecidas'); }
   else if (a === 'new-recordview') promptModal('Crear vista de equipo', [['name', 'Nombre de la vista'], ['teams', 'Asignar al equipo', 'select', teams().map((t) => t.name)]], 'Crear', (d) => { const type = act.dataset.type; const list = recordViews(type); const name = d.name.trim(); if (!name) return; if (list.some((v) => v.name.toLowerCase() === name.toLowerCase())) { toast('Ya existe una vista con ese nombre'); return; } list.push({ name, teams: [d.teams], updated: new Date().toISOString(), by: 'Fernando Lovera Colin' }); saveRecordViews(type, list); toast(`Vista "${name}" creada`); });
@@ -1150,7 +1200,7 @@ root.addEventListener('click', (e) => {
     openModal(`Formulario "Crear ${OBJ_META[type].s}"`, `<p class="muted">Marca los campos que aparecen al crear un ${OBJ_META[type].s.toLowerCase()}.</p><form id="cf-form" class="ocardgrid ocardgrid--modal">${list.map((p, i) => `<label class="ocheck ocheck--sm"><input type="checkbox" name="k" value="${esc(p.key)}" ${saved ? (saved.includes(p.key) ? 'checked' : '') : i < 8 ? 'checked' : ''} /><span>${esc(p.label)}</span></label>`).join('')}</form>`, `<button class="btn btn--primary" type="button" id="cf-save">Guardar</button><button class="btn btn--ghost" type="button" data-close>Cancelar</button>`);
     document.getElementById('cf-save').onclick = () => { const keys = [...document.querySelectorAll('#cf-form input:checked')].map((i) => i.value); save(`crm:${type}:createform`, keys); closeModal(); toast(`Formulario guardado con ${keys.length} campos`); };
   }
-  else if (a === 'new-pipeline') promptModal('Crear pipeline', [['name', 'Nombre del pipeline']], 'Crear', (d) => { const list = dealPipelines(); const name = d.name.trim(); if (!name) return; if (list.includes(name)) { toast('Ya existe un pipeline con ese nombre'); return; } list.push(name); saveDealPipelines(list); toast(`Pipeline "${name}" creado`); });
+  else if (a === 'new-pipeline') openPipelinePanel('new');
   else if (a === 'avatar-rm') { const p = profile(); delete p.avatar; save('crm:profile', p); render(); toast('Imagen de perfil quitada'); }
   else if (a === 'props-export' || a === 'props-export-sel') {
     const rows = propertyRows(state.propsObject).filter((p) => a === 'props-export' || state.propsSel.has(p.key));

@@ -227,9 +227,21 @@ log('switched pipeline:', document.querySelector('.spane h2').textContent.trim()
 click(document.querySelector('[data-act="pipe-back"]'));
 log('overview rules column:', document.querySelector('.ptable tbody tr').textContent.replace(/\s+/g, ' ').trim().slice(0, 80));
 click(document.querySelector('[data-act="new-pipeline"]'));
-document.querySelector('#pm-form [name="name"]').value = 'Mantenimiento';
-document.getElementById('pm-form').dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true }));
-log('pipelines stored:', JSON.parse(mem['crm:pipelines:deals']).slice(-1)[0].name, '| rows:', document.querySelectorAll('.ptable tbody tr').length);
+log('create panel:', document.getElementById('s-modal-title').textContent, '| save disabled:', document.getElementById('cp-save').disabled, '| initial stages:', document.querySelectorAll('.cp__stages li').length, '| menu items:', [...document.querySelectorAll('[data-act="new-pipeline"], [data-act="clone-pipeline"]')].map((b) => b.textContent).join(' | '));
+const cpName = document.querySelector('#cp-form [name="name"]');
+cpName.value = 'FUERZA DE VENTAS';
+cpName.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+log('duplicate name blocked:', document.getElementById('cp-save').disabled, '| error shown:', !document.getElementById('cp-error').hidden);
+cpName.value = 'Mantenimiento';
+cpName.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+log('save enabled:', !document.getElementById('cp-save').disabled, '| counter:', document.getElementById('cp-count').textContent);
+document.getElementById('cp-form').dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true }));
+log('pipelines stored:', JSON.parse(mem['crm:pipelines:deals']).slice(-1)[0].name, '| opened manage page:', document.querySelector('.spane h2').textContent.trim(), '| stages:', document.querySelectorAll('.peditor tbody tr').length);
+click(document.querySelector('[data-act="pipe-back"]'));
+click(document.querySelector('[data-act="clone-pipeline"]'));
+log('clone panel:', document.getElementById('s-modal-title').textContent, '| prefilled:', document.querySelector('#cp-form [name="name"]').value, '| rules option:', Boolean(document.querySelector('#cp-form [name="rules"]')));
+click(document.querySelector('#s-modal [data-close]'));
+log('rows after create:', document.querySelectorAll('.ptable tbody tr').length);
 click(document.querySelector('[data-pipe-rm="8"]'));
 log('after remove:', JSON.parse(mem['crm:pipelines:deals']).length);
 // row actions: description pencil, copy id, access menu
