@@ -1,7 +1,7 @@
 // Account settings (the gear in the top bar): a full settings tree with a pane per section.
 import { boot } from './page.js';
 import { toast, wireMenus, closeMenus } from './shell.js';
-import { OWNERS, DEAL_STAGES, TICKET_STATUSES, PIPELINE_KEY, ASSOC_LABELS_KEY, assocLabels, ALL, formatDate, formatMoney, dealPipelines, saveDealPipelines, dealPipelineDefs, saveDealPipelineDefs, newPipelineDef, setField, LIFECYCLES, download } from './data.js';
+import { OWNERS, DEAL_STAGES, TICKET_STATUSES, PIPELINE_KEY, ASSOC_LABELS_KEY, assocLabels, ALL, formatDate, formatMoney, dealPipelines, saveDealPipelines, dealPipelineDefs, saveDealPipelineDefs, newPipelineDef, setField, LIFECYCLES, download, lifecycleDef, saveLifecycleDef, defaultLifecycleDef } from './data.js';
 import { propertyGroups, customProperties, saveCustomProperties, propertyList } from './properties.js';
 import { TEAMS, loadLayout, cardCatalog } from './layout-defaults.js';
 import { STD_VIEWS, defaultTabs } from './std-views.js';
@@ -390,29 +390,41 @@ const labelOfStage = (p, k) => (p.stages.find((s) => s[0] === k) || [k, k])[1];
 const logicCount = (p, k) => ((p.logic && p.logic[k] && p.logic[k].props && p.logic[k].props.length) ? 1 : 0) + (k === 'won' || k === 'lost' ? 1 : 0);
 const LOGIC_PROPS = ['Etapa del negocio', 'Pipeline', 'Importe', 'Prioridad', 'Tipo de negocio', 'Propietario del negocio'];
 const LOGIC_OPS = ['es igual a', 'no es igual a', 'está definido', 'no está definido'];
-const stageValue = (p, k) => `${labelOfStage(p, k)} (${p.name})`;
+const stageValue = (p, k) => (p && p.lifecycle ? labelOfStage(p, k) : `${labelOfStage(p, k)} (${p.name})`);
 function defaultLogic(p, k) {
   if (k === 'won') return { groups: [{ conditions: [{ prop: 'Etapa del negocio', op: 'es igual a', value: stageValue(p, k) }] }], props: [{ name: 'Motivo de cierre ganado', required: true }], builtin: true };
   if (k === 'lost') return { groups: [{ conditions: [{ prop: 'Etapa del negocio', op: 'es igual a', value: stageValue(p, k) }] }], props: [{ name: 'Motivo de cierre perdido', required: true }], builtin: true };
-  return { groups: [{ conditions: [{ prop: 'Etapa del negocio', op: 'es igual a', value: stageValue(p, k) }] }], props: [] };
+  return { groups: [{ conditions: [{ prop: stageProp(p), op: 'es igual a', value: stageValue(p, k) }] }], props: [] };
+}
+// The logic editor works either on a deal pipeline (state.pipeEdit) or on the shared lifecycle definition.
+const stageProp = (p) => (p && p.lifecycle ? 'Etapa del ciclo de vida' : 'Etapa del negocio');
+const logicProps = (p) => (p && p.lifecycle ? ['Etapa del ciclo de vida', 'Estado del lead', 'Propietario', 'Fuente original', 'País/región'] : LOGIC_PROPS);
+function logicTarget() {
+  if (state.logicEdit && state.logicEdit.lifecycle) {
+    const p = lifecycleDef();
+    return { p, defs: [], persist: (msg) => { saveLifecycleDef(p); if (msg) toast(msg); } };
+  }
+  const defs = dealPipelineDefs();
+  return { p: defs[state.pipeEdit], defs, persist: (msg) => persistPipelines(defs, msg) };
 }
 function logicHtml() {
-  const { stage, draft, preview, adding, addingProp } = state.logicEdit;
-  const defs = dealPipelineDefs();
-  const p = defs[state.pipeEdit];
+  const { stage, draft, preview, adding, addingProp, lifecycle, objectType } = state.logicEdit;
+  const { p, defs } = logicTarget();
   const pv = preview || stage;
-  // A group is true for the previewed stage when all its "Etapa del negocio" conditions match (other properties count as true).
-  const groupTrue = (g) => g.conditions.every((c) => (c.prop !== 'Etapa del negocio' ? true : c.op === 'es igual a' ? c.value === stageValue(p, pv) : c.op === 'no es igual a' ? c.value !== stageValue(p, pv) : true));
+  const SP = stageProp(p);
+  // A group is true for the previewed stage when all its stage conditions match (other properties count as true).
+  const groupTrue = (g) => g.conditions.every((c) => (c.prop !== SP ? true : c.op === 'es igual a' ? c.value === stageValue(p, pv) : c.op === 'no es igual a' ? c.value !== stageValue(p, pv) : true));
   const show = draft.groups.some(groupTrue) ? draft.props : [];
-  const available = propertyList('deals').map((x) => x.label).filter((l) => !draft.props.some((x) => x.name === l)).slice(0, 60);
+  const propType = lifecycle ? objectType || 'contacts' : 'deals';
+  const available = propertyList(propType).map((x) => x.label).filter((l) => !draft.props.some((x) => x.name === l)).slice(0, 80);
   const condEditor = (gi) => `<div class="lcond lcond--edit" data-gi="${gi}">
-      <select class="ginput ginput--sm" data-cond-prop>${LOGIC_PROPS.map((x) => `<option ${adding.prop === x ? 'selected' : ''}>${x}</option>`).join('')}</select>
+      <select class="ginput ginput--sm" data-cond-prop>${logicProps(p).map((x) => `<option ${adding.prop === x ? 'selected' : ''}>${x}</option>`).join('')}</select>
       <select class="ginput ginput--sm" data-cond-op>${LOGIC_OPS.map((x) => `<option ${adding.op === x ? 'selected' : ''}>${x}</option>`).join('')}</select>
-      ${adding.prop === 'Etapa del negocio' ? `<select class="ginput ginput--sm" data-cond-value>${p.stages.map(([k]) => `<option ${adding.value === stageValue(p, k) ? 'selected' : ''}>${esc(stageValue(p, k))}</option>`).join('')}</select>` : adding.prop === 'Pipeline' ? `<select class="ginput ginput--sm" data-cond-value>${defs.map((d) => `<option ${adding.value === d.name ? 'selected' : ''}>${esc(d.name)}</option>`).join('')}</select>` : `<input class="ginput ginput--sm" data-cond-value value="${esc(adding.value || '')}" placeholder="Valor" ${adding.op.includes('definido') ? 'disabled' : ''} />`}
+      ${adding.prop === SP ? `<select class="ginput ginput--sm" data-cond-value>${p.stages.map(([k]) => `<option ${adding.value === stageValue(p, k) ? 'selected' : ''}>${esc(stageValue(p, k))}</option>`).join('')}</select>` : adding.prop === 'Pipeline' ? `<select class="ginput ginput--sm" data-cond-value>${defs.map((d) => `<option ${adding.value === d.name ? 'selected' : ''}>${esc(d.name)}</option>`).join('')}</select>` : `<input class="ginput ginput--sm" data-cond-value value="${esc(adding.value || '')}" placeholder="Valor" ${adding.op.includes('definido') ? 'disabled' : ''} />`}
       <button class="btn btn--primary btn--sm" type="button" data-logic-cond-apply="${gi}">Aplicar</button><button class="btn btn--ghost btn--sm" type="button" data-logic-cond-cancel>Cancelar</button>
     </div>`;
   return `<div class="logic" role="dialog" aria-modal="true" aria-labelledby="logic-title">
-    <header class="logic__head"><div><h2 id="logic-title">Editar lógica de propiedad</h2><span class="muted">Negocio · ${esc(labelOfStage(p, stage))}</span></div><div class="logic__btns"><button class="btn btn--ghost" type="button" data-logic-save>Guardar</button><button class="icon-btn icon-btn--round" type="button" data-logic-close aria-label="Cerrar">×</button></div></header>
+    <header class="logic__head"><div><h2 id="logic-title">Editar lógica de propiedad</h2><span class="muted">${lifecycle ? esc(OBJ_META[propType].s) : 'Negocio'} · ${esc(labelOfStage(p, stage))}</span></div><div class="logic__btns"><button class="btn btn--ghost" type="button" data-logic-save>Guardar</button><button class="icon-btn icon-btn--round" type="button" data-logic-close aria-label="Cerrar">×</button></div></header>
     <div class="logic__body">
       <section class="logic__left">
         <p>La lógica de propiedades te permite mostrar y solicitar propiedades basadas en el valor de otra propiedad.</p>
@@ -428,17 +440,16 @@ function logicHtml() {
       </section>
       <section class="logic__right">
         <h3>Vista previa</h3><p class="muted">Cambia el valor de abajo para probar cómo se comporta tu lógica en un registro.</p>
-        <label class="gfield"><span>Etapa del negocio</span><select class="ginput ginput--md" data-logic-preview>${p.stages.map(([k]) => `<option value="${k}" ${pv === k ? 'selected' : ''}>${esc(stageValue(p, k))}</option>`).join('')}</select></label>
+        <label class="gfield"><span>${SP}</span><select class="ginput ginput--md" data-logic-preview>${p.stages.map(([k]) => `<option value="${k}" ${pv === k ? 'selected' : ''}>${esc(stageValue(p, k))}</option>`).join('')}</select></label>
         <div class="lpreview">${show.length ? `<p class="muted">Propiedades que se piden en esta etapa:</p>${show.map((x) => `<label class="gfield lpreview__field"><span>${esc(x.name)}${x.required ? ' <em class="req">*</em>' : ''}</span><input class="ginput" placeholder="${x.required ? 'Obligatoria' : 'Opcional'}" /></label>`).join('')}` : '<p class="lpreview__empty">No existen propiedades dependientes para esta opción</p>'}</div>
       </section>
     </div>
   </div>`;
 }
-function openLogic(k) {
-  const defs = dealPipelineDefs();
-  const p = defs[state.pipeEdit];
+function openLogic(k, lifecycle = false, objectType = 'contacts') {
+  const p = lifecycle ? lifecycleDef() : dealPipelineDefs()[state.pipeEdit];
   const saved = p.logic && p.logic[k];
-  state.logicEdit = { stage: k, draft: JSON.parse(JSON.stringify(saved || defaultLogic(p, k))), preview: k, adding: null, addingProp: false };
+  state.logicEdit = { stage: k, lifecycle, objectType, draft: JSON.parse(JSON.stringify(saved || defaultLogic(p, k))), preview: k, adding: null, addingProp: false };
 }
 const labelsOf = (p) => (Array.isArray(p.labelList) ? p.labelList : assocLabels().slice(2, 2 + (p.labels || 0)));
 const PROBS = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
@@ -664,18 +675,68 @@ function objectConfigHtml(type) {
   return `<p class="odesc">${m.desc}</p><hr class="cd-sep" />${props}${assoc}${creating}${automation}${collab}${['contacts', 'companies', 'deals', 'tickets', 'tasks'].includes(type) ? danger : ''}`;
 }
 // "Etapa del ciclo de vida" tab for contacts and companies.
+// ---------- Etapa del ciclo de vida (shared by contacts and companies), as in the original ----------
+Object.assign(state, { lcSub: 'configure', lcBannerHidden: false });
+const LC_RULES = [
+  ['noBack', 'Solo permitir avanzar de etapa', 'La etapa del ciclo de vida no retrocede, ni manualmente ni por flujos o importaciones.'],
+  ['noSkip', 'Limitar los saltos de etapa', 'Un registro solo puede pasar a la etapa siguiente.'],
+  ['lockCustomer', 'No cambiar automáticamente la etapa de los clientes', 'Los registros en "Cliente" o posteriores no se mueven por automatizaciones.'],
+  ['requireOwner', 'Exigir propietario para avanzar de Lead', 'Un registro sin propietario no puede pasar de la etapa Lead.'],
+];
+const LC_SYNC = [['onDeal', 'Cuando se crea un negocio asociado, pasar a «Oportunidad»', 'Contactos y empresas en etapas anteriores avanzan a Oportunidad.'], ['onWon', 'Cuando se gana un negocio asociado, pasar a «Cliente»', 'Contactos y empresas asociados al negocio pasan a Cliente.'], ['company', 'Sincronizar la etapa entre contactos y su empresa', 'Al avanzar un contacto, su empresa avanza si está por detrás, y al revés.']];
+function collectLifecycle(def) {
+  const form = root.querySelector('form[data-save="lifecycle"]');
+  if (!form) return def;
+  def.stages.forEach((s) => {
+    const l = form.querySelector(`[data-lc-label="${s[0]}"]`);
+    const d = form.querySelector(`[data-lc-desc="${s[0]}"]`);
+    if (l && l.value.trim()) s[1] = l.value.trim();
+    if (d) s[2] = d.value.trim();
+  });
+  return def;
+}
 function lifecycleHtml(type) {
   const m = OBJ_META[type];
+  const def = lifecycleDef();
   const records = ALL[type]();
-  const s = objSetting(type);
-  const sync = type === 'companies' ? objCheck('companies', 'syncLifecycle', 'Sincronizar la etapa con los contactos asociados', 'Cuando una empresa cambia de etapa, sus contactos avanzan a la misma etapa si están por detrás.', s.syncLifecycle !== false) : objCheck('contacts', 'syncLifecycle', 'Sincronizar la etapa con la empresa asociada', 'Cuando un contacto avanza de etapa, la empresa asociada también avanza si está por detrás.', s.syncLifecycle !== false);
-  return `<h3>Etapa del ciclo de vida</h3><p class="muted">La etapa del ciclo de vida indica en qué punto del proceso de marketing y ventas están tus ${m.p.toLowerCase()}. Las etapas se comparten entre contactos y empresas.</p>
-    ${simpleTable(['Etapa', 'Nombre interno', `${m.p} en la etapa`, ''], LIFECYCLES.map((l, i) => [`<strong>${esc(l)}</strong>`, `<span class="muted">${slug(l)}</span>`, String(records.filter((r) => r.lifecycle === l).length), `<a class="link-btn" href="../${type}/">Ver ${m.p.toLowerCase()}</a>${i === 0 ? ' <span class="tag tag--new">Predeterminada</span>' : ''}`]))}
-    <h3>Comportamiento</h3>
-    ${sync}
-    ${objCheck(type, 'lifecycleForward', 'Solo permitir avanzar de etapa', 'La etapa no retrocede automáticamente cuando se actualiza por un flujo o una importación.', s.lifecycleForward !== false)}
-    ${objCheck(type, 'lifecycleOnDeal', 'Pasar a Oportunidad al crear un negocio', `Cuando se crea un negocio asociado, ${m.p.toLowerCase()} en etapas anteriores pasan a "Oportunidad".`, s.lifecycleOnDeal !== false)}
-    ${objCheck(type, 'lifecycleOnWon', 'Pasar a Cliente al ganar un negocio', `Cuando se gana un negocio asociado, ${m.p.toLowerCase()} pasan a "Cliente".`, s.lifecycleOnWon !== false)}`;
+  const sub = state.lcSub || 'configure';
+  const count = (label) => records.filter((r) => r.lifecycle === label).length;
+  const logicN = (id) => (def.logic && def.logic[id] && def.logic[id].props && def.logic[id].props.length ? 1 : 0);
+  const ruleHits = (id, i) => (def.rules && def.rules.requireOwner && id === 'lead' ? 1 : 0) + (def.rules && def.rules.lockCustomer && i >= def.stages.findIndex((s) => s[0] === 'customer') && def.stages.some((s) => s[0] === 'customer') ? 1 : 0) + ((def.required && def.required[id] && def.required[id].length) ? 1 : 0);
+  let body = '';
+  if (sub === 'configure') {
+    body = `<div class="lcinfo"><strong>Los contactos y las empresas comparten algunos ajustes.</strong> Al cambiar el nombre o el color de la etapa, o al activar las propiedades calculadas de la etapa en los contactos, también se cambiarán en las empresas. Las reglas de lógica condicional son independientes para contactos y empresas.</div>
+      <form class="peditor" data-save="lifecycle">
+        <div class="pdesc"><strong>Descripción del pipeline</strong><div>${def.desc ? esc(def.desc) : '--'} <button type="button" class="icon-btn icon-btn--round icon-btn--sm" data-act="lc-desc" aria-label="Editar descripción">✎</button></div></div>
+        <p class="muted">Monitoriza ${m.p.toLowerCase()} a medida que avanzan por los procesos de marketing y de ventas. <a href="#" onclick="return false">Más información acerca de las etapas del ciclo de vida</a></p>
+        <table class="mini-table stable ptable ptable--stages ptable--lc"><thead><tr><th>Nombre de la etapa</th><th>Descripción de la etapa</th><th>Habilitar propiedades calculadas de etapa <span class="muted">⋮</span></th><th>Se usa en</th><th>Reglas de lógica condicional <span class="info">ⓘ</span> <span class="tag tag--done">Nuevo</span></th><th><span class="plink">Reglas del pipeline <span class="info">ⓘ</span></span></th><th>Identificación de la etapa</th><th>Eliminar</th></tr></thead><tbody data-dnd="lcstages">
+          ${def.stages.map(([id, label, desc, calc], i) => `<tr data-row="${i}"><td class="pstagecell"><span class="phandle" title="Arrastra para cambiar el orden" aria-hidden="true">⋮⋮</span><input class="cellpop__input cellpop__input--sm pstage" data-lc-label="${esc(id)}" value="${esc(label)}" required /></td><td><input class="cellpop__input cellpop__input--sm" data-lc-desc="${esc(id)}" value="${esc(desc || '')}" placeholder="--" /></td><td><label class="lcswitch"><input type="checkbox" class="switch" data-lc-calc="${esc(id)}" ${calc !== false ? 'checked' : ''} /><span class="visually-hidden">Propiedades calculadas de ${esc(label)}</span></label></td><td><a class="plink" href="../${type}/">${count(label).toLocaleString('es-ES')}</a></td><td>${logicN(id) ? `<button type="button" class="link-btn plogic" data-logic-edit="${esc(id)}" data-logic-lifecycle>1 regla de lógica</button>` : `<span class="muted rowdash">--</span><button type="button" class="pill pill--sm rowact" data-logic-edit="${esc(id)}" data-logic-lifecycle>Agregar regla</button>`}</td><td>${ruleHits(id, i) ? `<span class="muted">${ruleHits(id, i)} regla${ruleHits(id, i) > 1 ? 's' : ''}</span>` : '<span class="muted rowdash">--</span>'}<button type="button" class="pill pill--sm rowact" data-lc-sub="rules">Editar</button></td><td class="muted">${esc(id)}</td><td><button type="button" class="icon-btn icon-btn--sm lctrash" data-lc-rm="${esc(id)}" aria-label="Eliminar etapa ${esc(label)}" ${count(label) || def.stages.length <= 2 ? 'disabled title="Tiene registros"' : ''}>🗑</button></td></tr>`).join('')}
+        </tbody></table>
+        <p><button type="button" class="link-btn" data-act="lc-stage-add">+ Agregar etapa</button></p>
+        <div class="sform__btns gsave"><button class="btn btn--primary" type="submit">Guardar</button><button class="btn btn--ghost" type="button" data-act="lc-reset">Restablecer etapas</button></div>
+      </form>`;
+  } else if (sub === 'automate') {
+    const a = def.automation || {};
+    const sync = def.sync || {};
+    body = `<h3>Automatizar</h3><p class="muted">Acciones automáticas sobre la etapa del ciclo de vida de contactos y empresas.</p>
+      ${LC_SYNC.map(([k, l, d]) => `<label class="ocheck"><input type="checkbox" data-lc-sync="${k}" ${sync[k] !== false ? 'checked' : ''} /><span><strong>${l}</strong><small>${d}</small></span></label>`).join('')}
+      <h3>Al entrar en una etapa</h3>
+      <div class="pautos">${def.stages.map(([id, label]) => { const s = a[id] || {}; const n = Object.values(s).filter(Boolean).length; return `<div class="pauto"><div class="pauto__head"><strong>Cuando un registro entra en «${esc(label)}»</strong><span class="muted">${n ? `${n} acción${n > 1 ? 'es' : ''}` : 'Sin acciones'}</span></div>${PIPE_AUTOS.map(([ak, al]) => `<label class="ocheck ocheck--sm"><input type="checkbox" data-lc-auto="${ak}" data-stage="${esc(id)}" ${s[ak] ? 'checked' : ''} /><span>${al}</span></label>`).join('')}</div>`; }).join('')}</div>`;
+  } else {
+    const r = def.rules || {};
+    body = `<h3>Reglas del pipeline</h3><p class="muted">Las reglas se aplican al cambiar la etapa del ciclo de vida desde la ficha, la lista o el tablero. Reglas activas: <strong>${Object.values(r).filter(Boolean).length}</strong>.</p>
+      ${LC_RULES.map(([k, l, d]) => `<label class="ocheck"><input type="checkbox" data-lc-rule="${k}" ${r[k] ? 'checked' : ''} /><span><strong>${l}</strong><small>${d}</small></span></label>`).join('')}
+      <h3>Propiedades obligatorias por etapa</h3><p class="muted">Pide información al entrar en una etapa. Los registros que no la tengan no podrán moverse a ella.</p>
+      ${simpleTable(['Etapa', 'Propiedades obligatorias', ''], def.stages.map(([id, label]) => [esc(label), (def.required && def.required[id] && def.required[id].length) ? def.required[id].map((x) => `<span class="chip">${esc(x)}</span>`).join(' ') : '<span class="muted">Ninguna</span>', `<button class="link-btn" type="button" data-act="lc-required" data-stage="${esc(id)}">Editar</button>`]))}`;
+  }
+  return `${state.lcBannerHidden ? '' : `<div class="lcbanner"><div><strong>Las integraciones que utilizan valores preestablecidos para la «lifecyclestage» deberán actualizarse.</strong> <span class="muted">Actualiza tu integración para usar la <a href="#" onclick="return false">API de propiedades de CRM ↗</a> para obtener los detalles de la propiedad.</span></div><button type="button" class="icon-btn icon-btn--sm" data-act="lc-banner-close" aria-label="Cerrar">×</button></div>`}
+    <h3>Personaliza las etapas del ciclo de vida de ${m.p}</h3>
+    <div class="ofield"><strong>Definir los colores de visualización de las etapas del ciclo de vida <span class="info">ⓘ</span></strong>
+      <div class="pcolors">${STAGE_COLORS.map(([k, l]) => `<button type="button" class="pcolor${(def.color || 'none') === k ? ' is-active' : ''}" data-lc-color="${k}">${l}</button>`).join('')}</div></div>
+    <div class="pmanage lcpanel">
+      <div class="ptabs ptabs--sub">${[['configure', 'Configurar'], ['automate', 'Automatizar'], ['rules', 'Reglas del pipeline']].map(([k, l]) => `<button type="button" class="${sub === k ? 'is-active' : ''}" data-lc-sub="${k}">${l}</button>`).join('')}</div>
+      ${body}
+    </div>`;
 }
 // Record views ("Personalización de registros"): the default view plus team views.
 Object.assign(state, { rvQuery: '', rvSort: { key: 'name', dir: 1 }, rvSel: new Set() });
@@ -959,7 +1020,7 @@ function render() {
           </nav>`}
       <section class="spane">${(PANES[state.section] || paneGeneral)()}</section>
     </div>
-    ${state.logicEdit && state.pipeEdit !== null ? logicHtml() : ''}
+    ${state.logicEdit && (state.logicEdit.lifecycle || state.pipeEdit !== null) ? logicHtml() : ''}
     <div class="drawer drawer--modal" id="s-modal" aria-hidden="true"><div class="drawer__panel drawer__panel--dialog" role="dialog" aria-labelledby="s-modal-title"><div class="drawer__head drawer__head--light"><h2 id="s-modal-title">—</h2><button class="drawer__close" type="button" data-close aria-label="Cerrar">×</button></div><div class="drawer__body" id="s-modal-body"></div><div class="drawer__foot" id="s-modal-foot"></div></div></div>`;
   wireMenus(root);
   if (state.section === 'data-properties') {
@@ -1033,6 +1094,14 @@ root.addEventListener('submit', (e) => {
     if (v && !list.includes(v)) list.push(v);
     p.labelList = list; persistPipelines(defs, 'Etiqueta añadida'); render();
   }
+  else if (what === 'lifecycle') {
+    const def = collectLifecycle(lifecycleDef());
+    const names = def.stages.map((s) => s[1].toLowerCase());
+    if (new Set(names).size !== names.length) { toast('Dos etapas no pueden tener el mismo nombre'); return; }
+    saveLifecycleDef(def);
+    toast('Etapas del ciclo de vida guardadas: las listas usan los nombres nuevos al recargar');
+    render();
+  }
   else if (what === 'pipeline') {
     const defs = dealPipelineDefs();
     const p = defs[Number(form.dataset.pipe)];
@@ -1071,6 +1140,10 @@ root.addEventListener('change', (e) => {
   else if (t.hasAttribute('data-logic-preview')) { state.logicEdit.preview = t.value; render(); }
   else if (t.dataset.logicPropReq !== undefined) { state.logicEdit.draft.props[Number(t.dataset.logicPropReq)].required = t.checked; render(); }
   else if (t.hasAttribute('data-cond-prop') || t.hasAttribute('data-cond-op')) { const L = state.logicEdit; const box = t.closest('.lcond--edit'); L.adding.prop = box.querySelector('[data-cond-prop]').value; L.adding.op = box.querySelector('[data-cond-op]').value; const v = box.querySelector('[data-cond-value]'); L.adding.value = L.adding.prop === 'Etapa del negocio' || L.adding.prop === 'Pipeline' ? '' : (v ? v.value : ''); render(); }
+  else if (t.dataset.lcCalc) { const def = collectLifecycle(lifecycleDef()); const st = def.stages.find((s) => s[0] === t.dataset.lcCalc); if (st) st[3] = t.checked; saveLifecycleDef(def); toast(t.checked ? 'Propiedades calculadas habilitadas' : 'Propiedades calculadas deshabilitadas'); }
+  else if (t.dataset.lcRule) { const def = lifecycleDef(); def.rules = { ...(def.rules || {}), [t.dataset.lcRule]: t.checked }; saveLifecycleDef(def); toast(t.checked ? 'Regla activada' : 'Regla desactivada'); render(); }
+  else if (t.dataset.lcSync) { const def = lifecycleDef(); def.sync = { ...(def.sync || {}), [t.dataset.lcSync]: t.checked }; saveLifecycleDef(def); toast('Automatización guardada'); }
+  else if (t.dataset.lcAuto) { const def = lifecycleDef(); def.automation = { ...(def.automation || {}) }; def.automation[t.dataset.stage] = { ...(def.automation[t.dataset.stage] || {}), [t.dataset.lcAuto]: t.checked }; saveLifecycleDef(def); toast('Automatización guardada'); render(); }
   else if (t.dataset.pipeRule) { const defs = dealPipelineDefs(); const p = defs[state.pipeEdit]; p.rules = { ...(p.rules || {}), [t.dataset.pipeRule]: t.checked }; persistPipelines(defs, t.checked ? 'Regla activada' : 'Regla desactivada'); render(); }
   else if (t.dataset.pipeAuto) { const defs = dealPipelineDefs(); const p = defs[state.pipeEdit]; p.automation = { ...(p.automation || {}) }; p.automation[t.dataset.stage] = { ...(p.automation[t.dataset.stage] || {}), [t.dataset.pipeAuto]: t.checked }; persistPipelines(defs, 'Automatización guardada'); render(); }
   else if (t.dataset.objsetting) {
@@ -1128,7 +1201,11 @@ root.addEventListener('click', (e) => {
   if (ptab) { state.pipeTab = ptab.dataset.pipeTab; render(); return; }
   // conditional property logic editor
   const le = e.target.closest('[data-logic-edit]');
-  if (le) { const defs = dealPipelineDefs(); collectPipeline(defs[state.pipeEdit]); saveDealPipelineDefs(defs); openLogic(le.dataset.logicEdit); render(); return; }
+  if (le) {
+    if (le.dataset.logicLifecycle !== undefined) { const def = collectLifecycle(lifecycleDef()); saveLifecycleDef(def); openLogic(le.dataset.logicEdit, true, state.objectsObject); }
+    else { const defs = dealPipelineDefs(); collectPipeline(defs[state.pipeEdit]); saveDealPipelineDefs(defs); openLogic(le.dataset.logicEdit); }
+    render(); return;
+  }
   if (state.logicEdit) {
     const L = state.logicEdit;
     const d = L.draft;
@@ -1136,17 +1213,17 @@ root.addEventListener('click', (e) => {
     const hit = (sel) => t.closest(sel);
     if (hit('[data-logic-close]')) { state.logicEdit = null; render(); return; }
     if (hit('[data-logic-save]')) {
-      const defs = dealPipelineDefs(); const p = defs[state.pipeEdit];
+      const { p, persist } = logicTarget();
       p.logic = { ...(p.logic || {}), [L.stage]: d };
       p.required = { ...(p.required || {}), [L.stage]: d.props.filter((x) => x.required).map((x) => x.name) };
-      persistPipelines(defs, 'Lógica de propiedad guardada');
+      persist('Lógica de propiedad guardada');
       state.logicEdit = null; render(); return;
     }
-    if (hit('[data-logic-group-add]')) { const defs = dealPipelineDefs(); d.groups.push({ conditions: [{ prop: 'Etapa del negocio', op: 'es igual a', value: stageValue(defs[state.pipeEdit], L.stage) }] }); render(); return; }
+    if (hit('[data-logic-group-add]')) { const { p } = logicTarget(); d.groups.push({ conditions: [{ prop: stageProp(p), op: 'es igual a', value: stageValue(p, L.stage) }] }); render(); return; }
     const gc = hit('[data-logic-group-copy]'); if (gc) { d.groups.splice(Number(gc.dataset.logicGroupCopy) + 1, 0, JSON.parse(JSON.stringify(d.groups[Number(gc.dataset.logicGroupCopy)]))); render(); return; }
     const gr = hit('[data-logic-group-rm]'); if (gr) { if (d.groups.length > 1) d.groups.splice(Number(gr.dataset.logicGroupRm), 1); render(); return; }
     const cr = hit('[data-logic-cond-rm]'); if (cr) { const [gi, ci] = cr.dataset.logicCondRm.split(':').map(Number); d.groups[gi].conditions.splice(ci, 1); render(); return; }
-    const ca = hit('[data-logic-cond-add]'); if (ca) { const defs = dealPipelineDefs(); L.adding = { gi: Number(ca.dataset.logicCondAdd), prop: 'Etapa del negocio', op: 'es igual a', value: stageValue(defs[state.pipeEdit], L.stage) }; render(); return; }
+    const ca = hit('[data-logic-cond-add]'); if (ca) { const { p } = logicTarget(); L.adding = { gi: Number(ca.dataset.logicCondAdd), prop: stageProp(p), op: 'es igual a', value: stageValue(p, L.stage) }; render(); return; }
     if (hit('[data-logic-cond-cancel]')) { L.adding = null; render(); return; }
     const cap = hit('[data-logic-cond-apply]'); if (cap) { const box = root.querySelector('.lcond--edit'); const v = box.querySelector('[data-cond-value]'); d.groups[Number(cap.dataset.logicCondApply)].conditions.push({ prop: box.querySelector('[data-cond-prop]').value, op: box.querySelector('[data-cond-op]').value, value: v ? v.value : '' }); L.adding = null; render(); return; }
     if (hit('[data-logic-prop-add]')) { L.addingProp = true; render(); return; }
@@ -1154,6 +1231,13 @@ root.addEventListener('click', (e) => {
     if (hit('[data-logic-prop-apply]')) { const pick = root.querySelector('[data-prop-pick]'); if (pick && pick.value) d.props.push({ name: pick.value, required: root.querySelector('[data-prop-pick-req]').checked }); L.addingProp = false; render(); return; }
     const pr = hit('[data-logic-prop-rm]'); if (pr) { d.props.splice(Number(pr.dataset.logicPropRm), 1); render(); return; }
   }
+  // lifecycle stages (Etapa del ciclo de vida)
+  const lcs = e.target.closest('[data-lc-sub]');
+  if (lcs) { const def = collectLifecycle(lifecycleDef()); saveLifecycleDef(def); state.lcSub = lcs.dataset.lcSub; render(); return; }
+  const lcc = e.target.closest('[data-lc-color]');
+  if (lcc) { const def = collectLifecycle(lifecycleDef()); def.color = lcc.dataset.lcColor; saveLifecycleDef(def); render(); toast('Colores de las etapas guardados'); return; }
+  const lcrm = e.target.closest('[data-lc-rm]');
+  if (lcrm && !lcrm.disabled) { const def = collectLifecycle(lifecycleDef()); const st = def.stages.find((s) => s[0] === lcrm.dataset.lcRm); if (!st || !window.confirm(`¿Eliminar la etapa "${st[1]}"?`)) return; def.stages = def.stages.filter((s) => s[0] !== st[0]); saveLifecycleDef(def); render(); toast('Etapa eliminada'); return; }
   // record views (Personalización de registros)
   const rvs = e.target.closest('[data-rv-sort]');
   if (rvs) { const k = rvs.dataset.rvSort; state.rvSort = { key: k, dir: state.rvSort.key === k ? -state.rvSort.dir : 1 }; render(); return; }
@@ -1259,6 +1343,25 @@ root.addEventListener('click', (e) => {
     openModal('Encabezado/pie de página del tablero', `<p class="muted">Qué se muestra en cada etapa del tablero de «${esc(p.name)}» para todos los usuarios.</p><form id="bh-form">${[['count', 'Número de negocios'], ['sum', 'Importe total de la etapa'], ['weighted', 'Importe ponderado por probabilidad']].map(([k, l]) => `<label class="ocheck"><input type="checkbox" name="${k}" ${b[k] ? 'checked' : ''} /><span><strong>${l}</strong></span></label>`).join('')}</form>`, `<button class="btn btn--primary" type="button" id="bh-save">Guardar</button><button class="btn btn--ghost" type="button" data-close>Cancelar</button>`);
     document.getElementById('bh-save').onclick = () => { const f = document.getElementById('bh-form'); p.board = { count: f.elements.count.checked, sum: f.elements.sum.checked, weighted: f.elements.weighted.checked }; persistPipelines(defs, 'Encabezado del tablero guardado'); closeModal(); };
   }
+  else if (a === 'lc-banner-close') { state.lcBannerHidden = true; render(); }
+  else if (a === 'lc-desc') { const def = collectLifecycle(lifecycleDef()); promptModal('Descripción del pipeline', [['desc', 'Descripción', 'text', def.desc || '']], 'Guardar', (d) => { def.desc = d.desc.trim(); saveLifecycleDef(def); toast('Descripción guardada'); }); }
+  else if (a === 'lc-stage-add') {
+    const def = collectLifecycle(lifecycleDef());
+    const n = def.stages.length + 1;
+    const id = `stage${Date.now().toString(36)}`;
+    const i = def.stages.findIndex((s) => s[0] === 'other');
+    def.stages.splice(i < 0 ? def.stages.length : i, 0, [id, `Etapa ${n}`, '', true]);
+    saveLifecycleDef(def); render();
+    const inp = root.querySelector(`[data-lc-label="${id}"]`); if (inp) { inp.focus(); inp.select(); }
+    toast('Etapa añadida: cámbiale el nombre y guarda');
+  }
+  else if (a === 'lc-reset') { if (window.confirm('¿Restablecer las etapas del ciclo de vida a las predeterminadas? Se perderán los nombres, reglas y automatizaciones.')) { localStorage.removeItem('crm:lifecycle'); render(); toast('Etapas restablecidas'); } }
+  else if (a === 'lc-required') {
+    const def = lifecycleDef(); const k = act.dataset.stage; const cur = (def.required && def.required[k]) || [];
+    const opts = ['Propietario', 'Correo', 'Número de teléfono', 'Empresa', 'Estado del lead', 'Fuente original', 'País/región', 'Sector', 'Nombre de dominio'];
+    openModal(`Propiedades obligatorias: ${esc(labelOfStage(def, k))}`, `<form id="rq-form" class="ocardgrid ocardgrid--modal">${opts.map((o) => `<label class="ocheck ocheck--sm"><input type="checkbox" name="k" value="${esc(o)}" ${cur.includes(o) ? 'checked' : ''} /><span>${o}</span></label>`).join('')}</form>`, `<button class="btn btn--primary" type="button" id="rq-save">Guardar</button><button class="btn btn--ghost" type="button" data-close>Cancelar</button>`);
+    document.getElementById('rq-save').onclick = () => { def.required = { ...(def.required || {}), [k]: [...document.querySelectorAll('#rq-form input:checked')].map((i) => i.value) }; saveLifecycleDef(def); toast('Propiedades obligatorias guardadas'); closeModal(); render(); };
+  }
   else if (a === 'pipe-required') {
     const defs = dealPipelineDefs(); const p = defs[state.pipeEdit]; const k = act.dataset.stage; const cur = (p.required && p.required[k]) || [];
     const opts = ['Importe', 'Fecha de cierre', 'Empresa asociada', 'Contacto asociado', 'Prioridad', 'Tipo de negocio', 'Propietario del negocio', 'Siguiente paso'];
@@ -1333,6 +1436,15 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal
 let dnd = null;
 function moveRow(kind, from, to) {
   const defs = dealPipelineDefs();
+  if (kind === 'lcstages') {
+    const def = collectLifecycle(lifecycleDef());
+    const [s] = def.stages.splice(from, 1);
+    def.stages.splice(to, 0, s);
+    saveLifecycleDef(def);
+    toast('Orden de etapas guardado');
+    render();
+    return;
+  }
   if (kind === 'pipes') {
     const [p] = defs.splice(from, 1);
     defs.splice(to, 0, p);

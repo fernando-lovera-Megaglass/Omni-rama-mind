@@ -1,6 +1,6 @@
 import { boot } from './page.js';
 import { mountList, avatarName, ownerHtml } from './list.js';
-import { allCompanies, allContacts, allDeals, OWNERS, LIFECYCLES, formatDate, formatMoney, formatShortDate, TODAY } from './data.js';
+import { allCompanies, allContacts, allDeals, OWNERS, LIFECYCLES, formatDate, formatMoney, formatShortDate, TODAY, lifecycleTag } from './data.js';
 
 boot({ root: '../', active: 'crm', sub: 'Empresas', title: 'Empresas' });
 
@@ -59,7 +59,7 @@ mountList({
     { key: 'deals', label: 'Negocios abiertos', text: (r) => openDeals(r.id), sortValue: (r) => openDeals(r.id) },
     { key: 'employees', label: 'Empleados', default: false },
     { key: 'revenue', label: 'Ingresos anuales', default: false, text: (r) => formatMoney(r.revenue), sortValue: (r) => Number(r.revenue) || 0 },
-    { key: 'lifecycle', label: 'Etapa del ciclo de vida', default: false },
+    { key: 'lifecycle', label: 'Etapa del ciclo de vida', default: false, text: (r) => r.lifecycle || '', render: (r) => lifecycleTag(r.lifecycle) },
     { key: 'lastActivity', label: 'Última actividad', default: false, text: (r) => formatDate(r.lastActivity), sortValue: (r) => new Date(r.lastActivity).getTime() },
     { key: 'created', label: 'Fecha de creación', text: (r) => formatDate(r.created), sortValue: (r) => new Date(r.created).getTime() },
   ],

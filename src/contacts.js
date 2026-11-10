@@ -1,6 +1,6 @@
 import { boot } from './page.js';
 import { mountList, tag, link, avatarName, ownerHtml } from './list.js';
-import { allContacts, allDeals, STATUSES, LIFECYCLES, SOURCES, OWNERS, formatDate, formatShortDate, TODAY } from './data.js';
+import { allContacts, allDeals, STATUSES, LIFECYCLES, SOURCES, OWNERS, formatDate, formatShortDate, TODAY, lifecycleTag } from './data.js';
 
 boot({ root: '../', active: 'crm', sub: 'Contactos', title: 'Contactos' });
 
@@ -55,7 +55,7 @@ mountList({
     { key: 'assoc_company', label: 'Contacto → Empresas', editable: false, text: (r) => r.company || '', sortValue: (r) => r.company || '', render: (r) => (r.company ? `<span class="name"><span class="avatar avatar--sm avatar--soft">${r.company.split(' ').filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase()}</span>${link(`../companies/record/?id=${r.companyId || ''}`, r.company)}</span>` : '<span class="muted">--</span>') },
     { key: 'company', label: 'Empresa principal', default: false },
     { key: 'status', label: 'Estado del lead', text: (r) => STATUSES[r.status]?.[0] || r.status, render: (r) => tag(...(STATUSES[r.status] || [r.status, 'tag--none'])) },
-    { key: 'lifecycle', label: 'Etapa del ciclo de vida', default: false },
+    { key: 'lifecycle', label: 'Etapa del ciclo de vida', default: false, text: (r) => r.lifecycle || '', render: (r) => lifecycleTag(r.lifecycle) },
     { key: 'jobTitle', label: 'Cargo', default: false },
     { key: 'city', label: 'Ciudad', default: false },
     { key: 'source', label: 'Fuente original', default: false },

@@ -23,6 +23,48 @@ export const STATUSES = {
   none: ['Sin estado', 'tag--none'],
 };
 export const LIFECYCLES = ['Suscriptor', 'Lead', 'Lead calificado por marketing', 'Lead calificado por ventas', 'Oportunidad', 'Cliente', 'Evangelista', 'Otro'];
+// Lifecycle stages shared by contacts and companies, editable in Configuración › Objetos › Etapa del ciclo de vida.
+export const LIFECYCLE_IDS = ['subscriber', 'lead', 'marketingqualifiedlead', 'salesqualifiedlead', 'opportunity', 'customer', 'evangelist', 'other'];
+export const LIFECYCLE_KEY = 'crm:lifecycle';
+export function defaultLifecycleDef() {
+  return { name: 'Etapa del ciclo de vida', lifecycle: true, desc: '', color: 'none', stages: LIFECYCLE_IDS.map((id, i) => [id, LIFECYCLES[i], '', true]), rules: {}, automation: {}, logic: {}, required: {}, sync: { onDeal: true, onWon: true, company: true } };
+}
+export function lifecycleDef() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(LIFECYCLE_KEY));
+    if (saved && Array.isArray(saved.stages) && saved.stages.length) return { ...defaultLifecycleDef(), ...saved };
+  } catch {
+    /* ignore */
+  }
+  return defaultLifecycleDef();
+}
+export function saveLifecycleDef(def) {
+  localStorage.setItem(LIFECYCLE_KEY, JSON.stringify(def));
+}
+export const lifecycleColorMode = () => lifecycleDef().color || 'none';
+const LIFECYCLE_PALETTE = ['#7c98b6', '#2a62c9', '#0091ae', '#6a78d1', '#f2547d', '#00a38d', '#ff7a59', '#99acc2'];
+// Lifecycle stage cell for lists: plain text, text with a colour dot, or a colour badge (Configuración › Etapa del ciclo de vida).
+export function lifecycleTag(label) {
+  if (!label) return '<span class="muted">--</span>';
+  const i = Math.max(0, LIFECYCLES.indexOf(label));
+  const color = LIFECYCLE_PALETTE[i % LIFECYCLE_PALETTE.length];
+  const mode = lifecycleColorMode();
+  const safe = String(label).replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+  if (mode === 'badge') return `<span class="tag lctag" style="background:${color};color:#fff;border-color:${color}">${safe}</span>`;
+  if (mode === 'dot') return `<span class="stage stage--dot" style="--dot:${color}">${safe}</span>`;
+  return safe;
+}
+// Renamed or added stages flow into the shared LIFECYCLES catalogue used by lists, boards and generated data.
+(function applyLifecycleOverrides() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(LIFECYCLE_KEY));
+    if (!saved || !Array.isArray(saved.stages)) return;
+    LIFECYCLES.length = 0;
+    saved.stages.forEach((s) => LIFECYCLES.push(s[1]));
+  } catch {
+    /* ignore */
+  }
+})();
 // Realistic spread: mostly leads, some subscribers, opportunities and customers.
 const LIFECYCLE_MIX = [1, 1, 0, 1, 4, 1, 5, 1, 1, 0, 1, 4, 1, 2, 1, 5, 1, 3, 1, 6, 0, 1, 1, 7];
 const lifecycleFor = (i) => LIFECYCLES[LIFECYCLE_MIX[(i * 7) % LIFECYCLE_MIX.length]];
