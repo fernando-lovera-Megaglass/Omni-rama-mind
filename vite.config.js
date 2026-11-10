@@ -15,6 +15,7 @@ const pages = {
   tasks: 'tasks/index.html',
   'tasks-record': 'tasks/record/index.html',
   layout: 'layout/index.html',
+  views: 'views/index.html',
   settings: 'settings/index.html',
 };
 

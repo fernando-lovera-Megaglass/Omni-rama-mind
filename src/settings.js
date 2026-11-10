@@ -4,6 +4,8 @@ import { toast, wireMenus, closeMenus } from './shell.js';
 import { OWNERS, DEAL_STAGES, TICKET_STATUSES, PIPELINE_KEY, ASSOC_LABELS_KEY, assocLabels, ALL, formatDate, formatMoney, dealPipelines, saveDealPipelines, dealPipelineDefs, saveDealPipelineDefs, newPipelineDef, setField, LIFECYCLES, download } from './data.js';
 import { propertyGroups, customProperties, saveCustomProperties, propertyList } from './properties.js';
 import { TEAMS, loadLayout, cardCatalog } from './layout-defaults.js';
+import { STD_VIEWS, defaultTabs } from './std-views.js';
+import { getViewStore } from './data.js';
 import { getSignature, setSignature, emailTemplates } from './compose.js';
 
 boot({ root: '../', active: 'none', sub: '', title: 'Configuración' });
@@ -761,7 +763,13 @@ function objectIndexHtml(type) {
   const views = ['Todos', 'Míos', 'Sin asignar', 'Creados este mes'];
   const now = (keys) => (keys && keys.length ? keys.map((k) => indexLabel(type, k)).join(', ') : 'Valores predeterminados');
   const row = (title, desc, nowText, act, btn, extra = '') => `<div class="ixrow"><div><strong>${title}</strong><p class="muted">${desc}</p><p class="ixrow__now"><span class="muted">Ahora:</span> ${esc(nowText)}</p>${extra}</div><button class="btn btn--ghost" type="button" data-act="${act}" data-type="${type}">${btn}</button></div>`;
-  return `<p class="odesc">Personaliza la página de índice de ${m.p}: las columnas, los filtros rápidos y las tarjetas del tablero que ven todos los usuarios de forma predeterminada. <a href="../${type}/">Ir a la página de índice de ${m.p} ↗</a></p><hr class="cd-sep" />
+  return `<p class="odesc">Controla el diseño y el contenido de la página de índice de ${m.s}.</p><hr class="cd-sep" />
+    <h3>Personalizar Página de índice</h3>
+    <p class="ixlink"><a class="olink" href="../views/?type=${type}&tab=all">Todas las vistas</a><br /><span class="muted">Ve y actúa sobre todas tus vistas en un solo lugar.</span></p>
+    <p class="ixlink"><a class="olink" href="../views/?type=${type}&tab=defaults">Personalización de la vista predeterminada</a><br /><span class="muted">Para los nuevos usuarios agregados a tu portal de Omni, la configuración predeterminada de pestañas a nivel de cuenta aparecerá automáticamente cuando naveguen a ese objeto.</span></p>
+    <p class="ixlink"><span class="muted">Pestañas predeterminadas ahora:</span> ${esc(defaultTabs(type).map((id) => (id.startsWith('std:') ? ((STD_VIEWS[type] || []).find(([k]) => `std:${k}` === id) || [id, id])[1] : ((getViewStore(type).custom || []).find((v) => v.id === id) || { name: id }).name)).join(' · '))}</p>
+    ${switchRow(`obj-${type}`, 'showMetrics', `Mostrar métricas de ${m.s} <span class="tag tag--done">Nuevo</span>`, `Agrega una tarjeta de métricas a cada vista en la página de índice de ${m.p}.`, s.showMetrics !== false)}
+    <details class="ixmore"><summary>Más opciones de la página de índice</summary>
     <h3>Vista de tabla</h3>
     ${row('Columnas predeterminadas', `Elige qué columnas ven los usuarios de forma predeterminada en la vista de tabla de ${m.p.toLowerCase()}. Cada usuario puede ajustar las suyas desde la lista con "Editar columnas". <a href="../${type}/">Más información ↗</a>`, now(indexColumns(type)), 'ix-columns', 'Personalizar las columnas predeterminadas')}
     ${row('Filtros rápidos predeterminados', 'Los filtros rápidos aparecen encima de la tabla y del tablero. Puedes elegir hasta cinco propiedades.', now(indexFilters(type)), 'ix-filters', 'Personalizar los filtros rápidos')}
@@ -776,7 +784,8 @@ function objectIndexHtml(type) {
       <li><button class="olink" type="button" data-objects-tab="preview">Previsualizar personalización</button><span class="muted"> · Configura el panel de vista previa de la lista.</span></li>
       <li><a class="olink" href="../${type}/">Gestionar vistas guardadas ↗</a><span class="muted"> · Las vistas se crean y comparten desde la propia lista.</span></li>
       <li><a class="olink" href="#data-import">Importar y exportar ${m.p.toLowerCase()}</a><span class="muted"> · Carga registros desde un archivo o descarga la lista.</span></li>
-    </ul>`;
+    </ul>
+    </details>`;
 }
 // Ordered picker used by the index customization: chosen items first (with ↑↓), the rest below.
 function orderedPicker({ title, intro, items, chosen, max, onSave, onReset }) {

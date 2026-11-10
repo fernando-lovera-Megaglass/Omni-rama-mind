@@ -130,6 +130,7 @@ log('after delete:', JSON.parse(mem['crm:deals:recordviews']).length);
 click(document.querySelector('[data-objects-tab="preview"]'));
 log('preview tab rows:', document.querySelectorAll('.rvtable tbody tr').length, '| create href:', document.getElementById('rv-new').getAttribute('href'), '| default link:', document.querySelector('.rvtable tbody .olink').getAttribute('href'), '| desc:', document.querySelector('.odesc').textContent.slice(0, 50));
 click(document.querySelector('[data-objects-tab="index"]'));
+log('index links:', [...document.querySelectorAll('.ixlink .olink')].map((a) => `${a.textContent} → ${a.getAttribute('href')}`).join(' | '), '| metrics switch:', Boolean(document.querySelector('[data-setting="obj-deals"][data-key="showMetrics"]')), '| desc:', document.querySelector('.odesc').textContent);
 log('index rows:', [...document.querySelectorAll('.ixrow > div > strong')].map((s) => s.textContent).join(' | '), '| buttons:', [...document.querySelectorAll('.ixrow .btn')].map((b) => b.textContent).join(' | '), '| links:', document.querySelectorAll('.ixlinks li').length);
 click(document.querySelector('[data-act="ix-board"]'));
 const addBoxes = [...document.querySelectorAll('[data-ix-add]')];

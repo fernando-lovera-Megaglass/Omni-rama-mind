@@ -2,6 +2,7 @@
 // column editor (full property catalog), advanced filters, CSV export/import, create drawer.
 import { wireMenus, closeMenus, toast } from './shell.js';
 import { addRecord, deleteRecords, restoreAll, getPrefs, setPrefs, getViewStore, setViewStore, matches, strip, toCsv, download, formatDate, formatMoney, formatShortDate, relativeTime, setField, TODAY, ALL } from './data.js';
+import { defaultTabs, deletedViews, saveDeletedViews } from './std-views.js';
 import { propertyGroups, propertyMap } from './properties.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
@@ -583,6 +584,8 @@ export function mountList(cfg) {
   function deleteView(id) {
     const v = viewById(id);
     if (!v || v.standard) return;
+    // Kept for "Eliminado recientemente" in Configuración › Administrar vistas.
+    saveDeletedViews(cfg.type, [{ ...v, deletedAt: new Date().toISOString() }, ...deletedViews(cfg.type).filter((x) => x.id !== id)].slice(0, 50));
     store.custom = store.custom.filter((x) => x.id !== id);
     store.open = store.open.filter((x) => x !== id);
     if (store.active === id) activateView(store.open[0] || stdId(cfg.views[0].key));
@@ -607,9 +610,12 @@ export function mountList(cfg) {
     }
   }
 
-  // Initial tabs: standard views open by default.
+  // Initial tabs: the account's default tabs (Configuración › Objetos › Personalización del índice) until the user changes theirs.
   store.open = (store.open || []).filter((id) => viewById(id));
-  if (!store.open.length) store.open = standardViews().map((v) => v.id);
+  if (!store.open.length) {
+    const defaults = defaultTabs(cfg.type).filter((id) => viewById(id));
+    store.open = defaults.length ? defaults : standardViews().slice(0, 4).map((v) => v.id);
+  }
   if (!store.active || !store.open.includes(store.active)) store.active = store.open[0];
   {
     const v = viewById(store.active);
@@ -941,7 +947,10 @@ export function mountList(cfg) {
   function renderKpis(list) {
     if (!cfg.summary) return;
     const box = $('kpis');
-    box.hidden = state.mode === 'board';
+    // "Mostrar métricas" switch in Configuración › Objetos › Personalización del índice.
+    let showMetrics = true;
+    try { const s = JSON.parse(localStorage.getItem(`crm:settings:obj-${cfg.type}`)) || {}; if (s.showMetrics === false) showMetrics = false; } catch { /* ignore */ }
+    box.hidden = state.mode === 'board' || !showMetrics;
     if (box.hidden) return;
     $('kpis-track').innerHTML = cfg
       .summary(list)
