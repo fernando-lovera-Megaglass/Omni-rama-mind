@@ -8,6 +8,34 @@ import { associationsFor, associationLabelOptions, assocPropertyGroups, assocVal
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
 
+// Conditional highlighting ("Resaltado condicional" in the column menu): a five-step colour scale from the
+// column's highest value (darkest) to its lowest (lightest). Nine colour styles, each derived from a base tone.
+export const HL_STYLES = [
+  ['purple', '#7f6fe6', 'Morado'], ['green', '#3cb878', 'Verde'], ['yellow', '#e3c340', 'Amarillo'], ['orange', '#f29a5c', 'Naranja'], ['lavender', '#8f8ab5', 'Lavanda'],
+  ['peach', '#ef9f72', 'Melocotón'], ['teal', '#3aa99a', 'Turquesa'], ['pink', '#e97fae', 'Rosa'], ['lime', '#8cc152', 'Lima'],
+];
+const HL_STEPS = [0.62, 0.47, 0.33, 0.2, 0.09]; // share of the base tone: max → min
+const mixWhite = (hex, t) => {
+  const n = parseInt(hex.slice(1), 16);
+  const f = (c) => Math.round(255 + (c - 255) * t);
+  return `rgb(${f(n >> 16)}, ${f((n >> 8) & 255)}, ${f(n & 255)})`;
+};
+export const hlShades = (style) => {
+  const base = (HL_STYLES.find((s) => s[0] === style) || HL_STYLES[0])[1];
+  return HL_STEPS.map((t) => mixWhite(base, t));
+};
+const hlStyleName = (style) => (HL_STYLES.find((s) => s[0] === style) || HL_STYLES[0])[2];
+// Older rules ({ op, value, color }) become a scale of the nearest style.
+function normalizeHighlights(h) {
+  const out = {};
+  Object.entries(h || {}).forEach(([k, v]) => {
+    if (!v) return;
+    const style = HL_STYLES.some((s) => s[0] === v.style) ? v.style : HL_STYLES.some((s) => s[0] === v.color) ? v.color : 'purple';
+    out[k] = { style };
+  });
+  return out;
+}
+
 export function mountList(cfg) {
   const root = document.getElementById('list-root');
   const prefs = getPrefs(cfg.type);
@@ -49,8 +77,8 @@ export function mountList(cfg) {
     frozen: (prefs.frozenCount ?? (prefs.frozen ? 1 : 0)) > 0,
     // Columns kept on the left while scrolling sideways (0 = none); "Inmovilizar columna" freezes up to that column.
     frozenCount: prefs.frozenCount ?? (prefs.frozen ? 1 : 0),
-    // Conditional highlighting per column from the header menu: { op, value, color }.
-    highlights: prefs.highlights || {},
+    // Conditional highlighting per column from the header menu: { style } (a colour scale, see HL_STYLES).
+    highlights: normalizeHighlights(prefs.highlights),
     // Row density from the gear menu ("Ver configuración"): 'comfortable' (48 px rows) or 'compact' (36 px rows).
     density: prefs.density === 'compact' ? 'compact' : 'comfortable',
     // Zebra striping (alternate rows tinted), also from the gear menu.
@@ -66,10 +94,8 @@ export function mountList(cfg) {
     state.frozen = state.frozenCount > 0;
     setPrefs(cfg.type, { frozen: state.frozen, frozenCount: state.frozenCount });
   }
-  // Conditional highlighting ("Editar resaltado condicional" in the column menu).
-  const HL_COLORS = { purple: '#e5e0ff', blue: '#dbe9ff', teal: '#d6f3f5', green: '#dcf5e4', yellow: '#fff3c4', orange: '#ffe3d1', red: '#ffdbdb', pink: '#ffe0ee' };
-  const HL_NAMES = { purple: 'Morado', blue: 'Azul', teal: 'Turquesa', green: 'Verde', yellow: 'Amarillo', orange: 'Naranja', red: 'Rojo', pink: 'Rosa' };
-  const hlColor = (key) => { const h = state.highlights[key]; return h && HL_COLORS[h.color] ? HL_COLORS[h.color] : ''; };
+  // Conditional highlighting ("Editar resaltado condicional" in the column menu): header tint = lightest shade.
+  const hlHeader = (key) => (state.highlights[key] ? hlShades(state.highlights[key].style)[4] : '');
   const DEFAULT_W = 190;
   const FIRST_W = 280;
   const MIN_W = 80;
@@ -139,11 +165,59 @@ export function mountList(cfg) {
   const visibleColumns = () => state.columns.map(col).filter(Boolean);
   const cellText = (c, r) => (c.text ? c.text(r) : r[c.key] ?? '');
   const cellHtml = (c, r) => (c.render ? c.render(r) : esc(cellText(c, r)));
-  function hlMatches(c, r) {
+  // The number a cell counts as on the colour scale: sort value (numbers, money, dates as timestamps) or nothing.
+  const NUMERIC_KINDS = new Set(['number', 'currency', 'percent', 'id', 'date', 'datetime']);
+  function numericOf(c, r) {
+    const raw = r[c.key];
+    if (raw === undefined || raw === null || raw === '') return null;
+    if (c.sortValue) {
+      const v = c.sortValue(r);
+      if (typeof v === 'number' && !Number.isNaN(v)) return v;
+    }
+    if (typeof raw === 'number') return raw;
+    const p = props[c.key];
+    if (p && NUMERIC_KINDS.has(p.kind)) {
+      const v = p.kind === 'date' || p.kind === 'datetime' ? new Date(raw).getTime() : Number(String(raw).replace(/[^\d.-]/g, ''));
+      return Number.isNaN(v) ? null : v;
+    }
+    return null;
+  }
+  // Min/max of one column over all the rows of the view ("todos los datos de esta columna").
+  function columnStats(list, c) {
+    let min = Infinity;
+    let max = -Infinity;
+    let n = 0;
+    list.forEach((r) => {
+      const v = numericOf(c, r);
+      if (v === null) return;
+      n += 1;
+      if (v < min) min = v;
+      if (v > max) max = v;
+    });
+    return { min, max, numeric: n > 0 };
+  }
+  function highlightStats(list, cols) {
+    const stats = {};
+    cols.forEach((c) => {
+      if (state.highlights[c.key]) stats[c.key] = columnStats(list, c);
+    });
+    return stats;
+  }
+  // Background of a cell: step 0 (darkest) for the highest value … step 4 (lightest) for the lowest;
+  // columns without numbers get the middle shade on every filled cell.
+  function hlCell(c, r, stats) {
     const h = state.highlights[c.key];
-    if (!h) return false;
-    const n = Number(String(r[c.key] ?? '').replace(/[^\d.-]/g, ''));
-    return testCondition(h.op, cellText(c, r), n, h.value);
+    if (!h) return '';
+    const txt = String(cellText(c, r) ?? '');
+    if (txt === '' || txt === '—' || txt === '--') return '';
+    const shades = hlShades(h.style);
+    const s = stats[c.key];
+    if (!s || !s.numeric) return shades[2];
+    const v = numericOf(c, r);
+    if (v === null) return '';
+    if (s.max === s.min) return shades[2];
+    const t = (v - s.min) / (s.max - s.min);
+    return shades[4 - Math.min(4, Math.max(0, Math.floor(t * 5)))];
   }
   const allKeys = () => {
     const seen = new Set();
@@ -498,37 +572,17 @@ export function mountList(cfg) {
       </div>
     </div>
 
-    <div class="drawer drawer--modal" id="hl-dialog" aria-hidden="true">
-      <div class="drawer__panel drawer__panel--dialog" role="dialog" aria-labelledby="hl-title">
-        <div class="drawer__head drawer__head--light"><h2 id="hl-title">Editar resaltado condicional</h2><button class="drawer__close" type="button" data-close="hl-dialog" aria-label="Cerrar">×</button></div>
-        <form class="drawer__body" id="hl-form">
-          <p class="muted">Las celdas de la columna <strong id="hl-column"></strong> que cumplan la condición se mostrarán con el color elegido.</p>
-          <div class="hl-rule">
-            <label class="field"><span>Resaltar cuando el valor</span>
-              <select name="op" id="hl-op">
-                <option value="filled">tiene valor</option>
-                <option value="empty">está vacío</option>
-                <option value="is">es igual a</option>
-                <option value="not">no es igual a</option>
-                <option value="contains">contiene</option>
-                <option value="gt">es mayor que</option>
-                <option value="lt">es menor que</option>
-              </select>
-            </label>
-            <label class="field"><span>Valor</span><input name="value" id="hl-value" type="text" placeholder="Valor" /></label>
-          </div>
-          <fieldset class="field hl-colors">
-            <span>Color</span>
-            <div class="hl-swatches">
-              ${Object.entries(HL_COLORS).map(([k, v], i) => `<label class="hl-swatch" title="${HL_NAMES[k]}"><input type="radio" name="color" value="${k}" ${i === 0 ? 'checked' : ''} /><span style="background:${v}"></span></label>`).join('')}
-            </div>
-          </fieldset>
-        </form>
-        <div class="drawer__foot">
-          <button class="btn btn--primary" type="submit" form="hl-form">Guardar</button>
-          <button class="btn btn--ghost" type="button" id="hl-remove" hidden>Quitar resaltado</button>
-          <button class="btn btn--ghost" type="button" data-close="hl-dialog">Cancelar</button>
-        </div>
+    <div class="hlpop" id="hl-pop" hidden role="dialog" aria-labelledby="hl-title" aria-hidden="true">
+      <div class="hlpop__head"><h3 id="hl-title">Resaltado condicional</h3><button class="icon-btn" type="button" data-hl-close aria-label="Cerrar">×</button></div>
+      <p class="hlpop__note" id="hl-note">Los valores se basan en todos los datos de esta columna</p>
+      <div class="hlpop__label">Aparece como</div>
+      <div class="hlpop__scale" id="hl-scale" aria-hidden="true"></div>
+      <div class="hlpop__ends"><span>Máx.</span><span>Med.</span><span>Mín.</span></div>
+      <div class="hlpop__label">Estilo cromático</div>
+      <div class="hlpop__styles" id="hl-styles" role="group" aria-label="Estilo cromático"></div>
+      <div class="hlpop__foot">
+        <button class="btn btn--primary btn--pillx" type="button" data-hl-apply>Aplicar</button>
+        <button class="btn btn--ghost btn--pillx" type="button" data-hl-remove id="hl-remove" hidden>Eliminar</button>
       </div>
     </div>
 
@@ -953,7 +1007,7 @@ export function mountList(cfg) {
       `<th class="table__check"><input type="checkbox" id="check-all" aria-label="Seleccionar todo" /></th>` +
       cols
         .map(
-          (c, i) => `<th class="th${state.sort.key === c.key ? ' is-sorted' : ''}${fzClass(i)}${hlColor(c.key) ? ' th--hl' : ''}" data-key="${c.key}" data-index="${i}" style="${fzStyle(i)}${hlColor(c.key) ? `background:${hlColor(c.key)};` : ''}">
+          (c, i) => `<th class="th${state.sort.key === c.key ? ' is-sorted' : ''}${fzClass(i)}${hlHeader(c.key) ? ' th--hl' : ''}" data-key="${c.key}" data-index="${i}" style="${fzStyle(i)}${hlHeader(c.key) ? `background:${hlHeader(c.key)};` : ''}">
             <div class="th__inner">
               <button class="th-sort${state.sort.key === c.key ? ' is-sorted' : ''}" type="button" data-sort="${c.key}" draggable="false">
                 <span class="th__label">${c.label}</span>
@@ -988,6 +1042,8 @@ export function mountList(cfg) {
     if (state.page > pages) state.page = pages;
     const start = (state.page - 1) * state.size;
     const slice = list.slice(start, start + state.size);
+    const hlStats = highlightStats(list, cols);
+    const hlOf = (c, r) => hlCell(c, r, hlStats);
 
     tbody.innerHTML = slice
       .map(
@@ -997,7 +1053,7 @@ export function mountList(cfg) {
           ${cols
             .map(
               (c, i) =>
-                `<td class="${c.className || ''}${i === 0 ? ' table__first' : ''}${isEditable(c.key) ? ' cell--editable' : ''}${fzClass(i)}${hlMatches(c, r) ? ' cell--hl' : ''}" data-key="${c.key}" data-id="${r.id}" title="${esc(cellText(c, r))}" style="${fzStyle(i)}${hlMatches(c, r) ? `background:${hlColor(c.key)};` : ''}">${
+                `<td class="${c.className || ''}${i === 0 ? ' table__first' : ''}${isEditable(c.key) ? ' cell--editable' : ''}${fzClass(i)}${hlOf(c, r) ? ' cell--hl' : ''}" data-key="${c.key}" data-id="${r.id}" title="${esc(cellText(c, r))}" style="${fzStyle(i)}${hlOf(c, r) ? `background:${hlOf(c, r)};` : ''}">${
                   i === 0
                     ? `<div class="firstcell"><div class="firstcell__content">${cellHtml(c, r)}</div><button class="preview-btn" type="button" data-preview="${r.id}" aria-label="Vista previa"><span class="preview-btn__tip">Vista previa</span>▭</button></div>`
                     : `${cellHtml(c, r)}${isEditable(c.key) ? '<span class="cell__pen" aria-hidden="true">✎</span>' : ''}`
@@ -1434,7 +1490,7 @@ export function mountList(cfg) {
       openColumnInfo(key);
       return;
     } else if (a === 'highlight') {
-      openHighlightDialog(key);
+      openHighlightPop(key, b.closest('th'));
       return;
     } else if (a === 'freeze') {
       // Freeze everything up to this column; on a frozen column, release it (and the ones to its right).
@@ -1470,49 +1526,86 @@ export function mountList(cfg) {
         <div><dt>Registros con valor</dt><dd>${filled} de ${rows.length} (${pct} %)<span class="colinfo__bar"><span style="width:${pct}%"></span></span></dd></div>
         <div><dt>Valores distintos</dt><dd>${distinct.length}${distinct.length ? ` · p. ej. ${esc(distinct.slice(0, 3).join(' · '))}` : ''}</dd></div>
         <div><dt>Orden actual</dt><dd>${state.sort.key === key ? (state.sort.dir > 0 ? 'Ascendente' : 'Descendente') : 'Sin ordenar por esta columna'}</dd></div>
-        <div><dt>Resaltado condicional</dt><dd>${h ? `${(OPS.find((o) => o[0] === h.op) || [h.op, h.op])[1]}${h.value ? ` «${esc(h.value)}»` : ''} · ${HL_NAMES[h.color] || h.color}` : 'Sin reglas'}</dd></div>
+        <div><dt>Resaltado condicional</dt><dd>${h ? `Escala de color ${hlStyleName(h.style).toLowerCase()} (de menos a más)` : 'Sin resaltado'}</dd></div>
         <div><dt>Columna fija</dt><dd>${state.columns.indexOf(key) < state.frozenCount ? 'Sí' : 'No'}</dd></div>
       </dl>`;
     openDrawer('colinfo-dialog');
   }
 
-  // ---------- "Editar resaltado condicional" ----------
+  // ---------- "Editar resaltado condicional": popover under the column with the colour scale ----------
   let hlKey = null;
-  function openHighlightDialog(key) {
-    hlKey = key;
-    const h = state.highlights[key] || { op: 'filled', value: '', color: 'purple' };
-    $('hl-column').textContent = labelOf(key);
-    $('hl-op').value = h.op;
-    $('hl-value').value = h.value || '';
-    $('hl-value').disabled = h.op === 'empty' || h.op === 'filled';
-    const radio = $('hl-form').querySelector(`[name="color"][value="${h.color}"]`) || $('hl-form').querySelector('[name="color"]');
-    radio.checked = true;
-    $('hl-remove').hidden = !state.highlights[key];
-    openDrawer('hl-dialog');
+  let hlDraft = 'purple';
+  function renderHighlightPop() {
+    const shades = hlShades(hlDraft);
+    $('hl-scale').innerHTML = shades.map((s) => `<span style="background:${s}"></span>`).join('');
+    $('hl-styles').innerHTML = HL_STYLES.map(([k, , name]) => {
+      const sh = hlShades(k);
+      return `<button class="hlstyle${k === hlDraft ? ' is-selected' : ''}" type="button" data-hl-style="${k}" aria-label="${name}" aria-pressed="${k === hlDraft}" title="${name}" style="background:${sh[2]}">123</button>`;
+    }).join('');
+    $('hl-remove').hidden = !state.highlights[hlKey];
+    const c = col(hlKey);
+    const stats = c ? columnStats(filtered(), c) : null;
+    $('hl-note').textContent = stats && stats.numeric
+      ? 'Los valores se basan en todos los datos de esta columna'
+      : 'Esta columna no tiene valores numéricos ni fechas: todas las celdas con valor se resaltan por igual';
   }
-  $('hl-op').addEventListener('input', () => {
-    $('hl-value').disabled = $('hl-op').value === 'empty' || $('hl-op').value === 'filled';
+  function placeHighlightPop(anchor) {
+    const pop = $('hl-pop');
+    const r = anchor.getBoundingClientRect();
+    const width = pop.offsetWidth || 320;
+    const viewport = window.innerWidth || document.documentElement.clientWidth || 1440;
+    pop.style.top = `${r.bottom + 2}px`;
+    pop.style.left = `${Math.max(8, Math.min(r.right - width, viewport - width - 8))}px`;
+  }
+  function openHighlightPop(key, anchor) {
+    hlKey = key;
+    hlDraft = state.highlights[key] ? state.highlights[key].style : 'purple';
+    renderHighlightPop();
+    const pop = $('hl-pop');
+    pop.hidden = false;
+    pop.setAttribute('aria-hidden', 'false');
+    pop.dataset.key = key;
+    if (anchor) placeHighlightPop(anchor);
+  }
+  function closeHighlightPop() {
+    const pop = $('hl-pop');
+    pop.hidden = true;
+    pop.setAttribute('aria-hidden', 'true');
+  }
+  $('hl-pop').addEventListener('click', (e) => {
+    e.stopPropagation();
+    const style = e.target.closest('[data-hl-style]');
+    if (style) {
+      hlDraft = style.dataset.hlStyle;
+      renderHighlightPop();
+      return;
+    }
+    if (e.target.closest('[data-hl-close]')) closeHighlightPop();
+    else if (e.target.closest('[data-hl-apply]')) {
+      state.highlights = { ...state.highlights, [hlKey]: { style: hlDraft } };
+      setPrefs(cfg.type, { highlights: state.highlights });
+      closeHighlightPop();
+      render();
+      toast(`Resaltado ${hlStyleName(hlDraft).toLowerCase()} aplicado a "${labelOf(hlKey)}"`);
+    } else if (e.target.closest('[data-hl-remove]')) {
+      const next = { ...state.highlights };
+      delete next[hlKey];
+      state.highlights = next;
+      setPrefs(cfg.type, { highlights: state.highlights });
+      closeHighlightPop();
+      render();
+      toast('Resaltado eliminado');
+    }
   });
-  $('hl-form').addEventListener('submit', (e) => {
-    e.preventDefault();
-    if (!hlKey) return;
-    const data = Object.fromEntries(new FormData(e.target).entries());
-    state.highlights = { ...state.highlights, [hlKey]: { op: data.op, value: (data.value || '').trim(), color: data.color } };
-    setPrefs(cfg.type, { highlights: state.highlights });
-    closeDrawer('hl-dialog');
-    render();
-    toast(`Resaltado aplicado a "${labelOf(hlKey)}"`);
+  // Clicking anywhere else closes the popover (the menu item that opens it is excluded, since that same click bubbles here).
+  document.addEventListener('click', (e) => {
+    if ($('hl-pop').hidden || e.target.closest('#hl-pop, [data-col="highlight"]')) return;
+    closeHighlightPop();
   });
-  $('hl-remove').addEventListener('click', () => {
-    if (!hlKey) return;
-    const next = { ...state.highlights };
-    delete next[hlKey];
-    state.highlights = next;
-    setPrefs(cfg.type, { highlights: state.highlights });
-    closeDrawer('hl-dialog');
-    render();
-    toast('Resaltado quitado');
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !$('hl-pop').hidden) closeHighlightPop();
   });
+  wrap.addEventListener('scroll', () => { if (!$('hl-pop').hidden) closeHighlightPop(); });
   function undoLayout() {
     const prev = layoutHistory.pop();
     if (!prev) return;

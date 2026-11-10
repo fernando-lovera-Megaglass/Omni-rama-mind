@@ -64,37 +64,51 @@ log('info open:', $('colinfo-dialog').classList.contains('is-open'), '| title:',
 if (!/Nombre interno\s*email/.test(info) || !/Registros con valor/.test(info) || !/Tipo de campo/.test(info)) fail('column info incomplete');
 click($('colinfo-dialog').querySelector('[data-close="colinfo-dialog"]'));
 
-// conditional highlighting: phone has a value -> purple cells
+// conditional highlighting: a colour scale over the "Fecha de creación" column (dates count as numbers)
+click(item('created', 'highlight'));
+log('popover open:', !$('hl-pop').hidden, '| title:', $('hl-title').textContent, '| note:', $('hl-note').textContent);
+if ($('hl-pop').hidden) fail('popover should stay open after the menu click');
+if (!/todos los datos/.test($('hl-note').textContent)) fail('a date column should be treated as a numeric scale');
+log('scale steps:', $('hl-scale').children.length, '| styles:', document.querySelectorAll('.hlstyle').length, '| selected:', document.querySelector('.hlstyle.is-selected')?.dataset.hlStyle, '| ends:', $('hl-pop').querySelector('.hlpop__ends').textContent.trim(), '| remove hidden:', $('hl-remove').hidden);
+if ($('hl-scale').children.length !== 5 || document.querySelectorAll('.hlstyle').length !== 9) fail('popover should show a 5-step scale and 9 styles');
+const scaleBefore = [...$('hl-scale').children].map((s) => s.style.background).join('|');
+click(document.querySelector('.hlstyle[data-hl-style="green"]'));
+const scaleAfter = [...$('hl-scale').children].map((s) => s.style.background).join('|');
+log('style click updates preview:', scaleBefore !== scaleAfter, '| selected now:', document.querySelector('.hlstyle.is-selected')?.dataset.hlStyle);
+if (scaleBefore === scaleAfter) fail('choosing a style should repaint the preview');
+click($('hl-pop').querySelector('[data-hl-apply]'));
+log('popover closed:', $('hl-pop').hidden, '| stored:', JSON.stringify(prefs().highlights));
+if (!prefs().highlights.created || prefs().highlights.created.style !== 'green') fail('highlight style not stored');
+const shownRows = [...document.querySelectorAll('tbody tr[data-id]')];
+const hlCells = shownRows.map((tr) => tr.querySelector('td[data-key="created"]'));
+const colours = [...new Set(hlCells.map((td) => td.style.background))];
+log('created cells highlighted:', hlCells.filter((td) => td.classList.contains('cell--hl')).length, 'of', hlCells.length, '| distinct shades on this page:', colours.length, '| header tinted:', th('created').classList.contains('th--hl'));
+if (hlCells.some((td) => !td.classList.contains('cell--hl'))) fail('every dated cell should be on the scale');
+if (colours.length < 2) fail('the scale should produce more than one shade');
+// the newest record (sorted desc by creation) is darkest, the oldest on the page lighter
+const shadeIndex = (bg) => [...$('hl-scale').children].findIndex((s) => s.style.background === bg);
+click(item('created', 'highlight'));
+const first = shadeIndex(hlCells[0].style.background);
+const last = shadeIndex(hlCells[hlCells.length - 1].style.background);
+log('shade of newest row:', first, '| shade of oldest row on the page:', last, '(0 = darkest)');
+if (first > last) fail('higher values should be darker');
+// a text column gets a flat highlight on filled cells
+click($('hl-pop').querySelector('[data-hl-close]'));
 click(item('phone', 'highlight'));
-log('highlight dialog open:', $('hl-dialog').classList.contains('is-open'), '| column:', $('hl-column').textContent, '| swatches:', document.querySelectorAll('.hl-swatch').length, '| remove hidden:', $('hl-remove').hidden);
-$('hl-op').value = 'filled';
-$('hl-op').dispatchEvent(new dom.window.Event('input', { bubbles: true }));
-log('value disabled for "tiene valor":', $('hl-value').disabled);
-$('hl-form').querySelector('[name="color"][value="purple"]').checked = true;
-submit($('hl-form'));
-const shown = [...document.querySelectorAll('tbody tr[data-id]')];
-const withPhone = shown.filter((tr) => { const id = Number(tr.dataset.id); const r = data.allContacts().find((c) => Number(c.id) === id); return Boolean(r.phone); }).length;
-const highlighted = document.querySelectorAll('tbody td.cell--hl[data-key="phone"]').length;
-log('highlighted cells:', highlighted, '| rows with phone on the page:', withPhone, '| header coloured:', th('phone').classList.contains('th--hl'), '| stored:', JSON.stringify(prefs().highlights));
-if (highlighted !== withPhone || highlighted === 0) fail('highlight did not match the rule');
-if (!th('phone').getAttribute('style').includes('#e5e0ff')) fail('header should carry the highlight colour');
-// a value rule: owner equals Fernando L. in green
-click(item('owner', 'highlight'));
-$('hl-op').value = 'is';
-$('hl-op').dispatchEvent(new dom.window.Event('input', { bubbles: true }));
-$('hl-value').value = 'Fernando L.';
-$('hl-form').querySelector('[name="color"][value="green"]').checked = true;
-submit($('hl-form'));
-const ownerHl = document.querySelectorAll('tbody td.cell--hl[data-key="owner"]').length;
-const ownerExpected = shown.filter((tr) => { const id = Number(tr.dataset.id); return data.allContacts().find((c) => Number(c.id) === id).owner === 'Fernando L.'; }).length;
-log('owner = Fernando L. highlighted:', ownerHl, '| expected:', ownerExpected);
-if (ownerHl !== ownerExpected) fail('value rule mismatch');
-// remove the phone rule
+log('text column note:', $('hl-note').textContent);
+click($('hl-pop').querySelector('[data-hl-apply]'));
+const withPhone = shownRows.filter((tr) => Boolean(data.allContacts().find((c) => Number(c.id) === Number(tr.dataset.id)).phone)).length;
+const phoneHl = document.querySelectorAll('tbody td.cell--hl[data-key="phone"]').length;
+log('phone highlighted:', phoneHl, '| rows with phone:', withPhone);
+if (phoneHl !== withPhone || phoneHl === 0) fail('text column should highlight its filled cells');
+// remove the phone highlight
 click(item('phone', 'highlight'));
 log('remove button shown now:', !$('hl-remove').hidden);
 click($('hl-remove'));
 log('phone highlights after removal:', document.querySelectorAll('tbody td.cell--hl[data-key="phone"]').length, '| rules left:', Object.keys(prefs().highlights).join(','));
 if (document.querySelectorAll('tbody td.cell--hl[data-key="phone"]').length) fail('highlight not removed');
+// an old-style rule saved by a previous version is converted to a scale
+mem['crm:contacts:prefs'] = JSON.stringify({ ...prefs(), highlights: { owner: { op: 'is', value: 'x', color: 'green' } } });
 
 // freeze up to the third column, then release it
 const third = headers()[2];
