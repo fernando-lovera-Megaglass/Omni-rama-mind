@@ -146,10 +146,11 @@ pointer('pointermove', document, 160);
 pointer('pointerup', document, 160);
 const colAfter = parseInt(document.querySelector(`col[data-key="${resizeKey}"]`).style.width, 10);
 log('resize', resizeKey, colBefore, '->', colAfter, '| stored:', JSON.parse(mem[`crm:${page}:prefs`]).widths[resizeKey]);
-const orderBefore = [...document.querySelectorAll('th.th')].map((t) => t.dataset.key).join(',');
-click(document.querySelector('th.th [data-col="right"]:not([disabled])'));
-const orderAfter = [...document.querySelectorAll('th.th')].map((t) => t.dataset.key).join(',');
-log('move right changed order:', orderBefore !== orderAfter, '| undo enabled:', !$('undo-btn').disabled);
+// column menu (⋮): freeze up to the second column, then release it
+click([...document.querySelectorAll('th.th')][1].querySelector('[data-col="freeze"]'));
+log('frozen up to 2nd column:', document.querySelectorAll('th.th.fz').length, '| stored:', JSON.parse(mem[`crm:${page}:prefs`]).frozenCount);
+click([...document.querySelectorAll('th.th')][1].querySelector('[data-col="freeze"]'));
+log('released -> frozen:', document.querySelectorAll('th.th.fz').length);
 // drag header to move it: pointerdown on 3rd header, move far right, up
 const ths = [...document.querySelectorAll('th.th')];
 const dragKey = ths[2].dataset.key;

@@ -2186,32 +2186,186 @@ h1 {
   background: inherit;
 }
 
-.is-overflowing .table--frozen th:nth-child(2),
-.is-overflowing .table--frozen tbody td:nth-child(2) {
+/* Frozen columns (.fz, with --fzl as their left offset); the last one (.fz--last) draws the edge. */
+.is-overflowing .table--frozen th.fz,
+.is-overflowing .table--frozen tbody td.fz {
   position: sticky !important;
-  left: 48px;
+  left: var(--fzl, 48px);
   z-index: 2;
   background: inherit;
+}
+
+.is-overflowing .table--frozen th.fz--last,
+.is-overflowing .table--frozen tbody td.fz--last {
   box-shadow: 1px 0 0 var(--c-border);
 }
 
-.table--frozen th.th:nth-child(2) {
+.table--frozen th.fz {
   background: var(--c-head);
 }
 
-.table--frozen th.th:nth-child(2):hover {
-  background: #e3e9ef;
-}
-
-/* The frozen column only matters when the table scrolls sideways: then it gets a visible edge. */
-.table-wrap:not(.is-overflowing) .table--frozen th:nth-child(2),
-.table-wrap:not(.is-overflowing) .table--frozen td:nth-child(2) {
+/* The frozen columns only matter when the table scrolls sideways: then the last one gets a visible edge. */
+.table-wrap:not(.is-overflowing) .table--frozen th.fz--last,
+.table-wrap:not(.is-overflowing) .table--frozen td.fz--last {
   box-shadow: none;
 }
 
-.table-wrap.is-scrolled .table--frozen th:nth-child(2),
-.table-wrap.is-scrolled .table--frozen td:nth-child(2) {
+.table-wrap.is-scrolled .table--frozen th.fz--last,
+.table-wrap.is-scrolled .table--frozen td.fz--last {
   box-shadow: 6px 0 10px -4px rgba(0, 0, 0, 0.25), 1px 0 0 var(--c-border);
+}
+
+/* ---------- Column header menu (⋮): sort, filter, info, highlight, freeze, add, remove ---------- */
+.thmenu {
+  min-width: 250px;
+  padding: var(--sp-8) 0;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.thmenu .menu__item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-10);
+  padding: 7px var(--sp-16);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
+}
+
+.thmenu .menu__item .ico {
+  width: 15px;
+  height: 15px;
+  opacity: 0.9;
+}
+
+.thmenu .menu__item:disabled .ico {
+  opacity: 0.45;
+}
+
+.ico--arrow-up { -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M11 21V6.8l-5.6 5.6L4 11l8-8 8 8-1.4 1.4L13 6.8V21z'/%3E%3C/svg%3E"); mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M11 21V6.8l-5.6 5.6L4 11l8-8 8 8-1.4 1.4L13 6.8V21z'/%3E%3C/svg%3E"); }
+.ico--arrow-down { -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M11 3v14.2l-5.6-5.6L4 13l8 8 8-8-1.4-1.4-5.6 5.6V3z'/%3E%3C/svg%3E"); mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M11 3v14.2l-5.6-5.6L4 13l8 8 8-8-1.4-1.4-5.6 5.6V3z'/%3E%3C/svg%3E"); }
+.ico--lines { -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M3 6h18v2H3zm3 5h12v2H6zm3 5h6v2H9z'/%3E%3C/svg%3E"); mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M3 6h18v2H3zm3 5h12v2H6zm3 5h6v2H9z'/%3E%3C/svg%3E"); }
+.ico--highlight { -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2 2 12l10 10 10-10zm0 2.8L19.2 12 12 19.2 4.8 12zm0 3.2L7 12l5 5 5-5z'/%3E%3C/svg%3E"); mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2 2 12l10 10 10-10zm0 2.8L19.2 12 12 19.2 4.8 12zm0 3.2L7 12l5 5 5-5z'/%3E%3C/svg%3E"); }
+.ico--pin { -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M14 2l8 8-2 2-1-1-4 4 1 5-2 2-4.5-4.5L4 23l-1-1 5.5-5.5L4 12l2-2 5 1 4-4-1-1z'/%3E%3C/svg%3E"); mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M14 2l8 8-2 2-1-1-4 4 1 5-2 2-4.5-4.5L4 23l-1-1 5.5-5.5L4 12l2-2 5 1 4-4-1-1z'/%3E%3C/svg%3E"); }
+.ico--close { -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M5.7 4.3 12 10.6l6.3-6.3 1.4 1.4L13.4 12l6.3 6.3-1.4 1.4L12 13.4l-6.3 6.3-1.4-1.4L10.6 12 4.3 5.7z'/%3E%3C/svg%3E"); mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M5.7 4.3 12 10.6l6.3-6.3 1.4 1.4L13.4 12l6.3 6.3-1.4 1.4L12 13.4l-6.3 6.3-1.4-1.4L10.6 12 4.3 5.7z'/%3E%3C/svg%3E"); }
+
+/* Column information dialog */
+.colinfo {
+  margin: 0;
+  display: grid;
+  gap: var(--sp-10);
+}
+
+.colinfo > div {
+  display: grid;
+  grid-template-columns: 170px 1fr;
+  gap: var(--sp-16);
+  padding-bottom: var(--sp-10);
+  border-bottom: 1px solid var(--c-border);
+}
+
+.colinfo > div:last-child {
+  border-bottom: 0;
+}
+
+.colinfo dt {
+  font-weight: 600;
+  color: var(--c-text);
+}
+
+.colinfo dd {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.colinfo code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+  background: var(--c-head);
+  border: 1px solid var(--c-border);
+  border-radius: 4px;
+  padding: 1px 6px;
+}
+
+.colinfo__bar {
+  display: block;
+  height: 6px;
+  margin-top: 6px;
+  border-radius: 3px;
+  background: var(--c-head);
+  overflow: hidden;
+}
+
+.colinfo__bar span {
+  display: block;
+  height: 100%;
+  background: var(--c-link);
+}
+
+/* Conditional highlighting dialog */
+.hl-rule {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-16);
+}
+
+.hl-rule select,
+.hl-rule input {
+  height: 40px;
+  padding: 0 var(--sp-10);
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-sm);
+  font: inherit;
+  font-weight: 400;
+}
+
+.hl-colors {
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+
+.hl-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-10);
+}
+
+.hl-swatch {
+  position: relative;
+  cursor: pointer;
+}
+
+.hl-swatch input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+
+.hl-swatch span {
+  display: block;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
+}
+
+.hl-swatch input:checked + span {
+  border-color: var(--c-nav);
+  box-shadow: 0 0 0 2px var(--c-white) inset;
+}
+
+.hl-swatch input:focus-visible + span {
+  outline: 2px solid var(--c-link);
+  outline-offset: 2px;
+}
+
+td.cell--hl .cell__pen {
+  background: transparent;
 }
 
 .table-wrap {

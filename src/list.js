@@ -46,7 +46,11 @@ export function mountList(cfg) {
     showFilters: prefs.showFilters !== false,
     columns: prefs.columns || defaultColumns,
     widths: prefs.widths || {},
-    frozen: prefs.frozen === true,
+    frozen: (prefs.frozenCount ?? (prefs.frozen ? 1 : 0)) > 0,
+    // Columns kept on the left while scrolling sideways (0 = none); "Inmovilizar columna" freezes up to that column.
+    frozenCount: prefs.frozenCount ?? (prefs.frozen ? 1 : 0),
+    // Conditional highlighting per column from the header menu: { op, value, color }.
+    highlights: prefs.highlights || {},
     // Row density from the gear menu ("Ver configuración"): 'comfortable' (48 px rows) or 'compact' (36 px rows).
     density: prefs.density === 'compact' ? 'compact' : 'comfortable',
     // Zebra striping (alternate rows tinted), also from the gear menu.
@@ -57,6 +61,15 @@ export function mountList(cfg) {
   };
   let pipelineQuery = '';
   const layoutHistory = [];
+  function setFrozenCount(n) {
+    state.frozenCount = Math.max(0, Math.min(Number(n) || 0, state.columns.length));
+    state.frozen = state.frozenCount > 0;
+    setPrefs(cfg.type, { frozen: state.frozen, frozenCount: state.frozenCount });
+  }
+  // Conditional highlighting ("Editar resaltado condicional" in the column menu).
+  const HL_COLORS = { purple: '#e5e0ff', blue: '#dbe9ff', teal: '#d6f3f5', green: '#dcf5e4', yellow: '#fff3c4', orange: '#ffe3d1', red: '#ffdbdb', pink: '#ffe0ee' };
+  const HL_NAMES = { purple: 'Morado', blue: 'Azul', teal: 'Turquesa', green: 'Verde', yellow: 'Amarillo', orange: 'Naranja', red: 'Rojo', pink: 'Rosa' };
+  const hlColor = (key) => { const h = state.highlights[key]; return h && HL_COLORS[h.color] ? HL_COLORS[h.color] : ''; };
   const DEFAULT_W = 190;
   const FIRST_W = 280;
   const MIN_W = 80;
@@ -126,6 +139,12 @@ export function mountList(cfg) {
   const visibleColumns = () => state.columns.map(col).filter(Boolean);
   const cellText = (c, r) => (c.text ? c.text(r) : r[c.key] ?? '');
   const cellHtml = (c, r) => (c.render ? c.render(r) : esc(cellText(c, r)));
+  function hlMatches(c, r) {
+    const h = state.highlights[c.key];
+    if (!h) return false;
+    const n = Number(String(r[c.key] ?? '').replace(/[^\d.-]/g, ''));
+    return testCondition(h.op, cellText(c, r), n, h.value);
+  }
   const allKeys = () => {
     const seen = new Set();
     const out = [];
@@ -464,6 +483,51 @@ export function mountList(cfg) {
               <tbody id="allviews-rows"></tbody>
             </table>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="drawer drawer--modal" id="colinfo-dialog" aria-hidden="true">
+      <div class="drawer__panel drawer__panel--dialog" role="dialog" aria-labelledby="colinfo-title">
+        <div class="drawer__head drawer__head--light"><h2 id="colinfo-title">Información de la columna</h2><button class="drawer__close" type="button" data-close="colinfo-dialog" aria-label="Cerrar">×</button></div>
+        <div class="drawer__body" id="colinfo-body"></div>
+        <div class="drawer__foot">
+          <a class="btn btn--ghost" href="../settings/#data-properties">Editar propiedad</a>
+          <button class="btn btn--ghost" type="button" data-close="colinfo-dialog">Cerrar</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="drawer drawer--modal" id="hl-dialog" aria-hidden="true">
+      <div class="drawer__panel drawer__panel--dialog" role="dialog" aria-labelledby="hl-title">
+        <div class="drawer__head drawer__head--light"><h2 id="hl-title">Editar resaltado condicional</h2><button class="drawer__close" type="button" data-close="hl-dialog" aria-label="Cerrar">×</button></div>
+        <form class="drawer__body" id="hl-form">
+          <p class="muted">Las celdas de la columna <strong id="hl-column"></strong> que cumplan la condición se mostrarán con el color elegido.</p>
+          <div class="hl-rule">
+            <label class="field"><span>Resaltar cuando el valor</span>
+              <select name="op" id="hl-op">
+                <option value="filled">tiene valor</option>
+                <option value="empty">está vacío</option>
+                <option value="is">es igual a</option>
+                <option value="not">no es igual a</option>
+                <option value="contains">contiene</option>
+                <option value="gt">es mayor que</option>
+                <option value="lt">es menor que</option>
+              </select>
+            </label>
+            <label class="field"><span>Valor</span><input name="value" id="hl-value" type="text" placeholder="Valor" /></label>
+          </div>
+          <fieldset class="field hl-colors">
+            <span>Color</span>
+            <div class="hl-swatches">
+              ${Object.entries(HL_COLORS).map(([k, v], i) => `<label class="hl-swatch" title="${HL_NAMES[k]}"><input type="radio" name="color" value="${k}" ${i === 0 ? 'checked' : ''} /><span style="background:${v}"></span></label>`).join('')}
+            </div>
+          </fieldset>
+        </form>
+        <div class="drawer__foot">
+          <button class="btn btn--primary" type="submit" form="hl-form">Guardar</button>
+          <button class="btn btn--ghost" type="button" id="hl-remove" hidden>Quitar resaltado</button>
+          <button class="btn btn--ghost" type="button" data-close="hl-dialog">Cancelar</button>
         </div>
       </div>
     </div>
@@ -880,11 +944,16 @@ export function mountList(cfg) {
       `<col style="width:48px" />` +
       cols.map((c, i) => `<col data-key="${c.key}" style="width:${widthOf(c.key, i)}px" />`).join('') +
       `<col style="width:44px" />`;
+    // Left offsets of the frozen columns (after the 48 px checkbox column).
+    const lefts = [];
+    cols.reduce((acc, c, i) => { lefts[i] = acc; return acc + widthOf(c.key, i); }, 48);
+    const fzClass = (i) => (i < state.frozenCount ? ` fz${i === state.frozenCount - 1 ? ' fz--last' : ''}` : '');
+    const fzStyle = (i) => (i < state.frozenCount ? `--fzl:${lefts[i]}px;` : '');
     headRow.innerHTML =
       `<th class="table__check"><input type="checkbox" id="check-all" aria-label="Seleccionar todo" /></th>` +
       cols
         .map(
-          (c, i) => `<th class="th${state.sort.key === c.key ? ' is-sorted' : ''}" data-key="${c.key}" data-index="${i}">
+          (c, i) => `<th class="th${state.sort.key === c.key ? ' is-sorted' : ''}${fzClass(i)}${hlColor(c.key) ? ' th--hl' : ''}" data-key="${c.key}" data-index="${i}" style="${fzStyle(i)}${hlColor(c.key) ? `background:${hlColor(c.key)};` : ''}">
             <div class="th__inner">
               <button class="th-sort${state.sort.key === c.key ? ' is-sorted' : ''}" type="button" data-sort="${c.key}" draggable="false">
                 <span class="th__label">${c.label}</span>
@@ -892,14 +961,16 @@ export function mountList(cfg) {
               </button>
               <div class="menu th__menu">
                 <button class="th__more" type="button" aria-label="Opciones de columna" aria-haspopup="true">⋮</button>
-                <div class="menu__panel menu__panel--right">
-                  <button class="menu__item" type="button" data-col="asc" data-key="${c.key}">Ordenar ascendente</button>
-                  <button class="menu__item" type="button" data-col="desc" data-key="${c.key}">Ordenar descendente</button>
-                  <button class="menu__item" type="button" data-col="left" data-key="${c.key}" ${i === 0 ? 'disabled' : ''}>Mover a la izquierda</button>
-                  <button class="menu__item" type="button" data-col="right" data-key="${c.key}" ${i === cols.length - 1 ? 'disabled' : ''}>Mover a la derecha</button>
-                  <button class="menu__item" type="button" data-col="autosize" data-key="${c.key}">Restablecer ancho</button>
-                  <button class="menu__item" type="button" data-col="hide" data-key="${c.key}" ${cols.length === 1 ? 'disabled' : ''}>Ocultar columna</button>
-                  <button class="menu__item" type="button" data-action="columns">Editar columnas</button>
+                <div class="menu__panel menu__panel--right thmenu" role="menu">
+                  <button class="menu__item" type="button" role="menuitem" data-col="asc" data-key="${c.key}"><span class="ico ico--arrow-up"></span>Orden ascendente</button>
+                  <button class="menu__item" type="button" role="menuitem" data-col="desc" data-key="${c.key}"><span class="ico ico--arrow-down"></span>Orden descendente</button>
+                  <button class="menu__item" type="button" role="menuitem" data-col="filter" data-key="${c.key}"><span class="ico ico--lines"></span>Filtrar por esta columna</button>
+                  <button class="menu__item" type="button" role="menuitem" data-col="smart" data-key="${c.key}" disabled title="Disponible con las funciones de IA"><span class="ico ico--copilot"></span>Configura una propiedad inteligente</button>
+                  <button class="menu__item" type="button" role="menuitem" data-col="info" data-key="${c.key}"><span class="ico ico--copilot"></span>Ver información de la columna</button>
+                  <button class="menu__item" type="button" role="menuitem" data-col="highlight" data-key="${c.key}"><span class="ico ico--highlight"></span>Editar resaltado condicional</button>
+                  <button class="menu__item" type="button" role="menuitem" data-col="freeze" data-key="${c.key}"><span class="ico ico--pin"></span>${i < state.frozenCount ? 'Liberar columna' : 'Inmovilizar columna'}</button>
+                  <button class="menu__item" type="button" role="menuitem" data-col="add" data-key="${c.key}"><span class="ico ico--plus"></span>Agregar columna</button>
+                  <button class="menu__item" type="button" role="menuitem" data-col="hide" data-key="${c.key}" ${cols.length === 1 ? 'disabled' : ''}><span class="ico ico--close"></span>Eliminar columna</button>
                 </div>
               </div>
               <span class="th__resize" data-resize="${c.key}" title="Arrastra para cambiar el ancho"></span>
@@ -908,6 +979,8 @@ export function mountList(cfg) {
         )
         .join('') +
       `<th class="table__add"><button class="table__add-btn" type="button" data-action="columns" title="Añadir columna" aria-label="Añadir columna">+</button></th>`;
+    // The header is rebuilt on every render, so its ⋮ menus need wiring each time.
+    wireMenus(headRow);
     $('undo-btn').disabled = layoutHistory.length === 0;
 
     const list = filtered();
@@ -924,7 +997,7 @@ export function mountList(cfg) {
           ${cols
             .map(
               (c, i) =>
-                `<td class="${c.className || ''}${i === 0 ? ' table__first' : ''}${isEditable(c.key) ? ' cell--editable' : ''}" data-key="${c.key}" data-id="${r.id}" title="${esc(cellText(c, r))}">${
+                `<td class="${c.className || ''}${i === 0 ? ' table__first' : ''}${isEditable(c.key) ? ' cell--editable' : ''}${fzClass(i)}${hlMatches(c, r) ? ' cell--hl' : ''}" data-key="${c.key}" data-id="${r.id}" title="${esc(cellText(c, r))}" style="${fzStyle(i)}${hlMatches(c, r) ? `background:${hlColor(c.key)};` : ''}">${
                   i === 0
                     ? `<div class="firstcell"><div class="firstcell__content">${cellHtml(c, r)}</div><button class="preview-btn" type="button" data-preview="${r.id}" aria-label="Vista previa"><span class="preview-btn__tip">Vista previa</span>▭</button></div>`
                     : `${cellHtml(c, r)}${isEditable(c.key) ? '<span class="cell__pen" aria-hidden="true">✎</span>' : ''}`
@@ -1342,10 +1415,103 @@ export function mountList(cfg) {
       if (state.columns.length <= 1) return;
       pushLayout();
       state.columns = state.columns.filter((k) => k !== key);
+      if (state.frozenCount > state.columns.length) setFrozenCount(state.columns.length);
       persistLayout();
-      toast(`Columna "${(col(key) || { label: key }).label}" oculta. Puedes volver a añadirla desde "Editar columnas".`);
+      toast(`Columna "${labelOf(key)}" eliminada de la vista. Puedes volver a añadirla desde "Agregar columna".`);
+    } else if (a === 'filter') {
+      // "Filtrar por esta columna": a new condition on this property, in the first group of the advanced filters.
+      state.advanced = state.advanced.filter((c) => c.key);
+      const g = state.advanced.length ? Math.min(...state.advanced.map((c) => Number(c.group) || 0)) : 0;
+      const kind = props[key] ? props[key].kind : '';
+      state.advanced.push({ key, op: ['number', 'currency', 'percent'].includes(kind) ? 'gt' : ownValueOptions(key) ? 'is' : 'contains', value: '', group: g, assoc: '', label: '' });
+      renderAdvRows();
+      openDrawer('adv-drawer');
+      const last = [...$('adv-groups').querySelectorAll('.advc')].pop();
+      const target = last && last.querySelector('[data-k="value"]');
+      if (target && !target.disabled) target.focus();
+      return;
+    } else if (a === 'info') {
+      openColumnInfo(key);
+      return;
+    } else if (a === 'highlight') {
+      openHighlightDialog(key);
+      return;
+    } else if (a === 'freeze') {
+      // Freeze everything up to this column; on a frozen column, release it (and the ones to its right).
+      const wasFrozen = i < state.frozenCount;
+      setFrozenCount(wasFrozen ? i : i + 1);
+      toast(wasFrozen ? `Columna "${labelOf(key)}" liberada` : `${state.frozenCount} columna${state.frozenCount === 1 ? '' : 's'} inmovilizada${state.frozenCount === 1 ? '' : 's'} a la izquierda`);
+    } else if (a === 'add') {
+      openColumnEditor();
+      return;
     }
     render();
+  });
+
+  // ---------- "Ver información de la columna" ----------
+  const KIND_NAMES = { text: 'Texto de una línea', textarea: 'Texto de varias líneas', enum: 'Lista desplegable', number: 'Número', currency: 'Moneda', percent: 'Porcentaje', date: 'Selector de fecha', datetime: 'Fecha y hora', user: 'Usuario de la cuenta', bool: 'Casilla de verificación', email: 'Correo', phone: 'Número de teléfono', url: 'URL', id: 'Identificador', stage: 'Etapa del pipeline', status: 'Estado', priority: 'Prioridad' };
+  function openColumnInfo(key) {
+    const c = col(key);
+    const p = props[key];
+    const rows = cfg.rows();
+    const values = rows.map((r) => (c ? cellText(c, r) : r[key])).map((v) => (v === undefined || v === null ? '' : String(v)));
+    const filled = values.filter((v) => v !== '' && v !== '—' && v !== '--').length;
+    const distinct = [...new Set(values.filter((v) => v !== '' && v !== '—' && v !== '--'))];
+    const pct = rows.length ? Math.round((filled / rows.length) * 100) : 0;
+    const h = state.highlights[key];
+    $('colinfo-title').textContent = labelOf(key);
+    $('colinfo-body').innerHTML = `
+      <dl class="colinfo">
+        <div><dt>Nombre</dt><dd>${esc(labelOf(key))}</dd></div>
+        <div><dt>Nombre interno</dt><dd><code>${esc(key)}</code></dd></div>
+        <div><dt>Tipo de campo</dt><dd>${esc(p ? KIND_NAMES[p.kind] || p.kind : key.startsWith('assoc_') ? 'Asociación' : 'Calculado')}</dd></div>
+        <div><dt>Grupo</dt><dd>${esc(p ? p.group : 'Información de ' + plural)}</dd></div>
+        ${p && Array.isArray(p.options) && p.options.length ? `<div><dt>Opciones</dt><dd>${p.options.length}: ${esc(p.options.slice(0, 6).map((o) => (Array.isArray(o) ? o[1] : o)).join(', '))}${p.options.length > 6 ? '…' : ''}</dd></div>` : ''}
+        <div><dt>Registros con valor</dt><dd>${filled} de ${rows.length} (${pct} %)<span class="colinfo__bar"><span style="width:${pct}%"></span></span></dd></div>
+        <div><dt>Valores distintos</dt><dd>${distinct.length}${distinct.length ? ` · p. ej. ${esc(distinct.slice(0, 3).join(' · '))}` : ''}</dd></div>
+        <div><dt>Orden actual</dt><dd>${state.sort.key === key ? (state.sort.dir > 0 ? 'Ascendente' : 'Descendente') : 'Sin ordenar por esta columna'}</dd></div>
+        <div><dt>Resaltado condicional</dt><dd>${h ? `${(OPS.find((o) => o[0] === h.op) || [h.op, h.op])[1]}${h.value ? ` «${esc(h.value)}»` : ''} · ${HL_NAMES[h.color] || h.color}` : 'Sin reglas'}</dd></div>
+        <div><dt>Columna fija</dt><dd>${state.columns.indexOf(key) < state.frozenCount ? 'Sí' : 'No'}</dd></div>
+      </dl>`;
+    openDrawer('colinfo-dialog');
+  }
+
+  // ---------- "Editar resaltado condicional" ----------
+  let hlKey = null;
+  function openHighlightDialog(key) {
+    hlKey = key;
+    const h = state.highlights[key] || { op: 'filled', value: '', color: 'purple' };
+    $('hl-column').textContent = labelOf(key);
+    $('hl-op').value = h.op;
+    $('hl-value').value = h.value || '';
+    $('hl-value').disabled = h.op === 'empty' || h.op === 'filled';
+    const radio = $('hl-form').querySelector(`[name="color"][value="${h.color}"]`) || $('hl-form').querySelector('[name="color"]');
+    radio.checked = true;
+    $('hl-remove').hidden = !state.highlights[key];
+    openDrawer('hl-dialog');
+  }
+  $('hl-op').addEventListener('input', () => {
+    $('hl-value').disabled = $('hl-op').value === 'empty' || $('hl-op').value === 'filled';
+  });
+  $('hl-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    if (!hlKey) return;
+    const data = Object.fromEntries(new FormData(e.target).entries());
+    state.highlights = { ...state.highlights, [hlKey]: { op: data.op, value: (data.value || '').trim(), color: data.color } };
+    setPrefs(cfg.type, { highlights: state.highlights });
+    closeDrawer('hl-dialog');
+    render();
+    toast(`Resaltado aplicado a "${labelOf(hlKey)}"`);
+  });
+  $('hl-remove').addEventListener('click', () => {
+    if (!hlKey) return;
+    const next = { ...state.highlights };
+    delete next[hlKey];
+    state.highlights = next;
+    setPrefs(cfg.type, { highlights: state.highlights });
+    closeDrawer('hl-dialog');
+    render();
+    toast('Resaltado quitado');
   });
   function undoLayout() {
     const prev = layoutHistory.pop();
@@ -1567,7 +1733,27 @@ export function mountList(cfg) {
   // Shadow on the frozen column once the table is scrolled sideways, so it reads as "fixed" and not as cut off.
   wrap.addEventListener('scroll', () => {
     wrap.classList.toggle('is-scrolled', wrap.scrollLeft > 0);
+    closeMenus();
   });
+  // The header's ⋮ panel would be clipped by the scrolling table, so it is pinned to the viewport
+  // (right-aligned with its button) just before the generic menu toggle opens it.
+  headRow.addEventListener(
+    'click',
+    (e) => {
+      const more = e.target.closest('.th__more');
+      if (!more) return;
+      const panel = more.parentElement.querySelector('.menu__panel');
+      if (!panel) return;
+      const r = more.getBoundingClientRect();
+      const width = panel.offsetWidth || 250;
+      const viewport = window.innerWidth || document.documentElement.clientWidth || 1440;
+      panel.style.position = 'fixed';
+      panel.style.top = `${r.bottom + 4}px`;
+      panel.style.left = `${Math.max(8, Math.min(r.right - width, viewport - width - 8))}px`;
+      panel.style.right = 'auto';
+    },
+    true,
+  );
 
   // ---------- preview panel ----------
   function recordById(rid) {
@@ -1825,11 +2011,19 @@ export function mountList(cfg) {
     dragKey = null;
     renderColumnEditor();
   });
+  function openColumnEditor() {
+    draft = state.columns.slice();
+    draftFrozen = state.frozen;
+    colQuery = '';
+    $('col-search').value = '';
+    if (groups[0]) openGroups.add(groups[0].title);
+    renderColumnEditor();
+    openDrawer('columns-drawer');
+  }
   $('columns-apply').addEventListener('click', () => {
     pushLayout();
     state.columns = draft.slice();
-    state.frozen = draftFrozen;
-    setPrefs(cfg.type, { frozen: state.frozen });
+    setFrozenCount(draftFrozen ? Math.max(1, state.frozenCount) : 0);
     const v = viewById(state.viewId);
     if (v && v.standard) setPrefs(cfg.type, { columns: state.columns });
     closeDrawer('columns-drawer');
@@ -2209,15 +2403,8 @@ export function mountList(cfg) {
     const a = el.dataset.action;
     closeMenus();
     if (a === 'create') openCreate();
-    else if (a === 'columns') {
-      draft = state.columns.slice();
-      draftFrozen = state.frozen;
-      colQuery = '';
-      $('col-search').value = '';
-      if (groups[0]) openGroups.add(groups[0].title);
-      renderColumnEditor();
-      openDrawer('columns-drawer');
-    } else if (a === 'advanced') { renderAdvRows(); openDrawer('adv-drawer'); }
+    else if (a === 'columns') openColumnEditor();
+    else if (a === 'advanced') { renderAdvRows(); openDrawer('adv-drawer'); }
     else if (a === 'import') openDrawer('import-drawer');
     else if (a === 'export' || a === 'bulk-export') {
       const list = filtered().filter((r) => a === 'export' || state.selected.has(Number(r.id)));
@@ -2245,8 +2432,7 @@ export function mountList(cfg) {
       setPrefs(cfg.type, { showFilters: state.showFilters });
       render();
     } else if (a === 'toggle-freeze') {
-      state.frozen = !state.frozen;
-      setPrefs(cfg.type, { frozen: state.frozen });
+      setFrozenCount(state.frozenCount > 0 ? 0 : 1);
       render();
       toast(state.frozen ? 'La primera columna queda fija al desplazarte' : 'La primera columna ya no está fija');
     } else if (a === 'toggle-density') {
