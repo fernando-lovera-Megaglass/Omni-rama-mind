@@ -48,6 +48,8 @@ export function mountList(cfg) {
     frozen: prefs.frozen === true,
     // Row density from the gear menu ("Ver configuración"): 'comfortable' (48 px rows) or 'compact' (36 px rows).
     density: prefs.density === 'compact' ? 'compact' : 'comfortable',
+    // Zebra striping (alternate rows tinted), also from the gear menu.
+    zebra: prefs.zebra === true,
     boardCollapsed: new Set(prefs.boardCollapsed || []),
     boardOrder: prefs.boardOrder || null,
     pipeline: cfg.pipeline ? prefs.pipeline || '' : '',
@@ -836,6 +838,7 @@ export function mountList(cfg) {
       ${item('columns', 'Editar columnas')}
       ${toggle('toggle-freeze', state.frozen, 'Fijar la primera columna')}
       ${toggle('toggle-density', state.density === 'compact', 'Filas compactas')}
+      ${toggle('toggle-zebra', state.zebra, 'Vista en zebra')}
       <div class="menu__sep"></div>
       <div class="vsmenu__label">Vista${v ? `: <span class="vsmenu__view">${esc(v.name)}</span>` : ''}</div>
       ${item('view-save', 'Guardar vista', { disabled: std || !dirty })}
@@ -857,6 +860,7 @@ export function mountList(cfg) {
     renderSettingsMenu();
     table.classList.toggle('table--frozen', state.frozen);
     table.classList.toggle('table--compact', state.density === 'compact');
+    table.classList.toggle('table--zebra', state.zebra);
     $('colgroup').innerHTML =
       `<col style="width:48px" />` +
       cols.map((c, i) => `<col data-key="${c.key}" style="width:${widthOf(c.key, i)}px" />`).join('') +
@@ -2164,6 +2168,11 @@ export function mountList(cfg) {
       setPrefs(cfg.type, { density: state.density });
       render();
       toast(state.density === 'compact' ? 'Filas compactas' : 'Filas cómodas');
+    } else if (a === 'toggle-zebra') {
+      state.zebra = !state.zebra;
+      setPrefs(cfg.type, { zebra: state.zebra });
+      render();
+      toast(state.zebra ? 'Vista en zebra activada' : 'Vista en zebra desactivada');
     } else if (a === 'edit-quick') { window.location.href = `../settings/#obj-${cfg.type}:index`; }
     else if (a === 'adv-clear-all') {
       state.advanced = [];

@@ -38,7 +38,8 @@ click(btn);
 log('menu open:', $('vsettings').classList.contains('is-open'), '| aria-expanded:', btn.getAttribute('aria-expanded'));
 log('items:', items().join(' | '));
 log('labels:', [...$('vsettings-menu').querySelectorAll('.vsmenu__label')].map((l) => l.textContent.trim()).join(' | '));
-if (items().length < 12) fail('menu is missing options');
+if (items().length < 13) fail('menu is missing options');
+if (!items().some((t) => t.includes('Vista en zebra'))) fail('"Vista en zebra" missing from the menu');
 if (!items().some((t) => t.startsWith('Guardar vista (off)'))) fail('"Guardar vista" should be disabled on a clean standard view');
 if (!items().some((t) => t.startsWith('Cambiar nombre (off)'))) fail('"Cambiar nombre" should be disabled on a standard view');
 const links = [...$('vsettings-menu').querySelectorAll('a.menu__item')].map((a) => a.getAttribute('href'));
@@ -62,6 +63,14 @@ log('compact:', $('table').classList.contains('table--compact'), '| stored densi
 if (!$('table').classList.contains('table--compact') || prefs().density !== 'compact') fail('density toggle did not apply');
 click($('vsettings-menu').querySelector('[data-action="toggle-density"]'));
 log('back to comfortable:', !$('table').classList.contains('table--compact'), '| stored density:', prefs().density);
+
+// zebra striping toggle
+click($('vsettings-menu').querySelector('[data-action="toggle-zebra"]'));
+log('zebra:', $('table').classList.contains('table--zebra'), '| stored zebra:', prefs().zebra, '| check on:', $('vsettings-menu').querySelector('[data-action="toggle-zebra"] .vsmenu__check').classList.contains('is-on'));
+if (!$('table').classList.contains('table--zebra') || prefs().zebra !== true) fail('zebra toggle did not apply');
+click($('vsettings-menu').querySelector('[data-action="toggle-zebra"]'));
+log('zebra off:', !$('table').classList.contains('table--zebra'), '| stored zebra:', prefs().zebra);
+if ($('table').classList.contains('table--zebra') || prefs().zebra !== false) fail('zebra toggle did not switch off');
 
 // a filter makes the view dirty: "Restablecer vista" turns on; saving as new makes the view actions available
 const filterItem = document.querySelector('.menu__item[data-filter][data-value]:not([data-value=""])');

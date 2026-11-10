@@ -2469,6 +2469,18 @@ h1 {
   color: var(--c-muted);
 }
 
+/* Zebra striping from the gear menu: every other row gets a light band; hover and preview still win.
+   The fixed first column inherits the row background, so the band runs across it too. */
+.table--zebra tbody tr:nth-child(even),
+.table--frozen.table--zebra tbody tr:nth-child(even) {
+  background: #f5f8fa;
+}
+
+.table--zebra tbody tr:hover,
+.table--frozen.table--zebra tbody tr:hover {
+  background: var(--c-row-hover);
+}
+
 /* Compact rows from the gear menu: shorter cells, same type size. */
 .table--compact th {
   height: 36px;
