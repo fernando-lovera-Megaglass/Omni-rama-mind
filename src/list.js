@@ -1527,6 +1527,12 @@ export function mountList(cfg) {
           if (c === 'summary') return `<section class="pvcard"><h3 class="pvcard__title">Resumen de registros <span class="ai-badge">✦ AI</span></h3><p class="muted">${esc(r.name)} · propietario ${esc(r.owner || 'sin asignar')} · última actividad ${esc(relativeTime(r.lastActivity || r.created))}.</p></section>`;
           if (c === 'attachments') { let n = 0; try { n = (JSON.parse(localStorage.getItem(`crm:${cfg.type}:files:${r.id}`)) || []).length; } catch { n = 0; } return `<section class="pvcard"><h3 class="pvcard__title">Archivos adjuntos <span class="muted">(${n})</span></h3><p class="muted">${n ? `${n} archivo${n > 1 ? 's' : ''} adjunto${n > 1 ? 's' : ''}.` : 'Sin archivos adjuntos.'}</p></section>`; }
           if (c === 'tasks') { const ts = ALL.tasks ? ALL.tasks().filter((t) => t.status !== 'done' && (cfg.type === 'contacts' ? Number(t.contactId) === Number(r.id) : t.owner === r.owner)).slice(0, 3) : []; return `<section class="pvcard"><h3 class="pvcard__title">Tareas <span class="muted">(${ts.length})</span></h3>${ts.length ? `<ul class="pvcard__list">${ts.map((t) => `<li><a href="../tasks/record/?id=${t.id}">${esc(t.name)}</a></li>`).join('')}</ul>` : '<p class="muted">Sin tareas pendientes.</p>'}</section>`; }
+          if (c.startsWith('pcard-') && pvLayout.cards && pvLayout.cards[c]) {
+            // Custom property card created in the preview editor.
+            const card = pvLayout.cards[c];
+            const rows = (card.props || []).map((key) => { const col0 = col(key); const label = col0 ? col0.label : props[key] ? props[key].label : key; const v = col0 ? cellText(col0, r) : r[key]; const isUser = key === 'owner' || (props[key] && props[key].kind === 'user'); return `<div class="props__row"><dt>${esc(label)}</dt><dd>${isUser ? ownerHtml(v, 'sm') : v === '' || v === undefined || v === null ? '<span class="muted">--</span>' : esc(v)}</dd></div>`; }).join('');
+            return `<section class="pvcard"><h3 class="pvcard__title">${esc(card.label)}</h3><dl class="props">${rows || '<p class="muted">Sin propiedades.</p>'}</dl></section>`;
+          }
           return '';
         }).join('')
       : '';

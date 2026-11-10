@@ -2,7 +2,8 @@
 // rename sections and tabs, add cards/sections/tabs, undo/redo, assign teams, save.
 import { toast, wireMenus, closeMenus } from './shell.js';
 import { cardCatalog, defaultLayout, loadLayout, saveLayout, teamViewLayout, loadViewLayout, saveViewLayout, VIEW_KEY, previewCatalog, defaultPreview, loadPreview, savePreview, PREVIEW_KEY, TEAMS, TYPE_META } from './layout-defaults.js';
-import { propertyList } from './properties.js';
+import { propertyList, propertyMap } from './properties.js';
+import { ALL, formatDate, formatMoney, relativeTime } from './data.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
 const params = new URLSearchParams(location.search);
@@ -43,8 +44,10 @@ const placed = () => new Set([...layout.left, ...layout.right, ...layout.tabs.fl
 const available = (zone) => Object.entries(CATALOG).filter(([id, c]) => c.zone === zone && !placed().has(id));
 const dirty = () => JSON.stringify(layout) !== saved;
 
+// Cards defined inside the view itself (custom property cards of the preview panel) live in layout.cards.
+const catalogOf = (id) => CATALOG[id] || (layout.cards && layout.cards[id]) || { label: id, desc: '' };
 function cardHtml(id, zone, extra = '') {
-  const c = CATALOG[id] || { label: id, desc: '' };
+  const c = catalogOf(id);
   const isAssoc = Boolean(c.assoc);
   return `
     <div class="lcard" draggable="true" data-card="${id}" data-zone="${zone}" ${extra}>
@@ -74,6 +77,7 @@ function addMenu(zone, extraAttr = '') {
       <button class="ladd__btn" type="button" aria-haspopup="true" aria-label="Agregar tarjeta">+</button>
       <div class="menu__panel">
         <div class="menu__title">Agregar tarjeta</div>
+        ${previewMode ? '<button class="menu__item" type="button" data-lc="pv-new-props">＋ Nueva tarjeta de propiedades…</button><div class="menu__sep"></div>' : ''}
         ${items.length ? items.map(([id, c]) => `<button class="menu__item" type="button" data-lc="add" data-card="${id}" data-zone="${zone}" ${extraAttr}>${esc(c.label)}</button>`).join('') : '<div class="menu__note">Todas las tarjetas de esta columna ya están colocadas.</div>'}
       </div>
     </div>`;
@@ -179,37 +183,86 @@ function renderDesign(tab) {
 }
 
 // Preview-panel editor: the card list on the left, a live mock of the side panel on the right.
+// Sample record shown in the live mock of the preview panel.
+let sampleId = null;
+const sampleRecords = () => (previewMode && ALL[type] ? ALL[type]().slice(0, 12) : []);
+function sampleRecord() {
+  const list = sampleRecords();
+  return list.find((r) => String(r.id) === String(sampleId)) || list[0] || null;
+}
+const PROPS_BY_KEY = previewMode ? propertyMap(type) : {};
+function sampleValue(r, key) {
+  if (!r) return '—';
+  const v = r[key];
+  if (v === undefined || v === null || v === '') return '--';
+  const kind = (PROPS_BY_KEY[key] || {}).kind;
+  if (kind === 'currency' || key === 'amount' || key === 'revenue') return formatMoney(v);
+  if (kind === 'date' || kind === 'datetime' || /date|Date|created|due|lastActivity/.test(key)) { const d = new Date(v); return Number.isNaN(d.getTime()) ? String(v) : formatDate(d); }
+  if (kind === 'bool') return v === true || v === 'Sí' ? 'Sí' : 'No';
+  return String(v);
+}
+function relatedNames(r, kind) {
+  if (!r) return [];
+  if (kind === 'companies') return r.company ? [r.company] : [];
+  if (kind === 'contacts') return r.contact ? [r.contact] : (ALL.contacts ? ALL.contacts().filter((x) => type === 'companies' && Number(x.companyId) === Number(r.id)).slice(0, 3).map((x) => x.name) : []);
+  return ALL[kind] ? ALL[kind]().filter((x) => (type === 'contacts' ? Number(x.contactId) === Number(r.id) : Number(x.companyId) === Number(r.id))).slice(0, 3).map((x) => x.name) : [];
+}
 function renderPreviewEditor() {
-  const props = propertyList(type);
-  const labelOf = (k) => (props.find((p) => p.key === k) || { label: k }).label;
-  const sample = { name: `${meta.s} de ejemplo`, sub: type === 'deals' ? '12.500 € · Acristala Proyectos' : type === 'contacts' ? 'Megaglass' : 'megaglass.us' };
+  const labelOf = (k) => (PROPS_BY_KEY[k] || { label: k }).label;
+  const r = sampleRecord();
+  const sub = !r ? '' : type === 'deals' ? `${formatMoney(r.amount)} · ${r.company || ''}` : type === 'contacts' ? r.company || r.email || '' : r.domain || r.email || r.description || r.type || '';
+  const propsList = (keys) => `<dl>${keys.map((k) => `<div><dt>${esc(labelOf(k))}</dt><dd>${esc(sampleValue(r, k))}</dd></div>`).join('') || '<p class="muted">Sin propiedades: usa ✎ para elegirlas.</p>'}</dl>`;
   const mockCard = (id) => {
-    const c = CATALOG[id] || { label: id };
-    if (id === 'about') return `<section class="pvmock__card"><h4>⌄ ${esc(c.label)}</h4><dl>${layout.props.map((k) => `<div><dt>${esc(labelOf(k))}</dt><dd>—</dd></div>`).join('') || '<p class="muted">Sin propiedades: usa ✎ para elegirlas.</p>'}</dl></section>`;
-    if (id === 'activity') return `<section class="pvmock__card"><h4>⌄ ${esc(c.label)}</h4><p>hace 3 días · Correo</p><p class="muted">Creado el 12 ago 2026</p></section>`;
-    if (id === 'summary') return `<section class="pvmock__card"><h4>⌄ ${esc(c.label)} <span class="ai-badge">✦ AI</span></h4><p class="muted">Resumen generado del registro.</p></section>`;
-    if (id === 'attachments') return `<section class="pvmock__card"><h4>⌄ ${esc(c.label)} <span class="muted">(0)</span></h4><p class="muted">Sin archivos adjuntos.</p></section>`;
-    if (id === 'tasks') return `<section class="pvmock__card"><h4>⌄ ${esc(c.label)} <span class="muted">(2)</span></h4><ul><li>Llamar para confirmar medidas</li><li>Enviar cotización</li></ul></section>`;
-    return `<section class="pvmock__card"><h4>⌄ ${esc(c.label)} <span class="muted">(1)</span></h4><ul><li><a href="#" onclick="return false">Registro asociado</a></li></ul></section>`;
+    const c = catalogOf(id);
+    if (id === 'about') return `<section class="pvmock__card" data-mock="${id}"><h4>⌄ ${esc(c.label)}</h4>${propsList(layout.props)}</section>`;
+    if (id.startsWith('pcard-')) return `<section class="pvmock__card" data-mock="${id}"><h4>⌄ ${esc(c.label)}</h4>${propsList(c.props || [])}</section>`;
+    if (id === 'activity') return `<section class="pvmock__card" data-mock="${id}"><h4>⌄ ${esc(c.label)}</h4><p>${r ? esc(relativeTime(r.lastActivity || r.created)) : 'hace 3 días'} · ${esc({ email: 'Correo', call: 'Llamada', meeting: 'Reunión', note: 'Nota', task: 'Tarea' }[r && r.lastActivityType] || 'Actividad')}</p><p class="muted">Creado el ${r ? esc(formatDate(r.created)) : '12 ago 2026'}</p></section>`;
+    if (id === 'summary') return `<section class="pvmock__card" data-mock="${id}"><h4>⌄ ${esc(c.label)} <span class="ai-badge">✦ AI</span></h4><p class="muted">${r ? `${esc(r.name)} · propietario ${esc(r.owner || 'sin asignar')} · última actividad ${esc(relativeTime(r.lastActivity || r.created))}.` : 'Resumen generado del registro.'}</p></section>`;
+    if (id === 'attachments') return `<section class="pvmock__card" data-mock="${id}"><h4>⌄ ${esc(c.label)} <span class="muted">(0)</span></h4><p class="muted">Sin archivos adjuntos.</p></section>`;
+    if (id === 'tasks') { const ts = r && ALL.tasks ? ALL.tasks().filter((t) => t.status !== 'done' && (type === 'contacts' ? Number(t.contactId) === Number(r.id) : t.owner === r.owner)).slice(0, 3) : []; return `<section class="pvmock__card" data-mock="${id}"><h4>⌄ ${esc(c.label)} <span class="muted">(${ts.length})</span></h4>${ts.length ? `<ul>${ts.map((t) => `<li>${esc(t.name)}</li>`).join('')}</ul>` : '<p class="muted">Sin tareas pendientes.</p>'}</section>`; }
+    if (c.assoc) { const names = relatedNames(r, c.assoc); return `<section class="pvmock__card" data-mock="${id}"><h4>⌄ ${esc(c.label)} <span class="muted">(${names.length})</span></h4>${names.length ? `<ul>${names.map((n) => `<li><a href="#" onclick="return false">${esc(n)}</a></li>`).join('')}</ul>` : '<p class="muted">Sin registros asociados.</p>'}</section>`; }
+    return `<section class="pvmock__card" data-mock="${id}"><h4>⌄ ${esc(c.label)}</h4><p class="muted">${esc(c.desc || '')}</p></section>`;
   };
   return `
     <div class="pvedit">
       <section class="pvedit__cards">
         <h2>Tarjetas del panel de vista previa</h2>
-        <p class="muted">Arrastra las tarjetas para ordenarlas; cada cambio se refleja al instante en el panel de la derecha. Usa ✎ en "Acerca de" para elegir sus propiedades.</p>
+        <p class="muted">Arrastra las tarjetas para ordenarlas; cada cambio se refleja al instante en el panel de la derecha. Usa ✎ en una tarjeta de propiedades para elegir cuáles muestra, o crea una tarjeta nueva desde "+".</p>
         <div class="ladd-row ladd-row--top">${addMenu('right')}</div>
         <div class="llist" data-zone="right">${layout.right.map((id) => cardHtml(id, 'right')).join('') || '<p class="muted llist__empty">Arrastra aquí una tarjeta.</p>'}</div>
       </section>
       <section class="pvedit__mock">
-        <h2>Así se verá en la lista</h2>
+        <div class="pvedit__mockhead"><h2>Así se verá en la lista</h2>${sampleRecords().length ? `<label class="pvedit__sample"><span class="muted">Registro de ejemplo</span><select id="pv-sample">${sampleRecords().map((x) => `<option value="${x.id}" ${r && x.id === r.id ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select></label>` : ''}</div>
         <aside class="pvmock">
-          <header class="pvmock__head"><span class="avatar avatar--soft">${esc(meta.s.slice(0, 2).toUpperCase())}</span><div><strong>${esc(sample.name)}</strong><small class="muted">${esc(sample.sub)}</small></div><span class="pvmock__x">×</span></header>
+          <header class="pvmock__head"><span class="avatar avatar--soft">${esc(String(r ? r.name : meta.s).split(' ').filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase())}</span><div><strong>${esc(r ? r.name : `${meta.s} de ejemplo`)}</strong><small class="muted">${esc(sub)}</small></div><span class="pvmock__x">×</span></header>
           <div class="pvmock__quick">${['✎ Nota', '✉ Correo', '☏ Llamada', '☑ Tarea', '▦ Reunión', '⋯ Más'].map((q) => `<span>${q}</span>`).join('')}</div>
           ${layout.right.map(mockCard).join('') || '<p class="muted pvmock__empty">El panel está vacío.</p>'}
           <footer class="pvmock__foot"><span class="btn btn--primary btn--block btn--pillx">Ver registro</span></footer>
         </aside>
       </section>
     </div>`;
+}
+// Property picker for "Acerca de" (layout.props) or a custom property card (layout.cards[id].props); id === null creates a new card.
+function openPropsPicker(id) {
+  const all = propertyList(type);
+  const isNew = id === null;
+  const card = !isNew && id !== 'about' ? layout.cards[id] : null;
+  const chosen = isNew ? [] : id === 'about' ? layout.props : (card && card.props) || [];
+  const nameField = isNew || card ? `<label class="field"><span>Nombre de la tarjeta</span><input id="l-pp-name" type="text" maxlength="60" value="${esc(card ? card.label : 'Propiedades clave')}" /></label>` : '';
+  openModal(isNew ? 'Nueva tarjeta de propiedades' : `Propiedades de "${(catalogOf(id) || {}).label || id}"`, `${nameField}<p class="muted">Marca las propiedades que aparecen en la tarjeta; se muestran en este orden.</p><input class="ginput" type="search" id="l-pp-q" placeholder="Buscar propiedad" /><div class="ocardgrid ocardgrid--modal" id="l-pp">${[...chosen.map((k) => all.find((p) => p.key === k) || { key: k, label: k }), ...all.filter((p) => !chosen.includes(p.key))].slice(0, 400).map((p) => `<label class="ocheck ocheck--sm" data-name="${esc(p.label.toLowerCase())}"><input type="checkbox" value="${esc(p.key)}" ${chosen.includes(p.key) ? 'checked' : ''} /><span>${esc(p.label)}</span></label>`).join('')}</div>`, `<button class="btn btn--primary" type="button" id="l-pp-ok">${isNew ? 'Crear tarjeta' : 'Aplicar'}</button><button class="btn btn--ghost" type="button" data-close>Cancelar</button>`);
+  document.getElementById('l-pp-q').oninput = (ev) => { const q = ev.target.value.trim().toLowerCase(); document.querySelectorAll('#l-pp label').forEach((l) => { l.hidden = Boolean(q) && !l.dataset.name.includes(q); }); };
+  document.getElementById('l-pp-ok').onclick = () => {
+    const keys = [...document.querySelectorAll('#l-pp input:checked')].map((i) => i.value);
+    const nameEl = document.getElementById('l-pp-name');
+    const label = nameEl ? nameEl.value.trim() || 'Propiedades' : '';
+    commit((l) => {
+      if (id === 'about') l.props = keys;
+      else if (isNew) { const nid = `pcard-${Date.now().toString(36)}`; l.cards = { ...(l.cards || {}), [nid]: { label, desc: 'Tarjeta de propiedades', zone: 'right', props: keys } }; l.right.push(nid); }
+      else { l.cards[id] = { ...l.cards[id], label, props: keys }; }
+    });
+    closeModal();
+    toast(isNew ? `Tarjeta "${label}" añadida al panel` : `${keys.length} propiedades en la tarjeta`);
+  };
 }
 
 function renderConfig() {
@@ -255,6 +308,7 @@ function promptModal(title, label, value, onOk) {
 function removeCard(id) {
   layout.left = layout.left.filter((x) => x !== id);
   layout.right = layout.right.filter((x) => x !== id);
+  if (layout.cards && layout.cards[id]) delete layout.cards[id];
   layout.tabs.forEach((t) => (t.sections || []).forEach((s) => { s.cards = s.cards.filter((x) => x !== id); }));
 }
 function listFor(zone, si) {
@@ -367,17 +421,10 @@ root.addEventListener('click', (e) => {
       document.getElementById('l-sec-ok').onclick = () => { const to = Number(document.getElementById('l-sec').value); commit((l) => { removeCard.call(null, id); l.tabs.find((t) => t.id === activeTab).sections[to].cards.push(id); }); closeModal(); };
       break;
     }
+    case 'pv-new-props': openPropsPicker(null); break;
     case 'edit': {
-      const c = CATALOG[id];
-      if (previewMode && c && c.props) {
-        // Pick the properties shown in the "Acerca de" card of the preview panel.
-        const all = propertyList(type);
-        const chosen = layout.props;
-        openModal('Propiedades de la vista previa', `<p class="muted">Marca las propiedades que aparecen en el panel; se muestran en este orden.</p><input class="ginput" type="search" id="l-pp-q" placeholder="Buscar propiedad" /><div class="ocardgrid ocardgrid--modal" id="l-pp">${[...chosen.map((k) => all.find((p) => p.key === k) || { key: k, label: k }), ...all.filter((p) => !chosen.includes(p.key))].slice(0, 400).map((p) => `<label class="ocheck ocheck--sm" data-name="${esc(p.label.toLowerCase())}"><input type="checkbox" value="${esc(p.key)}" ${chosen.includes(p.key) ? 'checked' : ''} /><span>${esc(p.label)}</span></label>`).join('')}</div>`, `<button class="btn btn--primary" type="button" id="l-pp-ok">Aplicar</button><button class="btn btn--ghost" type="button" data-close>Cancelar</button>`);
-        document.getElementById('l-pp-q').oninput = (ev) => { const q = ev.target.value.trim().toLowerCase(); document.querySelectorAll('#l-pp label').forEach((l) => { l.hidden = Boolean(q) && !l.dataset.name.includes(q); }); };
-        document.getElementById('l-pp-ok').onclick = () => { const keys = [...document.querySelectorAll('#l-pp input:checked')].map((i) => i.value); commit((l) => { l.props = keys; }); closeModal(); toast(`${keys.length} propiedades en la vista previa`); };
-        break;
-      }
+      const c = catalogOf(id);
+      if (previewMode && c && c.props) { openPropsPicker(id); break; }
       if (c && c.assoc) toast(`Las propiedades de la tarjeta "${c.label}" se editan desde su engranaje en la ficha.`);
       else toast(`Las propiedades de "${c ? c.label : id}" se editan desde su engranaje en la ficha.`);
       break;
@@ -455,5 +502,8 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') closeModal();
 });
 window.addEventListener('beforeunload', (e) => { if (dirty()) { e.preventDefault(); e.returnValue = ''; } });
+root.addEventListener('change', (e) => {
+  if (e.target.id === 'pv-sample') { sampleId = e.target.value; render(); }
+});
 
 render();
