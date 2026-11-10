@@ -1053,10 +1053,10 @@ export function mountList(cfg) {
           ${cols
             .map(
               (c, i) =>
-                `<td class="${c.className || ''}${i === 0 ? ' table__first' : ''}${isEditable(c.key) ? ' cell--editable' : ''}${fzClass(i)}${hlOf(c, r) ? ' cell--hl' : ''}" data-key="${c.key}" data-id="${r.id}" title="${esc(cellText(c, r))}" style="${fzStyle(i)}${hlOf(c, r) ? `background:${hlOf(c, r)};` : ''}">${
+                `<td class="${c.className || ''}${i === 0 ? ' table__first' : ''}${isEditable(c.key) ? ' cell--editable' : ''}${i > 0 && isSystem(c.key) ? ' cell--locked' : ''}${fzClass(i)}${hlOf(c, r) ? ' cell--hl' : ''}" data-key="${c.key}" data-id="${r.id}" title="${i > 0 && isSystem(c.key) ? 'Valor calculado por el sistema (solo lectura)' : esc(cellText(c, r))}" style="${fzStyle(i)}${hlOf(c, r) ? `background:${hlOf(c, r)};` : ''}">${
                   i === 0
                     ? `<div class="firstcell"><div class="firstcell__content">${cellHtml(c, r)}</div><button class="preview-btn" type="button" data-preview="${r.id}" aria-label="Vista previa"><span class="preview-btn__tip">Vista previa</span>▭</button></div>`
-                    : `${cellHtml(c, r)}${isEditable(c.key) ? '<span class="cell__pen" aria-hidden="true">✎</span>' : ''}`
+                    : `${cellHtml(c, r)}${isEditable(c.key) ? '<span class="cell__pen" aria-hidden="true">✎</span>' : isSystem(c.key) ? '<span class="cell__lock" aria-hidden="true"></span>' : ''}`
                 }</td>`,
             )
             .join('')}
@@ -1522,6 +1522,7 @@ export function mountList(cfg) {
         <div><dt>Nombre interno</dt><dd><code>${esc(key)}</code></dd></div>
         <div><dt>Tipo de campo</dt><dd>${esc(p ? KIND_NAMES[p.kind] || p.kind : key.startsWith('assoc_') ? 'Asociación' : 'Calculado')}</dd></div>
         <div><dt>Grupo</dt><dd>${esc(p ? p.group : 'Información de ' + plural)}</dd></div>
+        <div><dt>Quién la rellena</dt><dd>${isSystem(key) ? '<span class="lockmark"></span>El sistema, automáticamente · solo lectura' : isEditable(key) ? 'El usuario (se puede editar en la tabla y en la ficha)' : 'Se calcula a partir de otros registros'}</dd></div>
         ${p && Array.isArray(p.options) && p.options.length ? `<div><dt>Opciones</dt><dd>${p.options.length}: ${esc(p.options.slice(0, 6).map((o) => (Array.isArray(o) ? o[1] : o)).join(', '))}${p.options.length > 6 ? '…' : ''}</dd></div>` : ''}
         <div><dt>Registros con valor</dt><dd>${filled} de ${rows.length} (${pct} %)<span class="colinfo__bar"><span style="width:${pct}%"></span></span></dd></div>
         <div><dt>Valores distintos</dt><dd>${distinct.length}${distinct.length ? ` · p. ej. ${esc(distinct.slice(0, 3).join(' · '))}` : ''}</dd></div>
@@ -1618,8 +1619,10 @@ export function mountList(cfg) {
 
   // ---------- inline cell editing ----------
   const READ_ONLY = new Set(['created', 'hs_object_id', 'lastActivity', 'hs_lastmodifieddate', 'lastmodifieddate', ...(cfg.readOnly || [])]);
+  // System-filled properties (counters, dates, analytics, scores…) are read-only everywhere.
+  const isSystem = (key) => READ_ONLY.has(key) || Boolean(props[key] && props[key].system);
   function isEditable(key) {
-    if (READ_ONLY.has(key)) return false;
+    if (isSystem(key)) return false;
     const explicit = cfg.columns.find((c) => c.key === key);
     if (explicit && explicit.editable === false) return false;
     return Boolean((cfg.editors && cfg.editors[key]) || props[key] || key === 'name');

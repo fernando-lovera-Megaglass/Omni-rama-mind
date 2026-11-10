@@ -4103,6 +4103,38 @@ body.is-col-dragging * {
   opacity: 1;
 }
 
+/* System-filled cells: no editing, a small lock appears on hover to say why. */
+.table tbody td.cell--locked {
+  position: relative;
+  cursor: default;
+}
+
+.cell__lock,
+.lockmark {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  width: 12px;
+  height: 12px;
+  margin-top: -6px;
+  background: var(--c-muted);
+  opacity: 0;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M7 10V7a5 5 0 0 1 10 0v3h1a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2zm2 0h6V7a3 3 0 0 0-6 0z'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M7 10V7a5 5 0 0 1 10 0v3h1a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2zm2 0h6V7a3 3 0 0 0-6 0z'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+.table tbody td.cell--locked:hover .cell__lock {
+  opacity: 1;
+}
+
+.lockmark {
+  position: static;
+  display: inline-block;
+  vertical-align: -1px;
+  margin: 0 6px 0 0;
+  opacity: 1;
+}
+
 .cellpop {
   position: fixed;
   z-index: 120;

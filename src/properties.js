@@ -546,8 +546,33 @@ export function propertyGroups(type) {
   return groups;
 }
 
+// Properties the system fills on its own (dates, counters, analytics, scores, conversion and e-mail stats…).
+// They are shown everywhere but can't be edited by hand, in the lists or on the record page.
+const SYSTEM_PATTERNS = [
+  /^created$/, /^lastActivity$/, /^(hs_)?lastmodifieddate$/, /^closed_date$/, /^closedate$/, /^hs_object_(id|source|source_label|source_detail_1|source_user_id)$/,
+  /^hs_(created|updated)_by_user_id$/, /^hs_merged_object_ids$/, /^hs_was_imported$/, /^hs_read_only$/, /^hs_all_/, /^hs_user_ids_of_all_owners$/,
+  /^hs_pinned_engagement_id$/, /^hs_avatar_filemanager_key$/, /^hs_is_enriched$/, /^hs_last_metered_enrichment_timestamp$/,
+  /^notes_/, /^engagements_/, /^num_/, /^hs_num_/, /_count$/, /^hs_(calls|meetings|tasks|open_tasks)_count$/, /^total_revenue$/, /^recent_deal_/, /^first_deal_created_date$/,
+  /^days_to_close$/, /^hs_last_(sales_activity|booked_meeting|logged_call|open_task|message|form_submission|payment)/, /^hs_latest_meeting_activity$/, /^hs_sales_email_/, /^hs_sequences_/,
+  /^hs_lifecyclestage_/, /^hs_date_(entered|exited)_/, /^hs_time_(in|to|between)_/, /^hs_v2_/, /^time_to_/,
+  /^hubspotscore$/, /^hs_predictive/, /^hs_likelihood_to_close$/, /^hs_is_unworked$/, /^hs_target_account_(probability|recommendation_state)$/, /^hs_deal_(score|stage_probability)$/,
+  /^hs_analytics_/, /^hs_latest_source/, /^ip(_|$)/, /^hs_ip_/, /^hs_(google|facebook)_click_id$/, /^(first|recent)_conversion_/, /^hs_first_outreach_date$/, /^first_contact_createdate$/,
+  /^hs_email_(delivered|open|click|bounce|replied|last_|first_|bad_address|quarantined|is_ineligible|domain)/, /^hs_emailconfirmationstatus$/, /^currentlyinworkflow$/, /^hs_marketable_(reason_type|until_renewal)$/,
+  /^followercount$/, /^twitterfollowers$/, /^facebookfans$/, /^hs_(twitter|facebook|linkedin)_clicks$/, /^hs_social_/, /^hs_conversations_visitor_email$/, /^hs_sa_first_engagement_date$/, /^hs_content_membership_registered_at$/,
+  /^amount_in_home_currency$/, /^hs_is_closed/, /^hs_closed_(won|lost)_date$/, /^hs_forecast_(amount|probability)$/, /^hs_projected_amount/, /^hs_(arr|mrr|acv|tcv|exchange_rate)$/,
+  /^hs_total_payments$/, /^hs_latest_quote_status$/, /^hs_invoice_status$/, /^hs_latest_createdate_of_active_subscriptions$/, /^hs_nps_score$/, /^hs_sla_status$/, /^hs_lead_status_date$/, /^associatedcompany$/,
+];
+// Keys whose meaning depends on the object: "Fuente original" is system-set for contacts, while a ticket's "Fuente" is chosen by hand.
+const SYSTEM_BY_TYPE = { contacts: ['source'], companies: [], deals: [], tickets: [], tasks: [] };
+export function isSystemProperty(type, key) {
+  if (!key) return false;
+  if ((SYSTEM_BY_TYPE[type] || []).includes(key)) return true;
+  if (customProperties(type).some((p) => p.key === key)) return false;
+  return SYSTEM_PATTERNS.some((re) => re.test(key));
+}
+
 export function propertyList(type) {
-  return propertyGroups(type).flatMap((grp) => grp.items.map(([key, label, kind, options]) => ({ key, label, kind, options, group: grp.title })));
+  return propertyGroups(type).flatMap((grp) => grp.items.map(([key, label, kind, options]) => ({ key, label, kind, options, group: grp.title, system: isSystemProperty(type, key) })));
 }
 
 export function propertyMap(type) {

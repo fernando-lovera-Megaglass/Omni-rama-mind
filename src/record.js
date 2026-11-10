@@ -364,11 +364,14 @@ function propValue(p, v) {
 // ---------- which properties the "Acerca de" card shows (customisable via the gear) ----------
 const CARD_KEY = `crm:${type}:cardprops`;
 const loadCard = () => loadJson(CARD_KEY, null);
+// System-filled properties (counters, dates, analytics, scores…) are shown but never editable on the card.
+const systemProp = (key) => Boolean(props[key] && props[key].system);
 function fieldFor(key) {
   const own = cfg.fields.find((f) => f[0] === key);
-  if (own) return own;
+  if (own) return systemProp(key) && own[2] !== 'ro' && own[2] !== 'date-ro' ? [key, own[1], own[2] === 'date' ? 'date-ro' : 'ro'] : own;
   const p = props[key];
   if (!p) return null;
+  if (p.system) return [key, p.label, p.kind === 'date' || p.kind === 'datetime' ? 'date-ro' : 'ro'];
   if (['enum', 'user', 'bool'].includes(p.kind)) return [key, p.label, 'select', (p.options || []).map((o) => [o, o])];
   if (p.kind === 'date' || p.kind === 'datetime') return [key, p.label, key === 'created' ? 'date-ro' : 'date'];
   if (['number', 'currency', 'percent'].includes(p.kind)) return [key, p.label, 'number'];
