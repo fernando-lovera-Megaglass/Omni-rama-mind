@@ -2380,6 +2380,111 @@ h1 {
   display: block;
 }
 
+/* While a menu is open its tooltip stays hidden so it doesn't sit on top of the panel. */
+.menu.is-open > .tip .tip__text {
+  display: none;
+}
+
+/* ---------- "Ver configuración" menu (the gear at the right of the list toolbar) ---------- */
+.icon-btn--ico {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.icon-btn--ico .ico {
+  width: 18px;
+  height: 18px;
+  opacity: 1;
+}
+
+.menu--vsettings.is-open > .icon-btn--round,
+.icon-btn--round[aria-expanded="true"] {
+  background: #eaf0f6;
+  border-color: var(--c-text);
+}
+
+.vsmenu {
+  min-width: 280px;
+  padding: var(--sp-8) 0;
+}
+
+.vsmenu__label {
+  padding: var(--sp-8) var(--sp-16) var(--sp-4);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  color: var(--c-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 320px;
+}
+
+.vsmenu__view {
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--c-text);
+}
+
+/* Every row shares the same text gutter; checkable rows show their mark in it. */
+.vsmenu .menu__item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  padding: 9px var(--sp-16) 9px 40px;
+  font-size: 14px;
+  line-height: 20px;
+  text-decoration: none;
+}
+
+.vsmenu a.menu__item:hover {
+  text-decoration: none;
+}
+
+.vsmenu__label {
+  padding-left: 40px;
+}
+
+.vsmenu__check {
+  position: absolute;
+  left: var(--sp-16);
+  top: 50%;
+  width: 16px;
+  margin-top: -10px;
+  line-height: 20px;
+  text-align: center;
+  font-weight: 600;
+  color: var(--c-link);
+  visibility: hidden;
+}
+
+.vsmenu__check.is-on {
+  visibility: visible;
+}
+
+.vsmenu .menu__item:disabled .vsmenu__check {
+  color: var(--c-muted);
+}
+
+/* Compact rows from the gear menu: shorter cells, same type size. */
+.table--compact th {
+  height: 36px;
+}
+
+.table--compact td {
+  height: 36px;
+}
+
+.table--compact .avatar--sm,
+.table--compact .name .avatar {
+  width: 24px;
+  height: 24px;
+  font-size: 10px;
+}
+
 .kanban {
   display: flex;
   gap: var(--sp-10);

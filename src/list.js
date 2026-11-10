@@ -46,6 +46,8 @@ export function mountList(cfg) {
     columns: prefs.columns || defaultColumns,
     widths: prefs.widths || {},
     frozen: prefs.frozen === true,
+    // Row density from the gear menu ("Ver configuración"): 'comfortable' (48 px rows) or 'compact' (36 px rows).
+    density: prefs.density === 'compact' ? 'compact' : 'comfortable',
     boardCollapsed: new Set(prefs.boardCollapsed || []),
     boardOrder: prefs.boardOrder || null,
     pipeline: cfg.pipeline ? prefs.pipeline || '' : '',
@@ -207,8 +209,11 @@ export function mountList(cfg) {
                 </span>`
               : ''
           }
-          <button class="icon-btn icon-btn--round" type="button" data-action="columns" aria-label="Editar columnas" title="Editar columnas">⚙</button>
-          <button class="icon-btn icon-btn--round" type="button" data-action="toggle-filters" aria-label="Mostrar u ocultar filtros" id="collapse-btn">︿</button>
+          <div class="menu menu--vsettings" id="vsettings">
+            <button class="icon-btn icon-btn--round icon-btn--ico tip" type="button" aria-label="Ver configuración" aria-haspopup="true" aria-expanded="false" id="vsettings-btn"><span class="ico ico--gear"></span><span class="tip__text">Ver configuración</span></button>
+            <div class="menu__panel menu__panel--right vsmenu" id="vsettings-menu" role="menu"></div>
+          </div>
+          <button class="icon-btn icon-btn--round tip" type="button" data-action="toggle-filters" aria-label="Mostrar u ocultar filtros" id="collapse-btn"><span id="collapse-ico">︿</span><span class="tip__text" id="collapse-tip">Ocultar filtros</span></button>
         </div>
       </div>
 
@@ -814,10 +819,44 @@ export function mountList(cfg) {
     }
   });
 
+  // ---------- "Ver configuración" (the gear at the right of the toolbar) ----------
+  // Table settings, the actions of the open view and the links to manage views and the index page.
+  // The menu is redrawn on every render so the checks and the disabled items follow the current view.
+  function renderSettingsMenu() {
+    const el = $('vsettings-menu');
+    if (!el) return;
+    const v = viewById(state.viewId);
+    const std = !v || v.standard;
+    const dirty = isDirty();
+    const check = (on) => `<span class="vsmenu__check${on ? ' is-on' : ''}" aria-hidden="true">✓</span>`;
+    const toggle = (action, on, label) => `<button class="menu__item vsmenu__toggle" type="button" role="menuitemcheckbox" aria-checked="${on}" data-action="${action}">${check(on)}<span>${label}</span></button>`;
+    const item = (action, label, { disabled = false, danger = false } = {}) => `<button class="menu__item${danger ? ' menu__item--danger' : ''}" type="button" role="menuitem" data-action="${action}" ${disabled ? 'disabled' : ''}>${label}</button>`;
+    el.innerHTML = `
+      <div class="vsmenu__label">Tabla</div>
+      ${item('columns', 'Editar columnas')}
+      ${toggle('toggle-freeze', state.frozen, 'Fijar la primera columna')}
+      ${toggle('toggle-density', state.density === 'compact', 'Filas compactas')}
+      <div class="menu__sep"></div>
+      <div class="vsmenu__label">Vista${v ? `: <span class="vsmenu__view">${esc(v.name)}</span>` : ''}</div>
+      ${item('view-save', 'Guardar vista', { disabled: std || !dirty })}
+      ${item('view-saveas', 'Guardar como nueva vista')}
+      ${item('view-discard', 'Restablecer vista', { disabled: !dirty })}
+      ${item('view-rename', 'Cambiar nombre', { disabled: std })}
+      ${item('view-clone', 'Clonar vista')}
+      ${item('view-share', 'Administrar uso compartido', { disabled: std })}
+      ${item('view-delete', 'Eliminar vista', { disabled: std, danger: true })}
+      <div class="menu__sep"></div>
+      <a class="menu__item" role="menuitem" href="../views/?type=${cfg.type}">Administrar vistas <span class="ext">↗</span></a>
+      <a class="menu__item" role="menuitem" href="../settings/#obj-${cfg.type}:index">Personalizar la página de índice <span class="ext">↗</span></a>
+      ${item('export', 'Exportar vista')}`;
+  }
+
   function render() {
     const cols = visibleColumns();
     renderViews();
+    renderSettingsMenu();
     table.classList.toggle('table--frozen', state.frozen);
+    table.classList.toggle('table--compact', state.density === 'compact');
     $('colgroup').innerHTML =
       `<col style="width:48px" />` +
       cols.map((c, i) => `<col data-key="${c.key}" style="width:${widthOf(c.key, i)}px" />`).join('') +
@@ -894,7 +933,8 @@ export function mountList(cfg) {
     $('filter-pill').innerHTML = `<span class="ico ico--filter"></span> Filtro${activeFilters ? ` (${activeFilters})` : ''}`;
     $('filter-pill').classList.toggle('is-set', activeFilters > 0);
     $('quickbar').hidden = !state.showFilters;
-    $('collapse-btn').textContent = state.showFilters ? '︿' : '﹀';
+    $('collapse-ico').textContent = state.showFilters ? '︿' : '﹀';
+    $('collapse-tip').textContent = state.showFilters ? 'Ocultar filtros' : 'Mostrar filtros';
     const sortCol = col(state.sort.key);
     $('sort-pill').innerHTML = `⇅ Ordenar por${sortCol ? `: ${sortCol.label} ${state.sort.dir > 0 ? '↑' : '↓'}` : ''}`;
     $('sort-menu').innerHTML = cols
@@ -2114,6 +2154,16 @@ export function mountList(cfg) {
       state.showFilters = !state.showFilters;
       setPrefs(cfg.type, { showFilters: state.showFilters });
       render();
+    } else if (a === 'toggle-freeze') {
+      state.frozen = !state.frozen;
+      setPrefs(cfg.type, { frozen: state.frozen });
+      render();
+      toast(state.frozen ? 'La primera columna queda fija al desplazarte' : 'La primera columna ya no está fija');
+    } else if (a === 'toggle-density') {
+      state.density = state.density === 'compact' ? 'comfortable' : 'compact';
+      setPrefs(cfg.type, { density: state.density });
+      render();
+      toast(state.density === 'compact' ? 'Filas compactas' : 'Filas cómodas');
     } else if (a === 'edit-quick') { window.location.href = `../settings/#obj-${cfg.type}:index`; }
     else if (a === 'adv-clear-all') {
       state.advanced = [];
