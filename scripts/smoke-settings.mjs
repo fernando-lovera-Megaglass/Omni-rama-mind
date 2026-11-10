@@ -97,11 +97,46 @@ log('catalog has custom:', props.propertyList('contacts').some((p) => p.label ==
 // users & teams
 location.hash = '#account-users';
 window.dispatchEvent(new dom.window.Event('hashchange'));
-log('users rows:', document.querySelectorAll('.spane tbody tr').length);
+log('users tabs:', [...document.querySelectorAll('[data-utab]')].map((b) => b.textContent).join(' | '), '| rows:', document.querySelectorAll('.utable tbody tr').length, '| chips:', [...document.querySelectorAll('.pchips .qchip')].map((c) => c.textContent.trim()).join(' | '), '| headers:', [...document.querySelectorAll('.utable thead th')].map((t) => t.textContent.trim()).filter(Boolean).join(' | '));
+// create a user through the modal
+click(document.querySelector('[data-act="new-user"]'));
+const uf = document.getElementById('u-form');
+uf.elements.name.value = 'Carlos Pérez'; uf.elements.email.value = 'carlos.perez@megaglass.us'; uf.elements.sales.checked = true;
+uf.dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true }));
+log('user created:', JSON.parse(mem['crm:users']).slice(-1)[0].status, '| addons:', JSON.parse(mem['crm:users']).slice(-1)[0].addons.join(','), '| rows:', document.querySelectorAll('.utable tbody tr').length);
+click(document.querySelector('[data-uset="status"][data-value="Invitación pendiente"]'));
+log('pending filter rows:', document.querySelectorAll('.utable tbody tr').length, '| menu has resend:', Boolean(document.querySelector('[data-uact="resend"]')));
+click(document.querySelector('[data-act="users-clear"]'));
+click(document.querySelector('[data-uact="perms"][data-i="1"]'));
+log('perms modal groups:', document.querySelectorAll('.permgroup').length);
+click(document.getElementById('perm-save'));
+log('perms saved keys:', Object.keys(JSON.parse(mem['crm:users'])[1].perms).length);
+// seats tab
+click(document.querySelector('[data-utab="seats"]'));
+log('seat cards:', [...document.querySelectorAll('.seat__head strong')].map((s) => s.textContent).join(' | '), '| first usage:', document.querySelector('.seat__head .muted').textContent);
+const seatSel = document.querySelector('[data-user-seat="1"]');
+seatSel.value = 'view'; seatSel.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
+log('seat changed:', JSON.parse(mem['crm:users'])[1].seat, '| log entries:', JSON.parse(mem['crm:seatlog']).length);
+// teams tab with hierarchy
+click(document.querySelector('[data-utab="teams"]'));
+log('teams rows:', document.querySelectorAll('.utable tbody tr').length, '| headers:', [...document.querySelectorAll('.utable thead th')].map((t) => t.textContent.trim()).filter(Boolean).join(' | '));
 click(document.querySelector('[data-act="new-team"]'));
-document.querySelector('#pm-form [name="name"]').value = 'Instaladores';
-document.getElementById('pm-form').dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true }));
-log('teams stored:', JSON.parse(mem['crm:teams']).map((t) => t.name).join(','));
+const tf = document.getElementById('t-form');
+tf.elements.name.value = 'Instaladores'; tf.elements.parent.value = 'SACA';
+tf.querySelector('input[name="m"]').checked = true;
+tf.dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true }));
+log('teams stored:', JSON.parse(mem['crm:teams']).map((t) => t.name).join(','), '| child row:', Boolean([...document.querySelectorAll('.tindent')].find((s) => s.textContent.includes('↳'))), '| member moved:', JSON.parse(mem['crm:users'])[0].team);
+// presets tab
+click(document.querySelector('[data-utab="presets"]'));
+log('presets rows:', document.querySelectorAll('.utable tbody tr').length, '| first:', document.querySelector('.utable tbody .olink').textContent);
+click(document.querySelector('[data-act="new-preset"]'));
+const pf2 = document.getElementById('ps-form');
+pf2.elements.name.value = 'Equipo de instalación'; pf2.elements.home.value = 'Tareas'; pf2.querySelector('input[name="t"]').checked = true;
+pf2.dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true }));
+log('preset created:', JSON.parse(mem['crm:presets']).slice(-1)[0].name, '| home:', JSON.parse(mem['crm:presets']).slice(-1)[0].home, '| teams:', JSON.parse(mem['crm:presets']).slice(-1)[0].teams.join(','), '| rows:', document.querySelectorAll('.utable tbody tr').length);
+click(document.querySelector('[data-preset-clone="0"]'));
+log('preset cloned:', JSON.parse(mem['crm:presets']).length);
+click(document.querySelector('[data-utab="users"]'));
 // pipelines
 location.hash = '#obj-deals';
 window.dispatchEvent(new dom.window.Event('hashchange'));
