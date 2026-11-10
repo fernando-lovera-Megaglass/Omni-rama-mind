@@ -29,6 +29,9 @@ const submit = (form) => form.dispatchEvent(new dom.window.Event('submit', { bub
 const condEl = (g, j) => document.querySelectorAll(`.advg[data-g="${g}"] .advc`)[j - 1];
 const field = (g, j, k) => { const c = condEl(g, j); const el = c && c.querySelector(`[data-k="${k}"]`); if (!el) throw new Error(`missing field ${k} in group ${g} condition ${j}`); return el; };
 const setIn = (g, j, k, value) => { const el = field(g, j, k); el.value = value; el.dispatchEvent(new dom.window.Event('input', { bubbles: true })); };
+// tick one value in a checkbox list ("es cualquiera de")
+const checkIn = (g, j, value) => { const box = condEl(g, j).querySelector(`[data-multi][value="${value}"]`); if (!box) throw new Error(`missing checkbox ${value}`); box.checked = true; box.dispatchEvent(new dom.window.Event('change', { bubbles: true })); };
+const opsOf = (g, j) => [...field(g, j, 'op').options].map((o) => o.textContent).join(' | ');
 const log = (...a) => console.log('[adv-filters]', ...a);
 const fail = (msg) => { console.error(`[adv-filters] FAIL: ${msg}`); process.exit(1); };
 const total = () => Number($('total-pill').textContent.split(' ')[0]);
@@ -44,11 +47,36 @@ log('drawer open:', $('adv-drawer').classList.contains('is-open'), '| groups:', 
 log('objects offered:', [...field(0, 1, 'assoc').options].map((o) => o.textContent).join(' | '));
 if (!document.querySelector('.adv-help')) fail('help block missing');
 
-// group 1: owner = Fernando L. (own property)
+// the operators follow the property type
+log('operator box disabled before a property is chosen:', field(0, 1, 'op').disabled);
+setIn(0, 1, 'key', 'phone');
+log('phone ops:', opsOf(0, 1));
+if (!/es igual a cualquiera de \| no es igual a ninguno de \| contiene exactamente \| no contiene exactamente \| comienza con \| termina con \| es conocido \| es desconocido/.test(opsOf(0, 1))) fail('text operators differ');
+log('phone value field:', field(0, 1, 'value').getAttribute('placeholder'));
+setIn(0, 1, 'key', 'num_notes');
+log('number ops:', opsOf(0, 1));
+if (!/es mayor o igual que \| es menor que \| es menor o igual que \| está entre \| no está entre/.test(opsOf(0, 1))) fail('number operators differ');
+setIn(0, 1, 'op', 'between');
+log('between -> two inputs:', condEl(0, 1).querySelectorAll('.advc__range input').length, '| type:', field(0, 1, 'value').type);
+if (condEl(0, 1).querySelectorAll('.advc__range input').length !== 2) fail('between should offer two values');
+setIn(0, 1, 'key', 'created');
+log('date ops:', opsOf(0, 1));
+if (!/es anterior a \| es posterior a \| está entre \| es de hace menos de \(días\)/.test(opsOf(0, 1)) || !/es este mes \| es el mes pasado/.test(opsOf(0, 1))) fail('date operators differ');
+log('date value type:', field(0, 1, 'value').type);
+setIn(0, 1, 'op', 'lastdays');
+log('days input:', Boolean(condEl(0, 1).querySelector('.advc__days')));
+setIn(0, 1, 'op', 'thismonth');
+log('no value for "es este mes":', Boolean(condEl(0, 1).querySelector('.advc__novalue')));
+setIn(0, 1, 'key', 'status');
+log('list ops:', opsOf(0, 1), '| checkbox values:', condEl(0, 1).querySelectorAll('[data-multi]').length);
+if (!/^es cualquiera de \| no es ninguno de \| es conocido \| es desconocido$/.test(opsOf(0, 1))) fail('list operators differ');
+setIn(0, 1, 'key', 'hs_email_optout');
+log('checkbox ops:', opsOf(0, 1), '| values:', [...condEl(0, 1).querySelectorAll('[data-multi]')].map((b) => b.value).join('/'));
+
+// group 1: owner is any of Fernando L. (own property, list)
 setIn(0, 1, 'key', 'owner');
-setIn(0, 1, 'op', 'is');
-log('owner value field is a select:', field(0, 1, 'value').tagName);
-setIn(0, 1, 'value', 'Fernando L.');
+log('owner ops:', opsOf(0, 1), '| default:', field(0, 1, 'op').value);
+checkIn(0, 1, 'Fernando L.');
 click($('adv-apply'));
 const expectOwner = all.filter((c) => c.owner === 'Fernando L.').length;
 log('owner = Fernando L. ->', total(), '| expected:', expectOwner, '| pill:', $('adv-count').textContent);
@@ -61,9 +89,8 @@ log('Y separators in group 1:', document.querySelectorAll('.advg[data-g="0"] .ad
 setIn(0, 2, 'assoc', 'companies');
 log('assoc row has label select:', Boolean(condEl(0, 2).querySelector('[data-k="label"]')), '| property groups:', field(0, 2, 'key').querySelectorAll('optgroup').length, '| highlighted:', condEl(0, 2).classList.contains('advc--assoc'));
 setIn(0, 2, 'key', 'state');
-setIn(0, 2, 'op', 'is');
-log('state value field is a select:', field(0, 2, 'value').tagName, '| has Florida:', [...field(0, 2, 'value').options].some((o) => o.value === 'Florida'));
-setIn(0, 2, 'value', 'Florida');
+log('state ops:', opsOf(0, 2), '| has Florida box:', Boolean(condEl(0, 2).querySelector('[data-multi][value="Florida"]')));
+checkIn(0, 2, 'Florida');
 log('summary:', $('adv-summary').textContent);
 click($('adv-apply'));
 const expectAnd = all.filter((c) => c.owner === 'Fernando L.' && companyOf(c) && companyOf(c).state === 'Florida').length;
@@ -77,7 +104,7 @@ click($('adv-add-group'));
 log('groups now:', document.querySelectorAll('.advg').length, '| O separators:', document.querySelectorAll('.advg__or').length);
 setIn(1, 1, 'key', 'phone');
 setIn(1, 1, 'op', 'filled');
-log('value disabled for "tiene valor":', field(1, 1, 'value').disabled);
+log('no value field for "es conocido":', Boolean(condEl(1, 1).querySelector('.advc__novalue')));
 click($('adv-apply'));
 const expectOr = all.filter((c) => (c.owner === 'Fernando L.' && companyOf(c) && companyOf(c).state === 'Florida') || Boolean(c.phone)).length;
 log('(group 1) OR phone filled ->', total(), '| expected:', expectOr, '| pill:', $('adv-count').textContent);
@@ -101,7 +128,7 @@ click(document.querySelector('[data-action="view-saveas"]'));
 $('view-form').querySelector('[name="name"]').value = 'Florida y teléfono';
 submit($('view-form'));
 const saved = JSON.parse(mem['crm:contacts:views']).custom[0].advanced;
-log('saved conditions:', saved.map((c) => `${c.assoc || 'own'}:${c.key}:${c.op}:${c.value}@g${c.group}${c.label ? `[${c.label}]` : ''}`).join(' | '));
+log('saved conditions:', saved.map((c) => `${c.assoc || 'own'}:${c.key}:${c.op}:${Array.isArray(c.value) ? c.value.join('+') : c.value}@g${c.group}${c.label ? `[${c.label}]` : ''}`).join(' | '));
 if (!saved.some((c) => c.assoc === 'companies' && c.group === 0 && c.label === 'Facturación') || !saved.some((c) => c.group === 1)) fail('saved view lost groups or associations');
 log('dirty after save:', !$('view-dirty').hidden);
 if (!$('view-dirty').hidden) fail('saved view should be clean');

@@ -4,7 +4,8 @@ import { wireMenus, closeMenus, toast } from './shell.js';
 import { addRecord, deleteRecords, restoreAll, getPrefs, setPrefs, getViewStore, setViewStore, matches, strip, toCsv, download, formatDate, formatMoney, formatShortDate, relativeTime, setField, TODAY, ALL } from './data.js';
 import { defaultTabs, deletedViews, saveDeletedViews } from './std-views.js';
 import { propertyGroups, propertyMap } from './properties.js';
-import { associationsFor, associationLabelOptions, assocPropertyGroups, assocValueOptions, assocConditionMatches, testCondition, SINGULAR } from './assoc-filters.js';
+import { associationsFor, associationLabelOptions, assocPropertyGroups, assocValueOptions, assocConditionMatches, assocKindGroup, SINGULAR } from './assoc-filters.js';
+import { opsFor, kindGroup, normalizeOp, evalCondition, conditionValues, NO_VALUE_OPS, TWO_VALUE_OPS, MULTI_OPS, DAYS_OPS } from './filter-ops.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
 
@@ -497,11 +498,11 @@ export function mountList(cfg) {
             <summary>¿Qué puedo filtrar?</summary>
             <dl>
               <dt>Filtros avanzados</dt>
-              <dd>Condiciones sobre los datos del propio registro: su propietario, su fecha de creación, si tiene teléfono… Ejemplo: «Propietario es igual a yo <strong>Y</strong> Teléfono tiene valor».</dd>
+              <dd>Condiciones sobre los datos del propio registro: su propietario, su fecha de creación, si tiene teléfono… Las opciones cambian según el tipo de propiedad: un texto ofrece «es igual a cualquiera de» o «contiene exactamente», un número «es mayor que» o «está entre», una fecha «es anterior a» o «es este mes», una lista «es cualquiera de». Ejemplo: «Propietario es cualquiera de: yo <strong>Y</strong> Número de teléfono es conocido».</dd>
               <dt>Filtros por asociación</dt>
               <dd>Condiciones sobre los registros vinculados (su empresa, sus negocios, sus tickets). El resultado sigue mostrando ${esc(plural)}. Ejemplo: «Empresa asociada › Estado/Región es igual a Florida». Con una etiqueta de asociación limitas la relación, por ejemplo solo la empresa principal.</dd>
               <dt>Combinarlos</dt>
-              <dd>Sí: «Propietario es igual a yo <strong>Y</strong> Empresa asociada › Estado/Región es igual a Florida» mezcla un dato del registro con uno de su empresa. Un segundo grupo añade una alternativa (<strong>O</strong>).</dd>
+              <dd>Sí: «Propietario es cualquiera de: yo <strong>Y</strong> Empresa asociada › Estado/Región es cualquiera de: Florida» mezcla un dato del registro con uno de su empresa. Un segundo grupo añade una alternativa (<strong>O</strong>).</dd>
             </dl>
           </details>
           <p class="muted adv-summary" id="adv-summary"></p>
@@ -618,11 +619,23 @@ export function mountList(cfg) {
     });
     return [...map.values()];
   };
+  // Kind of a property of this list (explicit columns without a catalog entry get a sensible kind).
+  const DATE_KEYS = new Set(['created', 'lastActivity', 'closeDate', 'due', 'closedate']);
+  function ownKind(key) {
+    const p = props[key];
+    if (p) return p.kind;
+    if (cfg.editors && cfg.editors[key]) return 'enum';
+    if (DATE_KEYS.has(key)) return 'datetime';
+    if (key === 'amount') return 'currency';
+    return 'text';
+  }
+  const ownGroup = (key) => kindGroup(ownKind(key));
   function ownConditionMatches(cond, r) {
     const c = col(cond.key);
+    const group = ownGroup(cond.key);
     const text = c ? cellText(c, r) : r[cond.key];
-    const n = Number(String(r[cond.key] ?? '').replace(/[^\d.-]/g, ''));
-    return testCondition(cond.op, text, n, cond.value);
+    const dateMs = group === 'date' && c && c.sortValue ? c.sortValue(r) : NaN;
+    return evalCondition(cond, conditionValues(r[cond.key], text, group, dateMs));
   }
   const conditionMatches = (cond, r) => (cond.assoc ? assocConditionMatches(cfg.type, cond, r) : ownConditionMatches(cond, r));
   function applyAdvanced(list) {
@@ -659,7 +672,7 @@ export function mountList(cfg) {
   const allViews = () => [...standardViews(), ...store.custom];
   const viewById = (id) => allViews().find((v) => v.id === id);
   const persist = () => setViewStore(cfg.type, store);
-  const cleanAdvanced = (adv) => adv.filter((c) => c.key).map((c) => ({ key: c.key, op: c.op, value: c.value, group: Number(c.group) || 0, assoc: c.assoc || '', label: c.label || '' }));
+  const cleanAdvanced = (adv) => adv.filter((c) => c.key).map((c) => ({ key: c.key, op: c.op, value: c.value ?? '', value2: c.value2 || '', group: Number(c.group) || 0, assoc: c.assoc || '', label: c.label || '' }));
   const cleanFilters = (f) => Object.fromEntries(Object.entries(f).filter(([, v]) => v));
   const currentSnapshot = () => ({
     filters: cleanFilters(state.filters),
@@ -1478,8 +1491,7 @@ export function mountList(cfg) {
       // "Filtrar por esta columna": a new condition on this property, in the first group of the advanced filters.
       state.advanced = state.advanced.filter((c) => c.key);
       const g = state.advanced.length ? Math.min(...state.advanced.map((c) => Number(c.group) || 0)) : 0;
-      const kind = props[key] ? props[key].kind : '';
-      state.advanced.push({ key, op: ['number', 'currency', 'percent'].includes(kind) ? 'gt' : ownValueOptions(key) ? 'is' : 'contains', value: '', group: g, assoc: '', label: '' });
+      state.advanced.push({ key, op: opsFor(ownGroup(key))[0][0], value: '', value2: '', group: g, assoc: '', label: '' });
       renderAdvRows();
       openDrawer('adv-drawer');
       const last = [...$('adv-groups').querySelectorAll('.advc')].pop();
@@ -2133,7 +2145,7 @@ export function mountList(cfg) {
   });
 
   // ---------- advanced filters ----------
-  const OPS = [['contains', 'contiene'], ['is', 'es igual a'], ['not', 'no es igual a'], ['gt', 'es mayor que'], ['lt', 'es menor que'], ['filled', 'tiene valor'], ['empty', 'está vacío']];
+  // Operators depend on the property type (text, number, date, list, checkbox); see filter-ops.js.
   const propertyOptions = (selected) => {
     const grouped = groups
       .map((grp) => `<optgroup label="${esc(grp.title)}">${grp.items.map(([k, l]) => `<option value="${k}" ${selected === k ? 'selected' : ''}>${l}</option>`).join('')}</optgroup>`)
@@ -2153,20 +2165,48 @@ export function mountList(cfg) {
     if (f && f.options) return f.options.map(([, l]) => [l, l]);
     return null;
   };
-  const newCondition = (group) => ({ key: '', op: 'contains', value: '', group, assoc: '', label: '' });
+  const newCondition = (group) => ({ key: '', op: '', value: '', value2: '', group, assoc: '', label: '' });
   const advAssocs = associationsFor(cfg.type);
+  // Operator family of a condition's property (own or of the linked object).
+  const condGroup = (c) => (c.key ? (c.assoc ? assocKindGroup(c.assoc, c.key) : ownGroup(c.key)) : 'text');
+  const condChoices = (c) => (c.key ? (c.assoc ? assocValueOptions(c.assoc, c.key) : ownValueOptions(c.key)) : null);
   function renderAdvRows() {
     if (!state.advanced.length) state.advanced = [newCondition(0)];
-    state.advanced.forEach((c) => { c.group = Number(c.group) || 0; c.assoc = c.assoc || ''; c.label = c.label || ''; });
+    state.advanced.forEach((c) => {
+      c.group = Number(c.group) || 0;
+      c.assoc = c.assoc || '';
+      c.label = c.label || '';
+      c.value2 = c.value2 || '';
+      if (c.key) c.op = normalizeOp(c.op, condGroup(c));
+    });
     const groupIds = [...new Set(state.advanced.map((c) => c.group))].sort((a, b) => a - b);
     const labels = associationLabelOptions();
+    const valueHtml = (c) => {
+      const grp = condGroup(c);
+      const op = c.op;
+      const choices = condChoices(c);
+      const list = Array.isArray(c.value) ? c.value : String(c.value ?? '').split(/[,\n]/).map((s) => s.trim()).filter(Boolean);
+      if (!c.key) return '<input data-k="value" type="text" placeholder="Valor" aria-label="Valor" disabled />';
+      if (NO_VALUE_OPS.has(op)) return '<span class="advc__novalue muted">Sin valor</span>';
+      if (DAYS_OPS.has(op)) return `<span class="advc__days"><input data-k="value" type="number" min="0" step="1" value="${esc(c.value)}" placeholder="0" aria-label="Días" /><span>días</span></span>`;
+      if (TWO_VALUE_OPS.has(op)) {
+        const type = grp === 'date' ? 'date' : 'number';
+        return `<span class="advc__range"><input data-k="value" type="${type}" value="${esc(c.value)}" aria-label="Desde" /><span>y</span><input data-k="value2" type="${type}" value="${esc(c.value2)}" aria-label="Hasta" /></span>`;
+      }
+      if (MULTI_OPS.has(op) && choices) {
+        return `<div class="advc__multi" role="group" aria-label="Valores">${choices.map(([v, l]) => `<label class="advc__check"><input type="checkbox" data-multi value="${esc(v)}" ${list.includes(v) ? 'checked' : ''} /> <span>${esc(l)}</span></label>`).join('')}</div>`;
+      }
+      if (MULTI_OPS.has(op)) return `<input data-k="value" type="text" value="${esc(Array.isArray(c.value) ? c.value.join(', ') : c.value)}" placeholder="Uno o varios valores, separados por coma" aria-label="Valores" />`;
+      if (grp === 'number') return `<input data-k="value" type="number" step="any" value="${esc(c.value)}" placeholder="0" aria-label="Valor" />`;
+      if (grp === 'date') return `<input data-k="value" type="date" value="${esc(String(c.value).slice(0, 10))}" aria-label="Fecha" />`;
+      if (choices) return `<select data-k="value" aria-label="Valor"><option value="">Elige un valor…</option>${choices.map(([v, l]) => `<option value="${esc(v)}" ${c.value === v ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>`;
+      return `<input data-k="value" type="text" value="${esc(c.value)}" placeholder="Valor" aria-label="Valor" />`;
+    };
     const rowHtml = (c, i) => {
       const a = advAssocs.find((x) => x.key === c.assoc);
-      const noValue = c.op === 'empty' || c.op === 'filled';
-      const choices = c.key ? (a ? assocValueOptions(a.key, c.key) : ownValueOptions(c.key)) : null;
-      const valueField = choices
-        ? `<select data-k="value" aria-label="Valor" ${noValue ? 'disabled' : ''}><option value="">Elige un valor…</option>${choices.map(([v, l]) => `<option value="${esc(v)}" ${c.value === v ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>`
-        : `<input data-k="value" type="text" value="${esc(c.value)}" placeholder="Valor" aria-label="Valor" ${noValue ? 'disabled' : ''} />`;
+      const ops = opsFor(condGroup(c));
+      const value = valueHtml(c);
+      const wide = value.startsWith('<div class="advc__multi"');
       return `
         <div class="advc${a ? ' advc--assoc' : ''}" data-i="${i}">
           <div class="advc__top">
@@ -2177,10 +2217,10 @@ export function mountList(cfg) {
             ${a && a.labels ? `<select data-k="label" aria-label="Etiqueta de asociación"><option value="">Cualquier etiqueta</option>${labels.map((l) => `<option value="${esc(l)}" ${c.label === l ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>` : ''}
             <button class="icon-btn advc__remove" type="button" data-remove aria-label="Quitar condición">×</button>
           </div>
-          <div class="advc__row">
+          <div class="advc__row${wide ? ' advc__row--wide' : ''}">
             <select data-k="key" aria-label="Propiedad"><option value="">Propiedad…</option>${a ? assocPropertyOptions(a.key, c.key) : propertyOptions(c.key)}</select>
-            <select data-k="op" aria-label="Condición">${OPS.map(([v, l]) => `<option value="${v}" ${c.op === v ? 'selected' : ''}>${l}</option>`).join('')}</select>
-            ${valueField}
+            <select data-k="op" aria-label="Condición" ${c.key ? '' : 'disabled'}>${ops.map(([v, l]) => `<option value="${v}" ${c.op === v ? 'selected' : ''}>${l}</option>`).join('')}</select>
+            ${value}
           </div>
         </div>`;
     };
@@ -2207,15 +2247,26 @@ export function mountList(cfg) {
       ? `${live.length} ${live.length === 1 ? 'condición' : 'condiciones'} en ${liveGroups} grupo${liveGroups === 1 ? '' : 's'}${assocCount ? ` · ${assocCount} por asociación` : ''}`
       : 'Sin condiciones todavía. Elige una propiedad del registro o de un registro asociado.';
   }
+  // Checkbox lists ("es cualquiera de") collect every ticked value into the condition.
+  $('adv-groups').addEventListener('change', (e) => {
+    if (!e.target.matches('[data-multi]')) return;
+    const row = e.target.closest('.advc');
+    const c = state.advanced[Number(row.dataset.i)];
+    c.value = [...row.querySelectorAll('[data-multi]:checked')].map((b) => b.value);
+    const live = state.advanced.filter((x) => x.key);
+    const liveGroups = new Set(live.map((x) => x.group)).size;
+    if (live.length) $('adv-summary').textContent = `${live.length} ${live.length === 1 ? 'condición' : 'condiciones'} en ${liveGroups} grupo${liveGroups === 1 ? '' : 's'}`;
+  });
   $('adv-groups').addEventListener('input', (e) => {
     const row = e.target.closest('.advc');
-    if (!row) return;
+    if (!row || !e.target.dataset.k) return;
     const i = Number(row.dataset.i);
     const k = e.target.dataset.k;
     const c = state.advanced[i];
     c[k] = e.target.value;
-    if (k === 'assoc') { c.key = ''; c.value = ''; c.label = ''; }
-    if (k === 'key') c.value = '';
+    if (k === 'assoc') { c.key = ''; c.op = ''; c.value = ''; c.value2 = ''; c.label = ''; }
+    if (k === 'key') { c.op = opsFor(condGroup(c))[0][0]; c.value = ''; c.value2 = ''; }
+    if (k === 'op') { c.value = Array.isArray(c.value) || TWO_VALUE_OPS.has(c.op) || DAYS_OPS.has(c.op) || NO_VALUE_OPS.has(c.op) ? '' : c.value; c.value2 = ''; }
     if (k === 'assoc' || k === 'key' || k === 'op') renderAdvRows();
     else {
       const live = state.advanced.filter((x) => x.key);

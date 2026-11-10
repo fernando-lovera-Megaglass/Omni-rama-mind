@@ -52,8 +52,9 @@ log('desc icon:', th('phone').querySelector('.th__sorticon').textContent);
 // filter by this column: the advanced filters open with the property preset
 click(item('owner', 'filter'));
 const preset = document.querySelector('#adv-groups .advc [data-k="key"]');
-log('adv drawer open:', $('adv-drawer').classList.contains('is-open'), '| preset property:', preset.value, '| operator:', document.querySelector('#adv-groups .advc [data-k="op"]').value, '| value is a select:', document.querySelector('#adv-groups .advc [data-k="value"]').tagName);
+log('adv drawer open:', $('adv-drawer').classList.contains('is-open'), '| preset property:', preset.value, '| operator:', document.querySelector('#adv-groups .advc [data-k="op"]').value, '| value checkboxes:', document.querySelectorAll('#adv-groups .advc [data-multi]').length);
 if (!$('adv-drawer').classList.contains('is-open') || preset.value !== 'owner') fail('filter by column did not preset the property');
+if (document.querySelector('#adv-groups .advc [data-k="op"]').value !== 'anyof') fail('a list property should start with "es cualquiera de"');
 click($('adv-clear'));
 click($('adv-drawer').querySelector('[data-close="adv-drawer"]'));
 

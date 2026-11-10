@@ -3,6 +3,7 @@
 // with their labels), and how a property of a linked record reads as text for comparisons.
 import { ALL, DEAL_STAGES, TICKET_STATUSES, TASK_STATUSES, PRIORITIES, STATUSES, assocLabels, formatDate, formatMoney, strip } from './data.js';
 import { propertyGroups, propertyMap } from './properties.js';
+import { evalCondition, conditionValues, kindGroup } from './filter-ops.js';
 
 const num = (v) => Number(v);
 const byId = (rows, id) => rows.find((r) => num(r.id) === num(id));
@@ -103,33 +104,20 @@ export function assocValueOptions(kind, key) {
   return null;
 }
 
-// One condition against one text/number pair.
-export function testCondition(op, text, rawNumber, wanted) {
-  const txt = strip(text);
-  const val = strip(wanted);
-  switch (op) {
-    case 'is': return txt === val;
-    case 'not': return txt !== val;
-    case 'contains': return txt.includes(val);
-    case 'gt': return !Number.isNaN(rawNumber) && rawNumber > Number(wanted);
-    case 'lt': return !Number.isNaN(rawNumber) && rawNumber < Number(wanted);
-    case 'empty': return !txt || txt === '—' || txt === '--';
-    case 'filled': return Boolean(txt) && txt !== '—' && txt !== '--';
-    default: return true;
-  }
+// Operator family of a linked object's property.
+export function assocKindGroup(kind, key) {
+  const p = assocPropertyMap(kind)[key];
+  return kindGroup(p ? p.kind : 'text');
 }
 
 // Does the record have a linked record (of the condition's association, optionally with the given label)
-// whose property satisfies the condition? With no linked records only "está vacío" holds.
+// whose property satisfies the condition? With no linked records only "es desconocido" holds.
 export function assocConditionMatches(type, cond, r) {
   const a = associationsFor(type).find((x) => x.key === cond.assoc);
   if (!a) return true;
   let rows = a.records(r);
   if (cond.label) rows = rows.filter((x) => x.assocLabel === cond.label);
   if (!rows.length) return cond.op === 'empty';
-  return rows.some((x) => {
-    const text = assocText(a.key, cond.key, x);
-    const n = Number(String(x[cond.key] ?? '').replace(/[^\d.-]/g, ''));
-    return testCondition(cond.op, text, n, cond.value);
-  });
+  const group = assocKindGroup(a.key, cond.key);
+  return rows.some((x) => evalCondition(cond, conditionValues(x[cond.key], assocText(a.key, cond.key, x), group)));
 }

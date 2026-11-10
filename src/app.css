@@ -2602,8 +2602,70 @@ td.cell--hl .cell__pen {
 
 .advc__row {
   display: grid;
-  grid-template-columns: 1.3fr 1fr 1fr;
+  grid-template-columns: 1.2fr 1.1fr 1fr;
   gap: var(--sp-8);
+  align-items: center;
+}
+
+/* A checkbox list of values takes a full row under the property and operator. */
+.advc__row--wide {
+  grid-template-columns: 1fr 1fr;
+}
+
+.advc__row--wide .advc__multi {
+  grid-column: 1 / -1;
+}
+
+.advc__novalue {
+  font-size: var(--fs-sm);
+  padding-left: var(--sp-4);
+}
+
+.advc__days,
+.advc__range {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  min-width: 0;
+  font-size: var(--fs-sm);
+}
+
+.advc__days input,
+.advc__range input {
+  flex: 1 1 0;
+  width: 100%;
+}
+
+.advc__multi {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-4) var(--sp-10);
+  padding: var(--sp-8) var(--sp-10);
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-sm);
+  background: var(--c-white);
+  max-height: 150px;
+  overflow: auto;
+  font-size: var(--fs-sm);
+}
+
+.advc__check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px 2px 2px;
+  border-radius: var(--r-pill);
+  cursor: pointer;
+}
+
+.advc__check:hover {
+  background: var(--c-head);
+}
+
+.advc__check input {
+  height: auto;
+  margin: 0;
+  accent-color: var(--c-link);
 }
 
 .advc select,
