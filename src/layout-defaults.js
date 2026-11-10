@@ -75,17 +75,22 @@ export const PREVIEW_PROPS = {
 export function previewCatalog(type) {
   const m = TYPE_META[type] || TYPE_META.contacts;
   const cards = {
-    about: { label: `Acerca de este objeto ${m.s}`, desc: 'Propiedades del registro (valor predeterminado)', zone: 'right', props: true },
-    activity: { label: 'Actividad reciente', desc: 'Última actividad y próximos pasos (valor predeterminado)', zone: 'right' },
+    about: { label: 'Datos Generales', desc: `Acerca de este objeto ${m.s.toLowerCase()} (valor predeterminado)`, zone: 'right', props: true },
+    activity: { label: 'Actividades recientes', desc: `Actividades recientes - ${m.s} (valor predeterminado)`, zone: 'right' },
+    upcoming: { label: 'Próximas actividades', desc: `Próximas actividades - ${m.s} (valor predeterminado)`, zone: 'right' },
     summary: { label: 'Resumen de registros', desc: 'Resumen generado automáticamente', zone: 'right' },
     attachments: { label: 'Archivos adjuntos', desc: 'Archivos adjuntos (valor predeterminado)', zone: 'right' },
     tasks: { label: 'Tareas', desc: 'Tareas pendientes del registro', zone: 'right' },
   };
-  (ASSOC_KINDS[type] || []).forEach((k) => { const km = TYPE_META[k]; cards[`assoc-${k}`] = { label: km.p, desc: `${km.p} asociados (valor predeterminado)`, zone: 'right', assoc: k }; });
+  const assoc = [...(ASSOC_KINDS[type] || [])];
+  if (type === 'deals' && !assoc.includes('tickets')) assoc.push('tickets');
+  assoc.forEach((k) => { const km = TYPE_META[k]; cards[`assoc-${k}`] = { label: km.p, desc: `${km.p} Tarjeta de asociación (valor predeterminado)`, zone: 'right', assoc: k }; });
   return cards;
 }
 export function defaultPreview(type, name = 'Vista predeterminada') {
-  return { name, teams: [], isDefault: name === 'Vista predeterminada', props: [...(PREVIEW_PROPS[type] || PREVIEW_PROPS.contacts)], left: [], tabs: [], right: ['about', ...(ASSOC_KINDS[type] || []).slice(0, 2).map((k) => `assoc-${k}`), 'activity'] };
+  const assoc = [...(ASSOC_KINDS[type] || [])];
+  if (type === 'deals' && !assoc.includes('tickets')) assoc.push('tickets');
+  return { name, teams: [], isDefault: name === 'Vista predeterminada', props: [...(PREVIEW_PROPS[type] || PREVIEW_PROPS.contacts)], left: [], tabs: [], right: ['about', 'activity', 'upcoming', ...assoc.slice(0, 3).map((k) => `assoc-${k}`)] };
 }
 export const PREVIEW_KEY = (type, name) => `crm:${type}:preview:${name || 'default'}`;
 export function loadPreview(type, name) {

@@ -6854,6 +6854,26 @@ textarea.cellpop__input {
   font-weight: 500;
 }
 
+/* Single centred column, like the original "barra lateral de vista previa" editor */
+.pvedit--single {
+  display: flex;
+  justify-content: center;
+  padding-top: var(--sp-32);
+}
+
+.pvedit__col {
+  width: 490px;
+  max-width: 100%;
+}
+
+.pvedit__col .ladd-row {
+  display: flex;
+  justify-content: center;
+  margin: -14px 0 2px;
+  position: relative;
+  z-index: 2;
+}
+
 .pvedit__mockhead {
   display: flex;
   align-items: center;

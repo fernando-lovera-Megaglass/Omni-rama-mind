@@ -2,8 +2,7 @@
 // rename sections and tabs, add cards/sections/tabs, undo/redo, assign teams, save.
 import { toast, wireMenus, closeMenus } from './shell.js';
 import { cardCatalog, defaultLayout, loadLayout, saveLayout, teamViewLayout, loadViewLayout, saveViewLayout, VIEW_KEY, previewCatalog, defaultPreview, loadPreview, savePreview, PREVIEW_KEY, TEAMS, TYPE_META } from './layout-defaults.js';
-import { propertyList, propertyMap } from './properties.js';
-import { ALL, formatDate, formatMoney, relativeTime } from './data.js';
+import { propertyList } from './properties.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
 const params = new URLSearchParams(location.search);
@@ -22,7 +21,7 @@ const backHref = previewMode ? `../settings/#obj-${type}:preview` : teamView ? `
 const stampNow = () => { const d = new Date(); const p = (n) => String(n).padStart(2, '0'); return `${p(d.getDate())}/${p(d.getMonth() + 1)}/${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`; };
 
 let layout = previewMode
-  ? (isNewView ? defaultPreview(type, `Nueva vista previa ${meta.s} - (${stampNow()})`) : loadPreview(type, viewParam || undefined))
+  ? (isNewView ? defaultPreview(type, `Nuevo vista previa de registro ${meta.s} - (${stampNow()})`) : loadPreview(type, viewParam || undefined))
   : isNewView ? teamViewLayout(type, `Nuevo página de registro ${meta.s} - (${stampNow()})`) : viewParam ? loadViewLayout(type, viewParam) : loadLayout(type);
 let saved = isNewView ? '' : JSON.stringify(layout);
 const undoStack = [];
@@ -30,7 +29,7 @@ const redoStack = [];
 let activeTab = 'overview';
 let page = 'design'; // design | config
 const root = document.getElementById('layout-root');
-document.title = previewMode ? `${meta.s} panel de vista previa` : `${meta.s} página de registro`;
+document.title = previewMode ? `${meta.s} barra lateral de vista previa` : `${meta.s} página de registro`;
 
 const clone = (o) => JSON.parse(JSON.stringify(o));
 function commit(mutator) {
@@ -92,7 +91,7 @@ function render() {
         <button class="ledit__hist" type="button" data-lc="undo" ${undoStack.length ? '' : 'disabled'} aria-label="Deshacer">↶</button>
         <button class="ledit__hist" type="button" data-lc="redo" ${redoStack.length ? '' : 'disabled'} aria-label="Rehacer">↷</button>
       </div>
-      <div class="ledit__title">${esc(meta.s)} ${previewMode ? 'panel de vista previa' : 'página de registro'} <span class="ledit__sep">|</span> <span id="view-name">${esc(layout.name)}</span> <button class="ledit__pencil" type="button" data-lc="rename-view" aria-label="Cambiar nombre de la vista">✎</button></div>
+      <div class="ledit__title">${esc(meta.s)} ${previewMode ? 'barra lateral de vista previa' : 'página de registro'} <span class="ledit__sep">|</span> <span id="view-name">${esc(layout.name)}</span> <button class="ledit__pencil" type="button" data-lc="rename-view" aria-label="Cambiar nombre de la vista">✎</button></div>
       <div class="ledit__right">
         <button class="pill pill--dark" type="button" data-lc="save" ${dirty() ? '' : 'disabled'}>Guardar</button>
         <button class="pill pill--light" type="button" data-lc="save-exit">Guardar y salir</button>
@@ -100,8 +99,8 @@ function render() {
     </header>
     <div class="ledit__sub">
       <nav class="ledit__tabs">
-        <button type="button" class="${page === 'design' ? 'is-active' : ''}" data-lc="page" data-page="design">Editar diseño</button>
-        <button type="button" class="${page === 'config' ? 'is-active' : ''}" data-lc="page" data-page="config">Configuración</button>
+        ${previewMode ? '' : `<button type="button" class="${page === 'design' ? 'is-active' : ''}" data-lc="page" data-page="design">Editar diseño</button>
+        <button type="button" class="${page === 'config' ? 'is-active' : ''}" data-lc="page" data-page="config">Configuración</button>`}
       </nav>
       <div class="ledit__subright">
         <span class="ledit__status ${dirty() ? 'is-dirty' : ''}" title="${dirty() ? 'Cambios sin guardar' : 'Todo guardado'}">${dirty() ? '●' : '✓'}</span>
@@ -183,62 +182,17 @@ function renderDesign(tab) {
 }
 
 // Preview-panel editor: the card list on the left, a live mock of the side panel on the right.
-// Sample record shown in the live mock of the preview panel.
-let sampleId = null;
-const sampleRecords = () => (previewMode && ALL[type] ? ALL[type]().slice(0, 12) : []);
-function sampleRecord() {
-  const list = sampleRecords();
-  return list.find((r) => String(r.id) === String(sampleId)) || list[0] || null;
-}
-const PROPS_BY_KEY = previewMode ? propertyMap(type) : {};
-function sampleValue(r, key) {
-  if (!r) return '—';
-  const v = r[key];
-  if (v === undefined || v === null || v === '') return '--';
-  const kind = (PROPS_BY_KEY[key] || {}).kind;
-  if (kind === 'currency' || key === 'amount' || key === 'revenue') return formatMoney(v);
-  if (kind === 'date' || kind === 'datetime' || /date|Date|created|due|lastActivity/.test(key)) { const d = new Date(v); return Number.isNaN(d.getTime()) ? String(v) : formatDate(d); }
-  if (kind === 'bool') return v === true || v === 'Sí' ? 'Sí' : 'No';
-  return String(v);
-}
-function relatedNames(r, kind) {
-  if (!r) return [];
-  if (kind === 'companies') return r.company ? [r.company] : [];
-  if (kind === 'contacts') return r.contact ? [r.contact] : (ALL.contacts ? ALL.contacts().filter((x) => type === 'companies' && Number(x.companyId) === Number(r.id)).slice(0, 3).map((x) => x.name) : []);
-  return ALL[kind] ? ALL[kind]().filter((x) => (type === 'contacts' ? Number(x.contactId) === Number(r.id) : Number(x.companyId) === Number(r.id))).slice(0, 3).map((x) => x.name) : [];
-}
+// Preview-sidebar editor, as in the original: one centred column with the record identity and the cards in order.
 function renderPreviewEditor() {
-  const labelOf = (k) => (PROPS_BY_KEY[k] || { label: k }).label;
-  const r = sampleRecord();
-  const sub = !r ? '' : type === 'deals' ? `${formatMoney(r.amount)} · ${r.company || ''}` : type === 'contacts' ? r.company || r.email || '' : r.domain || r.email || r.description || r.type || '';
-  const propsList = (keys) => `<dl>${keys.map((k) => `<div><dt>${esc(labelOf(k))}</dt><dd>${esc(sampleValue(r, k))}</dd></div>`).join('') || '<p class="muted">Sin propiedades: usa ✎ para elegirlas.</p>'}</dl>`;
-  const mockCard = (id) => {
-    const c = catalogOf(id);
-    if (id === 'about') return `<section class="pvmock__card" data-mock="${id}"><h4>⌄ ${esc(c.label)}</h4>${propsList(layout.props)}</section>`;
-    if (id.startsWith('pcard-')) return `<section class="pvmock__card" data-mock="${id}"><h4>⌄ ${esc(c.label)}</h4>${propsList(c.props || [])}</section>`;
-    if (id === 'activity') return `<section class="pvmock__card" data-mock="${id}"><h4>⌄ ${esc(c.label)}</h4><p>${r ? esc(relativeTime(r.lastActivity || r.created)) : 'hace 3 días'} · ${esc({ email: 'Correo', call: 'Llamada', meeting: 'Reunión', note: 'Nota', task: 'Tarea' }[r && r.lastActivityType] || 'Actividad')}</p><p class="muted">Creado el ${r ? esc(formatDate(r.created)) : '12 ago 2026'}</p></section>`;
-    if (id === 'summary') return `<section class="pvmock__card" data-mock="${id}"><h4>⌄ ${esc(c.label)} <span class="ai-badge">✦ AI</span></h4><p class="muted">${r ? `${esc(r.name)} · propietario ${esc(r.owner || 'sin asignar')} · última actividad ${esc(relativeTime(r.lastActivity || r.created))}.` : 'Resumen generado del registro.'}</p></section>`;
-    if (id === 'attachments') return `<section class="pvmock__card" data-mock="${id}"><h4>⌄ ${esc(c.label)} <span class="muted">(0)</span></h4><p class="muted">Sin archivos adjuntos.</p></section>`;
-    if (id === 'tasks') { const ts = r && ALL.tasks ? ALL.tasks().filter((t) => t.status !== 'done' && (type === 'contacts' ? Number(t.contactId) === Number(r.id) : t.owner === r.owner)).slice(0, 3) : []; return `<section class="pvmock__card" data-mock="${id}"><h4>⌄ ${esc(c.label)} <span class="muted">(${ts.length})</span></h4>${ts.length ? `<ul>${ts.map((t) => `<li>${esc(t.name)}</li>`).join('')}</ul>` : '<p class="muted">Sin tareas pendientes.</p>'}</section>`; }
-    if (c.assoc) { const names = relatedNames(r, c.assoc); return `<section class="pvmock__card" data-mock="${id}"><h4>⌄ ${esc(c.label)} <span class="muted">(${names.length})</span></h4>${names.length ? `<ul>${names.map((n) => `<li><a href="#" onclick="return false">${esc(n)}</a></li>`).join('')}</ul>` : '<p class="muted">Sin registros asociados.</p>'}</section>`; }
-    return `<section class="pvmock__card" data-mock="${id}"><h4>⌄ ${esc(c.label)}</h4><p class="muted">${esc(c.desc || '')}</p></section>`;
-  };
   return `
-    <div class="pvedit">
-      <section class="pvedit__cards">
-        <h2>Tarjetas del panel de vista previa</h2>
-        <p class="muted">Arrastra las tarjetas para ordenarlas; cada cambio se refleja al instante en el panel de la derecha. Usa ✎ en una tarjeta de propiedades para elegir cuáles muestra, o crea una tarjeta nueva desde "+".</p>
-        <div class="ladd-row ladd-row--top">${addMenu('right')}</div>
-        <div class="llist" data-zone="right">${layout.right.map((id) => cardHtml(id, 'right')).join('') || '<p class="muted llist__empty">Arrastra aquí una tarjeta.</p>'}</div>
-      </section>
-      <section class="pvedit__mock">
-        <div class="pvedit__mockhead"><h2>Así se verá en la lista</h2>${sampleRecords().length ? `<label class="pvedit__sample"><span class="muted">Registro de ejemplo</span><select id="pv-sample">${sampleRecords().map((x) => `<option value="${x.id}" ${r && x.id === r.id ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select></label>` : ''}</div>
-        <aside class="pvmock">
-          <header class="pvmock__head"><span class="avatar avatar--soft">${esc(String(r ? r.name : meta.s).split(' ').filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase())}</span><div><strong>${esc(r ? r.name : `${meta.s} de ejemplo`)}</strong><small class="muted">${esc(sub)}</small></div><span class="pvmock__x">×</span></header>
-          <div class="pvmock__quick">${['✎ Nota', '✉ Correo', '☏ Llamada', '☑ Tarea', '▦ Reunión', '⋯ Más'].map((q) => `<span>${q}</span>`).join('')}</div>
-          ${layout.right.map(mockCard).join('') || '<p class="muted pvmock__empty">El panel está vacío.</p>'}
-          <footer class="pvmock__foot"><span class="btn btn--primary btn--block btn--pillx">Ver registro</span></footer>
-        </aside>
+    <div class="pvedit pvedit--single">
+      <section class="ledit__col pvedit__col">
+        <div class="lidentity">
+          <div class="lidentity__row"><span class="lidentity__avatar">▣</span><strong>Nombre de ${esc(meta.s)}</strong></div>
+          <div class="lidentity__actions">${Array.from({ length: 6 }, () => '<span class="lidentity__dot"></span>').join('')}</div>
+        </div>
+        <div class="ladd-row">${addMenu('right')}</div>
+        <div class="llist" data-zone="right">${layout.right.map((id) => cardHtml(id, 'right')).join('') || '<p class="muted llist__empty">Arrastra aquí una tarjeta o añade una con +.</p>'}</div>
       </section>
     </div>`;
 }
@@ -502,8 +456,5 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') closeModal();
 });
 window.addEventListener('beforeunload', (e) => { if (dirty()) { e.preventDefault(); e.returnValue = ''; } });
-root.addEventListener('change', (e) => {
-  if (e.target.id === 'pv-sample') { sampleId = e.target.value; render(); }
-});
 
 render();
