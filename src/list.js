@@ -4,6 +4,7 @@ import { wireMenus, closeMenus, toast } from './shell.js';
 import { addRecord, deleteRecords, restoreAll, getPrefs, setPrefs, getViewStore, setViewStore, matches, strip, toCsv, download, formatDate, formatMoney, formatShortDate, relativeTime, setField, TODAY, ALL } from './data.js';
 import { defaultTabs, deletedViews, saveDeletedViews } from './std-views.js';
 import { propertyGroups, propertyMap } from './properties.js';
+import { associationsFor, associationLabelOptions, assocPropertyGroups, assocValueOptions, assocConditionMatches, testCondition, SINGULAR } from './assoc-filters.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
 
@@ -395,12 +396,24 @@ export function mountList(cfg) {
     </div>
 
     <div class="drawer" id="adv-drawer" aria-hidden="true">
-      <div class="drawer__panel drawer__panel--wide" role="dialog" aria-labelledby="adv-title">
+      <div class="drawer__panel drawer__panel--adv" role="dialog" aria-labelledby="adv-title">
         <div class="drawer__head"><h2 id="adv-title">Filtros avanzados</h2><button class="drawer__close" type="button" data-close="adv-drawer" aria-label="Cerrar">×</button></div>
         <div class="drawer__body">
-          <p class="muted">Se muestran los registros que cumplen todas las condiciones. Puedes filtrar por cualquier propiedad.</p>
-          <div id="adv-rows"></div>
-          <button class="link-btn" type="button" id="adv-add">+ Añadir condición</button>
+          <p class="muted adv-intro">Combina condiciones sobre el propio registro y sobre sus registros asociados. Dentro de un grupo deben cumplirse todas las condiciones (<strong>Y</strong>); entre grupos basta con que se cumpla uno (<strong>O</strong>).</p>
+          <details class="adv-help">
+            <summary>¿Qué puedo filtrar?</summary>
+            <dl>
+              <dt>Filtros avanzados</dt>
+              <dd>Condiciones sobre los datos del propio registro: su propietario, su fecha de creación, si tiene teléfono… Ejemplo: «Propietario es igual a yo <strong>Y</strong> Teléfono tiene valor».</dd>
+              <dt>Filtros por asociación</dt>
+              <dd>Condiciones sobre los registros vinculados (su empresa, sus negocios, sus tickets). El resultado sigue mostrando ${esc(plural)}. Ejemplo: «Empresa asociada › Estado/Región es igual a Florida». Con una etiqueta de asociación limitas la relación, por ejemplo solo la empresa principal.</dd>
+              <dt>Combinarlos</dt>
+              <dd>Sí: «Propietario es igual a yo <strong>Y</strong> Empresa asociada › Estado/Región es igual a Florida» mezcla un dato del registro con uno de su empresa. Un segundo grupo añade una alternativa (<strong>O</strong>).</dd>
+            </dl>
+          </details>
+          <p class="muted adv-summary" id="adv-summary"></p>
+          <div id="adv-groups"></div>
+          <button class="link-btn" type="button" id="adv-add-group">+ Añadir grupo de filtros (O)</button>
         </div>
         <div class="drawer__foot">
           <button class="btn btn--primary" type="button" id="adv-apply">Aplicar filtros</button>
@@ -475,27 +488,29 @@ export function mountList(cfg) {
   const headRow = $('head-row');
   const table = $('table');
 
+  // Advanced filters: conditions live in groups (cond.group). Inside a group all conditions must hold (Y);
+  // a record passes when any group holds (O). A condition with cond.assoc looks at the linked records
+  // of that association (optionally only those with cond.label) instead of the record itself.
+  const groupedConditions = () => {
+    const map = new Map();
+    state.advanced.filter((c) => c.key).forEach((c) => {
+      const g = Number(c.group) || 0;
+      if (!map.has(g)) map.set(g, []);
+      map.get(g).push(c);
+    });
+    return [...map.values()];
+  };
+  function ownConditionMatches(cond, r) {
+    const c = col(cond.key);
+    const text = c ? cellText(c, r) : r[cond.key];
+    const n = Number(String(r[cond.key] ?? '').replace(/[^\d.-]/g, ''));
+    return testCondition(cond.op, text, n, cond.value);
+  }
+  const conditionMatches = (cond, r) => (cond.assoc ? assocConditionMatches(cfg.type, cond, r) : ownConditionMatches(cond, r));
   function applyAdvanced(list) {
-    return state.advanced.reduce((acc, cond) => {
-      if (!cond.key) return acc;
-      const c = col(cond.key);
-      const val = strip(cond.value);
-      return acc.filter((r) => {
-        const txt = strip(c ? cellText(c, r) : r[cond.key]);
-        const num = Number(String(r[cond.key]).replace(/[^\d.-]/g, ''));
-        const want = Number(cond.value);
-        switch (cond.op) {
-          case 'is': return txt === val;
-          case 'not': return txt !== val;
-          case 'contains': return txt.includes(val);
-          case 'gt': return !Number.isNaN(num) && num > want;
-          case 'lt': return !Number.isNaN(num) && num < want;
-          case 'empty': return !txt || txt === '—';
-          case 'filled': return Boolean(txt) && txt !== '—';
-          default: return true;
-        }
-      });
-    }, list);
+    const grps = groupedConditions();
+    if (!grps.length) return list;
+    return list.filter((r) => grps.some((g) => g.every((cond) => conditionMatches(cond, r))));
   }
 
   function filtered() {
@@ -526,7 +541,7 @@ export function mountList(cfg) {
   const allViews = () => [...standardViews(), ...store.custom];
   const viewById = (id) => allViews().find((v) => v.id === id);
   const persist = () => setViewStore(cfg.type, store);
-  const cleanAdvanced = (adv) => adv.filter((c) => c.key).map((c) => ({ key: c.key, op: c.op, value: c.value }));
+  const cleanAdvanced = (adv) => adv.filter((c) => c.key).map((c) => ({ key: c.key, op: c.op, value: c.value, group: Number(c.group) || 0, assoc: c.assoc || '', label: c.label || '' }));
   const cleanFilters = (f) => Object.fromEntries(Object.entries(f).filter(([, v]) => v));
   const currentSnapshot = () => ({
     filters: cleanFilters(state.filters),
@@ -1836,35 +1851,106 @@ export function mountList(cfg) {
     const extra = cfg.columns.filter((c) => !props[c.key]);
     return grouped + (extra.length ? `<optgroup label="Otras">${extra.map((c) => `<option value="${c.key}" ${selected === c.key ? 'selected' : ''}>${c.label}</option>`).join('')}</optgroup>` : '');
   };
-  function renderAdvRows() {
-    const rows = state.advanced.length ? state.advanced : [{ key: '', op: 'contains', value: '' }];
-    $('adv-rows').innerHTML = rows
-      .map(
-        (c, i) => `
-      <div class="adv-row" data-i="${i}">
-        <select data-k="key" aria-label="Propiedad"><option value="">Propiedad…</option>${propertyOptions(c.key)}</select>
-        <select data-k="op" aria-label="Condición">${OPS.map(([v, l]) => `<option value="${v}" ${c.op === v ? 'selected' : ''}>${l}</option>`).join('')}</select>
-        <input data-k="value" type="text" value="${esc(c.value)}" placeholder="Valor" aria-label="Valor" ${c.op === 'empty' || c.op === 'filled' ? 'disabled' : ''} />
-        <button class="icon-btn" type="button" data-remove aria-label="Quitar">×</button>
-      </div>`,
-      )
+  // Property choices of a linked object (association filters), grouped like the column editor.
+  const assocPropertyOptions = (kind, selected) =>
+    assocPropertyGroups(kind)
+      .map((grp) => `<optgroup label="${esc(grp.title)}">${grp.items.map(([k, l]) => `<option value="${k}" ${selected === k ? 'selected' : ''}>${l}</option>`).join('')}</optgroup>`)
       .join('');
-    state.advanced = rows;
+  const ownValueOptions = (key) => {
+    const p = props[key];
+    if (p && Array.isArray(p.options) && p.options.length && ['enum', 'user', 'bool'].includes(p.kind)) return p.options.map((o) => (Array.isArray(o) ? [o[1], o[1]] : [o, o]));
+    const f = cfg.filters.find((x) => x.key === key);
+    if (f && f.options) return f.options.map(([, l]) => [l, l]);
+    return null;
+  };
+  const newCondition = (group) => ({ key: '', op: 'contains', value: '', group, assoc: '', label: '' });
+  const advAssocs = associationsFor(cfg.type);
+  function renderAdvRows() {
+    if (!state.advanced.length) state.advanced = [newCondition(0)];
+    state.advanced.forEach((c) => { c.group = Number(c.group) || 0; c.assoc = c.assoc || ''; c.label = c.label || ''; });
+    const groupIds = [...new Set(state.advanced.map((c) => c.group))].sort((a, b) => a - b);
+    const labels = associationLabelOptions();
+    const rowHtml = (c, i) => {
+      const a = advAssocs.find((x) => x.key === c.assoc);
+      const noValue = c.op === 'empty' || c.op === 'filled';
+      const choices = c.key ? (a ? assocValueOptions(a.key, c.key) : ownValueOptions(c.key)) : null;
+      const valueField = choices
+        ? `<select data-k="value" aria-label="Valor" ${noValue ? 'disabled' : ''}><option value="">Elige un valor…</option>${choices.map(([v, l]) => `<option value="${esc(v)}" ${c.value === v ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>`
+        : `<input data-k="value" type="text" value="${esc(c.value)}" placeholder="Valor" aria-label="Valor" ${noValue ? 'disabled' : ''} />`;
+      return `
+        <div class="advc${a ? ' advc--assoc' : ''}" data-i="${i}">
+          <div class="advc__top">
+            <select data-k="assoc" aria-label="Objeto">
+              <option value="">${esc(SINGULAR[cfg.type] || cfg.singular || cfg.title)} (este registro)</option>
+              ${advAssocs.map((x) => `<option value="${x.key}" ${c.assoc === x.key ? 'selected' : ''}>${x.label}</option>`).join('')}
+            </select>
+            ${a && a.labels ? `<select data-k="label" aria-label="Etiqueta de asociación"><option value="">Cualquier etiqueta</option>${labels.map((l) => `<option value="${esc(l)}" ${c.label === l ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>` : ''}
+            <button class="icon-btn advc__remove" type="button" data-remove aria-label="Quitar condición">×</button>
+          </div>
+          <div class="advc__row">
+            <select data-k="key" aria-label="Propiedad"><option value="">Propiedad…</option>${a ? assocPropertyOptions(a.key, c.key) : propertyOptions(c.key)}</select>
+            <select data-k="op" aria-label="Condición">${OPS.map(([v, l]) => `<option value="${v}" ${c.op === v ? 'selected' : ''}>${l}</option>`).join('')}</select>
+            ${valueField}
+          </div>
+        </div>`;
+    };
+    $('adv-groups').innerHTML = groupIds
+      .map((g, gi) => {
+        const idx = state.advanced.map((c, i) => [c, i]).filter(([c]) => c.group === g);
+        return `
+        ${gi > 0 ? '<div class="advg__or"><span>O</span></div>' : ''}
+        <section class="advg" data-g="${g}">
+          <header class="advg__head">
+            <strong>Grupo ${gi + 1}</strong>
+            <span class="muted">se cumplen todas las condiciones</span>
+            ${groupIds.length > 1 ? `<button class="icon-btn" type="button" data-remove-group="${g}" aria-label="Quitar grupo">×</button>` : ''}
+          </header>
+          ${idx.map(([c, i], j) => `${j > 0 ? '<div class="advc__and">Y</div>' : ''}${rowHtml(c, i)}`).join('')}
+          <button class="link-btn advg__add" type="button" data-add-cond="${g}">+ Añadir condición (Y)</button>
+        </section>`;
+      })
+      .join('');
+    const live = state.advanced.filter((c) => c.key);
+    const liveGroups = new Set(live.map((c) => c.group)).size;
+    const assocCount = live.filter((c) => c.assoc).length;
+    $('adv-summary').textContent = live.length
+      ? `${live.length} ${live.length === 1 ? 'condición' : 'condiciones'} en ${liveGroups} grupo${liveGroups === 1 ? '' : 's'}${assocCount ? ` · ${assocCount} por asociación` : ''}`
+      : 'Sin condiciones todavía. Elige una propiedad del registro o de un registro asociado.';
   }
-  $('adv-rows').addEventListener('input', (e) => {
-    const row = e.target.closest('.adv-row');
+  $('adv-groups').addEventListener('input', (e) => {
+    const row = e.target.closest('.advc');
+    if (!row) return;
     const i = Number(row.dataset.i);
-    state.advanced[i][e.target.dataset.k] = e.target.value;
-    if (e.target.dataset.k === 'op') renderAdvRows();
+    const k = e.target.dataset.k;
+    const c = state.advanced[i];
+    c[k] = e.target.value;
+    if (k === 'assoc') { c.key = ''; c.value = ''; c.label = ''; }
+    if (k === 'key') c.value = '';
+    if (k === 'assoc' || k === 'key' || k === 'op') renderAdvRows();
+    else {
+      const live = state.advanced.filter((x) => x.key);
+      const liveGroups = new Set(live.map((x) => x.group)).size;
+      if (live.length) $('adv-summary').textContent = `${live.length} ${live.length === 1 ? 'condición' : 'condiciones'} en ${liveGroups} grupo${liveGroups === 1 ? '' : 's'}`;
+    }
   });
-  $('adv-rows').addEventListener('click', (e) => {
-    if (!e.target.closest('[data-remove]')) return;
-    const i = Number(e.target.closest('.adv-row').dataset.i);
-    state.advanced.splice(i, 1);
+  $('adv-groups').addEventListener('click', (e) => {
+    const rm = e.target.closest('[data-remove]');
+    const rmGroup = e.target.closest('[data-remove-group]');
+    const add = e.target.closest('[data-add-cond]');
+    if (rm) {
+      const i = Number(rm.closest('.advc').dataset.i);
+      state.advanced.splice(i, 1);
+    } else if (rmGroup) {
+      const g = Number(rmGroup.dataset.removeGroup);
+      state.advanced = state.advanced.filter((c) => c.group !== g);
+    } else if (add) {
+      state.advanced.push(newCondition(Number(add.dataset.addCond)));
+    } else return;
     renderAdvRows();
   });
-  $('adv-add').addEventListener('click', () => {
-    state.advanced.push({ key: '', op: 'contains', value: '' });
+  $('adv-add-group').addEventListener('click', () => {
+    const next = state.advanced.reduce((m, c) => Math.max(m, Number(c.group) || 0), -1) + 1;
+    state.advanced.push(newCondition(next));
     renderAdvRows();
   });
   $('adv-apply').addEventListener('click', () => {
