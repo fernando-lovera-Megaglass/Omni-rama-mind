@@ -735,21 +735,91 @@ function objectPreviewHtmlOld(type) {
       <div class="opreview__col">${layout.right.map((c) => `<div class="opreview__card"><strong>${esc((cards[c] || { label: c }).label)}</strong><i></i><i></i></div>`).join('')}</div>
     </div>`;
 }
+// ---------- Personalización del índice: default columns, quick filters and board cards of the list page ----------
+const INDEX_DEFAULT_COLUMNS = {
+  contacts: ['name', 'email', 'phone', 'owner', 'assoc_company', 'status', 'created'],
+  companies: ['name', 'domain', 'phone', 'owner', 'industry', 'city', 'contacts', 'deals', 'created'],
+  deals: ['name', 'stage', 'pipeline', 'amount', 'closeDate', 'lastActivity', 'owner'],
+  tickets: ['name', 'status', 'priority', 'contact', 'owner', 'source', 'created'],
+  tasks: ['done', 'name', 'contact', 'due', 'type', 'priority', 'status', 'owner'],
+};
+const INDEX_DEFAULT_FILTERS = {
+  contacts: ['owner', 'created', 'activity', 'status'],
+  companies: ['owner', 'created', 'activity', 'industry', 'lifecycle'],
+  deals: ['owner', 'created', 'activity', 'close', 'stage', 'priority'],
+  tickets: ['owner', 'status', 'priority', 'created', 'source'],
+  tasks: ['owner', 'type', 'priority', 'status'],
+};
+const INDEX_EXTRA_LABELS = { assoc_company: 'Contacto → Empresas', contacts: 'Contactos', deals: 'Negocios abiertos', done: 'Hecha', contact: 'Contacto asociado', activity: 'Última actividad', close: 'Fecha de cierre', created: 'Fecha de creación', owner: 'Propietario', status: 'Estado', priority: 'Prioridad', type: 'Tipo', due: 'Fecha de vencimiento', industry: 'Sector', lifecycle: 'Etapa del ciclo de vida', source: 'Fuente', stage: 'Etapa del negocio', amount: 'Importe', closeDate: 'Fecha de cierre', lastActivity: 'Última actividad', pipeline: 'Pipeline', domain: 'Dominio', phone: 'Número de teléfono', email: 'Correo', name: 'Nombre', city: 'Ciudad' };
+const indexLabel = (type, k) => { const p = propertyList(type).find((x) => x.key === k); return p ? p.label : INDEX_EXTRA_LABELS[k] || k; };
+const indexColumns = (type) => load(`crm:${type}:defaultcolumns`, INDEX_DEFAULT_COLUMNS[type] || []);
+const indexFilters = (type) => load(`crm:${type}:quickfilters`, INDEX_DEFAULT_FILTERS[type] || []);
+const indexBoard = (type) => load(`crm:${type}:boardcard`, null);
 function objectIndexHtml(type) {
   const m = OBJ_META[type];
   const s = objSetting(type);
-  const saved = load(`crm:${type}:boardcard`, null);
-  const list = propertyList(type).slice(0, 40);
   const views = ['Todos', 'Míos', 'Sin asignar', 'Creados este mes'];
-  return `<h3>Página de índice de ${m.p.toLowerCase()}</h3><p class="muted">Configura la lista y el tablero que ven los usuarios al abrir ${m.p}.</p>
-    <div class="ofield"><strong>Vista predeterminada</strong><p class="muted">La vista que se abre primero al entrar en ${m.p}.</p><select class="ginput ginput--md" data-objsetting="defaultView" data-type="${type}">${views.map((v) => `<option ${s.defaultView === v ? 'selected' : ''}>${v}</option>`).join('')}</select></div>
-    <div class="ofield"><strong>Columnas predeterminadas</strong><p class="muted">Las columnas se editan desde la propia lista con el botón ⚙ "Editar columnas"; cada usuario guarda las suyas.</p><a class="btn btn--ghost btn--sm" href="../${type}/">Abrir la lista de ${m.p.toLowerCase()} ↗</a></div>
+  const now = (keys) => (keys && keys.length ? keys.map((k) => indexLabel(type, k)).join(', ') : 'Valores predeterminados');
+  const row = (title, desc, nowText, act, btn, extra = '') => `<div class="ixrow"><div><strong>${title}</strong><p class="muted">${desc}</p><p class="ixrow__now"><span class="muted">Ahora:</span> ${esc(nowText)}</p>${extra}</div><button class="btn btn--ghost" type="button" data-act="${act}" data-type="${type}">${btn}</button></div>`;
+  return `<p class="odesc">Personaliza la página de índice de ${m.p}: las columnas, los filtros rápidos y las tarjetas del tablero que ven todos los usuarios de forma predeterminada. <a href="../${type}/">Ir a la página de índice de ${m.p} ↗</a></p><hr class="cd-sep" />
+    <h3>Vista de tabla</h3>
+    ${row('Columnas predeterminadas', `Elige qué columnas ven los usuarios de forma predeterminada en la vista de tabla de ${m.p.toLowerCase()}. Cada usuario puede ajustar las suyas desde la lista con "Editar columnas". <a href="../${type}/">Más información ↗</a>`, now(indexColumns(type)), 'ix-columns', 'Personalizar las columnas predeterminadas')}
+    ${row('Filtros rápidos predeterminados', 'Los filtros rápidos aparecen encima de la tabla y del tablero. Puedes elegir hasta cinco propiedades.', now(indexFilters(type)), 'ix-filters', 'Personalizar los filtros rápidos')}
+    <div class="ixrow"><div><strong>Vista predeterminada</strong><p class="muted">La vista que se abre primero al entrar en ${m.p}.</p><select class="ginput ginput--md" data-objsetting="defaultView" data-type="${type}">${views.map((v) => `<option ${s.defaultView === v ? 'selected' : ''}>${v}</option>`).join('')}</select></div></div>
+    <h3>Vista de tablero</h3>
+    ${row('Tarjetas del tablero', 'Elige qué propiedades se muestran en cada tarjeta de la vista de tablero (máximo cuatro, en este orden).', indexBoard(type) ? now(indexBoard(type)) : 'Valores predeterminados', 'ix-board', 'Personalizar las tarjetas del tablero')}
     ${objCheck(type, 'boardCount', 'Mostrar el número de registros en cada etapa del tablero', 'Aparece junto al nombre de la etapa.', s.boardCount)}
-    <h3>Tarjetas del tablero</h3><p class="muted">Elige qué propiedades se muestran en cada tarjeta de la vista de tablero (máximo 4, en este orden).</p>
-    <form class="ocardform" data-save="boardcard" data-boardcard="${type}">
-      <div class="ocardgrid">${list.map((p) => `<label class="ocheck ocheck--sm"><input type="checkbox" name="k" value="${esc(p.key)}" ${saved ? (saved.includes(p.key) ? 'checked' : '') : ''} /><span>${esc(p.label)}</span></label>`).join('')}</div>
-      <div class="sform__btns"><button class="btn btn--primary" type="submit">Guardar tarjetas</button><button class="btn btn--ghost" type="button" data-act="reset-boardcard" data-type="${type}">Usar las predeterminadas</button></div>
-    </form>`;
+    <h3>Enlaces relacionados</h3>
+    <ul class="ixlinks">
+      <li><a class="olink" href="#data-properties" data-props-object-link="${type}">Gestionar propiedades de ${m.s}</a><span class="muted"> · Crea o edita las propiedades que puedes mostrar como columnas.</span></li>
+      <li><button class="olink" type="button" data-objects-tab="record">Personalización de registros</button><span class="muted"> · Diseña la ficha que se abre al pulsar un registro.</span></li>
+      <li><button class="olink" type="button" data-objects-tab="preview">Previsualizar personalización</button><span class="muted"> · Configura el panel de vista previa de la lista.</span></li>
+      <li><a class="olink" href="../${type}/">Gestionar vistas guardadas ↗</a><span class="muted"> · Las vistas se crean y comparten desde la propia lista.</span></li>
+      <li><a class="olink" href="#data-import">Importar y exportar ${m.p.toLowerCase()}</a><span class="muted"> · Carga registros desde un archivo o descarga la lista.</span></li>
+    </ul>`;
+}
+// Ordered picker used by the index customization: chosen items first (with ↑↓), the rest below.
+function orderedPicker({ title, intro, items, chosen, max, onSave, onReset }) {
+  let sel = [...chosen];
+  let q = '';
+  const paint = () => {
+    const byKey = Object.fromEntries(items.map((i) => [i.key, i]));
+    const rest = items.filter((i) => !sel.includes(i.key) && (!q || i.label.toLowerCase().includes(q)));
+    document.getElementById('s-modal-body').innerHTML = `<div class="ixpick">
+      ${intro ? `<p class="muted">${intro}</p>` : ''}
+      <div class="ixpick__sel"><strong>Seleccionadas (${sel.length}${max ? `/${max}` : ''})</strong>${sel.length ? `<ol>${sel.map((k, i) => `<li><span class="phandle" aria-hidden="true">⋮⋮</span><span class="ixpick__name">${esc((byKey[k] || { label: k }).label)}</span><span class="pmoves"><button type="button" class="icon-btn icon-btn--sm" data-ix-move="-1" data-k="${esc(k)}" ${i === 0 ? 'disabled' : ''} aria-label="Subir">↑</button><button type="button" class="icon-btn icon-btn--sm" data-ix-move="1" data-k="${esc(k)}" ${i === sel.length - 1 ? 'disabled' : ''} aria-label="Bajar">↓</button></span><button type="button" class="icon-btn icon-btn--sm" data-ix-rm="${esc(k)}" aria-label="Quitar">×</button></li>`).join('')}</ol>` : '<p class="muted">Nada seleccionado todavía.</p>'}</div>
+      <input class="ginput" type="search" id="ix-q" placeholder="Buscar propiedad" value="${esc(q)}" />
+      <div class="ocardgrid ocardgrid--modal">${rest.map((i) => `<label class="ocheck ocheck--sm"><input type="checkbox" data-ix-add="${esc(i.key)}" ${max && sel.length >= max ? 'disabled' : ''} /><span>${esc(i.label)}</span></label>`).join('') || '<p class="muted">Sin resultados.</p>'}</div>
+    </div>`;
+    document.getElementById('ix-save').disabled = sel.length === 0;
+    const qi = document.getElementById('ix-q');
+    if (q) { qi.focus(); qi.setSelectionRange(q.length, q.length); }
+  };
+  openModal(title, '', `<button class="btn btn--primary" type="button" id="ix-save">Guardar</button>${onReset ? '<button class="btn btn--ghost" type="button" id="ix-reset">Restablecer</button>' : ''}<button class="btn btn--ghost" type="button" data-close>Cancelar</button>`);
+  const body = document.getElementById('s-modal-body');
+  body.addEventListener('click', (ev) => {
+    const mv = ev.target.closest('[data-ix-move]');
+    if (mv) { const i = sel.indexOf(mv.dataset.k); const j = i + Number(mv.dataset.ixMove); if (j >= 0 && j < sel.length) { [sel[i], sel[j]] = [sel[j], sel[i]]; paint(); } return; }
+    const rm = ev.target.closest('[data-ix-rm]');
+    if (rm) { sel = sel.filter((k) => k !== rm.dataset.ixRm); paint(); }
+  });
+  body.addEventListener('change', (ev) => { const add = ev.target.closest('[data-ix-add]'); if (add && add.checked) { if (!max || sel.length < max) sel.push(add.dataset.ixAdd); paint(); } });
+  body.addEventListener('input', (ev) => { if (ev.target.id === 'ix-q') { q = ev.target.value.trim().toLowerCase(); paint(); } });
+  document.getElementById('ix-save').onclick = () => { onSave(sel); closeModal(); render(); };
+  if (onReset) document.getElementById('ix-reset').onclick = () => { onReset(); closeModal(); render(); };
+  paint();
+}
+function openIndexPicker(kind, type) {
+  const m = OBJ_META[type];
+  const propItems = propertyList(type).map((p) => ({ key: p.key, label: p.label }));
+  const withExtras = (keys) => [...keys.filter((k) => !propItems.some((p) => p.key === k)).map((k) => ({ key: k, label: indexLabel(type, k) })), ...propItems];
+  if (kind === 'columns') {
+    orderedPicker({ title: `Columnas predeterminadas de ${m.p}`, intro: 'Las columnas se muestran en este orden a quien no haya personalizado las suyas.', items: withExtras(INDEX_DEFAULT_COLUMNS[type] || []), chosen: indexColumns(type), max: 12, onSave: (sel) => { save(`crm:${type}:defaultcolumns`, sel); toast('Columnas predeterminadas guardadas'); }, onReset: () => { localStorage.removeItem(`crm:${type}:defaultcolumns`); toast('Columnas restablecidas'); } });
+  } else if (kind === 'filters') {
+    orderedPicker({ title: `Filtros rápidos de ${m.p}`, intro: 'Hasta cinco filtros, en este orden, encima de la lista y del tablero.', items: withExtras(INDEX_DEFAULT_FILTERS[type] || []), chosen: indexFilters(type), max: 5, onSave: (sel) => { save(`crm:${type}:quickfilters`, sel); toast('Filtros rápidos guardados'); }, onReset: () => { localStorage.removeItem(`crm:${type}:quickfilters`); toast('Filtros rápidos restablecidos'); } });
+  } else {
+    orderedPicker({ title: `Tarjetas del tablero de ${m.p}`, intro: 'Hasta cuatro propiedades por tarjeta, en este orden.', items: propItems, chosen: indexBoard(type) || [], max: 4, onSave: (sel) => { save(`crm:${type}:boardcard`, sel); toast('Tarjetas del tablero guardadas'); }, onReset: () => { localStorage.removeItem(`crm:${type}:boardcard`); toast('Tarjetas del tablero restablecidas'); } });
+  }
 }
 function objectAssocHtml(type) {
   const m = OBJ_META[type];
@@ -1196,6 +1266,9 @@ root.addEventListener('click', (e) => {
   }
   else if (a === 'clone-pipeline') openPipelinePanel('clone');
   else if (a === 'snav-toggle') { state.navCollapsed = !state.navCollapsed; localStorage.setItem(SNAV_KEY, state.navCollapsed ? '1' : '0'); render(); }
+  else if (a === 'ix-columns') openIndexPicker('columns', act.dataset.type);
+  else if (a === 'ix-filters') openIndexPicker('filters', act.dataset.type);
+  else if (a === 'ix-board') openIndexPicker('board', act.dataset.type);
   else if (a === 'reset-boardcard') { localStorage.removeItem(`crm:${act.dataset.type}:boardcard`); render(); toast('Tarjetas del tablero restablecidas'); }
   else if (a === 'new-recordview') promptModal('Crear vista de equipo', [['name', 'Nombre de la vista'], ['teams', 'Asignar al equipo', 'select', teams().map((t) => t.name)]], 'Crear', (d) => { const type = act.dataset.type; const list = recordViews(type); const name = d.name.trim(); if (!name) return; if (list.some((v) => v.name.toLowerCase() === name.toLowerCase())) { toast('Ya existe una vista con ese nombre'); return; } list.push({ name, teams: [d.teams], updated: new Date().toISOString(), by: 'Fernando Lovera Colin' }); saveRecordViews(type, list); toast(`Vista "${name}" creada`); });
   else if (a === 'rv-delete-sel') { const type = act.dataset.type; const list = recordViews(type).filter((v) => !state.rvSel.has(v.name)); saveRecordViews(type, list); state.rvSel = new Set(); render(); toast('Vistas eliminadas'); }

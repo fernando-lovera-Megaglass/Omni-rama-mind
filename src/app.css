@@ -7019,6 +7019,83 @@ textarea.cellpop__input {
   }
 }
 
+/* Personalización del índice */
+.ixrow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-24);
+  padding: var(--sp-20) 0;
+  border-bottom: 1px solid var(--c-border);
+}
+
+.ixrow > div {
+  max-width: 720px;
+}
+
+.ixrow > div > strong {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 16px;
+}
+
+.ixrow .muted {
+  margin: 0 0 var(--sp-8);
+}
+
+.ixrow__now {
+  margin: 0;
+  font-size: var(--fs-sm);
+}
+
+.ixrow > .btn {
+  flex: none;
+  white-space: nowrap;
+}
+
+.ixlinks {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.ixlinks li {
+  padding: var(--sp-10) 0;
+  border-bottom: 1px solid var(--c-border);
+}
+
+.ixpick__sel {
+  margin-bottom: var(--sp-16);
+}
+
+.ixpick__sel ol {
+  list-style: none;
+  margin: var(--sp-8) 0 0;
+  padding: 0;
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-md);
+}
+
+.ixpick__sel li {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-10);
+  padding: var(--sp-8) var(--sp-12);
+  border-bottom: 1px solid var(--c-border);
+}
+
+.ixpick__sel li:last-child {
+  border-bottom: 0;
+}
+
+.ixpick__name {
+  flex: 1;
+}
+
+.ixpick .ginput {
+  margin: var(--sp-8) 0;
+}
+
 /* Record views tab */
 .rvbar {
   display: flex;

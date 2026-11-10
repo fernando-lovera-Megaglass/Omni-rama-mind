@@ -11,7 +11,18 @@ export function mountList(cfg) {
   const prefs = getPrefs(cfg.type);
   const groups = propertyGroups(cfg.type);
   const props = propertyMap(cfg.type);
-  const defaultColumns = cfg.columns.filter((c) => c.default !== false).map((c) => c.key);
+  // Account-wide defaults set in Configuración › Objetos › Personalización del índice (columns and quick filters).
+  const adminJson = (what) => { try { const s = JSON.parse(localStorage.getItem(`crm:${cfg.type}:${what}`)); return Array.isArray(s) && s.length ? s : null; } catch { return null; } };
+  const adminColumns = (adminJson('defaultcolumns') || []).filter((k) => cfg.columns.some((c) => c.key === k) || props[k]);
+  const defaultColumns = adminColumns.length ? adminColumns : cfg.columns.filter((c) => c.default !== false).map((c) => c.key);
+  const adminFilters = adminJson('quickfilters');
+  if (adminFilters) {
+    const rows = cfg.rows();
+    const made = adminFilters
+      .map((k) => cfg.filters.find((f) => f.key === k) || (props[k] ? { key: k, label: props[k].label, options: [...new Set(rows.map((r) => r[k]).filter((v) => v !== undefined && v !== null && v !== ''))].slice(0, 10).map((v) => [String(v), String(v)]), test: (r, v) => String(r[k]) === v } : null))
+      .filter(Boolean);
+    if (made.length) cfg.filters = made;
+  }
 
   const SHARE_LABEL = { private: 'Privada', team: 'Mi equipo', all: 'Todos' };
   const ME = 'Fernando L.';
@@ -2094,7 +2105,7 @@ export function mountList(cfg) {
       state.showFilters = !state.showFilters;
       setPrefs(cfg.type, { showFilters: state.showFilters });
       render();
-    } else if (a === 'edit-quick') toast('Filtros rápidos: ' + cfg.filters.map((f) => f.label).join(', ') + '. La edición estará disponible en la próxima versión.');
+    } else if (a === 'edit-quick') { window.location.href = `../settings/#obj-${cfg.type}:index`; }
     else if (a === 'adv-clear-all') {
       state.advanced = [];
       render();
