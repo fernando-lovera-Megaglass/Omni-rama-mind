@@ -1,6 +1,6 @@
 // Generic object list: views, filter menus, search, sort, paging, selection,
 // column editor (full property catalog), advanced filters, CSV export/import, create drawer.
-import { wireMenus, closeMenus, toast } from './shell.js';
+import { wireMenus, closeMenus, toast, linkHtml, wireLinkTooltips } from './shell.js';
 import { addRecord, deleteRecords, restoreAll, getPrefs, setPrefs, getViewStore, setViewStore, matches, strip, toCsv, download, formatDate, formatMoney, formatShortDate, relativeTime, setField, TODAY, ALL } from './data.js';
 import { defaultTabs, deletedViews, saveDeletedViews } from './std-views.js';
 import { propertyGroups, propertyMap } from './properties.js';
@@ -157,8 +157,8 @@ export function mountList(cfg) {
       if (['number', 'currency', 'percent', 'id'].includes(p.kind)) return Number(v) || 0;
       return String(v ?? '');
     };
-    const render = p.kind === 'url'
-      ? (r) => (r[key] ? `<a href="#">${esc(r[key])}</a>` : '<span class="muted">—</span>')
+    const render = ['url', 'email', 'phone'].includes(p.kind)
+      ? (r) => (r[key] ? linkHtml(p.kind, String(r[key])) : '<span class="muted">—</span>')
       : p.kind === 'user'
         ? (r) => ownerHtml(r[key])
         : (r) => (text(r) === '' ? '<span class="muted">—</span>' : esc(text(r)));
@@ -167,7 +167,23 @@ export function mountList(cfg) {
   const labelOf = (key) => (col(key) || { label: key }).label;
   const visibleColumns = () => state.columns.map(col).filter(Boolean);
   const cellText = (c, r) => (c.text ? c.text(r) : r[c.key] ?? '');
-  const cellHtml = (c, r) => (c.render ? c.render(r) : esc(cellText(c, r)));
+  // Web addresses, e-mails and phones open from the table (teal link, external icon, tooltip with the full address).
+  const PHONE_KEYS = new Set(['phone', 'mobilephone', 'alt_phone', 'fax', 'hs_whatsapp_phone_number']);
+  function kindForLink(key) {
+    const p = props[key];
+    if (p && ['url', 'email', 'phone'].includes(p.kind)) return p.kind;
+    if (key === 'email' || key === 'alt_email') return 'email';
+    if (PHONE_KEYS.has(key)) return 'phone';
+    if (key === 'domain' || key === 'website') return 'url';
+    return '';
+  }
+  const cellHtml = (c, r) => {
+    if (c.render) return c.render(r);
+    const k = kindForLink(c.key);
+    const v = r[c.key];
+    if (k && v !== undefined && v !== null && v !== '') return linkHtml(k, String(v));
+    return esc(cellText(c, r));
+  };
   // The number a cell counts as on the colour scale: sort value (numbers, money, dates as timestamps) or nothing.
   const NUMERIC_KINDS = new Set(['number', 'currency', 'percent', 'id', 'date', 'datetime']);
   function numericOf(c, r) {
@@ -1911,7 +1927,7 @@ export function mountList(cfg) {
           if (c.startsWith('pcard-') && pvLayout.cards && pvLayout.cards[c]) {
             // Custom property card created in the preview editor.
             const card = pvLayout.cards[c];
-            const rows = (card.props || []).map((key) => { const col0 = col(key); const label = col0 ? col0.label : props[key] ? props[key].label : key; const v = col0 ? cellText(col0, r) : r[key]; const isUser = key === 'owner' || (props[key] && props[key].kind === 'user'); return `<div class="props__row"><dt>${esc(label)}</dt><dd>${isUser ? ownerHtml(v, 'sm') : v === '' || v === undefined || v === null ? '<span class="muted">--</span>' : esc(v)}</dd></div>`; }).join('');
+            const rows = (card.props || []).map((key) => { const col0 = col(key); const label = col0 ? col0.label : props[key] ? props[key].label : key; const v = col0 ? cellText(col0, r) : r[key]; const isUser = key === 'owner' || (props[key] && props[key].kind === 'user'); return `<div class="props__row"><dt>${esc(label)}</dt><dd>${isUser ? ownerHtml(v, 'sm') : v === '' || v === undefined || v === null ? '<span class="muted">--</span>' : kindForLink(key) ? linkHtml(kindForLink(key), String(r[key] ?? v)) : esc(v)}</dd></div>`; }).join('');
             return `<section class="pvcard"><h3 class="pvcard__title">${esc(card.label)}</h3><dl class="props">${rows || '<p class="muted">Sin propiedades.</p>'}</dl></section>`;
           }
           return '';
@@ -2642,6 +2658,7 @@ export function mountList(cfg) {
   });
 
   wireMenus();
+  wireLinkTooltips();
   render();
   return { render, state, filtered, setMode };
 }

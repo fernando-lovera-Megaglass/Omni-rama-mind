@@ -4,7 +4,7 @@
 // middle column (tabs, summary and recent activity cards), right column (AI summary,
 // lead stage, associations).
 import { boot } from './page.js';
-import { toast, wireMenus, closeMenus } from './shell.js';
+import { toast, wireMenus, closeMenus, linkHtml, wireLinkTooltips } from './shell.js';
 import {
   findRecord, setField, deleteRecords, addRecord, allContacts, allCompanies, allDeals, allTickets, allTasks, ALL,
   STATUSES, LIFECYCLES, SOURCES, OWNERS, DEAL_STAGES, TICKET_STATUSES, PRIORITIES, TASK_TYPES, TASK_STATUSES,
@@ -12,6 +12,7 @@ import {
 } from './data.js';
 import { propertyGroups, propertyMap } from './properties.js';
 const PROPERTIES = new Proxy({}, { get: (_, t) => propertyGroups(t) });
+wireLinkTooltips();
 import { openCompose, editSignature } from './compose.js';
 import { ownerHtml } from './list.js';
 import { loadLayout, cardCatalog } from './layout-defaults.js';
@@ -337,7 +338,9 @@ function displayValue(f, r) {
   if (kind === 'select') return esc((options.find((o) => String(o[0]) === String(v)) || [v, v])[1]);
   if (kind === 'date' || kind === 'date-ro') return formatDate(v);
   if (key === 'amount' || key === 'revenue') return formatMoney(v, key === 'amount' ? r.deal_currency_code : undefined);
-  if (kind === 'email' || key === 'email') return `<a href="mailto:${esc(v)}">${esc(v)}</a>`;
+  if (kind === 'email' || key === 'email' || key === 'alt_email' || (props[key] && props[key].kind === 'email')) return linkHtml('email', v);
+  if (kind === 'url' || key === 'domain' || key === 'website' || (props[key] && props[key].kind === 'url')) return linkHtml('url', v);
+  if (kind === 'tel' || (props[key] && props[key].kind === 'phone')) return linkHtml('phone', v);
   return esc(v);
 }
 function editor(f, r) {
@@ -354,7 +357,7 @@ function propValue(p, v) {
   if (p.kind === 'currency') return formatMoney(v, type === 'deals' && p.key === 'amount' ? rec.deal_currency_code : undefined);
   if (p.kind === 'percent') return `${v} %`;
   if (p.kind === 'date' || p.kind === 'datetime') return formatDate(v);
-  if (p.kind === 'url') return `<a href="#">${esc(v)}</a>`;
+  if (p.kind === 'url' || p.kind === 'email' || p.kind === 'phone') return linkHtml(p.kind, v);
   if (p.kind === 'stage') return esc(labelOf(DEAL_STAGES, v));
   if (p.kind === 'priority') return esc(labelOf(PRIORITIES, v));
   if (p.kind === 'status') return esc(labelOf(type === 'tickets' ? TICKET_STATUSES : TASK_STATUSES, v));

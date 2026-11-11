@@ -65,7 +65,7 @@ mountList({
   ],
   columns: [
     { key: 'name', label: 'Nombre de la empresa', render: (r) => avatarName(r.id, r.name, `./record/?id=${r.id}`) },
-    { key: 'domain', label: 'Dominio', render: (r) => (r.domain ? `<a href="#">${r.domain}</a>` : '<span class="muted">—</span>') },
+    { key: 'domain', label: 'Dominio' },
     { key: 'phone', label: 'Número de teléfono' },
     { key: 'owner', label: 'Propietario de la empresa', render: (r) => ownerHtml(r.owner) },
     { key: 'industry', label: 'Sector' },

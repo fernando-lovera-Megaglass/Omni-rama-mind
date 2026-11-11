@@ -280,6 +280,45 @@ export function closeMenus() {
   });
 }
 
+// Link-type values (URL, e-mail, phone) as they appear in tables and cards: a teal link that opens the
+// address, with the external-link icon for web addresses and e-mails, as in the original.
+const escText = (s) => String(s ?? '').replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+export function linkHref(kind, value) {
+  const v = String(value ?? '').trim();
+  if (!v) return '';
+  if (kind === 'email') return `mailto:${v}`;
+  if (kind === 'phone') return `tel:${v.replace(/[^\d+]/g, '')}`;
+  return /^[a-z][a-z0-9+.-]*:/i.test(v) ? v : `https://${v}`;
+}
+export function linkHtml(kind, value) {
+  const v = String(value ?? '').trim();
+  if (!v) return '<span class="muted">—</span>';
+  const href = linkHref(kind, v);
+  const external = kind !== 'phone';
+  return `<a class="cell-link${external ? '' : ' cell-link--plain'}" href="${escText(href)}" ${external ? 'target="_blank" rel="noopener"' : ''} data-full="${escText(kind === 'phone' ? v : href)}"><span class="cell-link__text">${escText(v)}</span>${external ? '<span class="ico ico--ext" aria-hidden="true"></span>' : ''}</a>`;
+}
+// One dark tooltip with the full address, shown above whichever link the pointer is over.
+export function wireLinkTooltips() {
+  if (document.body.dataset.linkTips) return;
+  document.body.dataset.linkTips = '1';
+  const tip = document.createElement('div');
+  tip.className = 'linktip';
+  tip.hidden = true;
+  document.body.appendChild(tip);
+  document.addEventListener('mouseover', (e) => {
+    const a = e.target.closest && e.target.closest('a.cell-link[data-full]');
+    if (!a) return;
+    tip.textContent = a.dataset.full;
+    tip.hidden = false;
+    const r = a.getBoundingClientRect();
+    tip.style.left = `${Math.max(8, Math.min(r.left + r.width / 2, window.innerWidth - 8))}px`;
+    tip.style.top = `${r.top - 8}px`;
+  });
+  document.addEventListener('mouseout', (e) => {
+    if (e.target.closest && e.target.closest('a.cell-link[data-full]')) tip.hidden = true;
+  });
+}
+
 export function toast(text) {
   let el = document.getElementById('toast');
   if (!el) {
