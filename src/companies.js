@@ -1,6 +1,6 @@
 import { boot } from './page.js';
 import { mountList, avatarName, ownerHtml } from './list.js';
-import { allCompanies, allContacts, allDeals, OWNERS, LIFECYCLES, formatDate, formatMoney, formatShortDate, TODAY, lifecycleTag, toHomeCurrency, homeCurrency } from './data.js';
+import { allCompanies, allContacts, allDeals, OWNERS, LIFECYCLES, formatDate, formatMoney, formatMoneyShort, formatShortDate, TODAY, lifecycleTag, toHomeCurrency, homeCurrency } from './data.js';
 
 boot({ root: '../', active: 'crm', sub: 'Empresas', title: 'Empresas' });
 
@@ -25,7 +25,7 @@ mountList({
       ['Empresas en la vista', String(rows.length), 'Número de empresas que cumplen los filtros actuales.'],
       ['Nuevas este mes', n((r) => days(r.created) <= 30), 'Empresas creadas en los últimos 30 días.'],
       ['Con negocios abiertos', n((r) => openDeals(r.id) > 0), 'Empresas con al menos un negocio sin cerrar.'],
-      ['Valor de negocios abiertos', formatMoney(open.reduce((s, d) => s + toHomeCurrency(d.amount, d.deal_currency_code), 0)), `Importe de los negocios abiertos de estas empresas, en ${homeCurrency()}.`],
+      ['Valor de negocios abiertos', formatMoneyShort(open.reduce((s, d) => s + toHomeCurrency(d.amount, d.deal_currency_code), 0)), `Importe de los negocios abiertos de estas empresas, en ${homeCurrency()}.`],
       ['Contactos asociados', String(rows.reduce((s, r) => s + contactCount(r.id), 0)), 'Contactos vinculados a las empresas de la vista.'],
       ['Sin propietario', n((r) => r.owner === 'Sin asignar'), 'Empresas que todavía no tienen propietario.'],
     ];

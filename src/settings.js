@@ -84,7 +84,7 @@ setSection((location.hash || '#prefs-general').slice(1));
 // ---------- stores ----------
 const profile = () => ({ first: 'Fernando', last: 'Lovera Colin', email: 'fernando-lovera@megaglass.us', lang: 'Español', region: 'México y Centroamérica', currency: 'MXN', dial: '+52', phone: '72-25-103617', ...load('crm:profile', {}) });
 const notif = () => ({ email_assign: true, email_mention: true, email_digest: false, push_tasks: true, push_deals: true, ...load('crm:notif', {}) });
-const account = () => ({ name: 'Megaglass', tz: 'America/Mexico_City', currency: 'EUR', lang: 'Español', fiscalYear: 'Enero', ...load('crm:account', {}) });
+const account = () => ({ name: 'Megaglass', tz: 'America/Mexico_City', currency: 'MXN', lang: 'Español', fiscalYear: 'Enero', ...load('crm:account', {}) });
 const users = () => load('crm:users', OWNERS.filter((o) => o !== 'Sin asignar').map((o, i) => ({ name: o, email: `${slug(o).replace(/_/g, '.')}@megaglass.us`, team: TEAMS[i % 3], role: i === 0 ? 'Superadministrador' : 'Usuario', status: 'Activo' })));
 const teams = () => load('crm:teams', TEAMS.map((t) => ({ name: t })));
 const integrations = () => load('crm:integrations', [

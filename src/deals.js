@@ -1,6 +1,6 @@
 import { boot } from './page.js';
 import { mountList, tag, link, ownerHtml } from './list.js';
-import { allDeals, allCompanies, DEAL_STAGES, PRIORITIES, OWNERS, formatDate, formatMoney, labelOf, classOf, TODAY, dealPipelines, dealPipelineDefs, addRecord, setField, CURRENCY_DEFS, CURRENCY_CODES, homeCurrency, toHomeCurrency } from './data.js';
+import { allDeals, allCompanies, DEAL_STAGES, PRIORITIES, OWNERS, formatDate, formatMoney, formatMoneyShort, labelOf, classOf, TODAY, dealPipelines, dealPipelineDefs, addRecord, setField, CURRENCY_DEFS, CURRENCY_CODES, homeCurrency, toHomeCurrency } from './data.js';
 import { toast } from './shell.js';
 
 boot({ root: '../', active: 'crm', sub: 'Negocios', title: 'Negocios' });
@@ -47,10 +47,11 @@ mountList({
     const open = rows.filter(isOpen);
     const won = rows.filter((r) => r.stage === 'won');
     return [
-      ['Valor total de los negocios', formatMoney(sum(rows, home)), `Suma del importe de todos los negocios de la vista, en ${HOME} (moneda de la empresa).`],
-      ['Valor ponderado de los negocios', formatMoney(sum(rows, (r) => (home(r) * probOf(r)) / 100)), `Importe en ${HOME} multiplicado por la probabilidad de cierre de cada etapa.`],
-      ['Valor de pipeline abierto', formatMoney(sum(open, home)), `Importe en ${HOME} de los negocios que no están cerrados.`],
-      ['Ingresos de cierre ganados', formatMoney(sum(won, home)), `Importe en ${HOME} de los negocios cerrados ganados.`],
+      ['Valor total de los negocios', formatMoneyShort(sum(rows, home)), `Suma del importe de todos los negocios de la vista, en ${HOME} (moneda de la empresa).`],
+      ['Valor ponderado de los negocios', formatMoneyShort(sum(rows, (r) => (home(r) * probOf(r)) / 100)), `Importe en ${HOME} multiplicado por la probabilidad de cierre de cada etapa.`],
+      ['Valor de pipeline abierto', formatMoneyShort(sum(open, home)), `Importe en ${HOME} de los negocios que no están cerrados.`],
+      ['Ingresos de cierre ganados', formatMoneyShort(sum(won, home)), `Importe en ${HOME} de los negocios cerrados ganados.`],
+      ['Valor de los nuevos negocios', formatMoneyShort(sum(rows.filter((r) => days(r.created) <= 30), home)), `Importe en ${HOME} de los negocios creados en los últimos 30 días.`],
       ['Antigüedad media de los negocios', open.length ? months(sum(open, (r) => days(r.created)) / open.length) : '--', 'Tiempo medio desde la creación de los negocios abiertos.'],
       ['Negocios abiertos', String(open.length), 'Número de negocios que siguen en curso.'],
     ];

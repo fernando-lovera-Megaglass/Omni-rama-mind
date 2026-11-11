@@ -219,14 +219,15 @@ export function relativeTime(d) {
 // each deal carries its own currency (deal_currency_code) and the exchange rates (home units per 1 unit of
 // each currency) live in crm:currencies. Amounts are shown in the deal's currency; totals in the company's.
 export const CURRENCY_DEFS = {
-  EUR: { name: 'Euro', symbol: '€', after: true },
+  MXN: { name: 'Peso mexicano', symbol: '$', after: false },
   USD: { name: 'Dólar estadounidense', symbol: '$', after: false },
-  MXN: { name: 'Peso mexicano', symbol: 'MX$', after: false },
-  COP: { name: 'Peso colombiano', symbol: 'COP $', after: false },
+  EUR: { name: 'Euro', symbol: '€', after: true },
+  COP: { name: 'Peso colombiano', symbol: '$', after: false },
   GBP: { name: 'Libra esterlina', symbol: '£', after: false },
 };
 export const CURRENCY_CODES = Object.keys(CURRENCY_DEFS);
 export const CURRENCY_KEY = 'crm:currencies';
+export const DEFAULT_HOME_CURRENCY = 'MXN';
 const EUR_VALUE = { EUR: 1, USD: 0.92, MXN: 0.049, COP: 0.00023, GBP: 1.17 };
 export function homeCurrency() {
   try {
@@ -235,7 +236,7 @@ export function homeCurrency() {
   } catch {
     /* ignore */
   }
-  return 'EUR';
+  return DEFAULT_HOME_CURRENCY;
 }
 // Rates: how many units of the company currency 1 unit of each currency is worth ("1 USD = 0,92 EUR").
 export function currencyRates() {
@@ -255,10 +256,28 @@ export function toHomeCurrency(amount, code) {
   if (c === homeCurrency()) return n;
   return n * (currencyRates()[c] || 1);
 }
-export function formatMoney(n, code) {
-  const def = CURRENCY_DEFS[currencyOf(code)];
-  const num = Math.round(Number(n) || 0).toLocaleString('es-ES');
+// Amounts read like the original: the company currency with its symbol ("$71,937,108.59"), any other
+// currency with its code ("USD 200,000,000"); decimals only when the amount has them.
+const fmtNum = (n) => {
+  const v = Math.round((Number(n) || 0) * 100) / 100;
+  const dec = Number.isInteger(v) ? 0 : 2;
+  return v.toLocaleString('en-US', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+};
+const withCurrency = (num, code) => {
+  const c = currencyOf(code);
+  const def = CURRENCY_DEFS[c];
+  if (c !== homeCurrency()) return `${c} ${num}`;
   return def.after ? `${num} ${def.symbol}` : `${def.symbol}${num}`;
+};
+export function formatMoney(n, code) {
+  return withCurrency(fmtNum(n), code);
+}
+// Abbreviated amounts for the metrics card: "$35.62 mil M" (thousands of millions), "$683.46 M", "$523.41 mil".
+export function formatMoneyShort(n, code) {
+  const v = Number(n) || 0;
+  const abs = Math.abs(v);
+  const short = abs >= 1e9 ? `${(v / 1e9).toFixed(2)} mil M` : abs >= 1e6 ? `${(v / 1e6).toFixed(2)} M` : abs >= 1e3 ? `${(v / 1e3).toFixed(2)} mil` : fmtNum(v);
+  return withCurrency(short, code);
 }
 // A deal's derived money fields: its currency (defaulting to the company's), the rate and the amount in the company currency.
 export function withHomeAmount(r) {
