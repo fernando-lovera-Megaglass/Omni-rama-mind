@@ -477,7 +477,7 @@ export const PROPERTIES = {
     g('Información del ticket', [
       ['name', 'Nombre del ticket', 'text'],
       ['description', 'Descripción del ticket', 'text'],
-      ['pipeline', 'Pipeline', 'enum', ['Pipeline de soporte']],
+      ['pipeline', 'Pipeline', 'enum', ['Pipeline de soporte', 'Cotizaciones', 'Garantías', 'Instalaciones']],
       ['status', 'Estado del ticket', 'status'],
       ['priority', 'Prioridad', 'priority'],
       ['owner', 'Propietario del ticket', 'user', OWNER_OPTS],

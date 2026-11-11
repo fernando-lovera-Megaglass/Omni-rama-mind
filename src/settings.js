@@ -1,7 +1,7 @@
 // Account settings (the gear in the top bar): a full settings tree with a pane per section.
 import { boot } from './page.js';
 import { toast, wireMenus, closeMenus } from './shell.js';
-import { CURRENCY_DEFS, CURRENCY_CODES, currencyRates, saveCurrencyRates, homeCurrency, OWNERS, DEAL_STAGES, TICKET_STATUSES, PIPELINE_KEY, ASSOC_LABELS_KEY, assocLabels, ALL, formatDate, formatMoney, dealPipelines, saveDealPipelines, dealPipelineDefs, saveDealPipelineDefs, newPipelineDef, setField, LIFECYCLES, download, lifecycleDef, saveLifecycleDef, defaultLifecycleDef } from './data.js';
+import { ticketPipelines, saveTicketPipelines, CURRENCY_DEFS, CURRENCY_CODES, currencyRates, saveCurrencyRates, homeCurrency, OWNERS, DEAL_STAGES, TICKET_STATUSES, PIPELINE_KEY, ASSOC_LABELS_KEY, assocLabels, ALL, formatDate, formatMoney, dealPipelines, saveDealPipelines, dealPipelineDefs, saveDealPipelineDefs, newPipelineDef, setField, LIFECYCLES, download, lifecycleDef, saveLifecycleDef, defaultLifecycleDef } from './data.js';
 import { propertyGroups, customProperties, saveCustomProperties, propertyList } from './properties.js';
 import { TEAMS, loadLayout, cardCatalog } from './layout-defaults.js';
 import { STD_VIEWS, defaultTabs } from './std-views.js';
@@ -535,7 +535,12 @@ function objectPipelineHtml(type) {
   if (type === 'deals') return dealPipelinesHtml();
   if (type === 'tickets') {
     const ov = load(PIPELINE_KEY('tickets'), {});
-    return `<h3>Pipeline de soporte</h3>${simpleTable(['Estado', 'Nombre'], TICKET_STATUSES.map(([k, l]) => [`<span class="muted">${k}</span>`, `<input class="cellpop__input cellpop__input--sm" data-stage-label="${k}" value="${esc((ov[k] && ov[k].label) || l)}" />`]))}<div class="sform__btns"><button class="btn btn--primary" type="button" data-act="save-pipeline" data-type="tickets">Guardar pipeline</button><button class="btn btn--ghost" type="button" data-act="reset-pipeline" data-type="tickets">Restablecer</button></div>`;
+    const pipes = ticketPipelines();
+    const counts = Object.fromEntries(pipes.map((p) => [p, ALL.tickets().filter((t) => t.pipeline === p).length]));
+    return `<h3>Pipelines de tickets</h3><p class="muted">Cada ticket pertenece a un pipeline; en la lista de Tickets se eligen con el selector de pipelines.</p>
+    ${simpleTable(['Pipeline', 'Tickets', ''], pipes.map((p, i) => [`<strong>${esc(p)}</strong>`, String(counts[p] || 0), pipes.length > 1 ? `<button class="link-btn" type="button" data-ticketpipe-rm="${i}" ${counts[p] ? 'disabled title="Tiene tickets"' : ''}>Eliminar</button>` : '']))}
+    <form class="sform" data-save="ticketpipeline"><div class="sform__row"><label class="field"><span>Nuevo pipeline</span><input name="name" required maxlength="60" placeholder="Por ejemplo: Cotizaciones Kafer" /></label></div><div class="sform__btns"><button class="btn btn--primary" type="submit">Crear pipeline</button></div></form>
+    <h3>Estados de los tickets (compartidos por todos los pipelines)</h3>${simpleTable(['Estado', 'Nombre'], TICKET_STATUSES.map(([k, l]) => [`<span class="muted">${k}</span>`, `<input class="cellpop__input cellpop__input--sm" data-stage-label="${k}" value="${esc((ov[k] && ov[k].label) || l)}" />`]))}<div class="sform__btns"><button class="btn btn--primary" type="button" data-act="save-pipeline" data-type="tickets">Guardar pipeline</button><button class="btn btn--ghost" type="button" data-act="reset-pipeline" data-type="tickets">Restablecer</button></div>`;
   }
   return '<p class="muted">Este objeto no usa pipelines. Los ciclos de vida se gestionan en la propiedad "Etapa del ciclo de vida".</p>';
 }
@@ -1289,6 +1294,12 @@ root.addEventListener('submit', (e) => {
   }
   else if (what === 'password') { form.reset(); toast('Contraseña actualizada'); }
   else if (what === 'signature') { setSignature(d); toast('Firma guardada'); }
+  else if (what === 'ticketpipeline') {
+    const name = (d.name || '').trim();
+    const list = ticketPipelines();
+    if (name && !list.includes(name)) { saveTicketPipelines([...list, name]); toast(`Pipeline "${name}" creado`); } else toast('Ese pipeline ya existe');
+    render();
+  }
   else if (what === 'copy') { const log = load('crm:copies', []); log.unshift({ when: formatDate(new Date()), res: d.res, to: d.to }); save('crm:copies', log); render(); toast(`"${d.res}" copiado a ${d.to}`); }
   else if (what === 'pipelabel') {
     const defs = dealPipelineDefs(); const p = defs[state.pipeEdit]; const list = labelsOf(p).slice(); const v = d.label.trim();
@@ -1553,10 +1564,11 @@ root.addEventListener('click', (e) => {
   if (parch) { closeMenus(); const k = parch.dataset.propArchive || parch.dataset.propRestore; const list = customProperties(state.propsObject); const p = list.find((x) => x.key === k); if (p) { p.archived = Boolean(parch.dataset.propArchive); saveCustomProperties(state.propsObject, list); } render(); toast(parch.dataset.propArchive ? 'Propiedad archivada' : 'Propiedad restaurada'); return; }
   const pgrm = e.target.closest('[data-propgroup-rm]');
   if (pgrm) { save(`crm:propgroups:${state.propsObject}`, propGroupsStore(state.propsObject).filter((g) => g !== pgrm.dataset.propgroupRm)); render(); toast('Grupo eliminado'); return; }
-  const rm = e.target.closest('[data-team-rm], [data-label-rm], [data-app-rm], [data-hook-rm], [data-pipeline-rm], [data-recordview-rm]');
+  const rm = e.target.closest('[data-team-rm], [data-label-rm], [data-app-rm], [data-hook-rm], [data-pipeline-rm], [data-ticketpipe-rm], [data-recordview-rm]');
   if (rm) {
     const d = rm.dataset;
     if (d.pipelineRm !== undefined) { const list = dealPipelines(); const [p] = list.splice(Number(d.pipelineRm), 1); saveDealPipelines(list); toast(`Pipeline "${p}" eliminado`); }
+    else if (d.ticketpipeRm !== undefined) { const list = ticketPipelines(); const [p] = list.splice(Number(d.ticketpipeRm), 1); saveTicketPipelines(list); toast(`Pipeline "${p}" eliminado`); }
     else if (d.recordviewRm !== undefined) { const list = recordViews(d.type); list.splice(Number(d.recordviewRm), 1); saveRecordViews(d.type, list); toast('Vista eliminada'); }
     else if (d.teamRm !== undefined) { const ts = teams(); const [t] = ts.splice(Number(d.teamRm), 1); save('crm:teams', ts); toast(`Equipo "${t.name}" eliminado`); }
     else if (d.labelRm !== undefined) { const labels = assocLabels(); labels.splice(Number(d.labelRm), 1); save(ASSOC_LABELS_KEY, labels); toast('Etiqueta quitada'); }

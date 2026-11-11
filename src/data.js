@@ -152,6 +152,22 @@ export function saveDealPipelines(names) {
   const defs = dealPipelineDefs();
   saveDealPipelineDefs(names.map((n) => defs.find((d) => d.name === n) || newPipelineDef(n)));
 }
+// Ticket pipelines (Configuración › Objetos › Tickets › Pipelines); the statuses are shared by all of them.
+export const TICKET_PIPELINES_KEY = 'crm:pipelines:tickets';
+export const DEFAULT_TICKET_PIPELINES = ['Pipeline de soporte', 'Cotizaciones', 'Garantías', 'Instalaciones'];
+export function ticketPipelines() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(TICKET_PIPELINES_KEY));
+    if (Array.isArray(saved) && saved.length && saved.every((n) => typeof n === 'string')) return saved;
+  } catch {
+    /* ignore */
+  }
+  return DEFAULT_TICKET_PIPELINES.slice();
+}
+export function saveTicketPipelines(names) {
+  localStorage.setItem(TICKET_PIPELINES_KEY, JSON.stringify(names.map((n) => String(n).trim()).filter(Boolean)));
+  if (typeof bump === 'function') bump();
+}
 export function stagesFor(pipelineName) {
   const d = dealPipelineDefs().find((p) => p.name === pipelineName);
   return d ? d.stages : DEAL_STAGES;
@@ -675,7 +691,7 @@ function buildTicket(i) {
     name: ['Cristal roto en entrega', 'Retraso en instalación', 'Consulta de garantía', 'Factura incorrecta', 'Medidas no coinciden', 'Solicitud de presupuesto', 'Ruido en ventana', 'Cambio de fecha', 'Condensación entre vidrios', 'Herraje suelto', 'Duda sobre mantenimiento', 'Reclamación de transporte'][i % 12],
     status: TICKET_STATUSES[(i * 2) % 4][0],
     priority: PRIORITIES[(i * 3) % 3][0],
-    pipeline: 'Pipeline de soporte',
+    pipeline: DEFAULT_TICKET_PIPELINES[[0, 0, 1, 2, 0, 1, 3][i % 7]],
     owner: OWNERS[(i * 3) % OWNERS.length],
     contactId: (i * 7) % COUNTS.contacts + 1,
     source: ['Correo', 'Formulario', 'Chat', 'Teléfono', 'WhatsApp'][i % 5],
