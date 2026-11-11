@@ -81,7 +81,7 @@ export function assocText(kind, key, r) {
     if (kind === 'tickets') return labelIn(TICKET_STATUSES, v);
     if (kind === 'tasks') return labelIn(TASK_STATUSES, v);
   }
-  if (k === 'currency') return formatMoney(v);
+  if (k === 'currency') return formatMoney(v, kind === 'deals' && key === 'amount' ? r.deal_currency_code : undefined);
   if (k === 'percent') return `${v} %`;
   if (k === 'date' || k === 'datetime') return formatDate(v);
   if (Array.isArray(v)) return v.join(', ');

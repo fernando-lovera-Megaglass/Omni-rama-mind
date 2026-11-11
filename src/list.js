@@ -144,7 +144,7 @@ export function mountList(cfg) {
     const text = (r) => {
       const v = r[key];
       if (v === undefined || v === null || v === '') return '';
-      if (p.kind === 'currency') return formatMoney(v);
+      if (p.kind === 'currency') return formatMoney(v, key === 'amount' ? r.deal_currency_code : undefined);
       if (p.kind === 'percent') return `${v} %`;
       if (p.kind === 'date' || p.kind === 'datetime') return formatDate(v);
       return String(v);
@@ -1879,7 +1879,7 @@ export function mountList(cfg) {
     const av = $('pv-avatar');
     av.textContent = String(name).split(' ').filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase();
     $('pv-name').textContent = name;
-    $('pv-sub').textContent = cfg.type === 'contacts' ? r.company || '' : cfg.type === 'deals' ? `${formatMoney(r.amount)} · ${r.company || ''}` : r.industry || r.description || r.type || '';
+    $('pv-sub').textContent = cfg.type === 'contacts' ? r.company || '' : cfg.type === 'deals' ? `${formatMoney(r.amount, r.deal_currency_code)} · ${r.company || ''}` : r.industry || r.description || r.type || '';
     const mail = r.email || r.domain || '';
     $('pv-mail').innerHTML = mail ? `<a href="${mail.includes('@') ? `mailto:${esc(mail)}` : '#'}">${esc(mail)}</a> <span class="ext">↗</span> <button class="copy" type="button" data-copy="${esc(mail)}" aria-label="Copiar">⧉</button>` : '';
     $('pv-type').textContent = cfg.singular[0].toUpperCase() + cfg.singular.slice(1);

@@ -214,8 +214,56 @@ export function relativeTime(d) {
   return years < 2 ? 'hace un año' : `hace ${years} años`;
 }
 
-export function formatMoney(n) {
-  return `${Math.round(Number(n) || 0).toLocaleString('es-ES')} €`;
+// ---------- currencies ----------
+// The company currency lives in Configuración › Valores predeterminados de la cuenta (crm:account.currency);
+// each deal carries its own currency (deal_currency_code) and the exchange rates (home units per 1 unit of
+// each currency) live in crm:currencies. Amounts are shown in the deal's currency; totals in the company's.
+export const CURRENCY_DEFS = {
+  EUR: { name: 'Euro', symbol: '€', after: true },
+  USD: { name: 'Dólar estadounidense', symbol: '$', after: false },
+  MXN: { name: 'Peso mexicano', symbol: 'MX$', after: false },
+  COP: { name: 'Peso colombiano', symbol: 'COP $', after: false },
+  GBP: { name: 'Libra esterlina', symbol: '£', after: false },
+};
+export const CURRENCY_CODES = Object.keys(CURRENCY_DEFS);
+export const CURRENCY_KEY = 'crm:currencies';
+const EUR_VALUE = { EUR: 1, USD: 0.92, MXN: 0.049, COP: 0.00023, GBP: 1.17 };
+export function homeCurrency() {
+  try {
+    const a = JSON.parse(localStorage.getItem('crm:account'));
+    if (a && CURRENCY_DEFS[a.currency]) return a.currency;
+  } catch {
+    /* ignore */
+  }
+  return 'EUR';
+}
+// Rates: how many units of the company currency 1 unit of each currency is worth ("1 USD = 0,92 EUR").
+export function currencyRates() {
+  const home = homeCurrency();
+  const defaults = Object.fromEntries(CURRENCY_CODES.map((c) => [c, Math.round((EUR_VALUE[c] / EUR_VALUE[home]) * 1e6) / 1e6]));
+  const saved = read(CURRENCY_KEY, null);
+  if (saved && saved.home === home && saved.rates) return { ...defaults, ...saved.rates, [home]: 1 };
+  return defaults;
+}
+export function saveCurrencyRates(rates) {
+  write(CURRENCY_KEY, { home: homeCurrency(), rates });
+}
+export const currencyOf = (code) => (CURRENCY_DEFS[code] ? code : homeCurrency());
+export function toHomeCurrency(amount, code) {
+  const n = Number(amount) || 0;
+  const c = currencyOf(code);
+  if (c === homeCurrency()) return n;
+  return n * (currencyRates()[c] || 1);
+}
+export function formatMoney(n, code) {
+  const def = CURRENCY_DEFS[currencyOf(code)];
+  const num = Math.round(Number(n) || 0).toLocaleString('es-ES');
+  return def.after ? `${num} ${def.symbol}` : `${def.symbol}${num}`;
+}
+// A deal's derived money fields: its currency (defaulting to the company's), the rate and the amount in the company currency.
+export function withHomeAmount(r) {
+  const code = currencyOf(r.deal_currency_code);
+  return { ...r, deal_currency_code: code, hs_exchange_rate: currencyRates()[code] || 1, amount_in_home_currency: Math.round(toHomeCurrency(r.amount, code)) };
 }
 
 export function initials(name) {
@@ -423,7 +471,8 @@ function merge(type, base) {
   const deleted = getDeleted(type);
   return [...extra, ...base]
     .filter((r) => !deleted.has(Number(r.id)))
-    .map((r) => (overrides[r.id] ? { ...r, ...overrides[r.id] } : r));
+    .map((r) => (overrides[r.id] ? { ...r, ...overrides[r.id] } : r))
+    .map((r) => (type === 'deals' ? withHomeAmount(r) : r));
 }
 
 // ---------- sample values for every catalog property ----------

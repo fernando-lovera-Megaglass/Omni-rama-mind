@@ -8,7 +8,7 @@ import { toast, wireMenus, closeMenus } from './shell.js';
 import {
   findRecord, setField, deleteRecords, addRecord, allContacts, allCompanies, allDeals, allTickets, allTasks, ALL,
   STATUSES, LIFECYCLES, SOURCES, OWNERS, DEAL_STAGES, TICKET_STATUSES, PRIORITIES, TASK_TYPES, TASK_STATUSES,
-  formatDate, formatMoney, initials, colorFor, labelOf, toCsv, download, TODAY, assocLabels,
+  formatDate, formatMoney, initials, colorFor, labelOf, toCsv, download, TODAY, assocLabels, CURRENCY_DEFS, CURRENCY_CODES,
 } from './data.js';
 import { propertyGroups, propertyMap } from './properties.js';
 const PROPERTIES = new Proxy({}, { get: (_, t) => propertyGroups(t) });
@@ -66,13 +66,13 @@ const CONFIG = {
   },
   deals: {
     label: 'Negocios', singular: 'negocio', sub: 'Negocios', listHref: `${root}deals/`,
-    title: (r) => r.name, subtitle: (r) => `${formatMoney(r.amount)} · ${labelOf(DEAL_STAGES, r.stage)}`, mail: () => '',
+    title: (r) => r.name, subtitle: (r) => `${formatMoney(r.amount, r.deal_currency_code)} · ${labelOf(DEAL_STAGES, r.stage)}`, mail: () => '',
     fields: [
-      ['amount', 'Importe (€)', 'number'], ['stage', 'Etapa del negocio', 'select', opt(DEAL_STAGES.map(([k, l]) => [k, l]))], ['closeDate', 'Fecha de cierre', 'date'],
+      ['amount', 'Importe', 'number'], ['deal_currency_code', 'Moneda', 'select', opt(CURRENCY_CODES.map((c) => [c, `${c} · ${CURRENCY_DEFS[c].name}`]))], ['stage', 'Etapa del negocio', 'select', opt(DEAL_STAGES.map(([k, l]) => [k, l]))], ['closeDate', 'Fecha de cierre', 'date'],
       ['owner', 'Propietario del negocio', 'select', ownerOpts], ['company', 'Empresa asociada'], ['priority', 'Prioridad', 'select', opt(PRIORITIES.map(([k, l]) => [k, l]))],
       ['type', 'Tipo de negocio', 'select', opt(['Nuevo negocio', 'Negocio existente'])], ['pipeline', 'Pipeline', 'ro'], ['created', 'Fecha de creación', 'date-ro'],
     ],
-    highlights: (r) => [['Importe', formatMoney(r.amount)], ['Fecha de cierre', formatDate(r.closeDate)], ['Probabilidad', `${(DEAL_STAGES.find((s) => s[0] === r.stage) || [0, 0, 0])[2]} %`], ['Última actividad', formatDate(r.lastActivity)]],
+    highlights: (r) => [['Importe', formatMoney(r.amount, r.deal_currency_code)], ['Fecha de cierre', formatDate(r.closeDate)], ['Probabilidad', `${(DEAL_STAGES.find((s) => s[0] === r.stage) || [0, 0, 0])[2]} %`], ['Última actividad', formatDate(r.lastActivity)]],
     stages: true,
     assoc: (r) => [
       ['Contactos', r.contactId ? [byId(allContacts(), r.contactId)].filter(Boolean) : [], 'contacts'],
@@ -336,7 +336,7 @@ function displayValue(f, r) {
   if (v === undefined || v === null || v === '') return EMPTY;
   if (kind === 'select') return esc((options.find((o) => String(o[0]) === String(v)) || [v, v])[1]);
   if (kind === 'date' || kind === 'date-ro') return formatDate(v);
-  if (key === 'amount' || key === 'revenue') return formatMoney(v);
+  if (key === 'amount' || key === 'revenue') return formatMoney(v, key === 'amount' ? r.deal_currency_code : undefined);
   if (kind === 'email' || key === 'email') return `<a href="mailto:${esc(v)}">${esc(v)}</a>`;
   return esc(v);
 }
@@ -351,7 +351,7 @@ function editor(f, r) {
 function propValue(p, v) {
   if (p && p.kind === 'user') return ownerHtml(v, 'sm');
   if (v === undefined || v === null || v === '') return EMPTY;
-  if (p.kind === 'currency') return formatMoney(v);
+  if (p.kind === 'currency') return formatMoney(v, type === 'deals' && p.key === 'amount' ? rec.deal_currency_code : undefined);
   if (p.kind === 'percent') return `${v} %`;
   if (p.kind === 'date' || p.kind === 'datetime') return formatDate(v);
   if (p.kind === 'url') return `<a href="#">${esc(v)}</a>`;
@@ -579,7 +579,7 @@ function kindValue(kind, key, r) {
   if (key === 'priority') return labelOf(PRIORITIES, v);
   const p = propsOf(kind)[key];
   const kindOf = p ? p.kind : '';
-  if (kindOf === 'currency' || key === 'amount' || key === 'revenue') return formatMoney(v);
+  if (kindOf === 'currency' || key === 'amount' || key === 'revenue') return formatMoney(v, kind === 'deals' && key === 'amount' ? r.deal_currency_code : undefined);
   if (kindOf === 'percent') return `${v} %`;
   if (kindOf === 'date' || kindOf === 'datetime' || /Date|^due$|^created$/.test(key)) return formatDate(v);
   return String(v);
@@ -873,7 +873,7 @@ function renderAssoc() {
 const KIND_META = {
   companies: { s: 'Empresa', p: 'Empresas', sub: (r) => r.domain || '', fields: [['name', 'Nombre de la empresa'], ['domain', 'Dominio'], ['phone', 'Número de teléfono']] },
   contacts: { s: 'Contacto', p: 'Contactos', sub: (r) => r.email || '', fields: [['first', 'Nombre'], ['last', 'Apellidos'], ['email', 'Correo']] },
-  deals: { s: 'Negocio', p: 'Negocios', sub: (r) => formatMoney(r.amount), fields: [['name', 'Nombre del negocio'], ['amount', 'Importe (€)'], ['closeDate', 'Fecha de cierre']] },
+  deals: { s: 'Negocio', p: 'Negocios', sub: (r) => formatMoney(r.amount, r.deal_currency_code), fields: [['name', 'Nombre del negocio'], ['amount', 'Importe'], ['closeDate', 'Fecha de cierre']] },
   tickets: { s: 'Ticket', p: 'Tickets', sub: (r) => labelOf(TICKET_STATUSES, r.status), fields: [['name', 'Nombre del ticket'], ['description', 'Descripción']] },
   tasks: { s: 'Tarea', p: 'Tareas', sub: (r) => `vence ${formatDate(r.due)}`, fields: [['name', 'Título'], ['due', 'Fecha de vencimiento']] },
 };

@@ -2491,6 +2491,27 @@ td.cell--hl .cell__pen {
   width: 560px;
 }
 
+/* Currencies table in the account defaults */
+.ctable {
+  margin: var(--sp-8) 0 var(--sp-16);
+}
+
+.ctable__rate {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-8);
+  white-space: nowrap;
+}
+
+.ctable__rate input {
+  width: 110px;
+  height: 32px;
+  padding: 0 var(--sp-8);
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-sm);
+  font: inherit;
+}
+
 /* ---------- Advanced filters: groups (O between them) of conditions (Y inside), own or by association ---------- */
 .drawer__panel--adv {
   width: 680px;

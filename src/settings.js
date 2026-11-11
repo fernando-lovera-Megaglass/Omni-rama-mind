@@ -1,7 +1,7 @@
 // Account settings (the gear in the top bar): a full settings tree with a pane per section.
 import { boot } from './page.js';
 import { toast, wireMenus, closeMenus } from './shell.js';
-import { OWNERS, DEAL_STAGES, TICKET_STATUSES, PIPELINE_KEY, ASSOC_LABELS_KEY, assocLabels, ALL, formatDate, formatMoney, dealPipelines, saveDealPipelines, dealPipelineDefs, saveDealPipelineDefs, newPipelineDef, setField, LIFECYCLES, download, lifecycleDef, saveLifecycleDef, defaultLifecycleDef } from './data.js';
+import { CURRENCY_DEFS, CURRENCY_CODES, currencyRates, saveCurrencyRates, homeCurrency, OWNERS, DEAL_STAGES, TICKET_STATUSES, PIPELINE_KEY, ASSOC_LABELS_KEY, assocLabels, ALL, formatDate, formatMoney, dealPipelines, saveDealPipelines, dealPipelineDefs, saveDealPipelineDefs, newPipelineDef, setField, LIFECYCLES, download, lifecycleDef, saveLifecycleDef, defaultLifecycleDef } from './data.js';
 import { propertyGroups, customProperties, saveCustomProperties, propertyList } from './properties.js';
 import { TEAMS, loadLayout, cardCatalog } from './layout-defaults.js';
 import { STD_VIEWS, defaultTabs } from './std-views.js';
@@ -221,9 +221,17 @@ function paneDefaults() {
   const a = account();
   return `<h2>Valores predeterminados de la cuenta</h2>
     <form class="sform" data-save="account">
-      <div class="sform__row"><label class="field"><span>Nombre de la cuenta</span><input name="name" value="${esc(a.name)}" /></label><label class="field"><span>Moneda de la empresa</span><select name="currency">${['EUR', 'USD', 'MXN'].map((c) => `<option ${a.currency === c ? 'selected' : ''}>${c}</option>`).join('')}</select></label></div>
+      <div class="sform__row"><label class="field"><span>Nombre de la cuenta</span><input name="name" value="${esc(a.name)}" /></label><label class="field"><span>Moneda de la empresa</span><select name="currency">${CURRENCY_CODES.map((c) => `<option value="${c}" ${a.currency === c ? 'selected' : ''}>${c} · ${CURRENCY_DEFS[c].name} (${CURRENCY_DEFS[c].symbol})</option>`).join('')}</select></label></div>
       <div class="sform__row"><label class="field"><span>Zona horaria</span><select name="tz">${['America/Mexico_City', 'Europe/Madrid', 'America/New_York'].map((l) => `<option ${a.tz === l ? 'selected' : ''}>${l}</option>`).join('')}</select></label><label class="field"><span>Idioma</span><select name="lang">${['Español', 'Inglés'].map((l) => `<option ${a.lang === l ? 'selected' : ''}>${l}</option>`).join('')}</select></label><label class="field"><span>Inicio del año fiscal</span><select name="fiscalYear">${['Enero', 'Abril', 'Julio', 'Octubre'].map((l) => `<option ${a.fiscalYear === l ? 'selected' : ''}>${l}</option>`).join('')}</select></label></div>
       <div class="sform__btns"><button class="btn btn--primary" type="submit">Guardar</button></div>
+    </form>
+    <h3>Monedas y tipos de cambio</h3>
+    <p class="muted">Cada negocio tiene su propia moneda. Los importes se muestran en la moneda del negocio y los totales de las listas y los paneles se convierten a la moneda de la empresa (${esc(homeCurrency())}) con estos tipos de cambio.</p>
+    <form class="sform" data-save="currencies">
+      <table class="mini-table stable ptable ctable"><thead><tr><th>Moneda</th><th>Símbolo</th><th>Tipo de cambio</th></tr></thead><tbody>
+        ${CURRENCY_CODES.map((c) => `<tr><td><strong>${c}</strong> · ${esc(CURRENCY_DEFS[c].name)}${c === homeCurrency() ? ' <span class="tag tag--done">Moneda de la empresa</span>' : ''}</td><td>${esc(CURRENCY_DEFS[c].symbol)}</td><td>${c === homeCurrency() ? '<span class="muted">—</span>' : `<span class="ctable__rate">1 ${c} = <input name="${c}" type="number" step="any" min="0" value="${currencyRates()[c]}" aria-label="Tipo de cambio de ${c}" /> ${esc(homeCurrency())}</span>`}</td></tr>`).join('')}
+      </tbody></table>
+      <div class="sform__btns"><button class="btn btn--primary" type="submit">Guardar tipos de cambio</button></div>
     </form>
     ${infoList('Información de la cuenta', [['ID de la cuenta', '5417939 <button class="copy" type="button" data-copy="5417939" aria-label="Copiar">⧉</button>'], ['Centro de datos', 'Norteamérica'], ['Creada', '22 de diciembre de 2021']])}`;
 }
@@ -1272,7 +1280,13 @@ root.addEventListener('submit', (e) => {
     if (d.phone && d.dial && d.phone.trim().startsWith(d.dial)) d.phone = d.phone.trim().slice(d.dial.length).replace(/^[-\s]+/, '');
     save('crm:profile', { ...profile(), ...d }); toast('Perfil guardado'); render();
   }
-  else if (what === 'account') { save('crm:account', { ...account(), ...d }); toast('Valores de la cuenta guardados'); }
+  else if (what === 'account') { save('crm:account', { ...account(), ...d }); toast('Valores de la cuenta guardados'); render(); }
+  else if (what === 'currencies') {
+    const rates = Object.fromEntries(Object.entries(d).filter(([k]) => CURRENCY_DEFS[k]).map(([k, v]) => [k, Number(v) > 0 ? Number(v) : currencyRates()[k]]));
+    saveCurrencyRates(rates);
+    toast('Tipos de cambio guardados');
+    render();
+  }
   else if (what === 'password') { form.reset(); toast('Contraseña actualizada'); }
   else if (what === 'signature') { setSignature(d); toast('Firma guardada'); }
   else if (what === 'copy') { const log = load('crm:copies', []); log.unshift({ when: formatDate(new Date()), res: d.res, to: d.to }); save('crm:copies', log); render(); toast(`"${d.res}" copiado a ${d.to}`); }

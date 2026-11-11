@@ -1,6 +1,6 @@
 import { boot } from './page.js';
 import { mountList, tag, link, ownerHtml } from './list.js';
-import { allDeals, allCompanies, DEAL_STAGES, PRIORITIES, OWNERS, formatDate, formatMoney, labelOf, classOf, TODAY, dealPipelines, dealPipelineDefs, addRecord, setField } from './data.js';
+import { allDeals, allCompanies, DEAL_STAGES, PRIORITIES, OWNERS, formatDate, formatMoney, labelOf, classOf, TODAY, dealPipelines, dealPipelineDefs, addRecord, setField, CURRENCY_DEFS, CURRENCY_CODES, homeCurrency, toHomeCurrency } from './data.js';
 import { toast } from './shell.js';
 
 boot({ root: '../', active: 'crm', sub: 'Negocios', title: 'Negocios' });
@@ -23,6 +23,11 @@ const probOf = (r) => (stagesOf(r.pipeline).find((s) => s[0] === r.stage) || DEA
 const isOpen = (r) => r.stage !== 'won' && r.stage !== 'lost';
 const sum = (rows, f) => rows.reduce((s, r) => s + f(r), 0);
 const months = (d) => `${(d / 30).toLocaleString('es-ES', { maximumFractionDigits: 1 })} meses`;
+// Each deal shows its amount in its own currency; totals add everything up in the company currency.
+const money = (r) => formatMoney(r.amount, r.deal_currency_code);
+const home = (r) => toHomeCurrency(r.amount, r.deal_currency_code);
+const HOME = homeCurrency();
+const currencyOptions = CURRENCY_CODES.map((c) => [c, `${c} · ${CURRENCY_DEFS[c].name}`]);
 
 mountList({
   type: 'deals',
@@ -42,10 +47,10 @@ mountList({
     const open = rows.filter(isOpen);
     const won = rows.filter((r) => r.stage === 'won');
     return [
-      ['Valor total de los negocios', formatMoney(sum(rows, (r) => Number(r.amount) || 0)), 'Suma del importe de todos los negocios de la vista.'],
-      ['Valor ponderado de los negocios', formatMoney(sum(rows, (r) => ((Number(r.amount) || 0) * probOf(r)) / 100)), 'Importe multiplicado por la probabilidad de cierre de cada etapa.'],
-      ['Valor de pipeline abierto', formatMoney(sum(open, (r) => Number(r.amount) || 0)), 'Importe de los negocios que no están cerrados.'],
-      ['Ingresos de cierre ganados', formatMoney(sum(won, (r) => Number(r.amount) || 0)), 'Importe de los negocios cerrados ganados.'],
+      ['Valor total de los negocios', formatMoney(sum(rows, home)), `Suma del importe de todos los negocios de la vista, en ${HOME} (moneda de la empresa).`],
+      ['Valor ponderado de los negocios', formatMoney(sum(rows, (r) => (home(r) * probOf(r)) / 100)), `Importe en ${HOME} multiplicado por la probabilidad de cierre de cada etapa.`],
+      ['Valor de pipeline abierto', formatMoney(sum(open, home)), `Importe en ${HOME} de los negocios que no están cerrados.`],
+      ['Ingresos de cierre ganados', formatMoney(sum(won, home)), `Importe en ${HOME} de los negocios cerrados ganados.`],
       ['Antigüedad media de los negocios', open.length ? months(sum(open, (r) => days(r.created)) / open.length) : '--', 'Tiempo medio desde la creación de los negocios abiertos.'],
       ['Negocios abiertos', String(open.length), 'Número de negocios que siguen en curso.'],
     ];
@@ -82,9 +87,9 @@ mountList({
       if (a.notify) toast(`Notificación enviada a ${r.owner}: "${r.name}" ahora está en "${label}"`);
       if (a.closeDate) setField('deals', r.id, 'closeDate', TODAY.toISOString());
     },
-    sum: (rows) => formatMoney(rows.reduce((s, d) => s + (Number(d.amount) || 0), 0)),
+    sum: (rows) => formatMoney(rows.reduce((s, d) => s + home(d), 0)),
     lines: (r) => [
-      ['Importe', formatMoney(r.amount)],
+      ['Importe', money(r)],
       ['Fecha de cierre', formatDate(r.closeDate)],
       ['Propietario del negocio', r.owner],
     ],
@@ -126,7 +131,9 @@ mountList({
     { key: 'name', label: 'Nombre del negocio', render: (r) => link(`./record/?id=${r.id}`, r.name) },
     { key: 'stage', label: 'Etapa del negocio', text: stageLabel, render: stageCell },
     { key: 'pipeline', label: 'Pipeline' },
-    { key: 'amount', label: 'Valor', text: (r) => formatMoney(r.amount), sortValue: (r) => Number(r.amount) || 0 },
+    { key: 'amount', label: 'Valor', text: money, sortValue: home },
+    { key: 'deal_currency_code', label: 'Moneda', default: false, text: (r) => r.deal_currency_code || HOME },
+    { key: 'amount_in_home_currency', label: `Importe en moneda de la empresa (${HOME})`, default: false, editable: false, text: (r) => formatMoney(home(r)), sortValue: home },
     { key: 'closeDate', label: 'Fecha de cierre', text: (r) => formatDate(r.closeDate), sortValue: (r) => new Date(r.closeDate).getTime() },
     { key: 'lastActivity', label: 'Último contacto', text: (r) => formatDate(r.lastActivity), sortValue: (r) => new Date(r.lastActivity).getTime() },
     { key: 'owner', label: 'Propietario del negocio', render: (r) => ownerHtml(r.owner) },
@@ -140,7 +147,8 @@ mountList({
     { name: 'name', label: 'Nombre del negocio', required: true },
     { name: 'pipeline', label: 'Pipeline', type: 'select', options: dealPipelines().map((p) => [p, p]) },
     { name: 'stage', label: 'Etapa del negocio', type: 'select', options: DEAL_STAGES.map(([k, l]) => [k, l]) },
-    { name: 'amount', label: 'Importe (€)', type: 'number' },
+    { name: 'amount', label: 'Importe', type: 'number' },
+    { name: 'deal_currency_code', label: 'Moneda', type: 'select', options: currencyOptions.map(([c, l]) => [c, c === HOME ? `${l} (moneda de la empresa)` : l]) },
     { name: 'closeDate', label: 'Fecha de cierre', type: 'date' },
     { name: 'company', label: 'Empresa asociada', type: 'select', options: [['', 'Ninguna'], ...allCompanies().map((c) => [c.name, c.name])] },
     { name: 'owner', label: 'Propietario del negocio', type: 'select', options: OWNERS.map((o) => [o, o]) },
@@ -150,6 +158,7 @@ mountList({
   normalize: (d) => ({
     ...d,
     amount: Number(d.amount) || 0,
+    deal_currency_code: CURRENCY_DEFS[d.deal_currency_code] ? d.deal_currency_code : HOME,
     stage: d.stage || 'appointment',
     closeDate: d.closeDate ? new Date(d.closeDate).toISOString() : new Date(TODAY.getTime() + 30 * 86400000).toISOString(),
     companyId: (allCompanies().find((c) => c.name === d.company) || {}).id || '',
