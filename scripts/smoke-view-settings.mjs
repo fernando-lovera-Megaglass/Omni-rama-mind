@@ -64,20 +64,20 @@ if (!$('table').classList.contains('table--compact') || prefs().density !== 'com
 click($('vsettings-menu').querySelector('[data-action="toggle-density"]'));
 log('back to comfortable:', !$('table').classList.contains('table--compact'), '| stored density:', prefs().density);
 
-// "Mostrar métricas" only on lists with summary tiles (deals): it hides and shows the tiles
+// "Mostrar métricas": every list has a metrics card; deals show it by default, the others start hidden
 const metricsItem = $('vsettings-menu').querySelector('[data-action="toggle-metrics"]');
 log('metrics item present:', Boolean(metricsItem), '| tiles on page:', Boolean($('kpis')));
-if (Boolean(metricsItem) !== Boolean($('kpis'))) fail('"Mostrar métricas" should appear exactly on lists with summary tiles');
-if (metricsItem) {
-  log('tiles visible:', !$('kpis').hidden, '| check on:', metricsItem.querySelector('.vsmenu__check').classList.contains('is-on'));
-  if ($('kpis').hidden) fail('tiles should be visible by default');
-  click(metricsItem);
-  log('after toggle -> tiles hidden:', $('kpis').hidden, '| stored:', prefs().metrics, '| check on:', $('vsettings-menu').querySelector('[data-action="toggle-metrics"] .vsmenu__check').classList.contains('is-on'));
-  if (!$('kpis').hidden || prefs().metrics !== false) fail('metrics toggle did not hide the tiles');
-  click($('vsettings-menu').querySelector('[data-action="toggle-metrics"]'));
-  log('toggled back -> tiles visible:', !$('kpis').hidden, '| stored:', prefs().metrics);
-  if ($('kpis').hidden) fail('metrics toggle did not show the tiles again');
-}
+if (!metricsItem || !$('kpis')) fail('"Mostrar métricas" and the metrics card should exist on every list');
+const shownByDefault = page === 'deals';
+log('tiles visible by default:', !$('kpis').hidden, '| expected:', shownByDefault, '| check on:', metricsItem.querySelector('.vsmenu__check').classList.contains('is-on'));
+if ($('kpis').hidden === shownByDefault) fail('default visibility of the metrics card is wrong');
+click(metricsItem);
+log('after toggle -> tiles visible:', !$('kpis').hidden, '| stored:', prefs().metrics, '| tiles:', [...document.querySelectorAll('#kpis-track .kpi__label')].map((l) => l.textContent).join(' | '));
+if ($('kpis').hidden !== shownByDefault || prefs().metrics !== !shownByDefault) fail('metrics toggle did not flip the card');
+if (!$('kpis').hidden && document.querySelectorAll('#kpis-track .kpi').length < 4) fail('the metrics card should show several tiles');
+click($('vsettings-menu').querySelector('[data-action="toggle-metrics"]'));
+log('toggled back -> tiles visible:', !$('kpis').hidden, '| stored:', prefs().metrics);
+if ($('kpis').hidden !== !shownByDefault) fail('metrics toggle did not flip back');
 
 // zebra striping toggle
 click($('vsettings-menu').querySelector('[data-action="toggle-zebra"]'));

@@ -14,6 +14,22 @@ mountList({
   plural: 'tickets',
   addLabel: 'Agregar tickets',
   createLabel: 'Crear ticket',
+  // Metrics card above the table ("Mostrar métricas" in the gear menu); hidden until the person turns it on.
+  metricsDefault: false,
+  summary: (rows) => {
+    const open = rows.filter((r) => r.status !== 'closed');
+    const replies = rows.map((r) => Number(r.time_to_first_agent_reply)).filter((v) => !Number.isNaN(v));
+    const avg = replies.length ? Math.round(replies.reduce((s, v) => s + v, 0) / replies.length) : null;
+    const n = (f) => String(rows.filter(f).length);
+    return [
+      ['Tickets abiertos', String(open.length), 'Tickets que no están cerrados.'],
+      ['Nuevos esta semana', n((r) => days(r.created) <= 7), 'Tickets creados en los últimos 7 días.'],
+      ['Alta prioridad abiertos', String(open.filter((r) => r.priority === 'high').length), 'Tickets abiertos con prioridad alta.'],
+      ['Esperando nuestra respuesta', n((r) => r.status === 'progress'), 'Tickets en "En espera de nosotros".'],
+      ['Tiempo medio de primera respuesta', avg === null ? '--' : `${avg} h`, 'Media de horas hasta la primera respuesta de un agente.'],
+      ['Sin propietario', n((r) => r.owner === 'Sin asignar'), 'Tickets que todavía no tienen propietario.'],
+    ];
+  },
   board: {
     key: 'status',
     groups: TICKET_STATUSES.map(([k, l]) => [k, l]),

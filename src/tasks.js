@@ -14,6 +14,21 @@ const list = mountList({
   plural: 'tareas',
   addLabel: 'Agregar tareas',
   createLabel: 'Crear tarea',
+  // Metrics card above the table ("Mostrar métricas" in the gear menu); hidden until the person turns it on.
+  metricsDefault: false,
+  summary: (rows) => {
+    const todo = rows.filter((r) => r.status !== 'done');
+    const sameDay = (iso) => iso && new Date(iso).toDateString() === TODAY.toDateString();
+    const n = (f) => String(rows.filter(f).length);
+    return [
+      ['Tareas pendientes', String(todo.length), 'Tareas que todavía no se han completado.'],
+      ['Vencidas', String(todo.filter((r) => r.due && new Date(r.due) < TODAY && !sameDay(r.due)).length), 'Tareas pendientes cuya fecha de vencimiento ya pasó.'],
+      ['Para hoy', String(todo.filter((r) => sameDay(r.due)).length), 'Tareas pendientes que vencen hoy.'],
+      ['Llamadas pendientes', String(todo.filter((r) => r.type === 'Llamada').length), 'Tareas de tipo llamada sin completar.'],
+      ['Completadas', n((r) => r.status === 'done'), 'Tareas marcadas como completadas en la vista.'],
+      ['Sin asignar', n((r) => r.owner === 'Sin asignar'), 'Tareas que todavía no tienen responsable.'],
+    ];
+  },
   board: {
     key: 'status',
     groups: TASK_STATUSES.map(([k, l]) => [k, l]),

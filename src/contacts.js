@@ -14,6 +14,20 @@ mountList({
   addLabel: 'Agregar contactos',
   createLabel: 'Crear contacto',
   defaultWidths: { name: 280, email: 280, phone: 200, owner: 220, assoc_company: 240, status: 170, created: 180 },
+  // Metrics card above the table ("Mostrar métricas" in the gear menu); hidden until the person turns it on.
+  metricsDefault: false,
+  summary: (rows) => {
+    const withOpenDeal = new Set(allDeals().filter((d) => d.stage !== 'won' && d.stage !== 'lost').map((d) => Number(d.contactId)));
+    const n = (f) => String(rows.filter(f).length);
+    return [
+      ['Contactos en la vista', String(rows.length), 'Número de contactos que cumplen los filtros actuales.'],
+      ['Nuevos este mes', n((r) => days(r.created) <= 30), 'Contactos creados en los últimos 30 días.'],
+      ['Con actividad reciente', n((r) => days(r.lastActivity) <= 7), 'Contactos con alguna actividad en los últimos 7 días.'],
+      ['Con negocios abiertos', n((r) => withOpenDeal.has(Number(r.id))), 'Contactos asociados a al menos un negocio sin cerrar.'],
+      ['Clientes', n((r) => r.lifecycle === 'Cliente'), 'Contactos en la etapa del ciclo de vida "Cliente".'],
+      ['Sin propietario', n((r) => r.owner === 'Sin asignar'), 'Contactos que todavía no tienen propietario.'],
+    ];
+  },
   board: {
     key: 'lifecycle',
     groups: LIFECYCLES.map((l) => [l, l]),

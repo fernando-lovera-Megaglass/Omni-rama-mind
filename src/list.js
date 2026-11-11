@@ -1153,7 +1153,7 @@ export function mountList(cfg) {
   function metricsShown() {
     if (typeof state.metrics === 'boolean') return state.metrics;
     try { const s = JSON.parse(localStorage.getItem(`crm:settings:obj-${cfg.type}`)) || {}; if (s.showMetrics === false) return false; } catch { /* ignore */ }
-    return true;
+    return cfg.metricsDefault !== false;
   }
   function renderKpis(list) {
     if (!cfg.summary) return;
