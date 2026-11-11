@@ -64,6 +64,21 @@ if (!$('table').classList.contains('table--compact') || prefs().density !== 'com
 click($('vsettings-menu').querySelector('[data-action="toggle-density"]'));
 log('back to comfortable:', !$('table').classList.contains('table--compact'), '| stored density:', prefs().density);
 
+// "Mostrar métricas" only on lists with summary tiles (deals): it hides and shows the tiles
+const metricsItem = $('vsettings-menu').querySelector('[data-action="toggle-metrics"]');
+log('metrics item present:', Boolean(metricsItem), '| tiles on page:', Boolean($('kpis')));
+if (Boolean(metricsItem) !== Boolean($('kpis'))) fail('"Mostrar métricas" should appear exactly on lists with summary tiles');
+if (metricsItem) {
+  log('tiles visible:', !$('kpis').hidden, '| check on:', metricsItem.querySelector('.vsmenu__check').classList.contains('is-on'));
+  if ($('kpis').hidden) fail('tiles should be visible by default');
+  click(metricsItem);
+  log('after toggle -> tiles hidden:', $('kpis').hidden, '| stored:', prefs().metrics, '| check on:', $('vsettings-menu').querySelector('[data-action="toggle-metrics"] .vsmenu__check').classList.contains('is-on'));
+  if (!$('kpis').hidden || prefs().metrics !== false) fail('metrics toggle did not hide the tiles');
+  click($('vsettings-menu').querySelector('[data-action="toggle-metrics"]'));
+  log('toggled back -> tiles visible:', !$('kpis').hidden, '| stored:', prefs().metrics);
+  if ($('kpis').hidden) fail('metrics toggle did not show the tiles again');
+}
+
 // zebra striping toggle
 click($('vsettings-menu').querySelector('[data-action="toggle-zebra"]'));
 log('zebra:', $('table').classList.contains('table--zebra'), '| stored zebra:', prefs().zebra, '| check on:', $('vsettings-menu').querySelector('[data-action="toggle-zebra"] .vsmenu__check').classList.contains('is-on'));

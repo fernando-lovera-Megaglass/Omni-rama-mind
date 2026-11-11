@@ -84,6 +84,8 @@ export function mountList(cfg) {
     density: prefs.density === 'compact' ? 'compact' : 'comfortable',
     // Zebra striping (alternate rows tinted), also from the gear menu.
     zebra: prefs.zebra === true,
+    // "Mostrar métricas" in the gear menu: the summary tiles above the table (null = follow the account setting).
+    metrics: typeof prefs.metrics === 'boolean' ? prefs.metrics : null,
     boardCollapsed: new Set(prefs.boardCollapsed || []),
     boardOrder: prefs.boardOrder || null,
     pipeline: cfg.pipeline ? prefs.pipeline || '' : '',
@@ -982,6 +984,7 @@ export function mountList(cfg) {
     el.innerHTML = `
       <div class="vsmenu__label">Tabla</div>
       ${item('columns', 'Editar columnas')}
+      ${cfg.summary ? toggle('toggle-metrics', metricsShown(), 'Mostrar métricas') : ''}
       ${toggle('toggle-freeze', state.frozen, 'Fijar la primera columna')}
       ${toggle('toggle-density', state.density === 'compact', 'Filas compactas')}
       ${toggle('toggle-zebra', state.zebra, 'Vista en zebra')}
@@ -1145,13 +1148,17 @@ export function mountList(cfg) {
       : '<p class="muted pmenu__empty">No hay pipelines que coincidan.</p>';
   }
   // ---------- summary tiles above the table (deals) ----------
+  // Whether the summary tiles show: the person's own choice from the gear menu ("Mostrar métricas"),
+  // or, until they choose, the account switch in Configuración › Objetos › Personalización del índice.
+  function metricsShown() {
+    if (typeof state.metrics === 'boolean') return state.metrics;
+    try { const s = JSON.parse(localStorage.getItem(`crm:settings:obj-${cfg.type}`)) || {}; if (s.showMetrics === false) return false; } catch { /* ignore */ }
+    return true;
+  }
   function renderKpis(list) {
     if (!cfg.summary) return;
     const box = $('kpis');
-    // "Mostrar métricas" switch in Configuración › Objetos › Personalización del índice.
-    let showMetrics = true;
-    try { const s = JSON.parse(localStorage.getItem(`crm:settings:obj-${cfg.type}`)) || {}; if (s.showMetrics === false) showMetrics = false; } catch { /* ignore */ }
-    box.hidden = state.mode === 'board' || !showMetrics;
+    box.hidden = state.mode === 'board' || !metricsShown();
     if (box.hidden) return;
     $('kpis-track').innerHTML = cfg
       .summary(list)
@@ -2592,6 +2599,11 @@ export function mountList(cfg) {
       setPrefs(cfg.type, { zebra: state.zebra });
       render();
       toast(state.zebra ? 'Vista en zebra activada' : 'Vista en zebra desactivada');
+    } else if (a === 'toggle-metrics') {
+      state.metrics = !metricsShown();
+      setPrefs(cfg.type, { metrics: state.metrics });
+      render();
+      toast(state.metrics ? 'Métricas visibles sobre la tabla' : 'Métricas ocultas');
     } else if (a === 'edit-quick') { window.location.href = `../settings/#obj-${cfg.type}:index`; }
     else if (a === 'adv-clear-all') {
       state.advanced = [];
