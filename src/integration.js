@@ -2,8 +2,7 @@
 // Data Hub) and the monitor of imports and synchronisations (file imports, app syncs, Data Studio syncs).
 import { boot } from './page.js';
 import { wireMenus, closeMenus, toast } from './shell.js';
-import { addRecord, OWNERS, TODAY, formatDate, initials, colorFor, strip } from './data.js';
-import { propertyList } from './properties.js';
+import { OWNERS, TODAY, formatDate, initials, colorFor, strip } from './data.js';
 
 boot({ root: '../', active: 'data', sub: 'Integración de datos', title: 'Integración de datos' });
 
@@ -29,10 +28,11 @@ const SAMPLE_IMPORTS = () => {
   return names.map((name, i) => ({
     id: i + 1,
     name,
+    sample: true,
     object: i === 9 ? 'companies' : 'contacts',
     system: name.includes('android') ? 'mobile' : 'file',
     source: name.endsWith('.xlsx') ? 'xlsx' : name.endsWith('.csv') ? 'csv' : 'api',
-    state: 'done',
+    state: 'DONE',
     newRecords: stats[i][0],
     updated: stats[i][1],
     associations: stats[i][2],
@@ -62,8 +62,11 @@ const COLUMNS = [
 ];
 const columns = () => load(COLS_KEY, null) || COLUMNS.filter((c) => c[2]).map((c) => c[0]);
 
-const SYSTEMS = [['', 'Todos'], ['file', 'Importación de archivo'], ['api', 'API'], ['mobile', 'Aplicación móvil']];
-const SOURCES = [['', 'Todas'], ['xlsx', 'Archivo .xlsx'], ['csv', 'Archivo .csv'], ['api', 'API']];
+const SYSTEMS = [['', 'Todos'], ['file', 'Importación de archivo'], ['paste', 'Datos pegados'], ['api', 'API'], ['mobile', 'Aplicación móvil']];
+const SOURCES = [['', 'Todas'], ['xlsx', 'Archivo .xlsx'], ['xls', 'Archivo .xls'], ['csv', 'Archivo .csv'], ['paste', 'Datos pegados'], ['api', 'API']];
+// Import states (specification §9): STARTED, PROCESSING, DONE, FAILED, CANCELED, DEFERRED.
+const STATE_LABELS = { STARTED: 'Iniciada', PROCESSING: 'Procesando', DONE: 'Listo', FAILED: 'Fallida', CANCELED: 'Cancelada', DEFERRED: 'En cola', done: 'Listo', error: 'Con errores' };
+const stateClass = (s) => ({ FAILED: 'dint__dot--error', error: 'dint__dot--error', PROCESSING: 'dint__dot--busy', STARTED: 'dint__dot--busy', DEFERRED: 'dint__dot--wait', CANCELED: 'dint__dot--wait' }[s] || '');
 const DATES = [['', 'Cualquier fecha'], ['30', 'Últimos 30 días'], ['90', 'Últimos 90 días'], ['365', 'Este año']];
 const systemLabel = (v) => (SYSTEMS.find((s) => s[0] === v) || ['', v])[1];
 const sourceLabel = (v) => (SOURCES.find((s) => s[0] === v) || ['', v])[1];
@@ -149,12 +152,12 @@ const chip = (key, label, current, options) => `
 
 function cellHtml(key, r) {
   switch (key) {
-    case 'name': return `<a class="dint__name" href="#" data-import="${r.id}">${esc(r.name)}</a>`;
-    case 'state': return `<span class="dint__state"><span class="dint__dot${r.state === 'error' ? ' dint__dot--error' : ''}"></span>${r.state === 'error' ? 'Con errores' : 'Listo'}</span>`;
+    case 'name': return r.sample ? `<a class="dint__name" href="#" data-import="${r.id}">${esc(r.name)}</a>` : `<a class="dint__name" href="./import/?id=${r.id}">${esc(r.name)}</a>`;
+    case 'state': return `<span class="dint__state"><span class="dint__dot ${stateClass(r.state)}"></span>${STATE_LABELS[r.state] || 'Listo'}</span>`;
     case 'newRecords': return String(r.newRecords);
     case 'updated': return r.updated ? String(r.updated) : '<span class="muted">--</span>';
     case 'associations': return r.associations ? String(r.associations) : '<span class="muted">--</span>';
-    case 'errors': return r.errors ? `<a href="#" data-errors="${r.id}">${r.errors}</a>` : '<span class="muted">--</span>';
+    case 'errors': return r.errors ? (r.sample ? `<a href="#" data-errors="${r.id}">${r.errors}</a>` : `<a href="./import/?id=${r.id}">${r.errors}</a>`) : '<span class="muted">--</span>';
     case 'by': return avatar(r.by);
     case 'when': return esc(fmtWhen(r.when));
     case 'object': return esc(objectLabel(r.object));
@@ -216,80 +219,6 @@ function closeModal() {
   $('dint-modal').setAttribute('aria-hidden', 'true');
 }
 
-// ---------- file import (CSV) ----------
-let pending = { rows: [], type: 'contacts', name: '' };
-function parseCsv(txt) {
-  const lines = txt.split(/\r?\n/).filter((l) => l.trim());
-  if (!lines.length) return { head: [], rows: [] };
-  const sep = lines[0].includes(';') && !lines[0].includes(',') ? ';' : lines[0].includes('\t') ? '\t' : ',';
-  const split = (l) => l.split(sep).map((c) => c.trim().replace(/^"|"$/g, ''));
-  const head = split(lines[0]);
-  return { head, rows: lines.slice(1).map(split) };
-}
-function mapRows(type, head, rows) {
-  const props = propertyList(type);
-  const keys = head.map((h) => {
-    const s = strip(h);
-    const p = props.find((x) => strip(x.label) === s || x.key === s);
-    if (p) return p.key;
-    const alias = { nombre: 'first', apellidos: 'last', apellido: 'last', 'nombre completo': 'name', correo: 'email', email: 'email', telefono: 'phone', 'numero de telefono': 'phone', empresa: 'company', importe: 'amount', 'nombre del negocio': 'name', 'nombre del ticket': 'name', titulo: 'name' }[s];
-    return alias || '';
-  });
-  const out = [];
-  let skipped = 0;
-  rows.forEach((cells) => {
-    const rec = {};
-    keys.forEach((k, i) => { if (k && cells[i] !== undefined && cells[i] !== '') rec[k] = cells[i]; });
-    if (type === 'contacts' && !rec.name) rec.name = [rec.first, rec.last].filter(Boolean).join(' ');
-    if (!rec.name && !rec.email) { skipped += 1; return; }
-    if (type === 'contacts') Object.assign(rec, { owner: rec.owner || 'Sin asignar', status: rec.status || 'new', lifecycle: rec.lifecycle || 'Lead', source: 'Importación', lastActivity: TODAY.toISOString() });
-    if (type === 'companies') Object.assign(rec, { owner: rec.owner || 'Sin asignar', lifecycle: rec.lifecycle || 'Lead', lastActivity: TODAY.toISOString() });
-    if (type === 'deals') Object.assign(rec, { amount: Number(rec.amount) || 0, stage: rec.stage || 'appointment', pipeline: rec.pipeline || 'FUERZA DE VENTAS', owner: rec.owner || 'Sin asignar', lastActivity: TODAY.toISOString() });
-    if (type === 'tickets') Object.assign(rec, { status: rec.status || 'new', priority: rec.priority || 'medium', pipeline: rec.pipeline || 'Pipeline de soporte', owner: rec.owner || 'Sin asignar', lastActivity: TODAY.toISOString() });
-    if (type === 'tasks') Object.assign(rec, { status: rec.status || 'todo', priority: rec.priority || 'medium', type: rec.type || 'Tarea', owner: rec.owner || ME, due: rec.due || TODAY.toISOString() });
-    out.push(rec);
-  });
-  return { records: out, skipped, unmapped: head.filter((h, i) => !keys[i]) };
-}
-function openImport() {
-  pending = { rows: [], type: 'contacts', name: '', skipped: 0, unmapped: [] };
-  openModal(
-    'Importar datos',
-    `<p class="muted">Sube un archivo CSV con una fila por registro. La primera fila debe contener los nombres de las columnas (por ejemplo «Nombre, Apellidos, Correo, Número de teléfono»).</p>
-     <label class="field"><span>Objeto</span><select id="imp-type">${OBJECTS.map(([k, l]) => `<option value="${k}">${l}</option>`).join('')}</select></label>
-     <label class="dropzone"><input type="file" accept=".csv,text/csv,.txt" id="imp-file" /><span>Arrastra un archivo aquí o haz clic para elegirlo</span></label>
-     <p class="muted" id="imp-status">Ningún archivo elegido.</p>`,
-    `<button class="btn btn--primary" type="button" id="imp-apply" disabled>Importar registros</button><button class="btn btn--ghost" type="button" data-close>Cancelar</button>`,
-  );
-  $('imp-type').addEventListener('change', () => { pending.type = $('imp-type').value; if (pending.text) readPending(); });
-  $('imp-file').addEventListener('change', (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    pending.name = file.name;
-    file.text().then((txt) => { pending.text = txt; readPending(); });
-  });
-  $('imp-apply').addEventListener('click', applyImport);
-}
-function readPending() {
-  const { head, rows } = parseCsv(pending.text || '');
-  const mapped = mapRows(pending.type, head, rows);
-  pending.rows = mapped.records;
-  pending.skipped = mapped.skipped;
-  pending.unmapped = mapped.unmapped;
-  $('imp-status').textContent = `${pending.name}: ${mapped.records.length} fila(s) listas para importar como ${objectLabel(pending.type).toLowerCase()}${mapped.skipped ? `, ${mapped.skipped} sin nombre ni correo se omitirán` : ''}${mapped.unmapped.length ? ` · columnas sin propiedad: ${mapped.unmapped.join(', ')}` : ''}.`;
-  $('imp-apply').disabled = mapped.records.length === 0;
-}
-function applyImport() {
-  pending.rows.forEach((rec) => addRecord(pending.type, rec));
-  const list = imports();
-  const entry = { id: Math.max(0, ...list.map((r) => r.id)) + 1, name: pending.name, object: pending.type, system: 'file', source: pending.name.toLowerCase().endsWith('.xlsx') ? 'xlsx' : 'csv', state: pending.skipped ? 'error' : 'done', newRecords: pending.rows.length, updated: 0, associations: 0, errors: pending.skipped, by: ME, when: new Date().toISOString() };
-  saveImports([entry, ...list]);
-  closeModal();
-  state.tab = 'files';
-  renderPane();
-  toast(`${pending.rows.length} registro(s) importados en ${objectLabel(pending.type)}`);
-}
-
 // ---------- connected apps ----------
 function openApps() {
   const list = apps();
@@ -341,7 +270,7 @@ root.addEventListener('click', (e) => {
   if (imp) {
     e.preventDefault();
     const r = imports().find((x) => x.id === Number(imp.dataset.import));
-    openModal(r.name, `<dl class="colinfo"><div><dt>Objeto</dt><dd>${esc(objectLabel(r.object))}</dd></div><div><dt>Estado</dt><dd>${r.state === 'error' ? 'Con errores' : 'Listo'}</dd></div><div><dt>Registros nuevos</dt><dd>${r.newRecords}</dd></div><div><dt>Registros actualizados</dt><dd>${r.updated || '--'}</dd></div><div><dt>Asociaciones nuevas</dt><dd>${r.associations || '--'}</dd></div><div><dt>Errores</dt><dd>${r.errors || '--'}</dd></div><div><dt>Creado por</dt><dd>${esc(r.by)}</dd></div><div><dt>Fecha</dt><dd>${esc(fmtWhen(r.when))}</dd></div><div><dt>Fuente</dt><dd>${esc(sourceLabel(r.source))} · ${esc(systemLabel(r.system))}</dd></div></dl>`, '<button class="btn btn--primary" type="button" data-close>Cerrar</button>');
+    openModal(r.name, `<dl class="colinfo"><div><dt>Objeto</dt><dd>${esc(objectLabel(r.object))}</dd></div><div><dt>Estado</dt><dd>${STATE_LABELS[r.state] || 'Listo'}</dd></div><div><dt>Registros nuevos</dt><dd>${r.newRecords}</dd></div><div><dt>Registros actualizados</dt><dd>${r.updated || '--'}</dd></div><div><dt>Asociaciones nuevas</dt><dd>${r.associations || '--'}</dd></div><div><dt>Errores</dt><dd>${r.errors || '--'}</dd></div><div><dt>Creado por</dt><dd>${esc(r.by)}</dd></div><div><dt>Fecha</dt><dd>${esc(fmtWhen(r.when))}</dd></div><div><dt>Fuente</dt><dd>${esc(sourceLabel(r.source))} · ${esc(systemLabel(r.system))}</dd></div></dl>`, '<button class="btn btn--primary" type="button" data-close>Cerrar</button>');
     return;
   }
   const err = e.target.closest('[data-errors]');
@@ -369,7 +298,7 @@ root.addEventListener('click', (e) => {
   if (!act) return;
   e.preventDefault();
   const a = act.dataset.act;
-  if (a === 'import') openImport();
+  if (a === 'import') { location.href = './import/'; }
   else if (a === 'apps') openApps();
   else if (a === 'columns') openColumns();
   else if (a === 'transfer') toast('La herramienta de transferencia inteligente copia tus datos desde otro CRM. Elige el origen y Omni mapea los campos por ti.');

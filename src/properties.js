@@ -32,6 +32,8 @@ export const PROPERTIES = {
       ['name', 'Nombre completo', 'text'],
       ['email', 'Correo', 'email'],
       ['alt_email', 'Correo Alternativo', 'email'],
+      ['hs_additional_emails', 'Direcciones de correo electrónico adicionales', 'text'],
+      ['hs_import_ids', 'IDs de importación', 'text'],
       ['phone', 'Número de teléfono', 'phone'],
       ['mobilephone', 'Número de móvil', 'phone'],
       ['alt_phone', 'Numero de Telefono alternativo', 'phone'],
@@ -549,7 +551,7 @@ export function propertyGroups(type) {
 // Properties the system fills on its own (dates, counters, analytics, scores, conversion and e-mail stats…).
 // They are shown everywhere but can't be edited by hand, in the lists or on the record page.
 const SYSTEM_PATTERNS = [
-  /^created$/, /^lastActivity$/, /^(hs_)?lastmodifieddate$/, /^closed_date$/, /^closedate$/, /^hs_object_(id|source|source_label|source_detail_1|source_user_id)$/,
+  /^created$/, /^lastActivity$/, /^(hs_)?lastmodifieddate$/, /^closed_date$/, /^closedate$/, /^hs_import_ids$/, /^hs_object_(id|source|source_label|source_detail_1|source_user_id)$/,
   /^hs_(created|updated)_by_user_id$/, /^hs_merged_object_ids$/, /^hs_was_imported$/, /^hs_read_only$/, /^hs_all_/, /^hs_user_ids_of_all_owners$/,
   /^hs_pinned_engagement_id$/, /^hs_avatar_filemanager_key$/, /^hs_is_enriched$/, /^hs_last_metered_enrichment_timestamp$/,
   /^notes_/, /^engagements_/, /^num_/, /^hs_num_/, /_count$/, /^hs_(calls|meetings|tasks|open_tasks)_count$/, /^total_revenue$/, /^recent_deal_/, /^first_deal_created_date$/,

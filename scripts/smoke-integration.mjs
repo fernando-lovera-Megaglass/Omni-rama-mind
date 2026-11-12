@@ -69,26 +69,20 @@ const headers2 = [...document.querySelectorAll('#dint-pane thead th')].map((t) =
 log('columns after edit:', headers2.join(' | '));
 if (!headers2.includes('Objeto') || headers2.includes('New Associations')) fail('column editor did not apply');
 
-// a real CSV import creates records and a new row in the monitor
+// "Importar datos" opens the import wizard; an import run by the engine shows in the monitor with its state
+const E = await import(resolve(here, '../src/import-engine.js'));
+log('import button present:', Boolean(document.querySelector('[data-act="import"]')), '(opens ./import/)');
+const table = E.parsePasted('Nombre\tApellidos\tCorreo electrónico\nLaura\tEjemplo\tlaura@ejemplo.com\nPedro\tPrueba\tpedro@ejemplo.com\n\t\tno-es-correo');
+const plan = E.planImport(table, E.autoMap(table.headers, 'es'), {});
+const entry = E.registerImport({ name: 'nuevos_contactos.csv', table, plan, options: {} });
 const contactsBefore = data.allContacts().length;
-click(document.querySelector('[data-act="import"]'));
-log('import modal:', $('dint-modal-title').textContent, '| object select:', Boolean($('imp-type')), '| apply disabled:', $('imp-apply').disabled);
-const csv = 'Nombre,Apellidos,Correo,Número de teléfono\nLaura,Ejemplo,laura@ejemplo.com,+34 600 000 001\nPedro,Prueba,pedro@ejemplo.com,\n,,,\n';
-const file = { name: 'nuevos_contactos.csv', text: () => Promise.resolve(csv) };
-Object.defineProperty($('imp-file'), 'files', { value: [file] });
-$('imp-file').dispatchEvent(new dom.window.Event('change', { bubbles: true }));
-await new Promise((r) => setTimeout(r, 20));
-log('status:', $('imp-status').textContent, '| apply enabled:', !$('imp-apply').disabled);
-if ($('imp-apply').disabled) fail('a valid CSV should enable the import');
-click($('imp-apply'));
-const contactsAfter = data.allContacts().length;
-log('contacts:', contactsBefore, '->', contactsAfter, '| first row now:', document.querySelector('#dint-pane tbody tr td').textContent.trim(), '| state:', document.querySelector('#dint-pane tbody tr td[data-key="state"]').textContent.trim());
-if (contactsAfter !== contactsBefore + 2) fail('CSV rows should become contacts');
-if (!document.querySelector('#dint-pane tbody tr td').textContent.includes('nuevos_contactos.csv')) fail('the import should appear first in the monitor');
-if (!JSON.parse(mem['crm:imports'])[0] || JSON.parse(mem['crm:imports'])[0].errors !== 1) fail('the empty row should count as an error');
-const added = data.allContacts().find((c) => c.email === 'laura@ejemplo.com');
-log('imported contact:', added && `${added.name} · ${added.phone} · ${added.owner}`);
-if (!added || added.name !== 'Laura Ejemplo') fail('imported contact fields not mapped');
+await E.runImport(entry.id, plan, { sleep: () => Promise.resolve() });
+click(document.querySelector('[data-tab="files"]'));
+const first = document.querySelector('#dint-pane tbody tr');
+log('contacts:', contactsBefore, '->', data.allContacts().length, '| first row:', first.querySelector('td').textContent.trim(), '| state:', first.querySelector('td[data-key="state"]').textContent.trim(), '| link:', first.querySelector('a').getAttribute('href'), '| errors:', first.querySelector('td[data-key="errors"]').textContent.trim());
+if (data.allContacts().length !== contactsBefore + 2) fail('the engine import should create two contacts');
+if (!first.querySelector('td').textContent.includes('nuevos_contactos.csv') || first.querySelector('td[data-key="state"]').textContent.trim() !== 'Listo') fail('the import should appear first with state Listo');
+if (!first.querySelector('a').getAttribute('href').includes(`import/?id=${entry.id}`)) fail('the monitor should link to the review page');
 
 // connected apps and their sync tab
 click(document.querySelector('[data-act="apps"]'));

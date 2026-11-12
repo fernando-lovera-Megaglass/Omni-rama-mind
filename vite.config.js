@@ -18,6 +18,7 @@ const pages = {
   views: 'views/index.html',
   settings: 'settings/index.html',
   data: 'data/index.html',
+  'data-import': 'data/import/index.html',
 };
 
 export default defineConfig({
