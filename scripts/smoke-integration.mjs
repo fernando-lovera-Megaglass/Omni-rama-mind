@@ -98,4 +98,16 @@ click(document.querySelector('[data-sync="gmail"]'));
 log('after sync now:', document.querySelector('#dint-pane tr[data-app="gmail"] td:nth-child(5)').textContent);
 click(document.querySelector('[data-tab="studio"]'));
 log('studio tab:', document.querySelector('#dint-pane h3')?.textContent, '| beta tag:', Boolean(document.querySelector('#dint-pane .tag--beta')));
+// "Importar" in the contacts list leads here (as in the original) and the import card is pointed out
+const dom3 = new JSDOM('<!doctype html><body class="app"><aside id="sidenav"></aside><header id="topbar"></header><main id="list-root"></main><div id="scrim"></div></body>', { url: 'http://localhost/contacts/' });
+globalThis.window = dom3.window; globalThis.document = dom3.window.document; globalThis.location = dom3.window.location;
+await import(resolve(here, '../src/contacts.js'));
+const importLinks = [...document.querySelectorAll('a.menu__item')].filter((a) => /Importar/.test(a.textContent)).map((a) => `${a.textContent.trim()} → ${a.getAttribute('href')}`);
+log('contacts import entries:', importLinks.join(' | '));
+if (importLinks.length !== 2 || importLinks.some((l) => !l.includes('../data/?from=contacts'))) fail('contacts "Importar" should lead to Integración de datos');
+const dom4 = new JSDOM('<!doctype html><body class="app"><aside id="sidenav"></aside><header id="topbar"></header><main id="dint-root"></main><div id="scrim"></div></body>', { url: 'http://localhost/data/?from=contacts' });
+globalThis.window = dom4.window; globalThis.document = dom4.window.document; globalThis.location = dom4.window.location;
+await import(resolve(here, '../src/integration.js') + '?from');
+log('notice:', document.getElementById('dint-notice')?.textContent.replace(/\s+/g, ' ').trim().slice(0, 90), '| import card highlighted:', document.querySelector('.dint__card.is-highlight h2')?.textContent);
+if (!document.getElementById('dint-notice') || document.querySelector('.dint__card.is-highlight h2')?.textContent !== 'Importar un archivo') fail('landing from contacts should point at the import card');
 log('OK');

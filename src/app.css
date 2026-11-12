@@ -1827,6 +1827,31 @@ h1 {
   right: 8px;
 }
 
+/* Landing here from "Importar" in a list: the import card is pointed out. */
+.dint__notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-8);
+  margin-bottom: var(--sp-16);
+  padding: var(--sp-10) var(--sp-16);
+  border: 1px solid #b4d9dc;
+  border-radius: var(--r-sm);
+  background: #eef7f8;
+  font-size: var(--fs-sm);
+}
+
+.dint__card.is-highlight {
+  border-color: var(--c-link);
+  box-shadow: 0 0 0 3px #d6f3f5;
+}
+
+.dint__card.is-highlight .btn--pillx {
+  background: var(--c-link);
+  border-color: var(--c-link);
+  color: var(--c-white);
+}
+
 .dint__lock {
   font-size: 12px;
   margin-left: 4px;

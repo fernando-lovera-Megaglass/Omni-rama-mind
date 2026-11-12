@@ -264,7 +264,7 @@ export function mountList(cfg) {
           <div class="menu__panel menu__panel--right">
             <button class="menu__item" type="button" data-action="columns">Editar columnas</button>
             <button class="menu__item" type="button" data-action="export">Exportar vista</button>
-            <button class="menu__item" type="button" data-action="import">Importar</button>
+            ${cfg.type === 'contacts' ? '<a class="menu__item" href="../data/?from=contacts">Importar</a>' : '<button class="menu__item" type="button" data-action="import">Importar</button>'}
             <button class="menu__item" type="button" data-action="restore">Restaurar registros eliminados</button>
           </div>
         </div>
@@ -272,7 +272,7 @@ export function mountList(cfg) {
           <button class="btn btn--primary btn--pillx" type="button" aria-haspopup="true" aria-expanded="false">${cfg.addLabel || `Agregar ${plural}`} <span class="caret"></span></button>
           <div class="menu__panel menu__panel--right">
             <button class="menu__item" type="button" data-action="create">${cfg.createLabel}</button>
-            <button class="menu__item" type="button" data-action="import">Importar desde un archivo</button>
+            ${cfg.type === 'contacts' ? '<a class="menu__item" href="../data/?from=contacts">Importar desde un archivo</a>' : '<button class="menu__item" type="button" data-action="import">Importar desde un archivo</button>'}
           </div>
         </div>
       </div>
@@ -2575,7 +2575,11 @@ export function mountList(cfg) {
     if (a === 'create') openCreate();
     else if (a === 'columns') openColumnEditor();
     else if (a === 'advanced') { renderAdvRows(); openDrawer('adv-drawer'); }
-    else if (a === 'import') openDrawer('import-drawer');
+    else if (a === 'import') {
+      // Contacts are imported from Gestión de datos › Integración de datos, as in the original; the other objects keep the quick CSV drawer.
+      if (cfg.type === 'contacts') { location.href = '../data/?from=contacts'; return; }
+      openDrawer('import-drawer');
+    }
     else if (a === 'export' || a === 'bulk-export') {
       const list = filtered().filter((r) => a === 'export' || state.selected.has(Number(r.id)));
       download(`${cfg.type}-${TODAY.toISOString().slice(0, 10)}.csv`, toCsv(list, visibleColumns()));

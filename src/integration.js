@@ -72,6 +72,9 @@ const systemLabel = (v) => (SYSTEMS.find((s) => s[0] === v) || ['', v])[1];
 const sourceLabel = (v) => (SOURCES.find((s) => s[0] === v) || ['', v])[1];
 
 const state = { tab: 'files', q: '', system: '', source: '', by: '', date: '' };
+// Coming from "Importar" in a list (as the original does), point at the import card.
+const FROM = new URLSearchParams(location.search).get('from');
+const FROM_LABELS = { contacts: 'contactos', companies: 'empresas', deals: 'negocios', tickets: 'tickets', tasks: 'tareas' };
 
 const colorOf = (name) => colorFor([...String(name)].reduce((h, c) => h + c.charCodeAt(0), 0));
 const avatar = (name) => (name && name !== 'Sin asignar' ? `<span class="dint__who"><span class="avatar avatar--xs" style="background:${colorOf(name)}">${initials(name)}</span>${esc(name)}</span>` : '<span class="muted">—</span>');
@@ -80,8 +83,9 @@ const avatar = (name) => (name && name !== 'Sin asignar' ? `<span class="dint__w
 root.innerHTML = `
   <div class="dint__head"><h1>Integración de datos</h1></div>
   <div class="dint__body">
+    ${FROM && FROM_LABELS[FROM] ? `<div class="dint__notice" id="dint-notice" role="status"><strong>Importar ${FROM_LABELS[FROM]}:</strong> las importaciones se hacen desde aquí. Elige <em>Importar datos</em> para subir un archivo o pegar datos; abajo verás el historial y el estado de cada importación. <a class="link-btn" href="../${esc(FROM)}/">Volver a ${FROM_LABELS[FROM]}</a></div>` : ''}
     <div class="dint__cards">
-      <section class="dint__card">
+      <section class="dint__card${FROM ? ' is-highlight' : ''}">
         <div class="dint__art dint__art--import" aria-hidden="true"><span></span><span></span><span></span></div>
         <h2>Importar un archivo</h2>
         <p>Importación puntual de un archivo directamente al CRM.</p>
