@@ -17,6 +17,7 @@ const pages = {
   layout: 'layout/index.html',
   views: 'views/index.html',
   settings: 'settings/index.html',
+  data: 'data/index.html',
 };
 
 export default defineConfig({

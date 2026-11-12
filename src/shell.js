@@ -68,11 +68,14 @@ const NAV = [
     ['Objetivos', '#'],
     ['Análisis de marketing', '#'],
   ]],
-  ['data', 'Gestión de datos', '#', [
-    ['Importaciones', '#'],
-    ['Calidad de los datos', '#'],
-    ['Integraciones', '#'],
-    ['Objetos personalizados', '#'],
+  ['data', 'Gestión de datos', 'data/', [
+    ['Agente de datos', '#'],
+    ['Integración de datos', 'data/'],
+    ['Gestión de eventos', '#'],
+    ['Calidad de los datos', '#', '<span class="sidenav__info" title="Monitoriza la calidad de tus datos">ⓘ</span>'],
+    ['Data Studio', '#', '<span class="tag tag--beta">Beta</span>'],
+    ['Modelo de datos', '#'],
+    ['Enriquecimiento de datos', '#'],
   ]],
   ['library', 'Biblioteca', '#', [
     ['Plantillas', '#'],
@@ -103,7 +106,7 @@ export function mountShell({ root, active, sub }) {
               <div class="sidenav__fly-title">${label}</div>
               ${children
                 .map(
-                  ([l, h]) => `<a class="sidenav__sub${sub === l && key === active ? ' is-active' : ''}" href="${h === '#' ? '#' : root + h}" ${h === '#' ? 'data-soon="1"' : ''}>${l}<span class="sidenav__pin" aria-hidden="true">⊕</span></a>`,
+                  ([l, h, extra]) => `<a class="sidenav__sub${sub === l && key === active ? ' is-active' : ''}" href="${h === '#' ? '#' : root + h}" ${h === '#' ? 'data-soon="1"' : ''}><span class="sidenav__sublabel">${l}${extra || ''}</span><span class="sidenav__pin" aria-hidden="true">⊕</span></a>`,
                 )
                 .join('')}
             </div>`
