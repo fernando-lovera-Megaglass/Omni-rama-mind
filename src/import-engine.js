@@ -1,32 +1,40 @@
-// Contact import engine (rules from especificacion-importacion-contactos-crm.md): file parsing (CSV / XLSX / XLS /
-// pasted data), header auto-mapping (Spanish or English, English fallback), value conversion per property type,
-// de-duplication by e-mail or record ID, the three import modes, the error catalogue with its impact, the import
-// states (STARTED → PROCESSING → DONE / FAILED / CANCELED, DEFERRED when three are running), limits, downloads.
-import { allContacts, addRecord, setField, OWNERS, TODAY, getViewStore, setViewStore, strip } from './data.js';
+// Import engine for contacts, companies, deals, tickets and tasks (rules from especificacion-importacion-contactos-crm.md):
+// file parsing (CSV / XLSX / XLS / pasted data), header auto-mapping (Spanish or English, English fallback),
+// value conversion per property type, the required properties and unique identifiers of each object,
+// de-duplication (e-mail, domain or record ID), the three import modes, associations by company, the error
+// catalogue with its impact, the import states (STARTED → PROCESSING → DONE / FAILED / CANCELED, DEFERRED when
+// three are running), the limits and the downloads.
+import { ALL, addRecord, setField, OWNERS, TODAY, getViewStore, setViewStore, strip, dealPipelines, stagesFor, ticketPipelines, TICKET_STATUSES, TASK_STATUSES, DEAL_STAGES } from './data.js';
 import { propertyList, customProperties, saveCustomProperties } from './properties.js';
 
-export const OBJECT = 'contacts';
 export const ME = 'Fernando L.';
 export const IMPORTS_KEY = 'crm:imports';
 export const DETAIL_KEY = (id) => `crm:imports:detail:${id}`;
+
+// ---------- objects: labels, required properties and unique identifiers (specification §3 and §5) ----------
+export const OBJECTS = {
+  contacts: { label: 'Contactos', singular: 'contacto', requiredAny: ['first', 'last', 'email', 'name'], unique: ['hs_object_id', 'email'], defaultUnique: 'email', altField: 'hs_additional_emails', requiredText: 'Nombre, Apellidos o Correo electrónico' },
+  companies: { label: 'Empresas', singular: 'empresa', requiredAny: ['name', 'domain'], unique: ['hs_object_id', 'domain'], defaultUnique: 'domain', altField: 'hs_additional_domains', requiredText: 'Nombre o Nombre de dominio de la empresa' },
+  deals: { label: 'Negocios', singular: 'negocio', requiredAll: ['name', 'pipeline', 'stage'], unique: ['hs_object_id'], defaultUnique: 'hs_object_id', requiredText: 'Nombre del negocio, Pipeline y Etapa del negocio' },
+  tickets: { label: 'Tickets', singular: 'ticket', requiredAll: ['name', 'pipeline', 'status'], unique: ['hs_object_id'], defaultUnique: 'hs_object_id', requiredText: 'Nombre del ticket, Pipeline y Estado del ticket' },
+  tasks: { label: 'Tareas', singular: 'tarea', requiredAll: ['name', 'due'], unique: ['hs_object_id'], defaultUnique: 'hs_object_id', requiredText: 'Título de la tarea y Fecha de vencimiento' },
+};
+export const OBJECT_KEYS = Object.keys(OBJECTS);
+export const objectDef = (type) => OBJECTS[type] || OBJECTS.contacts;
+export const UNIQUE_LABELS = { hs_object_id: 'ID de registro', email: 'Correo electrónico', domain: 'Nombre de dominio de la empresa' };
 
 // ---------- limits (free tier of the specification) ----------
 export const LIMITS = { fileBytes: 20 * 1024 * 1024, importsPerDay: 50, rowsPerDay: 500000, rowsPerFile: 1048576, concurrent: 3, cellBytes: 1024 * 1024, maxColumns: 1000, errorsPerRow: 10 };
 
 // ---------- states ----------
-export const STATES = {
-  STARTED: 'Iniciada',
-  PROCESSING: 'Procesando',
-  DONE: 'Completada',
-  FAILED: 'Fallida',
-  CANCELED: 'Cancelada',
-  DEFERRED: 'En cola',
-};
+export const STATES = { STARTED: 'Iniciada', PROCESSING: 'Procesando', DONE: 'Completada', FAILED: 'Fallida', CANCELED: 'Cancelada', DEFERRED: 'En cola' };
 export const stateLabel = (s) => STATES[s] || STATES.DONE;
 
 // ---------- error catalogue: code → [meaning, impact] ----------
 export const ERRORS = {
   AMBIGUOUS_ENUMERATION_OPTION: ['El valor coincide con más de una opción de la lista.', 'Registro importado, propiedad vacía.'],
+  ASSOCIATION_RECORD_NOT_FOUND: ['No existe ningún registro con ese identificador para asociar.', 'Datos importados, sin asociar.'],
+  MULTIPLE_COMPANIES_WITH_DOMAIN: ['El dominio coincide con varias empresas.', 'Empresa no actualizada.'],
   OWNER_NOT_FOUND: ['No hay ningún usuario con ese nombre o correo.', 'Registro importado, propietario vacío.'],
   MULTIPLE_OWNERS_FOUND: ['Varios usuarios coinciden con ese nombre; usa el correo.', 'Registro importado, propietario vacío.'],
   COULD_NOT_PARSE_DATE: ['La fecha no tiene un formato válido.', 'Propiedad vacía.'],
@@ -39,8 +47,10 @@ export const ERRORS = {
   DUPLICATE_RECORD_ID: ['El ID de registro se repite en otra fila.', 'Fila no importada.'],
   EMPTY_PROPERTY_VALUES_OBJECT: ['La fila tiene todas las columnas vacías.', 'Fila no importada.'],
   INVALID_EMAIL: ['El correo electrónico no es válido.', 'Fila no importada.'],
-  INVALID_ADDITIONAL_EMAIL: ['Un correo adicional no es válido o ya lo usa otro contacto.', 'Registro importado, correo adicional omitido.'],
+  INVALID_ADDITIONAL_EMAIL: ['Un correo o dominio adicional no es válido o ya lo usa otro registro.', 'Registro importado, valor adicional omitido.'],
   INVALID_ENUMERATION_OPTION: ['El valor no coincide con ninguna opción de la lista.', 'Registro importado, propiedad vacía.'],
+  INVALID_DEAL_STAGE: ['La etapa o el estado no existe en ese pipeline.', 'Fila no importada.'],
+  INVALID_PIPELINE: ['El pipeline no existe.', 'Fila no importada.'],
   INVALID_RECORD_ID: ['El ID de registro no existe en el CRM.', 'Fila no importada.'],
   INVALID_FILE_TYPE: ['El archivo no es .csv, .xlsx ni .xls.', 'Nada importado.'],
   INVALID_SHEET_COUNT: ['El libro tiene más de una hoja.', 'Nada importado.'],
@@ -48,7 +58,7 @@ export const ERRORS = {
   FILE_NOT_FOUND: ['No se encontró el archivo.', 'Nada importado.'],
   INCORRECT_COLUMN_COUNT: ['Hay una columna sin encabezado.', 'Esa columna no se importa.'],
   LIMIT_EXCEEDED: ['Se superó un límite de importación.', 'Nada importado.'],
-  MISSING_REQUIRED_PROPERTY: ['Falta Nombre, Apellidos o Correo electrónico.', 'Fila no importada.'],
+  MISSING_REQUIRED_PROPERTY: ['Falta una propiedad obligatoria del objeto.', 'Fila no importada.'],
   PROPERTY_VALIDATION_RULE_ERROR: ['El valor incumple las reglas de validación de la propiedad.', 'Registro importado, propiedad vacía.'],
   PROPERTY_DEFINITION_NOT_FOUND: ['El encabezado no corresponde a ninguna propiedad.', 'Esa columna no se importa.'],
   ROW_DATA_TOO_LARGE: ['Una celda supera 1 MB.', 'Fila no importada.'],
@@ -57,15 +67,12 @@ export const ERRORS = {
   GDPR_BLACKLISTED_EMAIL: ['Correo bloqueado por privacidad de datos.', 'Ese contacto no se importa.'],
   UNKNOWN_BAD_REQUEST: ['Error no identificado.', 'No se importa.'],
 };
-// Errors that drop the whole row; the others only empty the property.
-export const ROW_ERRORS = new Set(['COULD_NOT_PARSE_ROW', 'CREATE_ONLY_IMPORT', 'UPDATE_ONLY_IMPORT', 'DUPLICATE_UNIQUE_PROPERTY_VALUE', 'DUPLICATE_ROW_CONTENT', 'DUPLICATE_RECORD_ID', 'EMPTY_PROPERTY_VALUES_OBJECT', 'INVALID_EMAIL', 'INVALID_RECORD_ID', 'MISSING_REQUIRED_PROPERTY', 'ROW_DATA_TOO_LARGE', 'TOO_MANY_ERRORS_IN_ROW', 'GDPR_BLACKLISTED_EMAIL']);
+export const ROW_ERRORS = new Set(['COULD_NOT_PARSE_ROW', 'CREATE_ONLY_IMPORT', 'UPDATE_ONLY_IMPORT', 'DUPLICATE_UNIQUE_PROPERTY_VALUE', 'DUPLICATE_ROW_CONTENT', 'DUPLICATE_RECORD_ID', 'EMPTY_PROPERTY_VALUES_OBJECT', 'INVALID_EMAIL', 'INVALID_DEAL_STAGE', 'INVALID_PIPELINE', 'INVALID_RECORD_ID', 'MISSING_REQUIRED_PROPERTY', 'ROW_DATA_TOO_LARGE', 'TOO_MANY_ERRORS_IN_ROW', 'GDPR_BLACKLISTED_EMAIL']);
 export const errorMeaning = (code) => (ERRORS[code] || ERRORS.UNKNOWN_BAD_REQUEST)[0];
 export const errorImpact = (code) => (ERRORS[code] || ERRORS.UNKNOWN_BAD_REQUEST)[1];
-
-// Values of these properties are shown as ELIMINADO in error tables and downloads.
 export const SENSITIVE_KEYS = new Set(['date_of_birth', 'gender', 'marital_status']);
-export const UNIQUE_KEYS = ['hs_object_id', 'email'];
-export const REQUIRED_ANY = ['first', 'last', 'email', 'name'];
+export const UNIQUE_KEYS = ['hs_object_id', 'email', 'domain'];
+export const isUnique = (key, type = 'contacts') => objectDef(type).unique.includes(key);
 
 // ---------- file parsing ----------
 export function sniffFormat(name) {
@@ -75,8 +82,6 @@ export function sniffFormat(name) {
   if (ext === 'xls') return 'xls';
   return null;
 }
-
-// CSV / TSV with quotes, any of , ; or tab as separator, CRLF and BOM.
 export function parseDelimited(text) {
   const src = String(text || '').replace(/^﻿/, '');
   const firstLine = src.split(/\r?\n/)[0] || '';
@@ -89,9 +94,7 @@ export function parseDelimited(text) {
   for (let i = 0; i < src.length; i += 1) {
     const ch = src[i];
     if (quoted) {
-      if (ch === '"') {
-        if (src[i + 1] === '"') { cell += '"'; i += 1; } else quoted = false;
-      } else cell += ch;
+      if (ch === '"') { if (src[i + 1] === '"') { cell += '"'; i += 1; } else quoted = false; } else cell += ch;
     } else if (ch === '"') quoted = true;
     else if (ch === sep) { row.push(cell); cell = ''; }
     else if (ch === '\n' || ch === '\r') {
@@ -106,8 +109,6 @@ export function parseDelimited(text) {
   const headers = (rows.shift() || []).map((h) => h.trim());
   return { headers, rows: rows.map((r) => headers.map((_, i) => (r[i] ?? '').trim())), separator: sep };
 }
-
-// Any file: CSV as text; XLSX / XLS through SheetJS (first and only sheet).
 export async function parseFile(file) {
   if (!file) throw importError('FILE_NOT_FOUND');
   const format = sniffFormat(file.name);
@@ -118,35 +119,26 @@ export async function parseFile(file) {
   else {
     const XLSX = await import('xlsx');
     let wb;
-    try {
-      wb = XLSX.read(await file.arrayBuffer(), { type: 'array', cellDates: true });
-    } catch {
-      throw importError('INVALID_SPREADSHEET');
-    }
+    try { wb = XLSX.read(await file.arrayBuffer(), { type: 'array', cellDates: true }); } catch { throw importError('INVALID_SPREADSHEET'); }
     if (!wb.SheetNames.length) throw importError('INVALID_SPREADSHEET');
     if (wb.SheetNames.length > 1) throw importError('INVALID_SHEET_COUNT', `El libro tiene ${wb.SheetNames.length} hojas; deja solo una.`);
-    const sheet = wb.Sheets[wb.SheetNames[0]];
-    const aoa = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: false, defval: '', blankrows: false });
+    const aoa = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, raw: false, defval: '', blankrows: false });
     const headers = (aoa.shift() || []).map((h) => String(h ?? '').trim());
     parsed = { headers, rows: aoa.map((r) => headers.map((_, i) => String(r[i] ?? '').trim())), separator: '' };
   }
   return checkTable({ ...parsed, format, fileName: file.name, size: file.size });
 }
-
 export function parsePasted(text) {
   return checkTable({ ...parseDelimited(text), format: 'paste', fileName: 'Datos pegados', size: String(text || '').length });
 }
-
 function checkTable(t) {
   if (!t.headers.length) throw importError('INVALID_SPREADSHEET', 'La primera fila debe contener los encabezados.');
   if (t.headers.length >= LIMITS.maxColumns) throw importError('INVALID_SPREADSHEET', `El archivo tiene ${t.headers.length} columnas; el máximo es ${LIMITS.maxColumns - 1}.`);
   if (t.rows.length > LIMITS.rowsPerFile) throw importError('LIMIT_EXCEEDED', `El archivo tiene ${t.rows.length} filas; el máximo por archivo es ${LIMITS.rowsPerFile}.`);
-  // Columns without a header are dropped (INCORRECT_COLUMN_COUNT) but the import goes on.
   const warnings = [];
   t.headers.forEach((h, i) => { if (!h) warnings.push({ code: 'INCORRECT_COLUMN_COUNT', column: `Columna ${i + 1}` }); });
   return { ...t, warnings };
 }
-
 export function importError(code, detail) {
   const e = new Error(detail || errorMeaning(code));
   e.code = code;
@@ -154,59 +146,50 @@ export function importError(code, detail) {
 }
 
 // ---------- property catalogue and auto-mapping ----------
-export const props = () => propertyList(OBJECT);
-export const propByKey = (key) => props().find((p) => p.key === key);
+export const props = (type = 'contacts') => propertyList(type);
+export const propByKey = (type, key) => props(type).find((p) => p.key === key);
+const COMMON_EN = { hs_object_id: ['record id', 'id'], owner: ['owner'], hs_import_ids: [] };
 const EN_LABELS = {
-  first: ['first name', 'first', 'given name'], last: ['last name', 'last', 'surname', 'family name'], name: ['full name', 'name', 'contact name'],
-  email: ['email', 'email address', 'e-mail', 'correo electrónico'], alt_email: ['alternate email', 'secondary email'],
-  hs_additional_emails: ['additional email addresses', 'additional emails'], phone: ['phone number', 'phone', 'telephone'], mobilephone: ['mobile phone number', 'mobile phone', 'mobile', 'cell phone'],
-  company: ['company name', 'company', 'organization'], jobTitle: ['job title', 'title', 'position'], city: ['city'], state: ['state/region', 'state', 'region', 'province'], country: ['country/region', 'country'],
-  zip: ['postal code', 'zip', 'zip code'], address: ['street address', 'address'], website: ['website url', 'website', 'web'], owner: ['contact owner', 'owner'],
-  lifecycle: ['lifecycle stage', 'lifecycle'], status: ['lead status', 'status'], hs_object_id: ['record id', 'id', 'contact id'], source: ['original source', 'source'], industry: ['industry'],
-  customer_type: ['customer type'], hs_department: ['department'], date_of_birth: ['date of birth', 'birthday'], message: ['message', 'notes'], annualrevenue: ['annual revenue'],
-  hs_marketable_status: ['marketing contact status'], hs_lead_status_date: ['lead status date'], hs_buying_role: ['buying role'], salutation: ['salutation'],
+  contacts: { ...COMMON_EN, first: ['first name', 'first', 'given name'], last: ['last name', 'last', 'surname', 'family name'], name: ['full name', 'name', 'contact name'], email: ['email', 'email address', 'e-mail'], alt_email: ['alternate email', 'secondary email'], hs_additional_emails: ['additional email addresses', 'additional emails'], phone: ['phone number', 'phone', 'telephone'], mobilephone: ['mobile phone number', 'mobile phone', 'mobile', 'cell phone'], company: ['company name', 'company', 'organization'], jobTitle: ['job title', 'title', 'position'], city: ['city'], state: ['state/region', 'state', 'region', 'province'], country: ['country/region', 'country'], zip: ['postal code', 'zip', 'zip code'], address: ['street address', 'address'], website: ['website url', 'website', 'web'], owner: ['contact owner', 'owner'], lifecycle: ['lifecycle stage', 'lifecycle'], status: ['lead status', 'status'], hs_object_id: ['record id', 'id', 'contact id'], source: ['original source', 'source'], industry: ['industry'], customer_type: ['customer type'], hs_department: ['department'], date_of_birth: ['date of birth', 'birthday'], message: ['message', 'notes'], annualrevenue: ['annual revenue'], hs_marketable_status: ['marketing contact status'], hs_buying_role: ['buying role'], salutation: ['salutation'] },
+  companies: { ...COMMON_EN, name: ['company name', 'name', 'company'], domain: ['company domain name', 'domain', 'company domain', 'website domain'], hs_additional_domains: ['additional domains'], website: ['website url', 'website'], phone: ['phone number', 'phone'], owner: ['company owner', 'owner'], industry: ['industry'], type: ['type', 'company type'], description: ['description', 'about'], address: ['street address', 'address'], city: ['city'], state: ['state/region', 'state', 'region'], zip: ['postal code', 'zip'], country: ['country/region', 'country'], employees: ['number of employees', 'employees'], revenue: ['annual revenue', 'revenue'], lifecycle: ['lifecycle stage'], hs_lead_status: ['lead status'], founded_year: ['year founded'], hs_object_id: ['record id', 'id', 'company id'] },
+  deals: { ...COMMON_EN, name: ['deal name', 'name', 'deal'], amount: ['amount', 'deal amount', 'value'], deal_currency_code: ['currency', 'deal currency'], pipeline: ['pipeline', 'deal pipeline'], stage: ['deal stage', 'stage'], closeDate: ['close date', 'closing date'], owner: ['deal owner', 'owner'], type: ['deal type', 'type'], priority: ['priority'], description: ['deal description', 'description'], company: ['associated company', 'company name', 'company', 'company domain name'], hs_next_step: ['next step'], hs_object_id: ['record id', 'id', 'deal id'] },
+  tickets: { ...COMMON_EN, name: ['ticket name', 'name', 'subject'], description: ['ticket description', 'description'], pipeline: ['pipeline', 'ticket pipeline'], status: ['ticket status', 'status'], priority: ['priority'], owner: ['ticket owner', 'owner'], source: ['source', 'channel'], hs_ticket_category: ['category'], hs_object_id: ['record id', 'id', 'ticket id'] },
+  tasks: { ...COMMON_EN, name: ['task title', 'title', 'name', 'task'], type: ['task type', 'type'], status: ['task status', 'status'], priority: ['priority'], owner: ['assigned to', 'owner'], due: ['due date', 'due'], hs_task_body: ['notes', 'task notes', 'body'], hs_object_id: ['record id', 'id', 'task id'] },
 };
+const COMMON_ES = { 'id de registro': 'hs_object_id', 'id del registro': 'hs_object_id', id: 'hs_object_id', propietario: 'owner' };
 const ES_ALIASES = {
-  nombre: 'first', 'primer nombre': 'first', apellido: 'last', apellidos: 'last', 'nombre completo': 'name', correo: 'email', 'correo electronico': 'email', email: 'email', 'e-mail': 'email', 'direccion de correo': 'email',
-  'correo alternativo': 'alt_email', 'correos adicionales': 'hs_additional_emails', 'direcciones de correo electronico adicionales': 'hs_additional_emails',
-  telefono: 'phone', 'numero de telefono': 'phone', 'telefono fijo': 'phone', movil: 'mobilephone', celular: 'mobilephone', 'numero de movil': 'mobilephone', 'telefono movil': 'mobilephone',
-  empresa: 'company', 'nombre de la empresa': 'company', 'empresa principal': 'company', cargo: 'jobTitle', puesto: 'jobTitle', ciudad: 'city', estado: 'state', region: 'state', 'estado/region': 'state', 'estado o region': 'state', provincia: 'state',
-  pais: 'country', 'pais/region': 'country', 'codigo postal': 'zip', cp: 'zip', direccion: 'address', 'sitio web': 'website', web: 'website', 'url del sitio web': 'website',
-  propietario: 'owner', 'propietario del contacto': 'owner', 'etapa del ciclo de vida': 'lifecycle', 'ciclo de vida': 'lifecycle', 'estado del lead': 'status', 'id de registro': 'hs_object_id', 'id del registro': 'hs_object_id', id: 'hs_object_id',
-  'fuente original': 'source', fuente: 'source', sector: 'industry', industria: 'industry', 'tipo de cliente': 'customer_type', departamento: 'hs_department', 'fecha de nacimiento': 'date_of_birth', mensaje: 'message', notas: 'message',
-  'ingresos anuales': 'annualrevenue', 'estado de contacto de marketing': 'hs_marketable_status', 'rol de compra': 'hs_buying_role', salutacion: 'salutation',
+  contacts: { ...COMMON_ES, nombre: 'first', 'primer nombre': 'first', apellido: 'last', apellidos: 'last', 'nombre completo': 'name', correo: 'email', 'correo electronico': 'email', email: 'email', 'e-mail': 'email', 'direccion de correo': 'email', 'correo alternativo': 'alt_email', 'correos adicionales': 'hs_additional_emails', 'direcciones de correo electronico adicionales': 'hs_additional_emails', telefono: 'phone', 'numero de telefono': 'phone', 'telefono fijo': 'phone', movil: 'mobilephone', celular: 'mobilephone', 'numero de movil': 'mobilephone', 'telefono movil': 'mobilephone', empresa: 'company', 'nombre de la empresa': 'company', 'empresa principal': 'company', cargo: 'jobTitle', puesto: 'jobTitle', ciudad: 'city', estado: 'state', region: 'state', 'estado/region': 'state', 'estado o region': 'state', provincia: 'state', pais: 'country', 'pais/region': 'country', 'codigo postal': 'zip', cp: 'zip', direccion: 'address', 'sitio web': 'website', web: 'website', 'url del sitio web': 'website', 'propietario del contacto': 'owner', 'etapa del ciclo de vida': 'lifecycle', 'ciclo de vida': 'lifecycle', 'estado del lead': 'status', 'fuente original': 'source', fuente: 'source', sector: 'industry', industria: 'industry', 'tipo de cliente': 'customer_type', departamento: 'hs_department', 'fecha de nacimiento': 'date_of_birth', mensaje: 'message', notas: 'message', 'ingresos anuales': 'annualrevenue', 'estado de contacto de marketing': 'hs_marketable_status', 'rol de compra': 'hs_buying_role', salutacion: 'salutation' },
+  companies: { ...COMMON_ES, nombre: 'name', 'nombre de la empresa': 'name', empresa: 'name', dominio: 'domain', 'dominio de la empresa': 'domain', 'nombre de dominio': 'domain', 'nombre de dominio de la empresa': 'domain', 'dominios adicionales': 'hs_additional_domains', 'sitio web': 'website', web: 'website', telefono: 'phone', 'numero de telefono': 'phone', 'propietario de la empresa': 'owner', sector: 'industry', industria: 'industry', tipo: 'type', descripcion: 'description', direccion: 'address', ciudad: 'city', estado: 'state', region: 'state', 'estado/region': 'state', pais: 'country', 'pais/region': 'country', 'codigo postal': 'zip', empleados: 'employees', 'numero de empleados': 'employees', 'ingresos anuales': 'revenue', ingresos: 'revenue', 'etapa del ciclo de vida': 'lifecycle', 'estado del lead': 'hs_lead_status', 'ano de fundacion': 'founded_year' },
+  deals: { ...COMMON_ES, nombre: 'name', 'nombre del negocio': 'name', negocio: 'name', importe: 'amount', monto: 'amount', valor: 'amount', moneda: 'deal_currency_code', divisa: 'deal_currency_code', pipeline: 'pipeline', 'pipeline del negocio': 'pipeline', etapa: 'stage', 'etapa del negocio': 'stage', 'fecha de cierre': 'closeDate', cierre: 'closeDate', 'propietario del negocio': 'owner', tipo: 'type', 'tipo de negocio': 'type', prioridad: 'priority', descripcion: 'description', 'descripcion del negocio': 'description', empresa: 'company', 'empresa asociada': 'company', 'nombre de la empresa': 'company', 'nombre de dominio de la empresa': 'company', 'siguiente paso': 'hs_next_step' },
+  tickets: { ...COMMON_ES, nombre: 'name', 'nombre del ticket': 'name', asunto: 'name', ticket: 'name', descripcion: 'description', 'descripcion del ticket': 'description', pipeline: 'pipeline', estado: 'status', 'estado del ticket': 'status', prioridad: 'priority', 'propietario del ticket': 'owner', fuente: 'source', canal: 'source', categoria: 'hs_ticket_category' },
+  tasks: { ...COMMON_ES, titulo: 'name', 'titulo de la tarea': 'name', nombre: 'name', tarea: 'name', tipo: 'type', 'tipo de tarea': 'type', estado: 'status', prioridad: 'priority', 'asignada a': 'owner', 'asignado a': 'owner', 'fecha de vencimiento': 'due', vencimiento: 'due', vence: 'due', notas: 'hs_task_body' },
 };
-export const isUnique = (key) => UNIQUE_KEYS.includes(key);
-
-// Header → property key; the chosen language first, then English, then the property's own key.
-export function matchHeader(header, language = 'es') {
+export function matchHeader(header, language = 'es', type = 'contacts') {
   const h = strip(header);
   if (!h) return '';
-  const catalog = props();
+  const catalog = props(type);
   const byLabel = catalog.find((p) => strip(p.label) === h);
-  const byAlias = ES_ALIASES[h];
-  const byEnglish = Object.entries(EN_LABELS).find(([, labels]) => labels.includes(h));
+  const byAlias = (ES_ALIASES[type] || ES_ALIASES.contacts)[h];
+  const byEnglish = Object.entries(EN_LABELS[type] || EN_LABELS.contacts).find(([, labels]) => labels.includes(h));
   const byKey = catalog.find((p) => strip(p.key) === h);
   const order = language === 'en' ? [byEnglish && byEnglish[0], byLabel && byLabel.key, byAlias] : [byLabel && byLabel.key, byAlias, byEnglish && byEnglish[0]];
   return order.find((k) => k && catalog.some((p) => p.key === k)) || (byKey ? byKey.key : '');
 }
-export function autoMap(headers, language = 'es') {
+export function autoMap(headers, language = 'es', type = 'contacts') {
   const used = new Set();
   return headers.map((header, index) => {
-    let key = header ? matchHeader(header, language) : '';
+    let key = header ? matchHeader(header, language, type) : '';
     if (key && used.has(key)) key = '';
     if (key) used.add(key);
     return { index, header, key, skip: !header, noOverwrite: false, replacements: {}, dropped: [] };
   });
 }
-
-// Create a property on the fly from the mapping screen; it joins the catalogue right away.
-export function createInlineProperty(label, kind = 'text', options) {
+export function createInlineProperty(type, label, kind = 'text', options) {
   const key = `imp_${strip(label).replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '') || 'propiedad'}`;
-  const list = customProperties(OBJECT);
+  const list = customProperties(type);
   if (!list.some((p) => p.key === key)) {
     list.push({ key, label, kind, options: kind === 'enum' ? options || [] : undefined, group: 'Propiedades personalizadas', custom: true });
-    saveCustomProperties(OBJECT, list);
+    saveCustomProperties(type, list);
   }
   return key;
 }
@@ -216,7 +199,6 @@ const EMAIL_RE = /^[^\s@;,]+@[^\s@;,]+\.[^\s@;,]{2,}$/;
 const MONTHS = { ene: 1, enero: 1, jan: 1, january: 1, feb: 2, febrero: 2, february: 2, mar: 3, marzo: 3, march: 3, abr: 4, abril: 4, apr: 4, april: 4, may: 5, mayo: 5, jun: 6, junio: 6, june: 6, jul: 7, julio: 7, july: 7, ago: 8, agosto: 8, aug: 8, august: 8, sep: 9, sept: 9, septiembre: 9, september: 9, oct: 10, octubre: 10, october: 10, nov: 11, noviembre: 11, november: 11, dic: 12, diciembre: 12, dec: 12, december: 12 };
 export const BOOL_TRUE = ['sí', 'si', 'verdadero', 'true', 'yes', '1', 'x'];
 export const BOOL_FALSE = ['no', 'falso', 'false', '0', ''];
-
 export function parseNumber(raw, numberFormat = 'auto') {
   let s = String(raw ?? '').trim().replace(/\s/g, '').replace(/[€$£]|MXN|USD|EUR|COP|GBP/gi, '');
   if (!s) return NaN;
@@ -227,9 +209,6 @@ export function parseNumber(raw, numberFormat = 'auto') {
   const n = Number(s);
   return Number.isFinite(n) ? n : NaN;
 }
-
-// Dates: numeric or named months, 2- or 4-digit years, separators / - ., day-month-year / month-day-year /
-// year-month-day (dateFormat), optional hh:mm and ±hh:mm offset, or a UNIX timestamp in milliseconds.
 export function parseDate(raw, dateFormat = 'dmy') {
   const s = String(raw ?? '').trim();
   if (!s) return null;
@@ -270,24 +249,40 @@ export function normalizePhone(raw) {
   else if (!plus && digits.length === 11 && digits.startsWith('1')) out = `+${digits}`;
   return ext ? `${out} ext ${ext}` : out;
 }
+// Company domains keep only the host up to the top-level domain ("https://www.ejemplo.edu/home" → "ejemplo.edu").
+export function normalizeDomain(raw) {
+  let s = String(raw ?? '').trim().toLowerCase();
+  if (!s) return null;
+  s = s.replace(/^[a-z]+:\/\//, '').replace(/^www\./, '').split(/[/?#\s]/)[0].replace(/:\d+$/, '');
+  return /^[a-z0-9.-]+\.[a-z]{2,}$/.test(s) ? s : null;
+}
 const ownerIndex = () => OWNERS.filter((o) => o !== 'Sin asignar').map((name) => ({ name, email: `${strip(name).replace(/[^a-z]+/g, '.').replace(/^\.|\.$/g, '')}@omni.crm` }));
 export function resolveOwner(raw) {
   const s = strip(raw);
   if (!s) return { value: '' };
   const byEmail = ownerIndex().filter((o) => o.email === s);
   if (byEmail.length === 1) return { value: byEmail[0].name };
-  const byName = ownerIndex().filter((o) => strip(o.name) === s || strip(o.name).startsWith(s) || s.startsWith(strip(o.name).split(' ')[0]) && s.includes(strip(o.name).split(' ')[1] || '\u0000'));
+  const byName = ownerIndex().filter((o) => strip(o.name) === s || strip(o.name).startsWith(s) || (s.startsWith(strip(o.name).split(' ')[0]) && s.includes(strip(o.name).split(' ')[1] || '\u0000')));
   if (byName.length === 1) return { value: byName[0].name };
   if (byName.length > 1) return { value: '', error: 'MULTIPLE_OWNERS_FOUND' };
   return { value: '', error: 'OWNER_NOT_FOUND' };
 }
 const enumOptions = (p) => (Array.isArray(p.options) ? p.options.map((o) => (Array.isArray(o) ? { value: o[0], label: o[1] } : { value: o, label: o })) : []);
-
-// One cell → { value, error? }. Row-level errors are decided by planImport.
+const pickOption = (list, s) => {
+  const hits = list.filter((o) => strip(o.label) === strip(s) || strip(o.value) === strip(s));
+  if (hits.length === 1) return { value: hits[0].value };
+  if (hits.length > 1) return { value: undefined, error: 'AMBIGUOUS_ENUMERATION_OPTION' };
+  const partial = list.filter((o) => strip(o.label).startsWith(strip(s)));
+  if (partial.length === 1) return { value: partial[0].value };
+  return { value: undefined, error: partial.length > 1 ? 'AMBIGUOUS_ENUMERATION_OPTION' : 'INVALID_ENUMERATION_OPTION' };
+};
 export function convertValue(p, raw, opts = {}) {
   const s = String(raw ?? '').trim();
   if (!s) return { value: undefined };
   if (s.length > LIMITS.cellBytes) return { value: undefined, error: 'ROW_DATA_TOO_LARGE' };
+  if (p.key === 'domain') { const d = normalizeDomain(s); return d ? { value: d } : { value: undefined, error: 'PROPERTY_VALIDATION_RULE_ERROR' }; }
+  if (p.key === 'pipeline' || p.key === 'stage' || p.kind === 'stage') return { value: s }; // validated per pipeline in planImport
+  if (p.key === 'status' && p.kind === 'status') return pickOption(opts.object === 'tasks' ? TASK_STATUSES.map((x) => ({ value: x[0], label: x[1] })) : TICKET_STATUSES.map((x) => ({ value: x[0], label: x[1] })), s);
   switch (p.kind) {
     case 'email': return EMAIL_RE.test(s) ? { value: s.toLowerCase() } : { value: undefined, error: p.key === 'email' ? 'INVALID_EMAIL' : 'INVALID_ADDITIONAL_EMAIL' };
     case 'phone': { const v = normalizePhone(s); return v ? { value: v } : { value: undefined, error: 'COULD_NOT_PARSE_NUMBER' }; }
@@ -296,16 +291,8 @@ export function convertValue(p, raw, opts = {}) {
     case 'date': case 'datetime': { const d = parseDate(s, opts.dateFormat); if (!d) return { value: undefined, error: 'COULD_NOT_PARSE_DATE' }; const y = d.getFullYear(); if (y < 1900 || y > 2999) return { value: undefined, error: 'OUT_OF_VALID_DATE_RANGE' }; return { value: d.toISOString() }; }
     case 'bool': { const v = strip(s); if (BOOL_TRUE.includes(v)) return { value: 'Sí' }; if (BOOL_FALSE.includes(v)) return { value: 'No' }; return { value: undefined, error: 'INVALID_ENUMERATION_OPTION' }; }
     case 'user': return resolveOwner(s);
-    case 'enum': case 'stage': case 'status': case 'priority': {
-      const opts2 = enumOptions(p);
-      if (!opts2.length) return { value: s };
-      const hits = opts2.filter((o) => strip(o.label) === strip(s) || strip(o.value) === strip(s));
-      if (hits.length === 1) return { value: hits[0].value };
-      if (hits.length > 1) return { value: undefined, error: 'AMBIGUOUS_ENUMERATION_OPTION' };
-      const partial = opts2.filter((o) => strip(o.label).startsWith(strip(s)));
-      if (partial.length === 1) return { value: partial[0].value };
-      return { value: undefined, error: partial.length > 1 ? 'AMBIGUOUS_ENUMERATION_OPTION' : 'INVALID_ENUMERATION_OPTION' };
-    }
+    case 'priority': return pickOption([{ value: 'low', label: 'Baja' }, { value: 'medium', label: 'Media' }, { value: 'high', label: 'Alta' }], s);
+    case 'enum': case 'status': { const list = enumOptions(p); return list.length ? pickOption(list, s) : { value: s }; }
     case 'url': return { value: /^[a-z]+:\/\//i.test(s) ? s : `https://${s}` };
     default: return { value: s };
   }
@@ -313,10 +300,11 @@ export function convertValue(p, raw, opts = {}) {
 
 // ---------- pre-validation for the mapping screen (first 1000 rows) ----------
 export function validateColumns(table, mapping, opts = {}) {
+  const type = opts.object || 'contacts';
   const sample = table.rows.slice(0, 1000);
   return mapping.map((m) => {
     if (!m.key || m.skip) return { ...m, errors: 0, badValues: [], rows: [] };
-    const p = propByKey(m.key);
+    const p = propByKey(type, m.key);
     if (!p) return { ...m, errors: 0, badValues: [], rows: [] };
     const bad = new Map();
     const rows = [];
@@ -329,7 +317,6 @@ export function validateColumns(table, mapping, opts = {}) {
     return { ...m, errors: rows.length, badValues: [...bad.values()], rows };
   });
 }
-// Value replacements set on the mapping screen apply to every row; null means "no importar este valor".
 export function applyReplacement(m, raw) {
   const v = String(raw ?? '').trim();
   if (m.dropped && m.dropped.includes(v)) return null;
@@ -337,26 +324,52 @@ export function applyReplacement(m, raw) {
   return v;
 }
 
+// ---------- per-object checks: pipelines, stages, associations ----------
+const stageOf = (type, pipeline, raw) => {
+  const s = strip(raw);
+  if (type === 'deals') {
+    const stages = pipeline ? stagesFor(pipeline) : DEAL_STAGES;
+    const hit = stages.find((st) => strip(st[0]) === s || strip(st[1]) === s);
+    return hit ? hit[0] : null;
+  }
+  return null;
+};
+const companyIndex = () => {
+  const byName = new Map();
+  const byDomain = new Map();
+  ALL.companies().forEach((c) => {
+    if (c.name) byName.set(strip(c.name), [...(byName.get(strip(c.name)) || []), c]);
+    const d = normalizeDomain(c.domain);
+    if (d) byDomain.set(d, [...(byDomain.get(d) || []), c]);
+  });
+  return { byName, byDomain };
+};
+
 // ---------- plan: rows → create / update / skip with their errors ----------
 export function planImport(table, mapping, options = {}) {
+  const type = options.object || 'contacts';
+  const def = objectDef(type);
   const mode = options.mode || 'create_update';
-  const uniqueKey = options.uniqueKey || (mapping.some((m) => m.key === 'hs_object_id' && !m.skip) ? 'hs_object_id' : 'email');
-  const existing = allContacts();
-  const byEmail = new Map();
-  const byAltEmail = new Map();
+  const hasIdColumn = mapping.some((m) => m.key === 'hs_object_id' && !m.skip);
+  const uniqueKey = def.unique.includes(options.uniqueKey) ? options.uniqueKey : hasIdColumn ? 'hs_object_id' : def.defaultUnique;
+  const keyField = uniqueKey === 'hs_object_id' ? null : uniqueKey; // 'email' or 'domain'
+  const existing = ALL[type]();
+  const byKey = new Map();
+  const byAlt = new Map();
   const byId = new Map();
   existing.forEach((c) => {
-    if (c.email && !byEmail.has(String(c.email).toLowerCase())) byEmail.set(String(c.email).toLowerCase(), c); // the oldest record wins
+    const k = keyField ? (keyField === 'domain' ? normalizeDomain(c[keyField]) : String(c[keyField] || '').toLowerCase()) : '';
+    if (k && !byKey.has(k)) byKey.set(k, c);
     byId.set(String(c.id), c);
-    String(c.hs_additional_emails || '').split(';').map((x) => x.trim().toLowerCase()).filter(Boolean).forEach((e) => byAltEmail.set(e, c));
-    if (c.alt_email) byAltEmail.set(String(c.alt_email).toLowerCase(), c);
+    if (def.altField) String(c[def.altField] || '').split(';').map((x) => (keyField === 'domain' ? normalizeDomain(x) : x.trim().toLowerCase())).filter(Boolean).forEach((x) => byAlt.set(x, c));
+    if (type === 'contacts' && c.alt_email) byAlt.set(String(c.alt_email).toLowerCase(), c);
   });
-  const active = mapping.filter((m) => m.key && !m.skip && propByKey(m.key));
+  const companies = type === 'contacts' || type === 'deals' ? companyIndex() : null;
+  const active = mapping.filter((m) => m.key && !m.skip && propByKey(type, m.key));
   const unmapped = mapping.filter((m) => m.header && (!m.key || m.skip)).map((m) => m.header);
-  const seenEmail = new Set();
+  const seenKey = new Set();
   const seenId = new Set();
   const seenContent = new Set();
-  const usedAltEmails = new Set([...byAltEmail.keys()]);
   const records = [];
   const errors = [];
   const addErr = (rowNumber, m, code) => errors.push({ row: rowNumber, column: m ? m.header : '', key: m ? m.key : '', code, impact: errorImpact(code), rowDropped: ROW_ERRORS.has(code) });
@@ -369,8 +382,7 @@ export function planImport(table, mapping, options = {}) {
       const raw = applyReplacement(m, cells[m.index]);
       if (raw === null || raw === '') return;
       anyValue = true;
-      const p = propByKey(m.key);
-      const res = convertValue(p, raw, options);
+      const res = convertValue(propByKey(type, m.key), raw, { ...options, object: type });
       if (res.error) { rowErrors.push([m, res.error]); return; }
       if (res.value !== undefined) data[m.key] = res.value;
     });
@@ -382,18 +394,29 @@ export function planImport(table, mapping, options = {}) {
     else if (rowErrors.length > LIMITS.errorsPerRow) dropCode = 'TOO_MANY_ERRORS_IN_ROW';
     else if (seenContent.has(content)) dropCode = 'DUPLICATE_ROW_CONTENT';
     seenContent.add(content);
-    if (data.name && !data.first && !data.last) { const parts = String(data.name).split(' '); data.first = parts.shift(); data.last = parts.join(' '); }
-    // additional e-mails: ; separated, each valid and not used by another contact
-    if (data.hs_additional_emails !== undefined) {
-      const ok = [];
-      String(data.hs_additional_emails).split(';').map((e) => e.trim().toLowerCase()).filter(Boolean).forEach((e) => {
-        const owner = byAltEmail.get(e) || byEmail.get(e);
-        if (!EMAIL_RE.test(e) || (owner && String(owner.email).toLowerCase() !== String(data.email || '').toLowerCase() && !(uniqueKey === 'hs_object_id' && owner && String(owner.id) === String(data.hs_object_id)))) rowErrors.push([active.find((m) => m.key === 'hs_additional_emails'), 'INVALID_ADDITIONAL_EMAIL']);
-        else ok.push(e);
-      });
-      if (ok.length) data.hs_additional_emails = ok.join(';'); else delete data.hs_additional_emails;
+    if (type === 'contacts' && data.name && !data.first && !data.last) { const parts = String(data.name).split(' '); data.first = parts.shift(); data.last = parts.join(' '); }
+    // pipelines, stages and statuses must exist (deals and tickets)
+    if (!dropCode && type === 'deals') {
+      if (data.pipeline !== undefined) { const hit = dealPipelines().find((p) => strip(p) === strip(data.pipeline)); if (hit) data.pipeline = hit; else dropCode = 'INVALID_PIPELINE'; }
+      if (!dropCode && data.stage !== undefined) { const st = stageOf('deals', data.pipeline, data.stage); if (st) data.stage = st; else dropCode = 'INVALID_DEAL_STAGE'; }
     }
-    // match an existing contact: record ID prevails, then primary e-mail, then a secondary e-mail
+    if (!dropCode && type === 'tickets') {
+      if (data.pipeline !== undefined) { const hit = ticketPipelines().find((p) => strip(p) === strip(data.pipeline)); if (hit) data.pipeline = hit; else dropCode = 'INVALID_PIPELINE'; }
+    }
+    // additional e-mails / domains: ; separated, each valid and not used by another record
+    if (def.altField && data[def.altField] !== undefined) {
+      const ok = [];
+      String(data[def.altField]).split(';').map((x) => x.trim()).filter(Boolean).forEach((x) => {
+        const norm = keyField === 'domain' ? normalizeDomain(x) : x.toLowerCase();
+        const valid = keyField === 'domain' ? Boolean(norm) : EMAIL_RE.test(x);
+        const ownerRec = norm ? byAlt.get(norm) || byKey.get(norm) : null;
+        const sameAsRow = ownerRec && keyField && data[keyField] !== undefined && String(ownerRec[keyField] || '').toLowerCase() === String(data[keyField]).toLowerCase();
+        if (!valid || (ownerRec && !sameAsRow)) rowErrors.push([active.find((m) => m.key === def.altField), 'INVALID_ADDITIONAL_EMAIL']);
+        else ok.push(norm);
+      });
+      if (ok.length) data[def.altField] = ok.join(';'); else delete data[def.altField];
+    }
+    // match an existing record: record ID prevails, then the unique property, then a secondary value
     let match = null;
     if (!dropCode) {
       if (uniqueKey === 'hs_object_id' && data.hs_object_id !== undefined) {
@@ -402,26 +425,38 @@ export function planImport(table, mapping, options = {}) {
         else if (!byId.has(id)) dropCode = 'INVALID_RECORD_ID';
         else match = byId.get(id);
         seenId.add(id);
-      } else if (data.email) {
-        if (seenEmail.has(data.email)) dropCode = 'DUPLICATE_UNIQUE_PROPERTY_VALUE';
-        seenEmail.add(data.email);
-        match = byEmail.get(data.email) || byAltEmail.get(data.email) || null;
+      } else if (keyField && data[keyField]) {
+        const k = String(data[keyField]).toLowerCase();
+        if (seenKey.has(k)) dropCode = 'DUPLICATE_UNIQUE_PROPERTY_VALUE';
+        seenKey.add(k);
+        match = byKey.get(k) || byAlt.get(k) || null;
       }
     }
-    if (!dropCode && !match && !REQUIRED_ANY.some((k) => data[k])) dropCode = 'MISSING_REQUIRED_PROPERTY';
+    if (!dropCode && !match) {
+      const missing = def.requiredAll ? def.requiredAll.filter((k) => data[k] === undefined) : def.requiredAny.some((k) => data[k]) ? [] : def.requiredAny;
+      if (missing.length) dropCode = 'MISSING_REQUIRED_PROPERTY';
+    }
     if (!dropCode && mode === 'create' && match) dropCode = 'CREATE_ONLY_IMPORT';
     if (!dropCode && mode === 'update' && !match) dropCode = 'UPDATE_ONLY_IMPORT';
+    // association by company (contacts and deals): name or domain of an existing company
+    if (!dropCode && companies && data.company !== undefined) {
+      const key = strip(data.company);
+      const found = companies.byName.get(key) || companies.byDomain.get(normalizeDomain(data.company) || '') || [];
+      if (found.length === 1) { data.companyId = found[0].id; data.company = found[0].name; }
+      else if (found.length > 1) rowErrors.push([active.find((m) => m.key === 'company'), 'MULTIPLE_COMPANIES_WITH_DOMAIN']);
+      else if (type === 'deals') rowErrors.push([active.find((m) => m.key === 'company'), 'ASSOCIATION_RECORD_NOT_FOUND']);
+    }
     rowErrors.forEach(([m, code]) => addErr(rowNumber, m, code));
     if (dropCode) { if (!rowErrors.some(([, code]) => code === dropCode)) addErr(rowNumber, null, dropCode); records.push({ rowNumber, action: 'skip', code: dropCode, data, cells }); return; }
     delete data.hs_object_id;
-    const secondary = match && String(match.email || '').toLowerCase() !== String(data.email || '').toLowerCase();
-    if (secondary && uniqueKey !== 'hs_object_id') delete data.email; // a secondary e-mail never replaces the primary one unless the record ID is used
+    const secondary = Boolean(match && keyField && String(match[keyField] || '').toLowerCase() !== String(data[keyField] || '').toLowerCase());
+    if (secondary && uniqueKey !== 'hs_object_id') delete data[keyField]; // a secondary e-mail/domain never replaces the primary one unless the record ID is used
     records.push({ rowNumber, action: match ? 'update' : 'create', matchId: match ? match.id : null, secondary, data, cells });
   });
   unmapped.forEach((h) => errors.push({ row: 0, column: h, key: '', code: 'PROPERTY_DEFINITION_NOT_FOUND', impact: errorImpact('PROPERTY_DEFINITION_NOT_FOUND'), rowDropped: false }));
   (table.warnings || []).forEach((w) => errors.push({ row: 0, column: w.column, key: '', code: w.code, impact: errorImpact(w.code), rowDropped: false }));
   const summary = { rows: table.rows.length, toCreate: records.filter((r) => r.action === 'create').length, toUpdate: records.filter((r) => r.action === 'update').length, skipped: records.filter((r) => r.action === 'skip').length, errors: errors.length };
-  return { records, errors, summary, mode, uniqueKey, headers: table.headers };
+  return { object: type, records, errors, summary, mode, uniqueKey, headers: table.headers };
 }
 
 // ---------- history, limits and states ----------
@@ -448,9 +483,8 @@ export function setState(id, state, note) {
 }
 export function recentWindow(hours = 24) {
   const since = Date.now() - hours * 3600000;
-  return importHistory().filter((r) => r.object === OBJECT && !r.sample && new Date(r.when).getTime() >= since);
+  return importHistory().filter((r) => !r.sample && new Date(r.when).getTime() >= since);
 }
-// Imports left running by a closed tab can't finish: after 10 minutes they count as failed.
 export function sweepStale() {
   const cutoff = Date.now() - 10 * 60000;
   importHistory().forEach((r) => {
@@ -466,65 +500,76 @@ export function canStart(rowCount) {
   return { ok: true };
 }
 export const processingCount = () => importHistory().filter((r) => r.state === 'PROCESSING').length;
-
-// Register the import (STARTED, or DEFERRED when three are already processing).
 export function registerImport({ name, table, plan, options }) {
   const list = importHistory();
   const id = Math.max(0, ...list.map((r) => Number(r.id) || 0)) + 1;
   const deferred = processingCount() >= LIMITS.concurrent;
+  const type = plan.object || options.object || 'contacts';
   const entry = {
-    id, name, object: OBJECT, system: table.format === 'paste' ? 'paste' : 'file', source: table.format === 'paste' ? 'paste' : table.format, state: deferred ? 'DEFERRED' : 'STARTED',
+    id, name, object: type, system: table.format === 'paste' ? 'paste' : 'file', source: table.format === 'paste' ? 'paste' : table.format, state: deferred ? 'DEFERRED' : 'STARTED',
     rows: table.rows.length, newRecords: 0, updated: 0, associations: 0, errors: plan.errors.length, by: ME, when: new Date().toISOString(), finishedAt: '', mode: plan.mode, uniqueKey: plan.uniqueKey, options,
   };
   saveHistory([entry, ...list]);
-  saveDetail(id, { timeline: [{ state: entry.state, at: entry.when, note: deferred ? 'Hay 3 importaciones en proceso; esta empezará cuando termine una.' : '' }], headers: table.headers, mapping: options.mapping || [], errors: plan.errors, failedRows: plan.records.filter((r) => r.action === 'skip').map((r) => ({ row: r.rowNumber, code: r.code, cells: r.cells })), summary: plan.summary, pendingPlan: null });
+  saveDetail(id, { timeline: [{ state: entry.state, at: entry.when, note: deferred ? 'Hay 3 importaciones en proceso; esta empezará cuando termine una.' : '' }], headers: table.headers, mapping: options.mapping || [], errors: plan.errors, failedRows: plan.records.filter((r) => r.action === 'skip').map((r) => ({ row: r.rowNumber, code: r.code, cells: r.cells })), summary: plan.summary });
   return entry;
 }
 
-// Apply the plan in chunks: records are created / updated, the entry moves STARTED → PROCESSING → DONE
-// (or CANCELED when asked, FAILED on an unexpected error). Blank cells never clear existing values;
-// "no sobrescribir" properties are only written when the contact has no value yet.
+// Defaults of a new record per object (the properties the file didn't provide).
+function newRecordDefaults(type, data) {
+  const now = TODAY.toISOString();
+  switch (type) {
+    case 'contacts': return { owner: 'Sin asignar', status: 'new', lifecycle: 'Lead', source: 'Importación', lastActivity: now, name: data.name || [data.first, data.last].filter(Boolean).join(' ') || data.email || 'Sin nombre' };
+    case 'companies': return { owner: 'Sin asignar', lifecycle: 'Lead', lastActivity: now, name: data.name || data.domain || 'Sin nombre', domain: data.domain || '' };
+    case 'deals': return { owner: 'Sin asignar', amount: 0, deal_currency_code: undefined, priority: 'medium', type: 'Nuevo negocio', closeDate: new Date(TODAY.getTime() + 30 * 86400000).toISOString(), lastActivity: now, company: '', companyId: '' };
+    case 'tickets': return { owner: 'Sin asignar', priority: 'medium', source: 'Importación', lastActivity: now, contactId: '' };
+    case 'tasks': return { owner: ME, status: 'todo', priority: 'medium', type: 'Tarea', lastActivity: now, contact: '', contactId: '' };
+    default: return {};
+  }
+}
 export async function runImport(id, plan, { onProgress, isCanceled, chunk = 40, pause = 60, sleep } = {}) {
   const wait = sleep || ((ms) => new Promise((r) => setTimeout(r, ms)));
-  const noOverwrite = new Set((plan.noOverwrite || []));
-  const marketing = Boolean(plan.marketing);
-  const result = { created: 0, updated: 0, failed: plan.records.filter((r) => r.action === 'skip').length, createdIds: [] };
+  const type = plan.object || 'contacts';
+  const noOverwrite = new Set(plan.noOverwrite || []);
+  const marketing = Boolean(plan.marketing) && type === 'contacts';
+  const result = { created: 0, updated: 0, associations: 0, failed: plan.records.filter((r) => r.action === 'skip').length, createdIds: [] };
   try {
     setState(id, 'PROCESSING');
     const todo = plan.records.filter((r) => r.action !== 'skip');
     for (let i = 0; i < todo.length; i += chunk) {
-      if (isCanceled && isCanceled()) { setState(id, 'CANCELED', `Cancelada por el usuario tras ${result.created + result.updated} registros.`); updateImport(id, { newRecords: result.created, updated: result.updated }); return { ...result, state: 'CANCELED' }; }
+      if (isCanceled && isCanceled()) { setState(id, 'CANCELED', `Cancelada por el usuario tras ${result.created + result.updated} registros.`); updateImport(id, { newRecords: result.created, updated: result.updated, associations: result.associations }); return { ...result, state: 'CANCELED' }; }
       todo.slice(i, i + chunk).forEach((r) => {
         const stamp = { hs_import_ids: String(id) };
         if (marketing) stamp.hs_marketable_status = 'Contacto de marketing';
+        if (r.data.companyId) result.associations += 1;
         if (r.action === 'create') {
-          const data = { ...r.data, ...stamp };
-          if (!data.name) data.name = [data.first, data.last].filter(Boolean).join(' ') || data.email || 'Sin nombre';
-          const rec = addRecord(OBJECT, { owner: 'Sin asignar', status: 'new', lifecycle: 'Lead', source: 'Importación', lastActivity: TODAY.toISOString(), ...data });
+          const defaults = newRecordDefaults(type, r.data);
+          const data = { ...defaults, ...r.data, ...stamp };
+          Object.keys(data).forEach((k) => { if (data[k] === undefined) delete data[k]; });
+          const rec = addRecord(type, data);
           result.created += 1;
           result.createdIds.push(rec.id);
         } else {
-          const current = allContacts().find((c) => Number(c.id) === Number(r.matchId));
+          const current = ALL[type]().find((c) => Number(c.id) === Number(r.matchId));
           Object.entries(r.data).forEach(([k, v]) => {
-            if (v === undefined || v === null || v === '') return; // blank cells are ignored
+            if (v === undefined || v === null || v === '') return;
             if (noOverwrite.has(k) && current && current[k] !== undefined && current[k] !== null && current[k] !== '') return;
-            if (k === 'hs_additional_emails' && current && current.hs_additional_emails) v = [...new Set([...String(current.hs_additional_emails).split(';'), ...String(v).split(';')].filter(Boolean))].join(';');
-            setField(OBJECT, r.matchId, k, v);
+            if (k === 'hs_additional_emails' || k === 'hs_additional_domains') { if (current && current[k]) v = [...new Set([...String(current[k]).split(';'), ...String(v).split(';')].filter(Boolean))].join(';'); }
+            setField(type, r.matchId, k, v);
           });
-          if (r.data.first || r.data.last) { const c2 = allContacts().find((c) => Number(c.id) === Number(r.matchId)); if (c2) setField(OBJECT, r.matchId, 'name', [c2.first, c2.last].filter(Boolean).join(' ') || c2.name); }
+          if (type === 'contacts' && (r.data.first || r.data.last)) { const c2 = ALL[type]().find((c) => Number(c.id) === Number(r.matchId)); if (c2) setField(type, r.matchId, 'name', [c2.first, c2.last].filter(Boolean).join(' ') || c2.name); }
           const prev = current ? String(current.hs_import_ids || '') : '';
-          setField(OBJECT, r.matchId, 'hs_import_ids', [...new Set([...prev.split(';').filter(Boolean), String(id)])].join(';'));
-          if (marketing) setField(OBJECT, r.matchId, 'hs_marketable_status', 'Contacto de marketing');
+          setField(type, r.matchId, 'hs_import_ids', [...new Set([...prev.split(';').filter(Boolean), String(id)])].join(';'));
+          if (marketing) setField(type, r.matchId, 'hs_marketable_status', 'Contacto de marketing');
           result.updated += 1;
         }
       });
-      updateImport(id, { newRecords: result.created, updated: result.updated });
+      updateImport(id, { newRecords: result.created, updated: result.updated, associations: result.associations });
       if (onProgress) onProgress({ done: Math.min(i + chunk, todo.length), total: todo.length, ...result });
       if (i + chunk < todo.length) await wait(pause);
     }
     setState(id, 'DONE');
-    updateImport(id, { newRecords: result.created, updated: result.updated, errors: plan.errors.length });
-    if (plan.createSegment) createSegment(id, plan.segmentName);
+    updateImport(id, { newRecords: result.created, updated: result.updated, associations: result.associations, errors: plan.errors.length });
+    if (plan.createSegment) createSegment(type, id, plan.segmentName);
     return { ...result, state: 'DONE' };
   } catch (e) {
     setState(id, 'FAILED', e && e.message ? e.message : 'Error inesperado');
@@ -532,27 +577,26 @@ export async function runImport(id, plan, { onProgress, isCanceled, chunk = 40, 
     return { ...result, state: 'FAILED', error: e };
   }
 }
-
-// A saved view of the contacts list with the records of this import.
-export function createSegment(id, name) {
-  const store = getViewStore(OBJECT);
+export function createSegment(type, id, name) {
+  const store = getViewStore(type);
   const viewId = `imp${id}`;
   if (store.custom.some((v) => v.id === viewId)) return viewId;
-  store.custom.push({ id: viewId, name: name || `Importación ${id}`, owner: ME, share: 'private', base: 'all', filters: {}, advanced: [{ key: 'hs_import_ids', op: 'contains', value: String(id), value2: '', group: 0, assoc: '', label: '' }], sort: { key: 'created', dir: -1 }, columns: ['name', 'email', 'phone', 'owner', 'created'], updated: Date.now() });
+  store.custom.push({ id: viewId, name: name || `Importación ${id}`, owner: ME, share: 'private', base: 'all', filters: {}, advanced: [{ key: 'hs_import_ids', op: 'contains', value: String(id), value2: '', group: 0, assoc: '', label: '' }], sort: { key: 'created', dir: -1 }, columns: type === 'contacts' ? ['name', 'email', 'phone', 'owner', 'created'] : undefined, updated: Date.now() });
   store.open = [...(store.open || []), viewId];
-  setViewStore(OBJECT, store);
+  setViewStore(type, store);
   return viewId;
 }
 
 // ---------- downloads ----------
 const csvCell = (v) => { const s = String(v ?? ''); return /[",\n;]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
 const maskRow = (headers, mapping, cells) => cells.map((c, i) => { const m = (mapping || []).find((x) => x.index === i); return m && SENSITIVE_KEYS.has(m.key) && c ? 'ELIMINADO' : c; });
-export function errorsCsv(detail) {
+export function errorsCsv(detail, type = 'contacts') {
+  const label = objectDef(type).singular;
   const lines = ['Código de error,Tipo de objeto,Razón,Impacto,Fila,Columna,Valores'];
   (detail.errors || []).forEach((e) => {
     const failed = (detail.failedRows || []).find((r) => r.row === e.row);
     const values = failed ? maskRow(detail.headers, detail.mapping, failed.cells).join(' | ') : '';
-    lines.push([e.code, 'Contacto', errorMeaning(e.code), e.impact, e.row || '', e.column, values].map(csvCell).join(','));
+    lines.push([e.code, label.charAt(0).toUpperCase() + label.slice(1), errorMeaning(e.code), e.impact, e.row || '', e.column, values].map(csvCell).join(','));
   });
   return lines.join('\n');
 }
@@ -562,11 +606,16 @@ export function failedRowsCsv(detail) {
   (detail.failedRows || []).forEach((r) => lines.push([r.row, r.code, ...maskRow(detail.headers, detail.mapping, r.cells)].map(csvCell).join(',')));
   return lines.join('\n');
 }
-export function sampleCsv() {
-  return ['Nombre,Apellidos,Correo electrónico,Número de teléfono,Empresa,Cargo,Propietario del contacto,Etapa del ciclo de vida', 'Ana,Ejemplo,ana@ejemplo.com,+52 55 1234 5678,Cristales Ejemplo,Compras,Fernando L.,Lead', 'Luis,Muestra,luis@ejemplo.com,+34 600 000 000,Vidrios Muestra,Dirección,Sofía R.,Cliente'].join('\n');
+export function sampleCsv(type = 'contacts') {
+  const samples = {
+    contacts: ['Nombre,Apellidos,Correo electrónico,Número de teléfono,Empresa,Cargo,Propietario del contacto,Etapa del ciclo de vida', 'Ana,Ejemplo,ana@ejemplo.com,+52 55 1234 5678,Cristales Ejemplo,Compras,Fernando L.,Lead', 'Luis,Muestra,luis@ejemplo.com,+34 600 000 000,Vidrios Muestra,Dirección,Sofía R.,Cliente'],
+    companies: ['Nombre de la empresa,Nombre de dominio de la empresa,Número de teléfono,Sector,Ciudad,Propietario de la empresa', 'Cristales Ejemplo,cristalesejemplo.com,+52 55 1234 5678,Construcción,Monterrey,Fernando L.', 'Vidrios Muestra,vidriosmuestra.es,+34 600 000 000,Arquitectura,Madrid,Sofía R.'],
+    deals: [`Nombre del negocio,Pipeline,Etapa del negocio,Importe,Moneda,Fecha de cierre,Propietario del negocio,Empresa asociada`, `Instalación ventanas Ejemplo,${dealPipelines()[0]},${(stagesFor(dealPipelines()[0])[0] || DEAL_STAGES[0])[1]},125000,MXN,31/12/2026,Fernando L.,Cristales Ejemplo`],
+    tickets: [`Nombre del ticket,Pipeline,Estado del ticket,Prioridad,Propietario del ticket,Descripción`, `Cristal roto en entrega,${ticketPipelines()[0]},${TICKET_STATUSES[0][1]},Alta,Sofía R.,El cliente pide reposición`],
+    tasks: ['Título,Fecha de vencimiento,Tipo de tarea,Prioridad,Asignada a', 'Llamar a Ana Ejemplo,15/12/2026,Llamada,Media,Fernando L.'],
+  };
+  return (samples[type] || samples.contacts).join('\n');
 }
-
-// A .zip with stored (uncompressed) entries, enough for a couple of CSV files.
 const CRC_TABLE = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n += 1) { let c = n; for (let k = 0; k < 8; k += 1) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
 const crc32 = (bytes) => { let c = 0xffffffff; for (let i = 0; i < bytes.length; i += 1) c = CRC_TABLE[(c ^ bytes[i]) & 0xff] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; };
 export function zipFiles(files) {

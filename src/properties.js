@@ -245,6 +245,7 @@ export const PROPERTIES = {
       ['hs_closed_lost_date', 'Fecha de cierre perdido', 'datetime'],
       ['days_to_close', 'Días para cerrar', 'number'],
       ['hs_deal_collaborators', 'Colaboradores del negocio', 'user', OWNER_OPTS],
+      ['hs_import_ids', 'IDs de importación', 'text'],
     ]),
     g('Información de la actividad del negocio', [
       ['lastActivity', 'Fecha de la última actividad', 'datetime'],
@@ -425,6 +426,7 @@ export const PROPERTIES = {
       ['hs_employee_range', 'Rango de empleados (enriquecido)', 'text'],
       ['hs_gps_coordinates', 'Coordenadas GPS', 'text'],
       ['hs_gps_error', 'Error de GPS', 'text'],
+      ['hs_import_ids', 'IDs de importación', 'text'],
     ]),
     g('Información sobre redes sociales', [
       ['linkedinbio', 'Biografía en LinkedIn', 'text'],
@@ -490,6 +492,7 @@ export const PROPERTIES = {
       ['closed_date', 'Fecha de cierre', 'datetime'],
       ['hs_lastmodifieddate', 'Fecha de última modificación', 'datetime'],
       ['hs_object_id', 'ID del ticket', 'id'],
+      ['hs_import_ids', 'IDs de importación', 'text'],
     ]),
     g('Tiempos y actividad', [
       ['lastActivity', 'Fecha de la última actividad', 'datetime'],
@@ -516,6 +519,7 @@ export const PROPERTIES = {
       ['created', 'Fecha de creación', 'datetime'],
       ['hs_lastmodifieddate', 'Fecha de última modificación', 'datetime'],
       ['hs_object_id', 'ID de la tarea', 'id'],
+      ['hs_import_ids', 'IDs de importación', 'text'],
     ]),
   ],
 };

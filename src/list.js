@@ -264,7 +264,7 @@ export function mountList(cfg) {
           <div class="menu__panel menu__panel--right">
             <button class="menu__item" type="button" data-action="columns">Editar columnas</button>
             <button class="menu__item" type="button" data-action="export">Exportar vista</button>
-            ${cfg.type === 'contacts' ? '<a class="menu__item" href="../data/?from=contacts">Importar</a>' : '<button class="menu__item" type="button" data-action="import">Importar</button>'}
+            <a class="menu__item" href="../data/?from=${cfg.type}">Importar</a>
             <button class="menu__item" type="button" data-action="restore">Restaurar registros eliminados</button>
           </div>
         </div>
@@ -272,7 +272,7 @@ export function mountList(cfg) {
           <button class="btn btn--primary btn--pillx" type="button" aria-haspopup="true" aria-expanded="false">${cfg.addLabel || `Agregar ${plural}`} <span class="caret"></span></button>
           <div class="menu__panel menu__panel--right">
             <button class="menu__item" type="button" data-action="create">${cfg.createLabel}</button>
-            ${cfg.type === 'contacts' ? '<a class="menu__item" href="../data/?from=contacts">Importar desde un archivo</a>' : '<button class="menu__item" type="button" data-action="import">Importar desde un archivo</button>'}
+            <a class="menu__item" href="../data/?from=${cfg.type}">Importar desde un archivo</a>
           </div>
         </div>
       </div>
@@ -605,20 +605,7 @@ export function mountList(cfg) {
       </div>
     </div>
 
-    <div class="drawer" id="import-drawer" aria-hidden="true">
-      <div class="drawer__panel" role="dialog" aria-labelledby="import-title">
-        <div class="drawer__head"><h2 id="import-title">Importar</h2><button class="drawer__close" type="button" data-close="import-drawer" aria-label="Cerrar">×</button></div>
-        <div class="drawer__body">
-          <p>Sube un archivo CSV con una fila por registro. La primera fila debe contener los nombres de las columnas.</p>
-          <label class="dropzone"><input type="file" accept=".csv,text/csv" id="import-file" /><span>Arrastra un archivo aquí o haz clic para elegirlo</span></label>
-          <p class="muted" id="import-status"></p>
-        </div>
-        <div class="drawer__foot">
-          <button class="btn btn--primary" type="button" id="import-apply" disabled>Importar registros</button>
-          <button class="btn btn--ghost" type="button" data-close="import-drawer">Cancelar</button>
-        </div>
-      </div>
-    </div>`;
+`;
 
   const $ = (id) => document.getElementById(id);
   const tbody = $('rows');
@@ -2328,40 +2315,6 @@ export function mountList(cfg) {
     render();
   });
 
-  // ---------- import ----------
-  let pendingImport = [];
-  $('import-file').addEventListener('change', (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    file.text().then((txt) => {
-      const lines = txt.split(/\r?\n/).filter(Boolean);
-      const sep = lines[0].includes(';') ? ';' : ',';
-      const head = lines[0].split(sep).map((h) => strip(h.replace(/^"|"$/g, '')));
-      pendingImport = lines.slice(1).map((l) => {
-        const cells = l.split(sep).map((c) => c.replace(/^"|"$/g, ''));
-        const rec = {};
-        head.forEach((h, i) => {
-          const f = cfg.createFields.find((x) => strip(x.label) === h || x.name === h);
-          const p = Object.values(props).find((x) => strip(x.label) === h || x.key === h);
-          if (f) rec[f.name] = cells[i];
-          else if (p) rec[p.key] = cells[i];
-        });
-        return rec;
-      });
-      $('import-status').textContent = `${pendingImport.length} fila(s) listas para importar.`;
-      $('import-apply').disabled = pendingImport.length === 0;
-    });
-  });
-  $('import-apply').addEventListener('click', () => {
-    pendingImport.forEach((rec) => addRecord(cfg.type, cfg.normalize ? cfg.normalize(rec) : rec));
-    toast(`${pendingImport.length} registro(s) importados`);
-    pendingImport = [];
-    $('import-status').textContent = '';
-    $('import-apply').disabled = true;
-    closeDrawer('import-drawer');
-    render();
-  });
-
   // ---------- pipeline selector + summary strip events ----------
   if (cfg.pipeline) {
     const menu = $('pipeline-menu');
@@ -2575,11 +2528,7 @@ export function mountList(cfg) {
     if (a === 'create') openCreate();
     else if (a === 'columns') openColumnEditor();
     else if (a === 'advanced') { renderAdvRows(); openDrawer('adv-drawer'); }
-    else if (a === 'import') {
-      // Contacts are imported from Gestión de datos › Integración de datos, as in the original; the other objects keep the quick CSV drawer.
-      if (cfg.type === 'contacts') { location.href = '../data/?from=contacts'; return; }
-      openDrawer('import-drawer');
-    }
+    else if (a === 'import') { location.href = `../data/?from=${cfg.type}`; } // imports live in Gestión de datos › Integración de datos, as in the original
     else if (a === 'export' || a === 'bulk-export') {
       const list = filtered().filter((r) => a === 'export' || state.selected.has(Number(r.id)));
       download(`${cfg.type}-${TODAY.toISOString().slice(0, 10)}.csv`, toCsv(list, visibleColumns()));

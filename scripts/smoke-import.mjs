@@ -65,10 +65,10 @@ if (mapEs.map((m) => m.key).join(',') !== 'first,last,email,phone,company,owner,
 const mapEn = E.autoMap(['First Name', 'Last Name', 'Email', 'Phone Number', 'Company Name', 'Contact Owner', 'Record ID'], 'es');
 log('map en (fallback):', mapEn.map((m) => m.key).join(','));
 if (mapEn.map((m) => m.key).join(',') !== 'first,last,email,phone,company,owner,hs_object_id') fail('english fallback auto-map');
-log('unique keys:', E.UNIQUE_KEYS.join(','), '| isUnique(email):', E.isUnique('email'));
+log('unique keys:', E.UNIQUE_KEYS.join(','), '| isUnique(email):', E.isUnique('email'), '| isUnique(domain, companies):', E.isUnique('domain', 'companies'));
 
 // ---------- value conversion ----------
-const P = (k) => E.propByKey(k);
+const P = (k) => E.propByKey('contacts', k);
 const checks = [
   ['email', 'Ana@Ejemplo.com', 'ana@ejemplo.com'], ['email', 'no-es-correo', undefined, 'INVALID_EMAIL'],
   ['phone', '55 1234 5678', '+525512345678'], ['phone', '+1 (305) 555-0100 ext 12', '+13055550100 ext 12'], ['phone', 'abc', undefined, 'COULD_NOT_PARSE_NUMBER'],
@@ -106,7 +106,7 @@ const table = E.parsePasted([
   'Nuevo\tDos\tnuevo.dos@ejemplo.com\t\tLead\t\t\t',
   'Nuevo\tDos\tnuevo.dos@ejemplo.com\t\tLead\t\t\t',
 ].join('\n'));
-const mapping = E.autoMap(table.headers, 'es');
+const mapping = E.autoMap(table.headers, 'es', 'contacts');
 log('mapping:', mapping.map((m) => m.key).join(','));
 let plan = E.planImport(table, mapping, { mode: 'create_update', uniqueKey: 'email', dateFormat: 'dmy' });
 const codes = (p) => p.records.map((r) => `${r.rowNumber}:${r.action}${r.code ? `(${r.code})` : ''}`).join(' ');
@@ -132,13 +132,13 @@ if (byRowOf(plan, 2).code !== 'UPDATE_ONLY_IMPORT' || byRowOf(plan, 3).action !=
 function byRowOf(p, n) { return p.records.find((r) => r.rowNumber === n); }
 // record ID prevails over e-mail
 const idTable = E.parsePasted(`ID de registro\tCorreo electrónico\tCargo\n${known.id}\tcambiado@ejemplo.com\tDirección\n999999\tx@ejemplo.com\tNada`);
-const idPlan = E.planImport(idTable, E.autoMap(idTable.headers, 'es'), { mode: 'create_update', uniqueKey: 'hs_object_id' });
+const idPlan = E.planImport(idTable, E.autoMap(idTable.headers, 'es', 'contacts'), { mode: 'create_update', uniqueKey: 'hs_object_id' });
 log('by record id:', codes(idPlan), '| e-mail replaced:', idPlan.records[0].data.email);
 if (idPlan.records[0].action !== 'update' || idPlan.records[0].matchId !== known.id || idPlan.records[1].code !== 'INVALID_RECORD_ID') fail('record id matching');
 // a secondary e-mail identifies the contact but does not replace the primary one
 data.setField('contacts', known.id, 'hs_additional_emails', 'secundario@ejemplo.com');
 const secTable = E.parsePasted('Correo electrónico\tCargo\nsecundario@ejemplo.com\tGerencia');
-const secPlan = E.planImport(secTable, E.autoMap(secTable.headers, 'es'), { mode: 'create_update', uniqueKey: 'email' });
+const secPlan = E.planImport(secTable, E.autoMap(secTable.headers, 'es', 'contacts'), { mode: 'create_update', uniqueKey: 'email' });
 log('secondary e-mail:', codes(secPlan), '| keeps primary:', secPlan.records[0].data.email === undefined);
 if (secPlan.records[0].action !== 'update' || secPlan.records[0].data.email !== undefined) fail('secondary e-mail rule');
 
@@ -151,9 +151,9 @@ lc.replacements = { Astronauta: 'Cliente' };
 const fixed = E.validateColumns(table, cols, { dateFormat: 'dmy' }).find((c) => c.key === 'lifecycle');
 log('after replacement errors:', fixed.errors);
 if (fixed.errors !== 0) fail('value replacement should fix every row');
-const newKey = E.createInlineProperty('Zona comercial', 'text');
-log('inline property:', newKey, '| in catalog:', Boolean(E.propByKey(newKey)));
-if (!E.propByKey(newKey)) fail('inline property creation');
+const newKey = E.createInlineProperty('contacts', 'Zona comercial', 'text');
+log('inline property:', newKey, '| in catalog:', Boolean(E.propByKey('contacts', newKey)));
+if (!E.propByKey('contacts', newKey)) fail('inline property creation');
 
 // ---------- states and run ----------
 const run = E.planImport(table, cols, { mode: 'create_update', uniqueKey: 'email', dateFormat: 'dmy' });
@@ -178,14 +178,14 @@ if (!created || created.lifecycle !== 'Cliente' || !data.getViewStore('contacts'
 // no-overwrite: a second import must not touch a property that already has a value
 const t2 = E.parsePasted(`Correo electrónico\tCargo\n${known.email}\tNuevo cargo`);
 data.setField('contacts', known.id, 'jobTitle', 'Cargo original');
-const m2 = E.autoMap(t2.headers, 'es');
+const m2 = E.autoMap(t2.headers, 'es', 'contacts');
 const e2 = E.registerImport({ name: 'No sobrescribir', table: t2, plan: E.planImport(t2, m2, {}), options: {} });
 await E.runImport(e2.id, { ...E.planImport(t2, m2, {}), noOverwrite: ['jobTitle'] }, { sleep: () => Promise.resolve() });
 log('no-overwrite kept:', data.allContacts().find((c) => Number(c.id) === Number(known.id)).jobTitle);
 if (data.allContacts().find((c) => Number(c.id) === Number(known.id)).jobTitle !== 'Cargo original') fail('no-overwrite rule');
 // cancel while processing
 const big = E.parsePasted(['Nombre\tCorreo electrónico', ...Array.from({ length: 30 }, (_, i) => `C${i}\tc${i}@ejemplo.com`)].join('\n'));
-const bigPlan = E.planImport(big, E.autoMap(big.headers, 'es'), {});
+const bigPlan = E.planImport(big, E.autoMap(big.headers, 'es', 'contacts'), {});
 const e3 = E.registerImport({ name: 'Cancelar', table: big, plan: bigPlan, options: {} });
 let ticks = 0;
 const r3 = await E.runImport(e3.id, bigPlan, { chunk: 5, sleep: () => { ticks += 1; return Promise.resolve(); }, isCanceled: () => ticks >= 2 });
@@ -229,6 +229,73 @@ const zip = E.zipFiles([{ name: 'a.csv', text: errCsv }]);
 log('zip bytes:', zip.length, '| signature:', [...zip.slice(0, 4)].map((b) => b.toString(16)).join(' '));
 if (zip[0] !== 0x50 || zip[1] !== 0x4b) fail('zip signature');
 log('sample file first line:', E.sampleCsv().split('\n')[0]);
+
+// ---------- companies: name or domain required, domain is the unique identifier, domains are normalised ----------
+const knownCo = data.allCompanies().find((c) => c.domain);
+const coTable = E.parsePasted([
+  'Nombre de la empresa\tNombre de dominio de la empresa\tNúmero de teléfono\tSector\tDominios adicionales',
+  'Cristales Prueba\thttps://www.cristalesprueba.com/home\t55 1234 5678\tConstrucción\tcristalesprueba.mx;malo',
+  `Actualizada\t${knownCo.domain}\t\tArquitectura\t`,
+  '\tcristalesprueba.com\t\t\t',
+  '\t\t+34 600 000 000\t\t',
+  'Solo Nombre\t\t\t\t',
+].join('\n'));
+const coMap = E.autoMap(coTable.headers, 'es', 'companies');
+log('companies map:', coMap.map((m) => m.key).join(','));
+if (coMap.map((m) => m.key).join(',') !== 'name,domain,phone,industry,hs_additional_domains') fail('companies auto-map');
+const coPlan = E.planImport(coTable, coMap, { object: 'companies', mode: 'create_update' });
+log('companies plan:', codes(coPlan), '| unique:', coPlan.uniqueKey, '| domain normalised:', byRowOf(coPlan, 2).data.domain, '| extra domains:', byRowOf(coPlan, 2).data.hs_additional_domains);
+if (coPlan.uniqueKey !== 'domain' || byRowOf(coPlan, 2).data.domain !== 'cristalesprueba.com') fail('company domain normalisation');
+if (byRowOf(coPlan, 3).action !== 'update' || Number(byRowOf(coPlan, 3).matchId) !== Number(knownCo.id)) fail('company matched by domain');
+if (byRowOf(coPlan, 4).code !== 'DUPLICATE_UNIQUE_PROPERTY_VALUE' || byRowOf(coPlan, 5).code !== 'MISSING_REQUIRED_PROPERTY' || byRowOf(coPlan, 6).action !== 'create') fail('company required / duplicate rules');
+if (!coPlan.errors.some((e) => e.row === 2 && e.code === 'INVALID_ADDITIONAL_EMAIL') || byRowOf(coPlan, 2).data.hs_additional_domains !== 'cristalesprueba.mx') fail('additional domains');
+const coEntry = E.registerImport({ name: 'Empresas', table: coTable, plan: coPlan, options: { object: 'companies' } });
+const coRun = await E.runImport(coEntry.id, { ...coPlan, createSegment: true, segmentName: 'Importación: Empresas' }, { sleep: () => Promise.resolve() });
+const newCo = data.allCompanies().find((c) => c.domain === 'cristalesprueba.com');
+log('companies run:', JSON.stringify({ created: coRun.created, updated: coRun.updated, state: coRun.state }), '| new company:', newCo && `${newCo.name} · ${newCo.industry} · ${newCo.phone}`, '| segment:', data.getViewStore('companies').custom.some((v) => v.id === `imp${coEntry.id}`));
+if (coRun.state !== 'DONE' || coRun.created !== 2 || coRun.updated !== 1 || !newCo || newCo.industry !== 'Construcción') fail('companies import run');
+
+// ---------- deals: name, pipeline and stage required; stage must exist in the pipeline; company association ----------
+const coNow = data.allCompanies().find((c) => Number(c.id) === Number(knownCo.id)); // renamed by the companies run above
+knownCo.name = coNow.name;
+const pipe = data.dealPipelines()[0];
+const stages = data.stagesFor(pipe);
+const dealTable = E.parsePasted([
+  'Nombre del negocio\tPipeline\tEtapa del negocio\tImporte\tMoneda\tFecha de cierre\tEmpresa asociada\tPropietario del negocio',
+  `Negocio Prueba\t${pipe}\t${stages[0][1]}\t1.250,50\tUSD\t31/12/2026\t${knownCo.name}\tSofía R.`,
+  `Negocio Etapa Mala\t${pipe}\tEtapa inexistente\t100\t\t\t\t`,
+  `Negocio Pipeline Malo\tPipeline inexistente\t${stages[0][1]}\t100\t\t\t\t`,
+  `Sin etapa\t${pipe}\t\t100\t\t\t\t`,
+  `Negocio Empresa Desconocida\t${pipe}\t${stages[0][0]}\t5000\tMXN\t\tEmpresa Fantasma\t`,
+].join('\n'));
+const dealMap = E.autoMap(dealTable.headers, 'es', 'deals');
+log('deals map:', dealMap.map((m) => m.key).join(','));
+if (dealMap.map((m) => m.key).join(',') !== 'name,pipeline,stage,amount,deal_currency_code,closeDate,company,owner') fail('deals auto-map');
+const dealPlan = E.planImport(dealTable, dealMap, { object: 'deals', mode: 'create_update' });
+log('deals plan:', codes(dealPlan), '| unique:', dealPlan.uniqueKey, '| first:', JSON.stringify({ stage: byRowOf(dealPlan, 2).data.stage, amount: byRowOf(dealPlan, 2).data.amount, companyId: byRowOf(dealPlan, 2).data.companyId, owner: byRowOf(dealPlan, 2).data.owner }));
+if (dealPlan.uniqueKey !== 'hs_object_id' || byRowOf(dealPlan, 2).action !== 'create' || byRowOf(dealPlan, 2).data.stage !== stages[0][0] || byRowOf(dealPlan, 2).data.amount !== 1250.5 || Number(byRowOf(dealPlan, 2).data.companyId) !== Number(knownCo.id)) fail('deal row conversion / association');
+if (byRowOf(dealPlan, 3).code !== 'INVALID_DEAL_STAGE' || byRowOf(dealPlan, 4).code !== 'INVALID_PIPELINE' || byRowOf(dealPlan, 5).code !== 'MISSING_REQUIRED_PROPERTY') fail('deal pipeline/stage rules');
+if (byRowOf(dealPlan, 6).action !== 'create' || !dealPlan.errors.some((e) => e.row === 6 && e.code === 'ASSOCIATION_RECORD_NOT_FOUND')) fail('unknown company should import without association');
+const dealEntry = E.registerImport({ name: 'Negocios', table: dealTable, plan: dealPlan, options: { object: 'deals' } });
+const dealRun = await E.runImport(dealEntry.id, dealPlan, { sleep: () => Promise.resolve() });
+const newDeal = data.allDeals().find((d) => d.name === 'Negocio Prueba');
+log('deals run:', JSON.stringify({ created: dealRun.created, associations: dealRun.associations, state: dealRun.state }), '| new deal:', newDeal && `${newDeal.pipeline} · ${newDeal.stage} · ${newDeal.amount} ${newDeal.deal_currency_code} · ${newDeal.company}`);
+if (dealRun.state !== 'DONE' || dealRun.created !== 2 || dealRun.associations !== 1 || !newDeal || newDeal.company !== knownCo.name || newDeal.deal_currency_code !== 'USD') fail('deals import run');
+// deals update by record ID (the only identifier of deals)
+const idDeals = E.parsePasted(`ID de registro\tImporte\n${newDeal.id}\t9999\n${newDeal.id}\t1`);
+const idDealPlan = E.planImport(idDeals, E.autoMap(idDeals.headers, 'es', 'deals'), { object: 'deals' });
+log('deals by id:', codes(idDealPlan));
+if (idDealPlan.records[0].action !== 'update' || idDealPlan.records[1].code !== 'DUPLICATE_RECORD_ID') fail('deal record id rules');
+// tickets: pipeline and status; tasks: title and due date
+const tkTable = E.parsePasted(`Nombre del ticket\tPipeline\tEstado del ticket\tPrioridad\nTicket Prueba\t${data.ticketPipelines()[1]}\t${data.TICKET_STATUSES[1][1]}\tAlta\nTicket sin estado\t${data.ticketPipelines()[0]}\t\t`);
+const tkPlan = E.planImport(tkTable, E.autoMap(tkTable.headers, 'es', 'tickets'), { object: 'tickets' });
+log('tickets plan:', codes(tkPlan), '| first:', JSON.stringify({ pipeline: tkPlan.records[0].data.pipeline, status: tkPlan.records[0].data.status, priority: tkPlan.records[0].data.priority }));
+if (tkPlan.records[0].action !== 'create' || tkPlan.records[0].data.status !== data.TICKET_STATUSES[1][0] || tkPlan.records[0].data.priority !== 'high' || tkPlan.records[1].code !== 'MISSING_REQUIRED_PROPERTY') fail('tickets rules');
+const taskTable = E.parsePasted('Título\tFecha de vencimiento\tTipo de tarea\nLlamar a la empresa\t15/12/2026\tLlamada\nSin fecha\t\t');
+const taskPlan = E.planImport(taskTable, E.autoMap(taskTable.headers, 'es', 'tasks'), { object: 'tasks' });
+log('tasks plan:', codes(taskPlan), '| due:', taskPlan.records[0].data.due?.slice(0, 10));
+if (taskPlan.records[0].action !== 'create' || taskPlan.records[1].code !== 'MISSING_REQUIRED_PROPERTY') fail('tasks rules');
+log('sample files:', E.OBJECT_KEYS.map((k) => `${k}: ${E.sampleCsv(k).split('\n')[0].split(',').length} cols`).join(' | '));
 
 // ---------- wizard pages ----------
 dom = boot('http://localhost/data/import/', '<!doctype html><body class="app"><aside id="sidenav"></aside><header id="topbar"></header><main id="imp-root"></main><div id="scrim"></div></body>');

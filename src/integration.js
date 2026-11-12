@@ -89,7 +89,7 @@ root.innerHTML = `
         <div class="dint__art dint__art--import" aria-hidden="true"><span></span><span></span><span></span></div>
         <h2>Importar un archivo</h2>
         <p>Importación puntual de un archivo directamente al CRM.</p>
-        <button class="btn btn--ghost btn--pillx" type="button" data-act="import">Importar datos</button>
+        <a class="btn btn--ghost btn--pillx" href="./import/${FROM && FROM_LABELS[FROM] ? `?object=${FROM}` : ''}" data-import-link>Importar datos</a>
       </section>
       <section class="dint__card">
         <div class="dint__art dint__art--sync" aria-hidden="true"><span></span><span></span><span></span></div>
@@ -302,7 +302,7 @@ root.addEventListener('click', (e) => {
   if (!act) return;
   e.preventDefault();
   const a = act.dataset.act;
-  if (a === 'import') { location.href = './import/'; }
+  if (a === 'import') { location.href = `./import/${FROM && FROM_LABELS[FROM] ? `?object=${FROM}` : ''}`; }
   else if (a === 'apps') openApps();
   else if (a === 'columns') openColumns();
   else if (a === 'transfer') toast('La herramienta de transferencia inteligente copia tus datos desde otro CRM. Elige el origen y Omni mapea los campos por ti.');
