@@ -2,6 +2,7 @@ import { boot } from './page.js';
 import { mountList, tag, link, ownerHtml } from './list.js';
 import { allDeals, allCompanies, allTasks, DEAL_STAGES, PRIORITIES, OWNERS, formatDate, formatMoney, formatMoneyShort, labelOf, classOf, initials, TODAY, dealPipelines, dealPipelineDefs, stagesFor, allDealStages, isClosedStage, addRecord, setField, addActivity, activitiesFor, CURRENCY_DEFS, CURRENCY_CODES, homeCurrency, toHomeCurrency } from './data.js';
 import { toast } from './shell.js';
+import { mountCreateDeal } from './create-deal.js';
 
 boot({ root: '../', active: 'crm', sub: 'Negocios', title: 'Negocios' });
 
@@ -110,13 +111,17 @@ function columnFooter(rows, value, label, st) {
           <div class="kfoot__row"><strong class="kfoot__amount" data-weighted>${esc(shortMoney(weighted))} <span class="kfoot__prob">${esc(probText)}</span></strong> <span class="kfoot__sep">|</span> <span class="kfoot__label">Cantidad ponderada</span></div>`;
 }
 
-mountList({
+let createPanel = null; // the original's "Crear negocio" slide-over (mounted after the list)
+const list = mountList({
   type: 'deals',
   title: 'Negocios',
   singular: 'Negocio',
   plural: 'negocios',
   addLabel: 'Agregar negocios',
   createLabel: 'Crear negocio',
+  addDirect: true,
+  // The panel opens on the pipeline being looked at (the board's "+ Negocio" also passes its stage).
+  openCreate: (prefill) => createPanel && createPanel.open({ pipeline: boardPipeline(list.state), ...(prefill || {}) }),
   searchPlaceholder: 'Buscar nombre del negocio, empresa...',
   searchKeys: ['name', 'company', 'owner', 'pipeline'],
   rows: allDeals,
@@ -260,3 +265,4 @@ mountList({
     };
   },
 });
+createPanel = mountCreateDeal({ list });

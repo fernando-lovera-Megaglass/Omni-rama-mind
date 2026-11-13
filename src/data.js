@@ -452,7 +452,9 @@ export function dbColumnFor(type, key) {
   if ((TABLE_COLS[type] || []).includes(col)) return { column: col, json: false };
   return { column: `extra->>${key}`, json: true };
 }
-function toDb(type, rec) {
+// keepProps: values typed by the person (create panels, imports) are kept even for catalogue properties;
+// the sample decoration of seeds and restores is not.
+function toDb(type, rec, keepProps = false) {
   const props = PROP_CACHE[type] || propertyList(type);
   const propKeys = new Set(props.map((p) => p.key));
   const out = {};
@@ -461,7 +463,7 @@ function toDb(type, rec) {
     if (v === undefined || k === 'extra') continue;
     const col = (CAMEL_TO_DB[type] && CAMEL_TO_DB[type][k]) || k;
     if (TABLE_COLS[type].includes(col)) out[col] = v === '' && EMPTY_AS_NULL.has(col) ? null : v;
-    else if (!propKeys.has(k)) extra[k] = v;
+    else if (keepProps || !propKeys.has(k)) extra[k] = v;
   }
   out.extra = extra;
   return out;
@@ -590,7 +592,7 @@ export function addRecord(type, fields) {
     (dbRows[type] = dbRows[type] || []).unshift(augment(type, { ...rec }));
     bump();
     dbWrite(async () => {
-      const { error } = await supabase.from(type).insert(toDb(type, rec));
+      const { error } = await supabase.from(type).insert(toDb(type, rec, true));
       if (error) console.error('[supabase] insert', type, error);
     });
     return afterAdd(type, rec);
@@ -1103,6 +1105,52 @@ export function addHistoryEntry(recordType, recordId, key, from, to, label) {
   }
   addActivity({ type: 'prop', recordType, recordId, text, who: 'Tú', when: Date.now(), extra: { key, from, to } });
 }
+
+// ---------- deal line items ("Elementos de pedido" of the Crear negocio panel) ----------
+// Persisted in deal_line_items (supabase/deal_line_items.sql); in local mode in localStorage. There is no
+// products table, so a line is name + quantity + unit price in the deal's currency.
+const LINE_ITEMS_KEY = 'crm:deals:lineitems';
+let lineItemRows = [];
+const lineItemFromDb = (r) => ({ id: r.id, dealId: Number(r.deal_id), name: r.name || '', quantity: Number(r.quantity) || 0, price: Number(r.price) || 0, currency: r.currency || homeCurrency(), created: r.created });
+const normLine = (x) => ({ name: String(x.name || '').trim(), quantity: Math.max(0, Number(x.quantity) || 0), price: Math.max(0, Number(x.price) || 0), currency: currencyOf(x.currency) });
+export function lineItemsFor(dealId) {
+  const rows = dbLive ? lineItemRows : read(LINE_ITEMS_KEY, []);
+  return rows.filter((r) => Number(r.dealId) === Number(dealId));
+}
+// Reads the lines of one deal (or all) from Supabase into the cache; local mode just answers from storage.
+export async function fetchLineItems(dealId) {
+  if (!dbLive) return lineItemsFor(dealId);
+  let q = supabase.from('deal_line_items').select('*').order('id');
+  if (dealId) q = q.eq('deal_id', Number(dealId));
+  const { data, error } = await q;
+  if (error) throw error;
+  const fresh = (data || []).map(lineItemFromDb);
+  lineItemRows = [...lineItemRows.filter((r) => (dealId ? Number(r.dealId) !== Number(dealId) : false)), ...fresh];
+  return lineItemsFor(dealId);
+}
+export function addLineItems(dealId, items) {
+  const lines = (items || []).map(normLine).filter((x) => x.name);
+  if (!lines.length) return [];
+  const stamp = TODAY.toISOString();
+  if (dbLive) {
+    const base = Date.now();
+    const recs = lines.map((x, i) => ({ id: -(base + i), dealId: Number(dealId), ...x, created: stamp }));
+    lineItemRows.push(...recs);
+    dbWrite(async () => {
+      const payload = lines.map((x) => ({ deal_id: Number(dealId), name: x.name, quantity: x.quantity, price: x.price, currency: x.currency, created: stamp }));
+      const { data, error } = await supabase.from('deal_line_items').insert(payload).select('id');
+      if (error) { console.error('[supabase] insert deal_line_items', error); return; }
+      (data || []).forEach((row, i) => { if (recs[i]) recs[i].id = row.id; });
+    });
+    return recs;
+  }
+  const all = read(LINE_ITEMS_KEY, []);
+  const next = all.reduce((m, r) => Math.max(m, Number(r.id) || 0), 0) + 1;
+  const recs = lines.map((x, i) => ({ id: next + i, dealId: Number(dealId), ...x, created: stamp }));
+  write(LINE_ITEMS_KEY, [...all, ...recs]);
+  return recs;
+}
+export const lineItemsTotal = (rows) => rows.reduce((s, r) => s + (Number(r.quantity) || 0) * (Number(r.price) || 0), 0);
 
 // Every activity of the account (the reports count calls and emails by date). In localStorage mode the
 // per-record keys are scanned; a storage without key enumeration (tests) simply yields none.

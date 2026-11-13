@@ -106,8 +106,8 @@ for (const type of ['contacts', 'companies', 'deals', 'tickets', 'tasks']) {
   await import(resolve(here, `../src/${type}.js`) + '?links');
   const importLinks = [...document.querySelectorAll('a.menu__item')].filter((a) => /Importar/.test(a.textContent)).map((a) => a.getAttribute('href'));
   log(`${type} import entries:`, importLinks.join(' | '), '| old drawer gone:', !document.getElementById('import-drawer'));
-  // contacts and companies: "Agregar …" opens the create panel directly, so only the ⋮ menu offers "Importar"
-  const expectedLinks = ['contacts', 'companies'].includes(type) ? 1 : 2;
+  // contacts, companies and deals: "Agregar …" opens the create panel directly, so only the ⋮ menu offers "Importar"
+  const expectedLinks = ['contacts', 'companies', 'deals'].includes(type) ? 1 : 2;
   if (importLinks.length !== expectedLinks || importLinks.some((l) => l !== `../data/?from=${type}`) || document.getElementById('import-drawer')) fail(`${type} "Importar" should lead to Integración de datos`);
 }
 const dom4 = new JSDOM('<!doctype html><body class="app"><aside id="sidenav"></aside><header id="topbar"></header><main id="dint-root"></main><div id="scrim"></div></body>', { url: 'http://localhost/data/?from=companies' });

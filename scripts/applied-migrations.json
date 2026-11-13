@@ -14,5 +14,9 @@
   "fuerza-ventas-stages.sql": {
     "status": "aplicada",
     "at": "2026-11-13T21:17:18.495Z"
+  },
+  "deal_line_items.sql": {
+    "status": "aplicada",
+    "at": "2026-11-13T21:35:30.210Z"
   }
 }

@@ -4835,6 +4835,229 @@ td.cell--hl .cell__pen {
   color: var(--c-link);
 }
 
+/* "Crear negocio" slide-over: amount with its currency, association sections, line items */
+.slideover__panel--wide {
+  width: 520px;
+}
+
+.field textarea {
+  padding: var(--sp-8) var(--sp-10);
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-sm);
+  font: inherit;
+  font-size: var(--fs-sm);
+  font-weight: 400;
+  color: var(--c-text);
+  background: var(--c-white);
+  resize: vertical;
+}
+
+.field textarea:focus {
+  outline: 2px solid var(--c-link);
+  outline-offset: 1px;
+}
+
+.cd-amount {
+  display: flex;
+  align-items: stretch;
+}
+
+.cd-amount__prefix {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 var(--sp-10);
+  border: 1px solid var(--c-border);
+  border-right: 0;
+  border-radius: var(--r-sm) 0 0 var(--r-sm);
+  background: #f5f8fa;
+  font-size: var(--fs-sm);
+  font-weight: 400;
+  color: var(--c-muted);
+}
+
+.cd-amount input {
+  flex: 1;
+  min-width: 0;
+  border-radius: 0;
+}
+
+.cd-amount select {
+  width: 96px;
+  border-left: 0;
+  border-radius: 0 var(--r-sm) var(--r-sm) 0;
+}
+
+.cd-section {
+  margin-top: var(--sp-8);
+  padding-top: var(--sp-16);
+  border-top: 1px solid var(--c-border);
+}
+
+.cd-section__title {
+  margin: 0 0 var(--sp-10);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+
+.cd-search {
+  position: relative;
+}
+
+.cd-search input {
+  width: 100%;
+  height: 40px;
+  padding: 0 var(--sp-10);
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-sm);
+  font: inherit;
+  font-size: var(--fs-sm);
+}
+
+.cd-search input:focus {
+  outline: 2px solid var(--c-link);
+  outline-offset: 1px;
+}
+
+.cd-search__results {
+  position: absolute;
+  z-index: 5;
+  left: 0;
+  right: 0;
+  margin: 2px 0 0;
+  padding: var(--sp-4) 0;
+  list-style: none;
+  background: var(--c-white);
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-sm);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  max-height: 220px;
+  overflow: auto;
+}
+
+.cd-search__results button {
+  display: flex;
+  gap: var(--sp-8);
+  align-items: baseline;
+  width: 100%;
+  padding: var(--sp-8) var(--sp-10);
+  border: 0;
+  background: transparent;
+  text-align: left;
+  font: inherit;
+  font-size: var(--fs-sm);
+  color: var(--c-text);
+  cursor: pointer;
+}
+
+.cd-search__results button:hover,
+.cd-search__results button:focus {
+  background: #eaf0f6;
+  outline: 0;
+}
+
+.cd-assoc {
+  list-style: none;
+  margin: var(--sp-10) 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-10);
+}
+
+.cd-assoc__row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+  padding: var(--sp-10);
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-sm);
+  background: #f5f8fa;
+}
+
+.cd-assoc__who {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+}
+
+.cd-assoc__who > div {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+}
+
+.cd-assoc__who small {
+  font-weight: 400;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cd-assoc__label select {
+  height: 34px;
+}
+
+.cd-check {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-8);
+  font-size: var(--fs-xs);
+  font-weight: 400;
+  color: var(--c-text);
+}
+
+.cd-items {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: var(--sp-8);
+  font-size: var(--fs-sm);
+}
+
+.cd-items th {
+  padding: 0 var(--sp-4) var(--sp-4);
+  text-align: left;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--c-muted);
+}
+
+.cd-items td {
+  padding: var(--sp-4);
+  vertical-align: middle;
+}
+
+.cd-items input {
+  width: 100%;
+  height: 34px;
+  padding: 0 var(--sp-8);
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-sm);
+  font: inherit;
+  font-size: var(--fs-sm);
+}
+
+.cd-items__amount {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.cd-items tfoot td {
+  border-top: 1px solid var(--c-border);
+  font-weight: 600;
+}
+
+.cd-error {
+  margin: var(--sp-10) 0 0;
+  padding: var(--sp-8) var(--sp-10);
+  border: 1px solid #f2545b;
+  border-radius: var(--r-sm);
+  background: #fdedee;
+  color: #c0392b;
+  font-size: var(--fs-sm);
+}
+
 /* Column footer: total and weighted amount of the stage ("Cantidad total" / "Cantidad ponderada") */
 .kcol__foot {
   margin-top: auto;

@@ -36,13 +36,16 @@ log('picked:', picked, '| rows:', rows(), '| all rows in pipeline:', [...documen
 $('pipeline-q').value = 'acris';
 $('pipeline-q').dispatchEvent(new dom.window.Event('input', { bubbles: true }));
 log('search acris:', [...document.querySelectorAll('.pmenu__item span:first-child')].map((s) => s.textContent).join(' | '));
-// create: pipeline prefilled
+// create: the original's slide-over, with the pipeline prefilled and the stage list of that pipeline
 click(document.querySelector('[data-action="create"]'));
-log('create pipeline prefill:', $('create-form').elements.pipeline.value === picked);
-$('create-form').elements.name.value = 'Negocio prueba pipeline';
-$('create-form').dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true }));
+const cdForm = $('cd-form');
+log('create pipeline prefill:', cdForm.elements.pipeline.value === picked, '| first stage:', cdForm.elements.stage.value);
+cdForm.elements.name.value = 'Negocio prueba pipeline';
+cdForm.elements.name.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+cdForm.dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true }));
+await new Promise((r) => setTimeout(r, 30));
 const created = JSON.parse(mem['crm:deals:extra']).find((d) => d.name === 'Negocio prueba pipeline');
-log('created pipeline:', created.pipeline === picked, '| stage label:', created.stage);
+log('created pipeline:', created.pipeline === picked, '| stage:', created.stage);
 // board respects the pipeline
 click(document.querySelector('[data-action="mode-board"]'));
 log('board cards:', document.querySelectorAll('.kcard').length, '| kpis hidden in board:', $('kpis').hidden);
