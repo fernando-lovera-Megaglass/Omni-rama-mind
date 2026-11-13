@@ -31,7 +31,7 @@ const stub = {
   auth: {
     getSession: async () => ({ data: { session: stub.session }, error: null }),
     signInWithPassword: async ({ email, password }) => { stub.calls.push(['signIn', email]); if (password !== 'secreta1') return { data: {}, error: { message: 'Invalid login credentials' } }; stub.session = { user: { email } }; return { data: { session: stub.session }, error: null }; },
-    signUp: async ({ email }) => { stub.calls.push(['signUp', email]); if (email === 'existe@ejemplo.com') return { data: {}, error: { message: 'User already registered' } }; return { data: { user: { email }, session: null }, error: null }; },
+    signInWithOtp: async ({ email }) => { stub.calls.push(['otp', email]); if (email === 'intruso@ejemplo.com') return { data: {}, error: { message: 'Database error saving new user', code: 'unexpected_failure' } }; return { data: {}, error: null }; },
     resetPasswordForEmail: async (email) => { stub.calls.push(['reset', email]); return { error: null }; },
     updateUser: async ({ password }) => { stub.calls.push(['update', password]); return { data: {}, error: null }; },
     signOut: async () => { stub.calls.push(['signOut']); stub.session = null; return { error: null }; },
@@ -82,22 +82,20 @@ await submit();
 log('right password → navigated to:', nav[0]);
 if (nav[0] !== '/deals/') fail('sign in should go to the return address');
 nav.length = 0; stub.session = null;
-// register
+// magic link instead of a public sign-up
 click(document.querySelector('.login__alt a'));
-log('register mode:', document.querySelector('.login__title').textContent, '| fields:', Boolean($('password')), Boolean($('password2')), '| button:', $('submit').textContent);
-if (document.querySelector('.login__title').textContent !== 'Crear una cuenta' || !$('password2')) fail('register mode');
-$('username').value = 'nueva@ejemplo.com'; $('password').value = 'secreta1'; $('password2').value = 'otra';
+log('magic mode:', document.querySelector('.login__title').textContent, '| button:', $('submit').textContent, '| password fields:', Boolean($('password')), Boolean($('password2')), '| "crear una cuenta" anywhere:', /crear una cuenta/i.test(document.body.textContent));
+if (document.querySelector('.login__title').textContent !== 'Entrar con enlace mágico' || $('password') || $('password2') || /crear una cuenta/i.test(document.body.textContent)) fail('magic-link mode without sign-up');
+$('username').value = 'invitada@ejemplo.com';
 await submit();
-if (!/no coinciden/.test(alertText())) fail('password mismatch');
-$('password2').value = 'secreta1';
-$('username').value = 'existe@ejemplo.com';
+log('magic link sent →', alertText());
+if (!/Revisa tu correo/.test(alertText()) || !stub.calls.some((c) => c[0] === 'otp' && c[1] === 'invitada@ejemplo.com')) fail('magic-link flow');
+$('username').value = 'intruso@ejemplo.com';
 await submit();
-log('existing e-mail →', alertText());
-if (!/Ya existe/.test(alertText())) fail('existing account message');
-$('username').value = 'nueva@ejemplo.com'; $('password').value = 'secreta1'; $('password2').value = 'secreta1';
-await submit();
-log('new account →', alertText(), '| mode now:', M.state.mode, '| alert class:', document.querySelector('.alert').className);
-if (!/Revisa tu correo/.test(alertText()) || M.state.mode !== 'login' || !stub.calls.some((c) => c[0] === 'signUp' && c[1] === 'nueva@ejemplo.com')) fail('sign-up flow with e-mail confirmation');
+log('not invited →', alertText());
+if (!/no tiene invitación/.test(alertText())) fail('not-invited message');
+click($('to-login'));
+if (M.state.mode !== 'login') fail('back to the password mode');
 // reset
 $('username').value = 'ana@ejemplo.com';
 await submit();

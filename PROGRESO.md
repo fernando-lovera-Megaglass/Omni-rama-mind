@@ -1,5 +1,20 @@
 # Progreso — Omni CRM
 
+## 2026-11-13 (sesión 5) · Acceso solo para usuarios invitados
+
+**Construido**
+- `supabase/invitations.sql` (nueva migración, **ya aplicada** al proyecto con `scripts/apply-migration.mjs`): tabla `public.invitations` (`email citext` única, `invited_by uuid` por defecto `auth.uid()`, `created_at`); RLS de lectura, inserción y borrado solo para `authenticated` (cualquier usuario del equipo puede invitar por ahora); semilla con `fernando-lovera@megaglass.us` y los correos de los propietarios de la muestra (`fernando.l`, `sofia.r`, `diego.g`, `laura.m` @megaglass.us) con `ON CONFLICT DO NOTHING`; disparador `require_invitation_before_insert` BEFORE INSERT en `auth.users` (función `security definer` con `search_path` fijo) que lanza «Solo usuarios invitados: este correo no tiene invitación» si el correo en minúsculas no está invitado — aplica a cualquier vía (registro con contraseña, enlace mágico, API directa). Los usuarios existentes y la sesión actual no se tocan; las políticas `anon full access` de las tablas de datos siguen igual.
+- `src/auth.js`: desaparece `signUp`; nuevo `signInWithOtp` (enlace mágico, crea la cuenta solo si el correo está invitado), `INVITE_MESSAGE` e `isNotInvitedError` (Supabase devuelve «Database error saving new user» cuando el disparador rechaza la cuenta; se muestra «Tu correo no tiene invitación. Pide al administrador que te invite.»).
+- `src/main.js` (pantalla de inicio): sin «crear una cuenta». Flujo: correo → contraseña (si ya la tiene) con «¿Olvidaste tu contraseña?», «Enviarme un enlace mágico» y «Usar otro correo»; modo **Entrar con enlace mágico** (sin contraseña); restablecer y recuperación como antes. La primera pintura sigue siendo la del original.
+- `src/invitations.js` (nuevo): `listInvitations`, `invite` (valida el formato, inserta y envía el enlace mágico; los duplicados se detectan), `revoke`; sin Supabase guarda en el navegador y no envía correo.
+- `src/settings.js` › Usuarios y equipos › pestaña **Invitaciones** (sustituye a los usuarios de muestra): lista desde Supabase (correo, fecha, estado — «Aceptada · tú» para el usuario con sesión, «Pendiente» para el resto, porque `auth.users` no es consultable desde el cliente), campo «Invitar» (valida, inserta y envía el enlace), «Reenviar enlace» y «Revocar» (borra la fila; no permite revocarse a uno mismo). Las pestañas Licencias, Equipos y Ajustes preestablecidos siguen igual.
+- `scripts/mgmt-sql.mjs` + `scripts/apply-migration.mjs`: aplican un archivo de `supabase/` con el token de gestión guardado en `app/.supabase-mgmt-token` (nunca se imprime) y lo anotan en `scripts/applied-migrations.json`.
+- Pruebas: `scripts/smoke-invitations.mjs` — parte 1 (siempre): pantalla de invitaciones con clientes simulados (listar, invitar, formato inválido, duplicado, reenviar, revocar) y el mapeo del error del disparador; parte 2 (`node --env-file=.env …`, contra el proyecto real): disparador instalado y semilla presente, `anon` no puede leer ni insertar invitaciones, el enlace mágico de un correo invitado lo acepta Supabase (hoy solo lo frena la cuota horaria de correos del servicio integrado: «email rate limit exceeded»), inserción directa en `auth.users` de un correo invitado pasa y de uno no invitado lanza el mensaje del disparador, y `signUp` / `signInWithOtp` de un correo NO invitado devuelven «Database error saving new user» (sin crear usuario); limpia las filas y usuarios de prueba al terminar. `scripts/smoke-auth.mjs` actualizado (enlace mágico en vez de registro). Suite completa (27) en verde; `npm run build` OK.
+
+**Notas**
+- Supabase rechaza como inválidos los correos de dominios reservados o sin servidor de correo (example.com y dominios inventados): la prueba en vivo usa buzones desechables `*.prueba.<marca>@megaglass.us` que se eliminan al final.
+- Para invitar sin la app: `insert into public.invitations (email) values ('persona@empresa.com');` en el SQL Editor. Para quitar la restricción: `drop trigger require_invitation_before_insert on auth.users;`.
+
 ## 2026-11-13 (sesión 5) · Datos ficticios de prueba en `activities` y `segments`
 
 **Construido**

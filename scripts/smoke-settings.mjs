@@ -97,20 +97,16 @@ log('catalog has custom:', props.propertyList('contacts').some((p) => p.label ==
 // users & teams
 location.hash = '#account-users';
 window.dispatchEvent(new dom.window.Event('hashchange'));
-log('users tabs:', [...document.querySelectorAll('[data-utab]')].map((b) => b.textContent).join(' | '), '| rows:', document.querySelectorAll('.utable tbody tr').length, '| chips:', [...document.querySelectorAll('.pchips .qchip')].map((c) => c.textContent.trim()).join(' | '), '| headers:', [...document.querySelectorAll('.utable thead th')].map((t) => t.textContent.trim()).filter(Boolean).join(' | '));
-// create a user through the modal
-click(document.querySelector('[data-act="new-user"]'));
-const uf = document.getElementById('u-form');
-uf.elements.name.value = 'Carlos Pérez'; uf.elements.email.value = 'carlos.perez@megaglass.us'; uf.elements.sales.checked = true;
-uf.dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true }));
-log('user created:', JSON.parse(mem['crm:users']).slice(-1)[0].status, '| addons:', JSON.parse(mem['crm:users']).slice(-1)[0].addons.join(','), '| rows:', document.querySelectorAll('.utable tbody tr').length);
-click(document.querySelector('[data-uset="status"][data-value="Invitación pendiente"]'));
-log('pending filter rows:', document.querySelectorAll('.utable tbody tr').length, '| menu has resend:', Boolean(document.querySelector('[data-uact="resend"]')));
-click(document.querySelector('[data-act="users-clear"]'));
-click(document.querySelector('[data-uact="perms"][data-i="1"]'));
-log('perms modal groups:', document.querySelectorAll('.permgroup').length);
-click(document.getElementById('perm-save'));
-log('perms saved keys:', Object.keys(JSON.parse(mem['crm:users'])[1].perms).length);
+log('users tabs:', [...document.querySelectorAll('[data-utab]')].map((b) => b.textContent).join(' | '), '| invite form:', Boolean(document.getElementById('invite-form')), '| sample users table gone:', !document.querySelector('.utable'));
+// invitations (local mode: saved in this browser, no e-mail is sent)
+const inviteForm = document.getElementById('invite-form');
+inviteForm.elements.email.value = 'carlos.perez@megaglass.us';
+inviteForm.dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true }));
+await new Promise((r) => setTimeout(r, 20));
+log('invitation saved:', JSON.parse(mem['crm:invitations'] || '[]').map((i) => i.email).join(','), '| rows:', document.querySelectorAll('.obody tbody tr').length, '| status:', document.querySelector('.obody tbody tr .tag')?.textContent);
+click(document.querySelector('[data-invite-rm="carlos.perez@megaglass.us"]'));
+await new Promise((r) => setTimeout(r, 20));
+log('after revoke:', JSON.parse(mem['crm:invitations'] || '[]').length, 'invitations');
 // seats tab
 click(document.querySelector('[data-utab="seats"]'));
 log('seat cards:', [...document.querySelectorAll('.seat__head strong')].map((s) => s.textContent).join(' | '), '| first usage:', document.querySelector('.seat__head .muted').textContent);

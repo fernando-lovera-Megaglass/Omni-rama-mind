@@ -1,8 +1,10 @@
-// Login page: the cookie banner (as before) and Supabase Auth with e-mail and password. The first paint is
+// Login page: the cookie banner (as before) and Supabase Auth for invited users only. The first paint is
 // the original's first step (only the e-mail); "Continuar" reveals the password, as the original does.
-// Modes: login, register ("crear una cuenta"), reset ("¿Olvidaste tu contraseña?") and recovery (the link
-// of the reset e-mail). Without Supabase the page stays open: "Continuar" enters directly.
-import { authEnabled, getSession, signIn, signUp, resetPassword, updatePassword, onAuthChange, authMessage, safeNext, goTo } from './auth.js';
+// Modes: login (e-mail → password), magic (a sign-in link by e-mail, also for invited people without a
+// password yet), reset ("¿Olvidaste tu contraseña?") and recovery (the link of the reset e-mail). There is
+// no public sign-up: an e-mail without invitation is refused by the database and told to ask the
+// administrator. Without Supabase the page stays open: "Continuar" enters directly.
+import { authEnabled, getSession, signIn, signInWithOtp, resetPassword, updatePassword, onAuthChange, authMessage, isNotInvitedError, INVITE_MESSAGE, safeNext, goTo } from './auth.js';
 
 const banner = document.getElementById('cookie-banner');
 const hideBanner = () => {
@@ -53,6 +55,7 @@ function setAlert(kind, head, body) {
   alertBox.querySelector('.alert__body').textContent = body || '';
 }
 const fail = (msg) => setAlert('error', 'No se pudo continuar', msg);
+const failWith = (err) => (isNotInvitedError(err) ? setAlert('error', 'Sin invitación', INVITE_MESSAGE) : fail(authMessage(err)));
 
 function field(id, label, autocomplete) {
   let el = $(id);
@@ -92,22 +95,20 @@ export function render() {
   if (emailLabel) emailLabel.hidden = false;
   if (state.mode === 'login') {
     title.textContent = 'Iniciar sesión';
-    alt.innerHTML = 'o <a href="#" id="to-register">crear una cuenta</a>';
+    alt.innerHTML = 'o <a href="#" id="to-magic">entrar con enlace mágico</a>';
     if (state.step === 2) {
       field('password', 'Contraseña', 'current-password');
       submit.textContent = 'Iniciar sesión';
-      links('<a href="#" id="to-reset">¿Olvidaste tu contraseña?</a> · <a href="#" id="to-email">Usar otro correo</a>');
+      links('<a href="#" id="to-reset">¿Olvidaste tu contraseña?</a> · <a href="#" id="to-magic-2">Enviarme un enlace mágico</a> · <a href="#" id="to-email">Usar otro correo</a>');
     } else {
       submit.textContent = 'Continuar';
       links('');
     }
-  } else if (state.mode === 'register') {
-    title.textContent = 'Crear una cuenta';
-    alt.innerHTML = 'o <a href="#" id="to-login">iniciar sesión</a>';
-    field('password', 'Contraseña (mínimo 6 caracteres)', 'new-password');
-    field('password2', 'Repite la contraseña', 'new-password');
-    submit.textContent = 'Crear cuenta';
-    links('');
+  } else if (state.mode === 'magic') {
+    title.textContent = 'Entrar con enlace mágico';
+    alt.innerHTML = 'Te enviamos un enlace por correo; sin contraseña · <a href="#" id="to-login">usar contraseña</a>';
+    submit.textContent = 'Enviarme el enlace';
+    links('<span class="muted">Solo los correos invitados por el administrador pueden entrar.</span>');
   } else if (state.mode === 'reset') {
     title.textContent = 'Restablecer la contraseña';
     alt.innerHTML = 'Te enviaremos un enlace por correo · <a href="#" id="to-login">volver</a>';
@@ -135,10 +136,10 @@ document.querySelector('.login')?.addEventListener('click', (e) => {
   const a = e.target.closest('a');
   if (!a || !a.closest('.login__alt, .form__links')) return;
   e.preventDefault();
-  if (a.id === 'to-login' || (a.closest('.login__alt') && state.mode !== 'login')) go('login', 1);
+  if (a.id === 'to-login') go('login', 1);
   else if (a.id === 'to-reset') go('reset');
   else if (a.id === 'to-email') go('login', 1);
-  else go('register');
+  else go('magic'); // "entrar con enlace mágico" (also the original's alt link before the first render)
 });
 const busy = (on) => { state.busy = on; submit.disabled = on; };
 
@@ -159,14 +160,10 @@ if (form) {
         if (!pw) { fail('Escribe tu contraseña.'); return; }
         await signIn(email, pw);
         goTo(next);
-      } else if (state.mode === 'register') {
+      } else if (state.mode === 'magic') {
         if (!EMAIL_RE.test(email)) { fail('Escribe un correo válido.'); return; }
-        if (pw.length < 6) { fail('La contraseña debe tener al menos 6 caracteres.'); return; }
-        if (pw !== pw2) { fail('Las contraseñas no coinciden.'); return; }
-        const res = await signUp(email, pw);
-        if (res && res.session) { goTo(next); return; }
-        go('login', 1);
-        setAlert('ok', 'Revisa tu correo', `Te enviamos un mensaje a ${email} para confirmar la cuenta. Después, inicia sesión aquí.`);
+        await signInWithOtp(email);
+        setAlert('ok', 'Revisa tu correo', `Te enviamos un enlace a ${email} para entrar. Ábrelo desde este mismo dispositivo.`);
       } else if (state.mode === 'reset') {
         if (!EMAIL_RE.test(email)) { fail('Escribe un correo válido.'); return; }
         await resetPassword(email);
@@ -180,7 +177,7 @@ if (form) {
         goTo(next);
       }
     } catch (err) {
-      fail(authMessage(err));
+      failWith(err);
     } finally {
       busy(false);
     }

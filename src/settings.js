@@ -3,6 +3,8 @@ import { boot } from './page.js';
 import { toast, wireMenus, closeMenus } from './shell.js';
 import { ticketPipelines, saveTicketPipelines, CURRENCY_DEFS, CURRENCY_CODES, currencyRates, saveCurrencyRates, homeCurrency, OWNERS, DEAL_STAGES, TICKET_STATUSES, PIPELINE_KEY, ASSOC_LABELS_KEY, assocLabels, ALL, formatDate, formatMoney, dealPipelines, saveDealPipelines, dealPipelineDefs, saveDealPipelineDefs, newPipelineDef, setField, LIFECYCLES, download, lifecycleDef, saveLifecycleDef, defaultLifecycleDef, applyCompanyAutomation, EXCLUDED_DOMAINS_KEY, EXCLUDED_DOMAINS_MAX, DEFAULT_EXCLUDED_DOMAINS, FREE_EMAIL_DOMAINS, siteDomain, ticketPipelineDefs, saveTicketPipelineDefs, newTicketPipelineDef, ticketPipelineCounts, DEFAULT_TICKET_STATUSES } from './data.js';
 import { propertyGroups, customProperties, saveCustomProperties, propertyList } from './properties.js';
+import { listInvitations, invite, revoke, invitationsEnabled } from './invitations.js';
+import { currentUser, signInWithOtp, authMessage, authEnabled } from './auth.js';
 import { TEAMS, loadLayout, cardCatalog } from './layout-defaults.js';
 import { STD_VIEWS, defaultTabs } from './std-views.js';
 import { getViewStore } from './data.js';
@@ -261,7 +263,7 @@ const lastActiveText = (iso) => { const d = (Date.now() - new Date(iso)) / 86400
 const presets = () => load('crm:presets', [{ id: 'p1', name: 'Ajuste predeterminado de ventas', home: 'Negocios', lang: 'Español', tz: '(UTC-06:00) Ciudad de México', dateFormat: 'dd/mm/aaaa', notifEmail: true, notifDesktop: true, notifMobile: false, teams: ['Ventas en el Extranjero'], users: [], updated: new Date(2026, 9, 2, 10, 15).toISOString(), by: 'Fernando Lovera Colin' }]);
 const savePresets = (list) => save('crm:presets', list);
 const seatLog = () => load('crm:seatlog', []);
-function usersTabHtml() {
+function usersTabHtmlLegacy() { // sample users (kept for the licences tab); the Usuarios tab now manages invitations
   const ts = teams();
   const all = userRows();
   const f = state.uFilter;
@@ -336,12 +338,36 @@ function presetsTabHtml() {
       ${list.map((p, i) => `<tr><td><button class="olink" type="button" data-preset-edit="${i}">${esc(p.name)}</button></td><td>${esc(p.home)}</td><td>${[...(p.teams || []).map((t) => `<span class="rvchip">${esc(t)}</span>`), ...(p.users || []).map((u) => `<span class="rvchip rvchip--user">${esc(u)}</span>`)].join(' ') || '<span class="muted">Sin asignar</span>'}</td><td><div>${esc(rvDate(p.updated))}</div><div class="muted">${esc(p.by || '')}</div></td><td class="num"><div class="menu"><button class="icon-btn icon-btn--round" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Acciones">⋯</button><div class="menu__panel menu__panel--right"><button class="menu__item" type="button" data-preset-edit="${i}">Editar</button><button class="menu__item" type="button" data-preset-clone="${i}">Clonar</button><button class="menu__item menu__item--danger" type="button" data-preset-rm="${i}">Eliminar</button></div></div></td></tr>`).join('')}
     </tbody></table>` : '<p class="pempty">Todavía no hay ajustes preestablecidos. Crea uno para que los usuarios nuevos empiecen con la configuración de su equipo.</p>'}`;
 }
+// ---------- Invitaciones: who may create an account (supabase/invitations.sql) ----------
+const inv = () => state.invites || (state.invites = { rows: [], loaded: false, loading: false, error: '', busy: false });
+function loadInvitations(force = false) {
+  const s = inv();
+  if (s.loading || (s.loaded && !force)) return;
+  s.loading = true;
+  s.error = '';
+  listInvitations()
+    .then((rows) => { s.rows = rows; })
+    .catch((e) => { s.error = (e && e.message) || String(e); })
+    .finally(() => { s.loaded = true; s.loading = false; if (state.section === 'account-users') render(); });
+}
+if (authEnabled()) currentUser().then((u) => { state.meEmail = u && u.email ? u.email.toLowerCase() : ''; if (state.section === 'account-users') render(); });
+function usersTabHtml() {
+  const s = inv();
+  if (!s.loaded && !s.loading) loadInvitations();
+  const me = state.meEmail || '';
+  const q = state.uq.trim().toLowerCase();
+  const rows = s.rows.filter((r) => !q || r.email.includes(q));
+  const status = (r) => (me && r.email === me ? '<span class="tag tag--done">Aceptada · tú</span>' : '<span class="tag tag--open">Pendiente</span>');
+  return `<p class="odesc">Solo los correos invitados pueden crear una cuenta: la base de datos rechaza cualquier otro registro, incluso desde la API. ${invitationsEnabled() ? 'Al invitar, el correo se guarda en Supabase y recibe un enlace mágico para entrar.' : 'Modo local: las invitaciones se guardan en este navegador y no se envía ningún correo.'} Hasta que la persona entre, su invitación aparece como pendiente.</p>
+    <form class="sform sform--inline invform" data-save="invite" id="invite-form"><input class="cellpop__input" name="email" type="email" placeholder="nombre@empresa.com" aria-label="Correo a invitar" required autocomplete="off" /><button class="btn btn--primary" type="submit" ${s.busy ? 'disabled' : ''}>${s.busy ? 'Invitando…' : 'Invitar'}</button></form>
+    <div class="ptoolbar"><div class="search search--sm ptoolbar__search"><input type="search" id="users-q" value="${esc(state.uq)}" placeholder="Buscar invitaciones" aria-label="Buscar invitaciones" /><span class="ico ico--search" aria-hidden="true"></span></div><span class="muted">${rows.length} invitaci${rows.length === 1 ? 'ón' : 'ones'}</span><button class="link-btn" type="button" data-act="invites-reload">Actualizar</button></div>
+    ${s.loading && !s.loaded ? '<p class="muted">Cargando invitaciones…</p>' : s.error ? `<p class="pempty">No se pudieron cargar las invitaciones: ${esc(s.error)}.${invitationsEnabled() ? ' Comprueba que ejecutaste supabase/invitations.sql y que tienes sesión.' : ''}</p>` : rows.length ? simpleTable(['Correo', 'Invitado el', 'Estado', ''], rows.map((r) => [`<strong>${esc(r.email)}</strong>`, esc(formatDate(r.createdAt)), status(r), `<button class="link-btn" type="button" data-invite-resend="${esc(r.email)}">Reenviar enlace</button> <button class="link-btn" type="button" data-invite-rm="${esc(r.email)}" ${me && r.email === me ? 'disabled title="No puedes revocar tu propia invitación"' : ''}>Revocar</button>`])) : '<p class="pempty">Todavía no hay invitaciones.</p>'}`;
+}
 function paneUsers() {
-  const all = userRows();
-  const tabs = [['users', `Usuarios (${all.length})`], ['seats', 'Licencias'], ['teams', `Equipos (${teams().length})`], ['presets', `Ajustes preestablecidos (${presets().length})`]];
+  const tabs = [['users', `Invitaciones (${inv().rows.length})`], ['seats', 'Licencias'], ['teams', `Equipos (${teams().length})`], ['presets', `Ajustes preestablecidos (${presets().length})`]];
   const body = state.utab === 'seats' ? seatsTabHtml() : state.utab === 'teams' ? teamsTabHtml() : state.utab === 'presets' ? presetsTabHtml() : usersTabHtml();
-  return `<div class="shead"><h2>Usuarios y equipos</h2><span class="ad-foot__btns"><button class="btn btn--ghost" type="button" data-act="export-users">Exportar usuarios</button><button class="btn btn--primary" type="button" data-act="new-user">Crear usuario</button></span></div>
-    <p class="odesc">Crea usuarios, personaliza sus permisos y licencias, y organízalos en equipos. <a href="#" onclick="return false">Más información ↗</a></p>
+  return `<div class="shead"><h2>Usuarios y equipos</h2><span class="ad-foot__btns"><button class="btn btn--primary" type="button" data-act="invite-focus">Invitar usuario</button></span></div>
+    <p class="odesc">Invita por correo a quien deba entrar en Omni (solo los correos invitados pueden crear cuenta) y organiza al equipo en equipos y licencias.</p>
     <div class="otabs"><div class="otabs__tabs">${tabs.map(([k, l]) => `<button type="button" class="${state.utab === k ? 'is-active' : ''}" data-utab="${k}">${l}</button>`).join('')}</div></div>
     <div class="obody">${body}</div>`;
 }
@@ -1359,6 +1385,19 @@ root.addEventListener('submit', (e) => {
   }
   else if (what === 'password') { form.reset(); toast('Contraseña actualizada'); }
   else if (what === 'signature') { setSignature(d); toast('Firma guardada'); }
+  else if (what === 'invite') {
+    const s = inv();
+    if (s.busy) return;
+    s.busy = true;
+    render();
+    invite(d.email)
+      .then((r) => {
+        toast(r.existed ? `${r.email} ya tenía invitación${r.sent ? '; enlace reenviado' : ''}` : r.sent ? `Invitación enviada a ${r.email}` : invitationsEnabled() ? `Invitación guardada; el enlace no se pudo enviar: ${authMessage(r.sendError)}` : `Invitación guardada para ${r.email} (modo local, sin correo)`);
+        loadInvitations(true);
+      })
+      .catch((e) => toast(authMessage(e)))
+      .finally(() => { s.busy = false; render(); });
+  }
   else if (what === 'ticketpipe-stages') {
     const defs = ticketPipelineDefs(); const p = collectTicketPipeline(defs[Number(form.dataset.tpipe)]);
     if (!p) return;
@@ -1653,6 +1692,10 @@ root.addEventListener('click', (e) => {
   if (parch) { closeMenus(); const k = parch.dataset.propArchive || parch.dataset.propRestore; const list = customProperties(state.propsObject); const p = list.find((x) => x.key === k); if (p) { p.archived = Boolean(parch.dataset.propArchive); saveCustomProperties(state.propsObject, list); } render(); toast(parch.dataset.propArchive ? 'Propiedad archivada' : 'Propiedad restaurada'); return; }
   const pgrm = e.target.closest('[data-propgroup-rm]');
   if (pgrm) { save(`crm:propgroups:${state.propsObject}`, propGroupsStore(state.propsObject).filter((g) => g !== pgrm.dataset.propgroupRm)); render(); toast('Grupo eliminado'); return; }
+  const irm = e.target.closest('[data-invite-rm]');
+  if (irm) { const email = irm.dataset.inviteRm; if (!window.confirm(`¿Revocar la invitación de ${email}? Ya no podrá crear cuenta.`)) return; revoke(email).then(() => { toast('Invitación revocada'); loadInvitations(true); }).catch((err) => toast(authMessage(err))); return; }
+  const ire = e.target.closest('[data-invite-resend]');
+  if (ire) { const email = ire.dataset.inviteResend; signInWithOtp(email).then(() => toast(`Enlace enviado a ${email}`)).catch((err) => toast(authMessage(err))); return; }
   const rm = e.target.closest('[data-team-rm], [data-label-rm], [data-app-rm], [data-hook-rm], [data-pipeline-rm], [data-ticketpipe-rm], [data-recordview-rm]');
   if (rm) {
     const d = rm.dataset;
@@ -1781,6 +1824,8 @@ root.addEventListener('click', (e) => {
   }
   else if (a === 'new-propgroup') promptModal('Crear grupo de propiedades', [['name', 'Nombre del grupo']], 'Crear', (d) => { const list = propGroupsStore(state.propsObject); const name = d.name.trim(); if (name && !list.includes(name)) list.push(name); save(`crm:propgroups:${state.propsObject}`, list); toast(`Grupo "${name}" creado`); });
   else if (a === 'new-prop') { openModal('Crear propiedad', propertyForm(state.propsObject), `<button class="btn btn--primary" type="button" id="prop-save">Crear</button><button class="btn btn--ghost" type="button" data-close>Cancelar</button>`); document.getElementById('prop-save').onclick = () => saveProperty(state.propsObject); }
+  else if (a === 'invite-focus') { state.utab = 'users'; render(); document.querySelector('#invite-form [name="email"]')?.focus(); }
+  else if (a === 'invites-reload') { loadInvitations(true); render(); }
   else if (a === 'new-user') userModal(null);
   else if (a === 'new-team') teamModal(null);
   else if (a === 'new-preset') presetModal(null);

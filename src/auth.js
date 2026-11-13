@@ -61,12 +61,18 @@ export async function signIn(email, password) {
   if (error) throw error;
   return data.session;
 }
-// data.session is null when the project asks new accounts to confirm their e-mail first.
-export async function signUp(email, password) {
-  const { data, error } = await client.auth.signUp({ email: String(email).trim(), password, options: { emailRedirectTo: appUrl('') } });
+// Magic link: the person receives an e-mail with a link that signs them in (and creates the account on
+// first use — only for invited e-mails, see supabase/invitations.sql). There is no public sign-up.
+export async function signInWithOtp(email) {
+  if (!client) throw new Error('Sin conexión con Supabase (modo local): no se puede enviar el enlace.');
+  const { error } = await client.auth.signInWithOtp({ email: String(email).trim().toLowerCase(), options: { emailRedirectTo: appUrl(''), shouldCreateUser: true } });
   if (error) throw error;
-  return data;
+  return true;
 }
+export const INVITE_MESSAGE = 'Tu correo no tiene invitación. Pide al administrador que te invite.';
+// The invitation trigger refuses the account: Supabase relays the exception text or a generic
+// "Database error saving new user" (unexpected_failure) when it cannot create the user.
+export const isNotInvitedError = (error) => /solo usuarios invitados|no tiene invitaci|database error (saving|creating) new user|unexpected_failure/i.test(String((error && (error.message || error.error_description || error.code)) || error || ''));
 export async function resetPassword(email) {
   const { error } = await client.auth.resetPasswordForEmail(String(email).trim(), { redirectTo: appUrl('?recovery=1') });
   if (error) throw error;
@@ -88,6 +94,7 @@ export function onAuthChange(cb) {
 
 // ---------- messages in the person's language ----------
 const MESSAGES = [
+  [/solo usuarios invitados|no tiene invitaci|database error (saving|creating) new user|unexpected_failure/i, INVITE_MESSAGE],
   [/invalid login credentials|invalid_credentials/i, 'Correo o contraseña incorrectos.'],
   [/email not confirmed/i, 'Confirma tu correo desde el mensaje que te enviamos antes de iniciar sesión.'],
   [/already registered|already been registered|user_already_exists/i, 'Ya existe una cuenta con ese correo. Inicia sesión.'],
