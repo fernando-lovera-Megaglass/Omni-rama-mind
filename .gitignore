@@ -3,3 +3,4 @@ dist/
 .DS_Store
 .env
 .supabase-mgmt-token
+.hubspot-token
