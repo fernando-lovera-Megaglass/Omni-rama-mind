@@ -477,11 +477,12 @@ export function planImport(table, mapping, options = {}) {
     const keptForKey = !fileDup || (filePolicy === 'last' && dropCode !== 'DUPLICATE_UNIQUE_PROPERTY_VALUE');
     const duplicateOf = fileDup && !keptForKey ? 'file' : match ? 'existing' : fileDup ? 'file' : null;
     // association by company (contacts and deals): name or domain of an existing company
-    if (!dropCode && companies && data.company !== undefined) {
-      const key = strip(data.company);
-      const found = companies.byName.get(key) || companies.byDomain.get(normalizeDomain(data.company) || '') || [];
+    const companyText = data.company !== undefined ? data.company : data.associatedcompany; // "Empresa" or "Nombre de la empresa" columns
+    if (!dropCode && companies && companyText !== undefined) {
+      const key = strip(companyText);
+      const found = companies.byName.get(key) || companies.byDomain.get(normalizeDomain(companyText) || '') || [];
       if (found.length === 1) { data.companyId = found[0].id; data.company = found[0].name; }
-      else if (found.length > 1) rowErrors.push([active.find((m) => m.key === 'company'), 'MULTIPLE_COMPANIES_WITH_DOMAIN']);
+      else if (found.length > 1) rowErrors.push([active.find((m) => m.key === 'company' || m.key === 'associatedcompany'), 'MULTIPLE_COMPANIES_WITH_DOMAIN']);
       else if (type === 'deals') rowErrors.push([active.find((m) => m.key === 'company'), 'ASSOCIATION_RECORD_NOT_FOUND']);
     }
     rowErrors.forEach(([m, code]) => addErr(rowNumber, m, code));
@@ -608,7 +609,7 @@ export async function runImport(id, plan, { onProgress, isCanceled, chunk = 40, 
   const type = plan.object || 'contacts';
   const noOverwrite = new Set(plan.noOverwrite || []);
   const marketing = Boolean(plan.marketing) && type === 'contacts';
-  const result = { created: 0, updated: 0, associations: 0, failed: plan.records.filter((r) => r.action === 'skip').length, createdIds: [] };
+  const result = { created: 0, updated: 0, associations: 0, autoCompanies: 0, failed: plan.records.filter((r) => r.action === 'skip').length, createdIds: [] };
   try {
     setState(id, 'PROCESSING');
     const todo = plan.records.filter((r) => r.action === 'create' || r.action === 'update'); // merged rows travel inside the row they were merged into
@@ -625,6 +626,8 @@ export async function runImport(id, plan, { onProgress, isCanceled, chunk = 40, 
           const rec = addRecord(type, data);
           result.created += 1;
           result.createdIds.push(rec.id);
+          // a company found or created from the e-mail domain (companies specification §2) counts as an association
+          if (type === 'contacts' && rec.companyId && !data.companyId) { result.associations += 1; result.autoCompanies += 1; }
         } else {
           const current = ALL[type]().find((c) => Number(c.id) === Number(r.matchId));
           Object.entries(r.data).forEach(([k, v]) => {

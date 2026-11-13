@@ -1,5 +1,20 @@
 # Progreso — Omni CRM
 
+## 2026-11-13 (sesión 5) · Empresas automáticas por dominio del correo (cola `empresas-auto-dominio`, espec `especificacion-empresas-crm.md` §2)
+
+**Construido**
+- `src/data.js` (regla central, se ejecuta en cualquier alta de contacto: formulario, ficha, clonado, importación; y al cambiar el correo o el sitio web de un contacto):
+  - `companyDomainFor(contact)`: dominio del correo; si es un correo gratuito (`FREE_EMAIL_DOMAINS`: gmail, yahoo, hotmail, outlook, icloud…), se usa la URL del sitio web del contacto **solo para asociar** a una empresa que ya exista (nunca crea una a partir del sitio web). Los subdominios cuentan como dominios distintos; `www.` se ignora.
+  - `autoAssociateCompany(contacto)`: no hace nada si la opción está apagada, si el contacto ya tiene empresa (las asociaciones existentes no se tocan), si el dominio está en `Dominios excluidos` o si no hay dominio. Si existe una empresa con ese dominio (varias → la de id menor), asocia; si no, **crea** la empresa (nombre a partir del dominio, propietario del contacto, etapa del ciclo de vida del contacto, marcada `hs_created_by_automation`) y asocia. Deja nota en la cronología del contacto y de la empresa.
+  - `applyCompanyAutomation({ dryRun })`: pasada retroactiva sobre los contactos sin empresa (vista previa o aplicación real).
+  - Ajustes: `crm:settings:obj-companies.autoCreate` (activo por defecto) y `crm:companies:excluded-domains` (hasta 1.000 dominios).
+- `src/settings.js` › Objetos › Empresas › Automatización: la casilla **Crea y asocia Empresas con Contactos** ya funciona; al activarla se pregunta si aplicar también a los contactos existentes con una vista previa (cuántos se asociarían, cuántas empresas se crearían, cuántos quedan igual por correo gratuito o sin correo) y botón «Aplicar ahora a los contactos existentes»; lista de dominios excluidos con validación y tope de 1.000.
+- `src/import-engine.js`: las filas importadas que traen asociación (columna «Empresa» o «Nombre de la empresa» con una empresa existente) la conservan; las demás reciben su empresa por dominio; el resultado cuenta `autoCompanies`.
+- Pruebas: `scripts/smoke-company-auto.mjs` (creación, mismo dominio, subdominio, correo gratuito con y sin sitio web, asociación previa, exclusiones, interruptor, cambio de correo, pasada retroactiva, importación, página de ajustes) + suite completa (24) en verde; `npm run build` OK.
+
+**Notas**
+- La regla solo crea empresas desde el dominio del correo; el sitio web del contacto sirve únicamente para asociar (la muestra de datos genera sitios web ficticios para todos los contactos y, si no, se habrían creado decenas de empresas falsas).
+
 ## 2026-11-13 (sesión 5) · Desduplicación por correo al importar (cola `dedupe-importacion`)
 
 **Construido**

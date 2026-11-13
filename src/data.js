@@ -430,11 +430,13 @@ export function setField(type, id, field, value) {
         if (error) console.error('[supabase] update extra', type, error);
       }
     });
+    afterSet(type, id, field, value);
     return;
   }
   const o = getOverrides(type);
   o[id] = { ...(o[id] || {}), [field]: value };
   write(K(type, 'overrides'), o);
+  afterSet(type, id, field, value);
 }
 
 export function deleteRecords(type, ids) {
@@ -491,13 +493,22 @@ export function addRecord(type, fields) {
       const { error } = await supabase.from(type).insert(toDb(type, rec));
       if (error) console.error('[supabase] insert', type, error);
     });
-    return rec;
+    return afterAdd(type, rec);
   }
   const extra = getExtra(type);
   const rec = { id: 1000 + extra.length + 1, created: TODAY.toISOString(), ...fields };
   extra.unshift(rec);
   write(K(type, 'extra'), extra);
+  return afterAdd(type, rec);
+}
+// Rules that run right after a record is created or a field changes (companies by e-mail domain, §2 of the
+// companies specification). They never break the write that triggered them.
+function afterAdd(type, rec) {
+  if (type === 'contacts') { try { autoAssociateCompany(rec); } catch (e) { console.error('[empresas automáticas]', e); } }
   return rec;
+}
+function afterSet(type, id, field, value) {
+  if (type === 'contacts' && (field === 'email' || field === 'website') && value) { try { autoAssociateCompany(id); } catch (e) { console.error('[empresas automáticas]', e); } }
 }
 
 function merge(type, base) {
@@ -790,6 +801,100 @@ export function download(name, text) {
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+// ---------- companies by e-mail domain (especificacion-empresas-crm.md §2) ----------
+// When a contact is created, imported, or gets a new e-mail / website, the domain of its e-mail is compared
+// with the companies' domains: an existing company is associated, a missing one is created (one per domain;
+// subdomains are different domains). Free e-mail domains fall back to the contact's website URL; excluded
+// domains and contacts that already have a company are left alone. The switch lives in
+// Configuración › Objetos › Empresas ("Crea y asocia Empresas con Contactos", on by default).
+export const COMPANY_AUTO_KEY = 'crm:settings:obj-companies';
+export const EXCLUDED_DOMAINS_KEY = 'crm:companies:excluded-domains';
+export const EXCLUDED_DOMAINS_MAX = 1000;
+export const DEFAULT_EXCLUDED_DOMAINS = ['gmail.com', 'hotmail.com', 'outlook.com', 'yahoo.com'];
+export const FREE_EMAIL_DOMAINS = ['gmail.com', 'googlemail.com', 'yahoo.com', 'yahoo.es', 'yahoo.com.mx', 'ymail.com', 'hotmail.com', 'hotmail.es', 'hotmail.com.mx', 'outlook.com', 'outlook.es', 'live.com', 'live.com.mx', 'msn.com', 'icloud.com', 'me.com', 'mac.com', 'aol.com', 'protonmail.com', 'proton.me', 'gmx.com', 'gmx.es', 'mail.com', 'yandex.com', 'zoho.com', 'prodigy.net.mx', 'terra.com', 'terra.com.mx'];
+export const companyAutoEnabled = () => (read(COMPANY_AUTO_KEY, {}) || {}).autoCreate !== false;
+export const excludedDomains = () => (read(EXCLUDED_DOMAINS_KEY, null) || DEFAULT_EXCLUDED_DOMAINS).map((d) => String(d).trim().toLowerCase()).filter(Boolean).slice(0, EXCLUDED_DOMAINS_MAX);
+export const isFreeEmailDomain = (d) => FREE_EMAIL_DOMAINS.includes(String(d || '').toLowerCase());
+const DOMAIN_RE = /^[a-z0-9.-]+\.[a-z]{2,}$/;
+export function emailDomain(email) {
+  const s = String(email ?? '').trim().toLowerCase().replace(/^<|>$/g, '');
+  const at = s.lastIndexOf('@');
+  if (at < 0) return null;
+  const d = s.slice(at + 1);
+  return DOMAIN_RE.test(d) ? d : null;
+}
+// Host of a website URL without the protocol and "www." (subdomains are kept: info.ejemplo.com ≠ ejemplo.com).
+export function siteDomain(url) {
+  let s = String(url ?? '').trim().toLowerCase();
+  if (!s) return null;
+  s = s.replace(/^[a-z]+:\/\//, '').replace(/^www\./, '').split(/[/?#\s]/)[0].replace(/:\d+$/, '');
+  return DOMAIN_RE.test(s) ? s : null;
+}
+export function companyNameFromDomain(domain) {
+  const label = String(domain || '').split('.')[0];
+  return label.split(/[-_]+/).filter(Boolean).map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') || domain;
+}
+// The domain a contact would be matched with: its e-mail's, or its website's when the e-mail is a free one.
+export function companyDomainFor(contact) {
+  const e = emailDomain(contact.email);
+  if (e && !isFreeEmailDomain(e)) return { domain: e, via: 'email' };
+  const w = siteDomain(contact.website);
+  if (w && !isFreeEmailDomain(w)) return { domain: w, via: 'website' };
+  return { domain: null, reason: e ? 'free_email' : 'no_email' };
+}
+export function companiesByDomain(domain) {
+  const d = String(domain || '').toLowerCase();
+  if (!d) return [];
+  return allCompanies().filter((c) => siteDomain(c.domain) === d).sort((a, b) => Number(a.id) - Number(b.id));
+}
+function linkContactToCompany(contact, company, via, created) {
+  setField('contacts', contact.id, 'companyId', company.id);
+  setField('contacts', contact.id, 'company', company.name);
+  contact.companyId = company.id;
+  contact.company = company.name;
+  const when = Date.now();
+  addActivity({ type: 'note', recordType: 'contacts', recordId: contact.id, who: 'Sistema', when, text: `Empresa "${company.name}" ${created ? 'creada y ' : ''}asociada automáticamente por el dominio ${via === 'website' ? 'del sitio web' : 'del correo'} (${company.domain}).` });
+  if (created) addActivity({ type: 'note', recordType: 'companies', recordId: company.id, who: 'Sistema', when, text: `Empresa creada automáticamente a partir del contacto ${contact.name || contact.email || ''}${contact.email ? ` (${contact.email})` : ''}.` });
+}
+// Applies the rule to one contact (record or id). Returns { action: 'associated' | 'created' | 'skipped', reason, domain, via, company }.
+export function autoAssociateCompany(contactOrId, { create = true, dryRun = false, force = false } = {}) {
+  if (!force && !companyAutoEnabled()) return { action: 'skipped', reason: 'disabled' };
+  const contact = contactOrId && typeof contactOrId === 'object' ? contactOrId : findRecord('contacts', contactOrId);
+  if (!contact) return { action: 'skipped', reason: 'not_found' };
+  if (contact.companyId) return { action: 'skipped', reason: 'already_associated' };
+  const { domain, via, reason } = companyDomainFor(contact);
+  if (!domain) return { action: 'skipped', reason };
+  if (excludedDomains().includes(domain)) return { action: 'skipped', reason: 'excluded', domain };
+  const hits = companiesByDomain(domain);
+  if (hits.length) {
+    if (!dryRun) linkContactToCompany(contact, hits[0], via, false);
+    return { action: 'associated', domain, via, company: hits[0], duplicates: hits.length - 1 };
+  }
+  // the website of a free-e-mail contact only looks for an existing company; companies are created from e-mail domains
+  if (via === 'website') return { action: 'skipped', reason: 'website_no_company', domain };
+  if (!create) return { action: 'skipped', reason: 'no_company', domain };
+  if (dryRun) return { action: 'created', domain, via, company: null };
+  const company = addRecord('companies', {
+    name: companyNameFromDomain(domain), domain, owner: contact.owner && contact.owner !== 'Sin asignar' ? contact.owner : 'Sin asignar', lifecycle: contact.lifecycle || 'Lead',
+    lastActivity: TODAY.toISOString(), hs_created_by_automation: true, hs_created_from_email: contact.email || '',
+  });
+  linkContactToCompany(contact, company, via, true);
+  return { action: 'created', domain, via, company };
+}
+// The "apply to existing contacts" choice of the setting: every contact without a company, in one pass.
+export function applyCompanyAutomation({ dryRun = false } = {}) {
+  const out = { checked: 0, associated: 0, created: 0, skipped: { free_email: 0, no_email: 0, excluded: 0 } };
+  const newDomains = new Set();
+  allContacts().filter((c) => !c.companyId).forEach((c) => {
+    out.checked += 1;
+    const r = autoAssociateCompany(dryRun ? { ...c } : c, { dryRun, force: true });
+    if (r.action === 'created') { if (newDomains.has(r.domain)) out.associated += 1; else { newDomains.add(r.domain); out.created += 1; } }
+    else if (r.action === 'associated') out.associated += 1;
+    else { const k = r.reason === 'website_no_company' ? 'free_email' : r.reason; out.skipped[k] = (out.skipped[k] || 0) + 1; }
+  });
+  return out;
 }
 
 // ---------- activities (unified timeline: notes, calls, emails, meetings, tasks, property history) ----------

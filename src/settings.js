@@ -1,7 +1,7 @@
 // Account settings (the gear in the top bar): a full settings tree with a pane per section.
 import { boot } from './page.js';
 import { toast, wireMenus, closeMenus } from './shell.js';
-import { ticketPipelines, saveTicketPipelines, CURRENCY_DEFS, CURRENCY_CODES, currencyRates, saveCurrencyRates, homeCurrency, OWNERS, DEAL_STAGES, TICKET_STATUSES, PIPELINE_KEY, ASSOC_LABELS_KEY, assocLabels, ALL, formatDate, formatMoney, dealPipelines, saveDealPipelines, dealPipelineDefs, saveDealPipelineDefs, newPipelineDef, setField, LIFECYCLES, download, lifecycleDef, saveLifecycleDef, defaultLifecycleDef } from './data.js';
+import { ticketPipelines, saveTicketPipelines, CURRENCY_DEFS, CURRENCY_CODES, currencyRates, saveCurrencyRates, homeCurrency, OWNERS, DEAL_STAGES, TICKET_STATUSES, PIPELINE_KEY, ASSOC_LABELS_KEY, assocLabels, ALL, formatDate, formatMoney, dealPipelines, saveDealPipelines, dealPipelineDefs, saveDealPipelineDefs, newPipelineDef, setField, LIFECYCLES, download, lifecycleDef, saveLifecycleDef, defaultLifecycleDef, applyCompanyAutomation, EXCLUDED_DOMAINS_KEY, EXCLUDED_DOMAINS_MAX, DEFAULT_EXCLUDED_DOMAINS, FREE_EMAIL_DOMAINS, siteDomain } from './data.js';
 import { propertyGroups, customProperties, saveCustomProperties, propertyList } from './properties.js';
 import { TEAMS, loadLayout, cardCatalog } from './layout-defaults.js';
 import { STD_VIEWS, defaultTabs } from './std-views.js';
@@ -840,6 +840,26 @@ const OBJ_META = {
 };
 const AMOUNT_MODES = ['Total adeudado en el cierre (versión anterior)', 'Valor total del contrato', 'Valor anual del contrato', 'Valor mensual recurrente', 'Importe fijo'];
 const CLOSE_PERIODS = ['Este mes', 'Este trimestre', 'Este año', 'El mes que viene'];
+// "Crea y asocia Empresas con Contactos": preview over the contacts without a company, then apply if asked.
+function companyAutoModal() {
+  const dry = applyCompanyAutomation({ dryRun: true });
+  const n = (x) => Number(x || 0).toLocaleString('es-ES');
+  openModal('¿Aplicar también a los contactos existentes?', `
+    <p>Hay <strong>${n(dry.checked)}</strong> contactos sin empresa asociada. Con la regla activa:</p>
+    <ul class="bullets" id="company-auto-preview">
+      <li><strong>${n(dry.associated)}</strong> se asociarían a empresas que ya existen.</li>
+      <li><strong>${n(dry.created)}</strong> empresas nuevas se crearían a partir de sus dominios.</li>
+      <li><strong>${n(dry.skipped.free_email)}</strong> usan un correo gratuito sin una empresa que coincida con su sitio web y <strong>${n(dry.skipped.no_email)}</strong> no tienen correo: se quedan igual.${dry.skipped.excluded ? ` <strong>${n(dry.skipped.excluded)}</strong> tienen un dominio excluido.` : ''}</li>
+    </ul>
+    <p class="muted">Los contactos nuevos se asocian siempre al crearlos, importarlos o cambiar su correo. Las asociaciones existentes no se modifican.</p>`,
+  `<button class="btn btn--primary" type="button" id="company-auto-run" ${dry.associated + dry.created ? '' : 'disabled'}>Aplicar también a los existentes</button><button class="btn btn--ghost" type="button" data-close>Solo contactos nuevos</button>`);
+  document.getElementById('company-auto-run').onclick = () => {
+    const r = applyCompanyAutomation();
+    closeModal();
+    render();
+    toast(`${n(r.associated)} contactos asociados a empresas existentes · ${n(r.created)} empresas creadas`);
+  };
+}
 const objSetting = (type) => setting(`obj-${type}`, { amountMode: AMOUNT_MODES[0], defaultClose: true, closeMode: 'period', closePeriod: 'Este mes', closeDays: 30, followOwn: true, comments: true, notifyOwner: true, dupes: true, assocReq: false, autoAssign: false, defaultView: 'Todos', boardCount: true });
 const objRadio = (type, key, value, label, checked, extra = '') => `<label class="oradio"><input type="radio" name="${type}-${key}" data-objsetting="${key}" data-type="${type}" value="${esc(value)}" ${checked ? 'checked' : ''} /><span>${label}</span>${extra}</label>`;
 const objCheck = (type, key, label, desc, checked) => `<label class="ocheck"><input type="checkbox" data-objsetting="${key}" data-type="${type}" ${checked ? 'checked' : ''} /><span><strong>${label}</strong>${desc ? `<small>${desc}</small>` : ''}</span></label>`;
@@ -868,9 +888,9 @@ function objectConfigHtml(type) {
     ${objCheck(type, 'followOwn', `Seguir automáticamente los ${m.p} que creas`, 'Recibirás notificaciones de la actividad de esos registros.', s.followOwn)}
     ${objCheck(type, 'comments', `Permitir comentarios en los ${m.p}`, 'Los usuarios pueden dejar comentarios y mencionar a compañeros.', s.comments)}
     ${objCheck(type, 'notifyOwner', 'Notificar al propietario al asignar un registro', 'Se envía una notificación al nuevo propietario.', s.notifyOwner)}`;
-  const excluded = load('crm:companies:excluded-domains', ['gmail.com', 'hotmail.com', 'outlook.com', 'yahoo.com']);
+  const excluded = load(EXCLUDED_DOMAINS_KEY, DEFAULT_EXCLUDED_DOMAINS);
   const automation = type === 'companies' ? `<h3>Automatización</h3>
-    ${objCheck('companies', 'autoCreate', 'Crea y asocia Empresas con Contactos', `Asocia Contactos actuales y agregados recientemente con Empresas basándote en la dirección de correo de un Contacto y el dominio de una Empresa.<br /><button class="olink olink--sm" type="button" data-act="excluded-domains">Excluye un dominio de la asociación automática</button> <span class="muted">(${excluded.length} excluidos)</span>`, s.autoCreate !== false)}` : '';
+    ${objCheck('companies', 'autoCreate', 'Crea y asocia Empresas con Contactos', `Asocia Contactos actuales y agregados recientemente con Empresas basándote en la dirección de correo de un Contacto y el dominio de una Empresa. Si no existe una Empresa con ese dominio, se crea (una por dominio; los subdominios cuentan aparte). Los correos gratuitos (${FREE_EMAIL_DOMAINS.slice(0, 3).join(', ')}…) nunca crean Empresas: con ellos se usa la URL del sitio web del Contacto solo para asociarlo a una Empresa que ya exista. Las asociaciones que ya existen no se tocan.<br /><button class="olink olink--sm" type="button" data-act="excluded-domains">Excluye un dominio de la asociación automática</button> <span class="muted">(${excluded.length} de ${EXCLUDED_DOMAINS_MAX.toLocaleString('es-ES')} excluidos)</span>${s.autoCreate !== false ? ` · <button class="olink olink--sm" type="button" data-act="company-auto-apply">Aplicar ahora a los contactos existentes</button>` : ''}`, s.autoCreate !== false)}` : '';
   const danger = `<h3>Eliminación</h3><p class="muted">Los ${lower} eliminados se guardan 90 días en la papelera y después se borran definitivamente.</p><p><a class="link-btn" href="../${type}/">Ver ${lower} eliminados en la lista ↗</a></p>`;
   return `<p class="odesc">${m.desc}</p><hr class="cd-sep" />${props}${assoc}${creating}${automation}${collab}${['contacts', 'companies', 'deals', 'tickets', 'tasks'].includes(type) ? danger : ''}`;
 }
@@ -1368,6 +1388,8 @@ root.addEventListener('change', (e) => {
     save(`crm:settings:obj-${t.dataset.type}`, s);
     toast('Ajuste guardado');
     if (t.type === 'checkbox' || t.type === 'radio') render();
+    // Turning the companies rule on: the person chooses whether it also runs over the existing contacts.
+    if (t.dataset.objsetting === 'autoCreate' && t.checked) companyAutoModal();
   }
   else if (t.hasAttribute('data-props-object')) { state.propsObject = t.value; state.propsGroup = ''; state.propsKind = ''; state.propsPage = 1; state.propsSel = new Set(); render(); }
   else if (t.hasAttribute('data-props-group')) { state.propsGroup = t.value; render(); }
@@ -1655,11 +1677,12 @@ root.addEventListener('click', (e) => {
   }
   else if (a === 'props-archive-sel') { const list = customProperties(state.propsObject); let n = 0; list.forEach((p) => { if (state.propsSel.has(p.key) && !p.archived) { p.archived = true; n += 1; } }); saveCustomProperties(state.propsObject, list); state.propsSel = new Set(); render(); toast(n ? `${n} propiedad${n > 1 ? 'es' : ''} archivada${n > 1 ? 's' : ''}` : 'Solo se pueden archivar propiedades personalizadas'); }
   else if (a === 'props-clear-sel') { state.propsSel = new Set(); render(); }
+  else if (a === 'company-auto-apply') companyAutoModal();
   else if (a === 'excluded-domains') {
-    const list = load('crm:companies:excluded-domains', ['gmail.com', 'hotmail.com', 'outlook.com', 'yahoo.com']);
-    openModal('Dominios excluidos de la asociación automática', `<p class="muted">Los contactos con estos dominios de correo no crean ni se asocian a una empresa automáticamente.</p><ul class="chips-list" id="exd-list">${list.map((d, i) => `<li><span class="chip">${esc(d)} <button class="chip__x" type="button" data-exd-rm="${i}" aria-label="Quitar">×</button></span></li>`).join('')}</ul><form id="exd-form" class="sform sform--inline"><input class="cellpop__input cellpop__input--sm" name="d" placeholder="ejemplo.com" required /><button class="btn btn--primary" type="submit">Añadir</button></form>`, `<button class="btn btn--ghost" type="button" data-close>Cerrar</button>`);
-    const saveList = (l) => { save('crm:companies:excluded-domains', l); closeModal(); render(); act.click(); };
-    document.getElementById('exd-form').onsubmit = (ev) => { ev.preventDefault(); const d = ev.target.elements.d.value.trim().toLowerCase(); if (d && !list.includes(d)) list.push(d); saveList(list); toast('Dominio excluido'); };
+    const list = load(EXCLUDED_DOMAINS_KEY, DEFAULT_EXCLUDED_DOMAINS);
+    openModal('Dominios excluidos de la asociación automática', `<p class="muted">Los contactos con estos dominios de correo no crean ni se asocian a una empresa automáticamente (hasta ${EXCLUDED_DOMAINS_MAX.toLocaleString('es-ES')} dominios). Los correos gratuitos se omiten siempre, estén o no en la lista. Si quitas un dominio, desactiva y vuelve a activar la opción para que se aplique.</p><ul class="chips-list" id="exd-list">${list.map((d, i) => `<li><span class="chip">${esc(d)} <button class="chip__x" type="button" data-exd-rm="${i}" aria-label="Quitar">×</button></span></li>`).join('')}</ul><form id="exd-form" class="sform sform--inline"><input class="cellpop__input cellpop__input--sm" name="d" placeholder="ejemplo.com" required /><button class="btn btn--primary" type="submit">Añadir</button></form>`, `<button class="btn btn--ghost" type="button" data-close>Cerrar</button>`);
+    const saveList = (l) => { save(EXCLUDED_DOMAINS_KEY, l); closeModal(); render(); act.click(); };
+    document.getElementById('exd-form').onsubmit = (ev) => { ev.preventDefault(); const d = siteDomain(ev.target.elements.d.value); if (!d) { toast('Escribe un dominio válido, por ejemplo ejemplo.com'); return; } if (list.length >= EXCLUDED_DOMAINS_MAX) { toast(`Máximo ${EXCLUDED_DOMAINS_MAX.toLocaleString('es-ES')} dominios excluidos`); return; } if (!list.includes(d)) list.push(d); saveList(list); toast('Dominio excluido'); };
     document.getElementById('exd-list').addEventListener('click', (ev) => { const b = ev.target.closest('[data-exd-rm]'); if (!b) return; list.splice(Number(b.dataset.exdRm), 1); saveList(list); toast('Dominio quitado'); });
   }
   else if (a === 'new-propgroup') promptModal('Crear grupo de propiedades', [['name', 'Nombre del grupo']], 'Crear', (d) => { const list = propGroupsStore(state.propsObject); const name = d.name.trim(); if (name && !list.includes(name)) list.push(name); save(`crm:propgroups:${state.propsObject}`, list); toast(`Grupo "${name}" creado`); });

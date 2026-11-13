@@ -30,13 +30,14 @@
       "id": "dedupe-importacion",
       "status": "done",
       "instruction": "Continúa el proyecto Omni CRM (app/): añade deduplicación automática por email al importar contactos (src/import-engine.js): detecta duplicados contra los existentes en Supabase y dentro del propio archivo, y ofrece las opciones de HubSpot (crear, actualizar existentes, o saltar duplicados) según especificacion-importacion-contactos-crm.md. Verifica con npm run build.",
-      "completedAt": "2026-11-13T02:20:00-0600",
-      "note": "Construido por Claude (Craft Anything): normalizeEmail + analyzeDuplicates en src/import-engine.js (coincidencias contra existentes y repetidos en el archivo con políticas primera/última/combinar), panel Duplicados en el paso 3 del asistente con los tres modos, refreshTable() en data.js para releer Supabase. Prueba scripts/smoke-dedupe.mjs."
+      "completedAt": "2026-11-13T02:38:51-0600"
     },
     {
       "id": "empresas-auto-dominio",
-      "status": "pending",
-      "instruction": "Continúa el proyecto Omni CRM (app/): implementa la creación y asociación automática de empresas por dominio de email del contacto según especificacion-empresas-crm.md sección 2: al crear o importar un contacto, comparar el dominio de su email con las empresas existentes, crear empresa si no existe (excluir dominios gratuitos como gmail.com), y asociar. Configurable con un checkbox en ajustes. Verifica con npm run build."
+      "status": "done",
+      "instruction": "Continúa el proyecto Omni CRM (app/): implementa la creación y asociación automática de empresas por dominio de email del contacto según especificacion-empresas-crm.md sección 2: al crear o importar un contacto, comparar el dominio de su email con las empresas existentes, crear empresa si no existe (excluir dominios gratuitos como gmail.com), y asociar. Configurable con un checkbox en ajustes. Verifica con npm run build.",
+      "completedAt": "2026-11-13T03:05:00-0600",
+      "note": "Construido por Claude (Craft Anything): regla en src/data.js (autoAssociateCompany en cada alta de contacto y al cambiar correo/sitio web, applyCompanyAutomation retroactiva, dominios gratuitos y excluidos), casilla y vista previa en Configuración › Objetos › Empresas (src/settings.js), importación respeta asociaciones del archivo. Prueba scripts/smoke-company-auto.mjs."
     },
     {
       "id": "pipeline-tickets-default",
