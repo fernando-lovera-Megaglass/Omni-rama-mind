@@ -8,6 +8,7 @@ import { toast, wireMenus, closeMenus, linkHtml, wireLinkTooltips } from './shel
 import {
   findRecord, setField, deleteRecords, addRecord, allContacts, allCompanies, allDeals, allTickets, allTasks, ALL,
   STATUSES, LIFECYCLES, SOURCES, OWNERS, DEAL_STAGES, TICKET_STATUSES, PRIORITIES, TASK_TYPES, TASK_STATUSES,
+  ticketStatusesFor, ticketStatusLabel, firstOpenTicketStatus, ticketPipelines,
   formatDate, formatMoney, initials, colorFor, labelOf, toCsv, download, TODAY, assocLabels, CURRENCY_DEFS, CURRENCY_CODES,
   activitiesFor, addActivity, historyFor, addHistoryEntry,
 } from './data.js';
@@ -64,7 +65,7 @@ const CONFIG = {
     assoc: (r) => [
       ['Contactos', allContacts().filter((c) => Number(c.companyId) === Number(r.id)), 'contacts'],
       ['Negocios', allDeals().filter((d) => Number(d.companyId) === Number(r.id)), 'deals'],
-      ['Tickets', allTickets().filter((t) => allContacts().some((c) => Number(c.id) === Number(t.contactId) && Number(c.companyId) === Number(r.id))), 'tickets'],
+      ['Tickets', allTickets().filter((t) => Number(t.companyId) === Number(r.id) || allContacts().some((c) => Number(c.id) === Number(t.contactId) && Number(c.companyId) === Number(r.id))), 'tickets'],
     ],
   },
   deals: {
@@ -84,15 +85,19 @@ const CONFIG = {
   },
   tickets: {
     label: 'Tickets', singular: 'ticket', sub: 'Tickets', listHref: `${root}tickets/`,
-    title: (r) => r.name, subtitle: (r) => `${labelOf(TICKET_STATUSES, r.status)} · Prioridad ${labelOf(PRIORITIES, r.priority).toLowerCase()}`, mail: () => '',
+    title: (r) => r.name, subtitle: (r) => `${ticketStatusLabel(r.pipeline, r.status)} · Prioridad ${labelOf(PRIORITIES, r.priority).toLowerCase()}`, mail: () => '',
     fields: [
       ['status', 'Estado del ticket', 'select', opt(TICKET_STATUSES.map(([k, l]) => [k, l]))], ['priority', 'Prioridad', 'select', opt(PRIORITIES.map(([k, l]) => [k, l]))],
       ['owner', 'Propietario del ticket', 'select', ownerOpts], ['source', 'Fuente', 'select', opt(['Correo', 'Formulario', 'Chat', 'Teléfono'])],
       ['description', 'Descripción', 'textarea'], ['pipeline', 'Pipeline', 'ro'], ['created', 'Fecha de creación', 'date-ro'],
     ],
-    highlights: (r) => [['Fecha de creación', formatDate(r.created)], ['Estado', labelOf(TICKET_STATUSES, r.status)], ['Prioridad', labelOf(PRIORITIES, r.priority)], ['Última actividad', formatDate(r.lastActivity)]],
+    highlights: (r) => [['Fecha de creación', formatDate(r.created)], ['Estado', ticketStatusLabel(r.pipeline, r.status)], ['Prioridad', labelOf(PRIORITIES, r.priority)], ['Última actividad', formatDate(r.lastActivity)]],
     stages: true,
-    assoc: (r) => [['Contactos', r.contactId ? [byId(allContacts(), r.contactId)].filter(Boolean) : [], 'contacts']],
+    // Contacts and companies (a ticket gets the primary company of its contact automatically).
+    assoc: (r) => [
+      ['Contactos', r.contactId ? [byId(allContacts(), r.contactId)].filter(Boolean) : [], 'contacts'],
+      ['Empresas', r.companyId ? [byId(allCompanies(), r.companyId)].filter(Boolean) : [], 'companies'],
+    ],
   },
   tasks: {
     label: 'Tareas', singular: 'tarea', sub: 'Tareas', listHref: `${root}tasks/`,
@@ -111,6 +116,8 @@ boot({ root, active: 'crm', sub: cfg.sub, title: cfg.label });
 
 const id = new URLSearchParams(location.search).get('id');
 let rec = findRecord(type, id);
+// A ticket's status choices are the statuses of its own pipeline.
+if (type === 'tickets' && rec) { const f = cfg.fields.find((x) => x[0] === 'status'); if (f) f[3] = opt(ticketStatusesFor(rec.pipeline).map(([k, l]) => [k, l])); }
 const $ = (s) => document.getElementById(s);
 const mount = $('record-root');
 const props = propertyMap(type);
@@ -421,7 +428,7 @@ function propValue(p, v) {
   if (p.kind === 'url' || p.kind === 'email' || p.kind === 'phone') return linkHtml(p.kind, v);
   if (p.kind === 'stage') return esc(labelOf(DEAL_STAGES, v));
   if (p.kind === 'priority') return esc(labelOf(PRIORITIES, v));
-  if (p.kind === 'status') return esc(labelOf(type === 'tickets' ? TICKET_STATUSES : TASK_STATUSES, v));
+  if (p.kind === 'status') return esc(type === 'tickets' ? ticketStatusLabel(rec.pipeline, v) : labelOf(TASK_STATUSES, v));
   return esc(v);
 }
 
@@ -555,7 +562,9 @@ function renderHeader() {
       <div class="stages__actions"><button class="btn btn--primary btn--sm" type="button" data-stage="won">Marcar como ganado</button><button class="btn btn--ghost btn--sm" type="button" data-stage="lost">Marcar como perdido</button></div>`;
   } else if (cfg.stages && type === 'tickets') {
     stagesEl.hidden = false;
-    stagesEl.innerHTML = `<div class="stages">${TICKET_STATUSES.map(([k, l]) => `<button type="button" class="stages__step${k === rec.status ? ' is-current is-done' : ''}" data-status="${k}">${l}</button>`).join('')}</div>`;
+    const statuses = ticketStatusesFor(rec.pipeline);
+    stagesEl.innerHTML = `<div class="stages">${statuses.map(([k, l, t]) => `<button type="button" class="stages__step${k === rec.status ? ' is-current is-done' : ''}${t === 'closed' ? ' stages__step--closed' : ''}" data-status="${k}" title="${t === 'closed' ? 'Estado cerrado' : 'Estado abierto'}">${esc(l)}</button>`).join('')}</div>
+      <p class="muted stages__note">Pipeline «${esc(rec.pipeline || ticketPipelines()[0])}» · ${statuses.filter((s) => s[2] !== 'closed').length} estados abiertos y ${statuses.filter((s) => s[2] === 'closed').length} cerrado${statuses.filter((s) => s[2] === 'closed').length === 1 ? '' : 's'}</p>`;
   } else if (type === 'tasks') {
     stagesEl.hidden = false;
     stagesEl.innerHTML = rec.status === 'done'
@@ -637,7 +646,7 @@ function kindValue(kind, key, r) {
   const v = r[key];
   if (v === undefined || v === null || v === '') return '--';
   if (kind === 'deals' && key === 'stage') return labelOf(DEAL_STAGES, v);
-  if (kind === 'tickets' && key === 'status') return labelOf(TICKET_STATUSES, v);
+  if (kind === 'tickets' && key === 'status') return ticketStatusLabel(r.pipeline, v);
   if (kind === 'tasks' && key === 'status') return labelOf(TASK_STATUSES, v);
   if (kind === 'contacts' && key === 'status') return labelOf(Object.entries(STATUSES).map(([k, [l]]) => [k, l]), v);
   if (key === 'priority') return labelOf(PRIORITIES, v);
@@ -944,7 +953,7 @@ const KIND_META = {
   companies: { s: 'Empresa', p: 'Empresas', sub: (r) => r.domain || '', fields: [['name', 'Nombre de la empresa'], ['domain', 'Dominio'], ['phone', 'Número de teléfono']] },
   contacts: { s: 'Contacto', p: 'Contactos', sub: (r) => r.email || '', fields: [['first', 'Nombre'], ['last', 'Apellidos'], ['email', 'Correo']] },
   deals: { s: 'Negocio', p: 'Negocios', sub: (r) => formatMoney(r.amount, r.deal_currency_code), fields: [['name', 'Nombre del negocio'], ['amount', 'Importe'], ['closeDate', 'Fecha de cierre']] },
-  tickets: { s: 'Ticket', p: 'Tickets', sub: (r) => labelOf(TICKET_STATUSES, r.status), fields: [['name', 'Nombre del ticket'], ['description', 'Descripción']] },
+  tickets: { s: 'Ticket', p: 'Tickets', sub: (r) => ticketStatusLabel(r.pipeline, r.status), fields: [['name', 'Nombre del ticket'], ['description', 'Descripción']] },
   tasks: { s: 'Tarea', p: 'Tareas', sub: (r) => `vence ${formatDate(r.due)}`, fields: [['name', 'Título'], ['due', 'Fecha de vencimiento']] },
 };
 const ASSOC_LABELS = assocLabels();
@@ -1071,6 +1080,14 @@ function saveAssociations(ids, labels) {
     if (type === 'deals' && kind === 'companies') {
       setField('deals', rec.id, 'companyId', other.id);
       setField('deals', rec.id, 'company', other.name);
+    }
+    if (type === 'tickets' && kind === 'companies') {
+      setField('tickets', rec.id, 'companyId', other.id);
+      setField('tickets', rec.id, 'company', other.name);
+    }
+    if (type === 'companies' && kind === 'tickets') {
+      setField('tickets', other.id, 'companyId', rec.id);
+      setField('tickets', other.id, 'company', rec.name);
     }
   });
   rec = findRecord(type, id);
@@ -1985,7 +2002,7 @@ if (rec) {
     delete data.label;
     if (kind === 'contacts') data.name = `${data.first || ''} ${data.last || ''}`.trim();
     if (kind === 'deals') { data.amount = Number(data.amount) || 0; data.stage = 'appointment'; data.pipeline = 'Pipeline de ventas'; data.closeDate = data.closeDate ? new Date(data.closeDate).toISOString() : new Date(TODAY.getTime() + 30 * 86400000).toISOString(); }
-    if (kind === 'tickets') { data.status = 'new'; data.priority = 'medium'; data.pipeline = 'Pipeline de soporte'; }
+    if (kind === 'tickets') { data.pipeline = ticketPipelines()[0]; data.status = firstOpenTicketStatus(data.pipeline); data.priority = 'medium'; if (type === 'contacts') data.contactId = rec.id; }
     if (kind === 'tasks') { data.status = 'todo'; data.type = 'Tarea'; data.priority = 'medium'; data.due = data.due ? new Date(data.due).toISOString() : TODAY.toISOString(); }
     if (kind === 'companies') data.lifecycle = 'Lead';
     data.owner = rec.owner && rec.owner !== 'Sin asignar' ? rec.owner : 'Fernando L.';

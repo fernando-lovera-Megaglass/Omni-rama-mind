@@ -4,7 +4,7 @@
 import { mountShell, wireMenus, closeMenus, toast } from './shell.js';
 import {
   allContacts, allCompanies, allDeals, allTickets, allTasks, allActivities,
-  STATUSES, COLORS, OWNERS, DEAL_STAGES, TICKET_STATUSES, PRIORITIES, TASK_TYPES, TODAY, formatDate, formatMoney, formatMoneyShort, homeCurrency,
+  STATUSES, COLORS, OWNERS, DEAL_STAGES, PRIORITIES, TASK_TYPES, TODAY, formatDate, formatMoney, formatMoneyShort, homeCurrency, isTicketOpen, allTicketStatuses,
 } from './data.js';
 
 mountShell({ root: '../', active: 'reports' });
@@ -249,9 +249,9 @@ export function serviceFigures(range) {
   const inPrev = (dateOf) => (r) => within(dateOf(r), p.prevStart, p.prevEnd);
   const created = tickets.filter(inRange((t) => t.created));
   const createdPrev = tickets.filter(inPrev((t) => t.created));
-  const open = tickets.filter((t) => t.status !== 'closed');
-  const closed = tickets.filter((t) => t.status === 'closed').filter(inRange(ticketClosedAt));
-  const closedPrev = tickets.filter((t) => t.status === 'closed').filter(inPrev(ticketClosedAt));
+  const open = tickets.filter(isTicketOpen);
+  const closed = tickets.filter((t) => !isTicketOpen(t)).filter(inRange(ticketClosedAt));
+  const closedPrev = tickets.filter((t) => !isTicketOpen(t)).filter(inPrev(ticketClosedAt));
   const doneTasks = tasks.filter((t) => t.status === 'done').filter(inRange(taskDoneAt));
   const doneTasksPrev = tasks.filter((t) => t.status === 'done').filter(inPrev(taskDoneAt));
   const dueTasks = tasks.filter(inRange((t) => t.due));
@@ -259,7 +259,7 @@ export function serviceFigures(range) {
   return {
     p, bk, created, createdPrev, open, closed, closedPrev, doneTasks, doneTasksPrev, dueTasks, overdue,
     createdSeries: countBy(created, (t) => t.created, bk),
-    byStatus: TICKET_STATUSES.map(([k, l]) => ({ label: l, value: created.filter((t) => t.status === k).length })),
+    byStatus: allTicketStatuses().map(([k, l]) => ({ label: l, value: created.filter((t) => t.status === k).length })),
     byPriority: PRIORITIES.map(([k, l]) => ({ label: l, value: created.filter((t) => t.priority === k).length })),
     byType: TASK_TYPES.map((ty) => {
       const of = dueTasks.filter((t) => t.type === ty);
@@ -312,7 +312,7 @@ function render() {
   } else {
     const f = serviceFigures(state.range);
     kpis = kpiHtml([
-      ['Tickets abiertos', fmt(f.open.length), null, `${fmt(f.created.filter((t) => t.status !== 'closed').length)} creados en el periodo`],
+      ['Tickets abiertos', fmt(f.open.length), null, `${fmt(f.created.filter(isTicketOpen).length)} creados en el periodo`],
       ['Tickets creados', fmt(f.created.length), delta(f.created.length, f.createdPrev.length), `Periodo anterior: ${fmt(f.createdPrev.length)}`],
       ['Tickets cerrados', fmt(f.closed.length), delta(f.closed.length, f.closedPrev.length), `Periodo anterior: ${fmt(f.closedPrev.length)}`],
       ['Tareas completadas', fmt(f.doneTasks.length), delta(f.doneTasks.length, f.doneTasksPrev.length), `Periodo anterior: ${fmt(f.doneTasksPrev.length)}`],

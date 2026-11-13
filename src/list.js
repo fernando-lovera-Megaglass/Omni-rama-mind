@@ -1146,7 +1146,8 @@ export function mountList(cfg) {
       ? items
           .map((p) => {
             const n = p ? all.filter((r) => String(r[cfg.pipeline.key]) === p).length : all.length;
-            return `<button class="pmenu__item${(state.pipeline || '') === p ? ' is-current' : ''}" type="button" data-pipeline="${esc(p)}"><span>${esc(p || 'Todos los pipelines')}</span><span class="pmenu__count">${n}</span></button>`;
+            const detail = cfg.pipeline.detail ? cfg.pipeline.detail(p, all) : ''; // e.g. open / closed tickets of the pipeline
+            return `<button class="pmenu__item${(state.pipeline || '') === p ? ' is-current' : ''}" type="button" data-pipeline="${esc(p)}"><span>${esc(p || 'Todos los pipelines')}${detail ? `<small class="pmenu__detail">${esc(detail)}</small>` : ''}</span><span class="pmenu__count">${n}</span></button>`;
           })
           .join('')
       : '<p class="muted pmenu__empty">No hay pipelines que coincidan.</p>';

@@ -11656,3 +11656,33 @@ a.is-done {
 .imp__duptable th {
   white-space: normal;
 }
+
+/* ---------- Ticket pipelines: open / closed indicator in the selector, status chips in settings ---------- */
+.pmenu__detail {
+  display: block;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--c-muted);
+}
+
+.tstage {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: var(--r-pill);
+  background: var(--c-tag-open);
+  font-size: var(--fs-xs);
+  white-space: nowrap;
+}
+
+.tstage--closed {
+  background: var(--c-tag-done);
+}
+
+.stages__step--closed {
+  font-style: italic;
+}
+
+.stages__note {
+  margin: var(--sp-8) 0 0;
+  font-size: var(--fs-xs);
+}

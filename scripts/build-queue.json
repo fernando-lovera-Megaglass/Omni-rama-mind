@@ -36,13 +36,14 @@
       "id": "empresas-auto-dominio",
       "status": "done",
       "instruction": "Continúa el proyecto Omni CRM (app/): implementa la creación y asociación automática de empresas por dominio de email del contacto según especificacion-empresas-crm.md sección 2: al crear o importar un contacto, comparar el dominio de su email con las empresas existentes, crear empresa si no existe (excluir dominios gratuitos como gmail.com), y asociar. Configurable con un checkbox en ajustes. Verifica con npm run build.",
-      "completedAt": "2026-11-13T03:05:00-0600",
-      "note": "Construido por Claude (Craft Anything): regla en src/data.js (autoAssociateCompany en cada alta de contacto y al cambiar correo/sitio web, applyCompanyAutomation retroactiva, dominios gratuitos y excluidos), casilla y vista previa en Configuración › Objetos › Empresas (src/settings.js), importación respeta asociaciones del archivo. Prueba scripts/smoke-company-auto.mjs."
+      "completedAt": "2026-11-13T03:37:46-0600"
     },
     {
       "id": "pipeline-tickets-default",
-      "status": "pending",
-      "instruction": "Continúa el proyecto Omni CRM (app/): crea el pipeline de soporte predeterminado de tickets con 4 estados (Nuevo, En espera de contacto, En espera de nosotros, Cerrado) según especificacion-tickets-crm.md, y la auto-asociación del ticket a la empresa principal del contacto. Verifica con npm run build."
+      "status": "done",
+      "instruction": "Continúa el proyecto Omni CRM (app/): crea el pipeline de soporte predeterminado de tickets con 4 estados (Nuevo, En espera de contacto, En espera de nosotros, Cerrado) según especificacion-tickets-crm.md, y la auto-asociación del ticket a la empresa principal del contacto. Verifica con npm run build.",
+      "completedAt": "2026-11-13T04:05:00-0600",
+      "note": "Construido por Claude (Craft Anything): pipelines de tickets con estados propios (abierto/cerrado) y Pipeline de soporte con los 4 estados en src/data.js, editor en Configuración › Objetos › Tickets › Pipelines, tablero/ficha/importación por pipeline, autoAssociateTicketCompany (empresa principal del contacto, interruptor en ajustes). Prueba scripts/smoke-ticket-statuses.mjs."
     },
     {
       "id": "auth-supabase",

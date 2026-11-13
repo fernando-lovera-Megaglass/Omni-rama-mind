@@ -80,7 +80,7 @@ export const DEAL_STAGES = [
 ];
 export const TICKET_STATUSES = [
   ['new', 'Nuevo', 'tag--new'],
-  ['waiting', 'En espera del contacto', 'tag--open'],
+  ['waiting', 'En espera de contacto', 'tag--open'],
   ['progress', 'En espera de nosotros', 'tag--progress'],
   ['closed', 'Cerrado', 'tag--done'],
 ];
@@ -152,21 +152,64 @@ export function saveDealPipelines(names) {
   const defs = dealPipelineDefs();
   saveDealPipelineDefs(names.map((n) => defs.find((d) => d.name === n) || newPipelineDef(n)));
 }
-// Ticket pipelines (Configuración › Objetos › Tickets › Pipelines); the statuses are shared by all of them.
+// Ticket pipelines (Configuración › Objetos › Tickets › Pipelines). Each pipeline owns its statuses — the
+// original's "estados", [key, label, 'open' | 'closed'] — and the default support pipeline exists from the
+// first run with the four statuses of especificacion-tickets-crm.md §2.
 export const TICKET_PIPELINES_KEY = 'crm:pipelines:tickets';
+export const DEFAULT_TICKET_STATUSES = [['new', 'Nuevo', 'open'], ['waiting', 'En espera de contacto', 'open'], ['progress', 'En espera de nosotros', 'open'], ['closed', 'Cerrado', 'closed']];
 export const DEFAULT_TICKET_PIPELINES = ['Pipeline de soporte', 'Cotizaciones', 'Garantías', 'Instalaciones'];
-export function ticketPipelines() {
+const ticketPipeId = (name) => 200000 + (Math.abs(Array.from(String(name)).reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 11)) % 700000);
+const ticketStage = (s) => [String(s[0]), String(s[1]), s[2] === 'closed' ? 'closed' : 'open'];
+export function newTicketPipelineDef(name, stages) {
+  return { id: ticketPipeId(name), name, desc: '', stages: (stages || DEFAULT_TICKET_STATUSES).map(ticketStage) };
+}
+const normalizeTicketDef = (p) => ({ ...p, id: p.id || ticketPipeId(p.name), desc: p.desc || '', stages: Array.isArray(p.stages) && p.stages.length ? p.stages.map(ticketStage) : DEFAULT_TICKET_STATUSES.map(ticketStage) });
+export function ticketPipelineDefs() {
   try {
     const saved = JSON.parse(localStorage.getItem(TICKET_PIPELINES_KEY));
-    if (Array.isArray(saved) && saved.length && saved.every((n) => typeof n === 'string')) return saved;
+    if (Array.isArray(saved) && saved.length) {
+      if (typeof saved[0] === 'string') return saved.map((n) => newTicketPipelineDef(n)); // older saves kept only the names
+      return saved.map(normalizeTicketDef);
+    }
   } catch {
     /* ignore */
   }
-  return DEFAULT_TICKET_PIPELINES.slice();
+  return DEFAULT_TICKET_PIPELINES.map((n) => newTicketPipelineDef(n));
+}
+export function saveTicketPipelineDefs(list) {
+  localStorage.setItem(TICKET_PIPELINES_KEY, JSON.stringify(list.map(normalizeTicketDef)));
+  if (typeof bump === 'function') bump();
+}
+export function ticketPipelines() {
+  return ticketPipelineDefs().map((p) => p.name);
 }
 export function saveTicketPipelines(names) {
-  localStorage.setItem(TICKET_PIPELINES_KEY, JSON.stringify(names.map((n) => String(n).trim()).filter(Boolean)));
-  if (typeof bump === 'function') bump();
+  const defs = ticketPipelineDefs();
+  saveTicketPipelineDefs(names.map((n) => String(n).trim()).filter(Boolean).map((n) => defs.find((d) => d.name === n) || newTicketPipelineDef(n)));
+}
+export function ticketStatusesFor(pipelineName) {
+  const d = ticketPipelineDefs().find((p) => p.name === pipelineName);
+  return d ? d.stages : DEFAULT_TICKET_STATUSES.map(ticketStage);
+}
+// Every status across the pipelines (lists that show all pipelines at once), the default ones first.
+export function allTicketStatuses() {
+  const out = [];
+  const seen = new Set();
+  [...DEFAULT_TICKET_STATUSES, ...ticketPipelineDefs().flatMap((p) => p.stages)].forEach((s) => { if (!seen.has(s[0])) { seen.add(s[0]); out.push(ticketStage(s)); } });
+  return out;
+}
+export const ticketStatusDef = (pipeline, key) => ticketStatusesFor(pipeline).find((s) => s[0] === key) || allTicketStatuses().find((s) => s[0] === key) || null;
+export const ticketStatusLabel = (pipeline, key) => { const s = ticketStatusDef(pipeline, key); return s ? s[1] : key || '—'; };
+export const ticketStatusIsClosed = (pipeline, key) => { const s = ticketStatusDef(pipeline, key); return s ? s[2] === 'closed' : key === 'closed'; };
+export const isTicketOpen = (t) => !ticketStatusIsClosed(t.pipeline, t.status);
+export const ticketStatusClass = (pipeline, key) => (TICKET_STATUSES.find((s) => s[0] === key) || [])[2] || (ticketStatusIsClosed(pipeline, key) ? 'tag--done' : 'tag--open');
+export const firstOpenTicketStatus = (pipeline) => { const st = ticketStatusesFor(pipeline); return (st.find((s) => s[2] !== 'closed') || st[0])[0]; };
+// Open and closed tickets per pipeline (the indicator of the pipeline selector and of settings).
+export function ticketPipelineCounts() {
+  const out = {};
+  ticketPipelines().forEach((n) => { out[n] = { open: 0, closed: 0 }; });
+  allTickets().forEach((t) => { const c = out[t.pipeline] || (out[t.pipeline] = { open: 0, closed: 0 }); if (isTicketOpen(t)) c.open += 1; else c.closed += 1; });
+  return out;
 }
 export function stagesFor(pipelineName) {
   const d = dealPipelineDefs().find((p) => p.name === pipelineName);
@@ -505,10 +548,12 @@ export function addRecord(type, fields) {
 // companies specification). They never break the write that triggered them.
 function afterAdd(type, rec) {
   if (type === 'contacts') { try { autoAssociateCompany(rec); } catch (e) { console.error('[empresas automáticas]', e); } }
+  if (type === 'tickets') { try { autoAssociateTicketCompany(rec); } catch (e) { console.error('[tickets: empresa del contacto]', e); } }
   return rec;
 }
 function afterSet(type, id, field, value) {
   if (type === 'contacts' && (field === 'email' || field === 'website') && value) { try { autoAssociateCompany(id); } catch (e) { console.error('[empresas automáticas]', e); } }
+  if (type === 'tickets' && field === 'contactId' && value) { try { autoAssociateTicketCompany(id); } catch (e) { console.error('[tickets: empresa del contacto]', e); } }
 }
 
 function merge(type, base) {
@@ -700,7 +745,7 @@ function buildTicket(i) {
   return {
     id: i + 1,
     name: ['Cristal roto en entrega', 'Retraso en instalación', 'Consulta de garantía', 'Factura incorrecta', 'Medidas no coinciden', 'Solicitud de presupuesto', 'Ruido en ventana', 'Cambio de fecha', 'Condensación entre vidrios', 'Herraje suelto', 'Duda sobre mantenimiento', 'Reclamación de transporte'][i % 12],
-    status: TICKET_STATUSES[(i * 2) % 4][0],
+    status: TICKET_STATUSES[(i * 3) % 4][0],
     priority: PRIORITIES[(i * 3) % 3][0],
     pipeline: DEFAULT_TICKET_PIPELINES[[0, 0, 1, 2, 0, 1, 3][i % 7]],
     owner: OWNERS[(i * 3) % OWNERS.length],
@@ -895,6 +940,30 @@ export function applyCompanyAutomation({ dryRun = false } = {}) {
     else { const k = r.reason === 'website_no_company' ? 'free_email' : r.reason; out.skipped[k] = (out.skipped[k] || 0) + 1; }
   });
   return out;
+}
+
+// ---------- tickets: the primary company of the contact (especificacion-tickets-crm.md §1) ----------
+// A ticket created with a contact (form, record page, import) or that later gets one is associated to that
+// contact's primary company, unless the switch in Configuración › Objetos › Tickets is off or the ticket
+// already has a company.
+export const TICKET_SETTINGS_KEY = 'crm:settings:obj-tickets';
+export const ticketAutoCompanyEnabled = () => (read(TICKET_SETTINGS_KEY, {}) || {}).autoCompany !== false;
+export function autoAssociateTicketCompany(ticketOrId, { force = false } = {}) {
+  if (!force && !ticketAutoCompanyEnabled()) return { action: 'skipped', reason: 'disabled' };
+  const t = ticketOrId && typeof ticketOrId === 'object' ? ticketOrId : findRecord('tickets', ticketOrId);
+  if (!t) return { action: 'skipped', reason: 'not_found' };
+  if (t.companyId) return { action: 'skipped', reason: 'already_associated' };
+  if (!t.contactId) return { action: 'skipped', reason: 'no_contact' };
+  const contact = findRecord('contacts', t.contactId);
+  if (!contact || !contact.companyId) return { action: 'skipped', reason: 'contact_without_company' };
+  const company = findRecord('companies', contact.companyId);
+  if (!company) return { action: 'skipped', reason: 'company_not_found' };
+  setField('tickets', t.id, 'companyId', company.id);
+  setField('tickets', t.id, 'company', company.name);
+  t.companyId = company.id;
+  t.company = company.name;
+  addActivity({ type: 'note', recordType: 'tickets', recordId: t.id, who: 'Sistema', when: Date.now(), text: `Empresa "${company.name}" asociada automáticamente: es la empresa principal del contacto ${contact.name || ''}.` });
+  return { action: 'associated', company, contact };
 }
 
 // ---------- activities (unified timeline: notes, calls, emails, meetings, tasks, property history) ----------

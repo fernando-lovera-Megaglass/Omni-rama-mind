@@ -13,7 +13,7 @@ const ASSOC_KINDS = {
   contacts: ['companies', 'deals', 'tickets', 'tasks'],
   companies: ['contacts', 'deals', 'tickets'],
   deals: ['contacts', 'companies'],
-  tickets: ['contacts'],
+  tickets: ['contacts', 'companies'],
   tasks: ['contacts'],
 };
 

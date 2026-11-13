@@ -1,5 +1,20 @@
 # Progreso — Omni CRM
 
+## 2026-11-13 (sesión 5) · Pipeline de soporte con estados propios y empresa del contacto en tickets (cola `pipeline-tickets-default`, espec `especificacion-tickets-crm.md`)
+
+**Construido**
+- `src/data.js`: los pipelines de tickets ahora tienen **sus propios estados** (`ticketPipelineDefs()`: `{ id, name, stages: [[clave, nombre, 'open' | 'closed']] }`, clave `crm:pipelines:tickets`; las listas antiguas de solo nombres se migran solas). El **Pipeline de soporte** predeterminado existe desde el principio con los cuatro estados de la especificación: Nuevo, En espera de contacto, En espera de nosotros (abiertos) y Cerrado (cerrado); los demás pipelines de muestra y los nuevos nacen con esos mismos cuatro. Helpers: `ticketStatusesFor`, `allTicketStatuses`, `ticketStatusLabel`, `ticketStatusIsClosed`, `isTicketOpen`, `firstOpenTicketStatus`, `ticketPipelineCounts` (abiertos/cerrados por pipeline). La muestra reparte los tickets entre los cuatro estados.
+- **Empresa principal del contacto** (§1): al crear un ticket con contacto (formulario, ficha, importación) o al asociarle un contacto después, `autoAssociateTicketCompany` lo asocia a la empresa principal de ese contacto y deja nota en la cronología; no toca tickets que ya tienen empresa. Interruptor en Configuración › Objetos › Tickets («Asociar los Tickets a la empresa principal del Contacto», activo por defecto, clave `crm:settings:obj-tickets.autoCompany`).
+- `src/tickets.js`: el tablero usa los estados del pipeline elegido (todos los pipelines → unión de estados; los cerrados marcados con ✓), el selector de pipelines muestra «N abiertos · M cerrados» por pipeline (indicador de §7), vistas Tickets abiertos / cerrados por tipo de estado, columna Empresa asociada, y al crear: primer pipeline y su primer estado abierto como valores por defecto (un estado que no pertenezca al pipeline se corrige).
+- `src/record.js`: la ficha del ticket muestra los estados de su pipeline (con tipo abierto/cerrado y nota del pipeline), el selector de estado solo ofrece los de su pipeline, tarjeta **Empresas** (asociación manual sincronizada con `companyId`), y la ficha de la empresa lista también los tickets asociados por `companyId`. Crear un ticket desde la ficha de un contacto lo asocia al contacto (y por tanto a su empresa).
+- `src/settings.js` › Objetos › Tickets › Pipelines: tabla con estados, abiertos y cerrados por pipeline, «Predeterminado» en el primero; **Administrar** edita nombre y tipo de cada estado, reordena, agrega (los abiertos quedan antes que los cerrados), elimina (no si tiene tickets; siempre queda al menos un abierto y un cerrado), renombra el pipeline (los tickets lo siguen) y clona; no se elimina un pipeline con tickets.
+- `src/import-engine.js`: el estado importado se valida contra los estados del pipeline de la fila (por clave o nombre); si no existe → `INVALID_DEAL_STAGE`.
+- `src/reports.js`: abiertos/cerrados por tipo de estado. `src/list.js`: el selector de pipelines admite un detalle por pipeline.
+- Pruebas: `scripts/smoke-ticket-statuses.mjs` + suite completa (25) en verde; `npm run build` OK.
+
+**Notas**
+- Reglas de pipeline (impedir retroceso, acceso por estado, propiedades condicionales) y automatizaciones por estado para tickets quedan como en la ronda anterior (solo negocios); los pipelines de tickets viven en localStorage, los tickets en Supabase (`companyId` y `company` en `extra`).
+
 ## 2026-11-13 (sesión 5) · Empresas automáticas por dominio del correo (cola `empresas-auto-dominio`, espec `especificacion-empresas-crm.md` §2)
 
 **Construido**

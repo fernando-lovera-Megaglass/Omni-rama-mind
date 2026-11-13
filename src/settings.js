@@ -1,7 +1,7 @@
 // Account settings (the gear in the top bar): a full settings tree with a pane per section.
 import { boot } from './page.js';
 import { toast, wireMenus, closeMenus } from './shell.js';
-import { ticketPipelines, saveTicketPipelines, CURRENCY_DEFS, CURRENCY_CODES, currencyRates, saveCurrencyRates, homeCurrency, OWNERS, DEAL_STAGES, TICKET_STATUSES, PIPELINE_KEY, ASSOC_LABELS_KEY, assocLabels, ALL, formatDate, formatMoney, dealPipelines, saveDealPipelines, dealPipelineDefs, saveDealPipelineDefs, newPipelineDef, setField, LIFECYCLES, download, lifecycleDef, saveLifecycleDef, defaultLifecycleDef, applyCompanyAutomation, EXCLUDED_DOMAINS_KEY, EXCLUDED_DOMAINS_MAX, DEFAULT_EXCLUDED_DOMAINS, FREE_EMAIL_DOMAINS, siteDomain } from './data.js';
+import { ticketPipelines, saveTicketPipelines, CURRENCY_DEFS, CURRENCY_CODES, currencyRates, saveCurrencyRates, homeCurrency, OWNERS, DEAL_STAGES, TICKET_STATUSES, PIPELINE_KEY, ASSOC_LABELS_KEY, assocLabels, ALL, formatDate, formatMoney, dealPipelines, saveDealPipelines, dealPipelineDefs, saveDealPipelineDefs, newPipelineDef, setField, LIFECYCLES, download, lifecycleDef, saveLifecycleDef, defaultLifecycleDef, applyCompanyAutomation, EXCLUDED_DOMAINS_KEY, EXCLUDED_DOMAINS_MAX, DEFAULT_EXCLUDED_DOMAINS, FREE_EMAIL_DOMAINS, siteDomain, ticketPipelineDefs, saveTicketPipelineDefs, newTicketPipelineDef, ticketPipelineCounts, DEFAULT_TICKET_STATUSES } from './data.js';
 import { propertyGroups, customProperties, saveCustomProperties, propertyList } from './properties.js';
 import { TEAMS, loadLayout, cardCatalog } from './layout-defaults.js';
 import { STD_VIEWS, defaultTabs } from './std-views.js';
@@ -533,17 +533,61 @@ function paneProperties() {
 }
 function objectPipelineHtml(type) {
   if (type === 'deals') return dealPipelinesHtml();
-  if (type === 'tickets') {
-    const ov = load(PIPELINE_KEY('tickets'), {});
-    const pipes = ticketPipelines();
-    const counts = Object.fromEntries(pipes.map((p) => [p, ALL.tickets().filter((t) => t.pipeline === p).length]));
-    return `<h3>Pipelines de tickets</h3><p class="muted">Cada ticket pertenece a un pipeline; en la lista de Tickets se eligen con el selector de pipelines.</p>
-    ${simpleTable(['Pipeline', 'Tickets', ''], pipes.map((p, i) => [`<strong>${esc(p)}</strong>`, String(counts[p] || 0), pipes.length > 1 ? `<button class="link-btn" type="button" data-ticketpipe-rm="${i}" ${counts[p] ? 'disabled title="Tiene tickets"' : ''}>Eliminar</button>` : '']))}
-    <form class="sform" data-save="ticketpipeline"><div class="sform__row"><label class="field"><span>Nuevo pipeline</span><input name="name" required maxlength="60" placeholder="Por ejemplo: Cotizaciones Kafer" /></label></div><div class="sform__btns"><button class="btn btn--primary" type="submit">Crear pipeline</button></div></form>
-    <h3>Estados de los tickets (compartidos por todos los pipelines)</h3>${simpleTable(['Estado', 'Nombre'], TICKET_STATUSES.map(([k, l]) => [`<span class="muted">${k}</span>`, `<input class="cellpop__input cellpop__input--sm" data-stage-label="${k}" value="${esc((ov[k] && ov[k].label) || l)}" />`]))}<div class="sform__btns"><button class="btn btn--primary" type="button" data-act="save-pipeline" data-type="tickets">Guardar pipeline</button><button class="btn btn--ghost" type="button" data-act="reset-pipeline" data-type="tickets">Restablecer</button></div>`;
-  }
+  if (type === 'tickets') return ticketPipelinesHtml();
   return '<p class="muted">Este objeto no usa pipelines. Los ciclos de vida se gestionan en la propiedad "Etapa del ciclo de vida".</p>';
 }
+// ---------- Ticket pipelines: each one with its own statuses (open or closed), as in the original ----------
+Object.assign(state, { tpipeEdit: null });
+function ticketPipelinesHtml() {
+  const defs = ticketPipelineDefs();
+  const counts = ticketPipelineCounts();
+  if (state.tpipeEdit !== null) return ticketPipelineEditorHtml(defs, counts);
+  return `<h3>Pipelines de tickets</h3><p class="muted">Cada ticket pertenece a un pipeline con sus propios estados; cada estado es <strong>Abierto</strong> o <strong>Cerrado</strong>. El pipeline de soporte predeterminado existe desde el principio con los cuatro estados del original. En la lista de Tickets se eligen con el selector de pipelines.</p>
+    ${simpleTable(['Pipeline', 'Estados', 'Abiertos', 'Cerrados', ''], defs.map((p, i) => { const c = counts[p.name] || { open: 0, closed: 0 }; return [`<strong>${esc(p.name)}</strong>${i === 0 ? ' <span class="tag tag--none">Predeterminado</span>' : ''}`, p.stages.map((s) => `<span class="tstage tstage--${s[2]}">${esc(s[1])}</span>`).join(' → '), String(c.open), String(c.closed), `<button class="link-btn" type="button" data-tpipe-edit="${i}">Administrar</button> <button class="link-btn" type="button" data-tpipe-clone="${i}">Clonar</button>${defs.length > 1 ? ` <button class="link-btn" type="button" data-ticketpipe-rm="${i}" ${c.open + c.closed ? 'disabled title="Tiene tickets: muévelos a otro pipeline antes de eliminarlo"' : ''}>Eliminar</button>` : ''}`]; }))}
+    <form class="sform" data-save="ticketpipeline"><div class="sform__row"><label class="field"><span>Nuevo pipeline</span><input name="name" required maxlength="60" placeholder="Por ejemplo: Cotizaciones Kafer" /></label></div><p class="muted">Empieza con los estados predeterminados (${DEFAULT_TICKET_STATUSES.map((s) => s[1]).join(', ')}); se cambian en «Administrar».</p><div class="sform__btns"><button class="btn btn--primary" type="submit">Crear pipeline</button></div></form>`;
+}
+function ticketPipelineEditorHtml(defs, counts) {
+  const p = defs[state.tpipeEdit];
+  if (!p) { state.tpipeEdit = null; return ticketPipelinesHtml(); }
+  const tickets = ALL.tickets();
+  const count = (k) => tickets.filter((t) => t.pipeline === p.name && t.status === k).length;
+  const c = counts[p.name] || { open: 0, closed: 0 };
+  return `<h2>Administrar ${esc(p.name)}</h2>
+    <div class="pmanage">
+      <div class="pmanage__top">
+        <select class="ginput ginput--md pmanage__select" data-tpipe-select aria-label="Pipeline">${defs.map((d, i) => `<option value="${i}" ${i === state.tpipeEdit ? 'selected' : ''}>${esc(d.name)}</option>`).join('')}</select>
+        <div class="menu"><button class="btn btn--ghost" type="button" aria-haspopup="true" aria-expanded="false">Acciones <span class="caret"></span></button><div class="menu__panel menu__panel--right"><button class="menu__item" type="button" data-act="tpipe-rename">Cambiar nombre</button><button class="menu__item" type="button" data-tpipe-clone="${state.tpipeEdit}">Clonar pipeline</button><a class="menu__item" href="../tickets/">Ver tickets</a><button class="menu__item" type="button" data-act="tpipe-back">Volver a pipelines</button></div></div>
+      </div>
+      <p class="muted">${c.open} ${c.open === 1 ? 'ticket abierto' : 'tickets abiertos'} · ${c.closed} ${c.closed === 1 ? 'cerrado' : 'cerrados'}. Los tickets se mueven entre estados desde la lista, el tablero o la ficha.</p>
+      <form class="peditor" data-save="ticketpipe-stages" data-tpipe="${state.tpipeEdit}">
+        <table class="mini-table stable ptable ptable--stages"><thead><tr><th>Nombre del estado</th><th>Tipo</th><th>Se usa en</th><th></th></tr></thead><tbody>
+          ${p.stages.map(([k, l, type], i) => `<tr data-row="${i}"><td class="pstagecell"><span class="pmoves"><button type="button" class="icon-btn icon-btn--sm" data-tstage-move="-1" data-i="${i}" ${i === 0 ? 'disabled' : ''} aria-label="Subir">↑</button><button type="button" class="icon-btn icon-btn--sm" data-tstage-move="1" data-i="${i}" ${i === p.stages.length - 1 ? 'disabled' : ''} aria-label="Bajar">↓</button></span><input class="cellpop__input cellpop__input--sm pstage" data-tstage-label="${esc(k)}" value="${esc(l)}" required /></td><td><select class="ginput ginput--sm" data-tstage-type="${esc(k)}" aria-label="Tipo de ${esc(l)}"><option value="open" ${type !== 'closed' ? 'selected' : ''}>Abierto</option><option value="closed" ${type === 'closed' ? 'selected' : ''}>Cerrado</option></select></td><td><a class="plink" href="../tickets/">${count(k).toLocaleString('es-ES')}</a></td><td><button type="button" class="link-btn" data-tstage-rm="${esc(k)}" ${count(k) ? 'disabled title="Tiene tickets"' : ''}>Eliminar</button></td></tr>`).join('')}
+        </tbody></table>
+        <p><button type="button" class="link-btn" data-act="tstage-add">+ Agregar estado</button> <span class="muted">Un pipeline necesita al menos un estado abierto y uno cerrado.</span></p>
+        <div class="sform__btns gsave"><button class="btn btn--primary" type="submit">Guardar</button><button class="btn btn--ghost" type="button" data-act="tpipe-back">Cancelar</button></div>
+      </form>
+    </div>`;
+}
+// Reads the editor's inputs into the pipeline definition (so reordering and adding keep unsaved edits).
+function collectTicketPipeline(p) {
+  const form = root.querySelector('form[data-save="ticketpipe-stages"]');
+  if (!form || !p) return p;
+  p.stages.forEach((s) => {
+    const l = form.querySelector(`[data-tstage-label="${s[0]}"]`);
+    const t = form.querySelector(`[data-tstage-type="${s[0]}"]`);
+    if (l && l.value.trim()) s[1] = l.value.trim();
+    if (t) s[2] = t.value === 'closed' ? 'closed' : 'open';
+  });
+  return p;
+}
+const ticketStatusKey = (p, label) => {
+  const base = String(label).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '') || 'estado';
+  let k = base;
+  let n = 2;
+  while (p.stages.some((s) => s[0] === k)) { k = `${base}_${n}`; n += 1; }
+  return k;
+};
+const ticketPipelineHasBoth = (stages) => stages.some((s) => s[2] !== 'closed') && stages.some((s) => s[2] === 'closed');
 // ---------- Deal pipelines: overview table, labels, per-pipeline stage editor ----------
 Object.assign(state, { pipeTab: 'overview', pipeEdit: null, pipeQuery: '' });
 const STAGE_COLORS = [['none', 'Texto (sin color)'], ['dot', '<span class="pdot" aria-hidden="true"></span> Texto con punto de color'], ['badge', '<span class="pbadge">Texto en insignia de color</span>']];
@@ -871,7 +915,8 @@ function objectConfigHtml(type) {
   const props = `<h3>Propiedades</h3>
     <p><a class="olink" href="#data-properties" data-props-object-link="${type}">Gestionar propiedades de ${m.s}</a><br /><span class="muted">Administra la información que recoges sobre tus ${m.p}.</span></p>
     ${type === 'deals' ? `<div class="ofield"><strong>Cantidad predeterminada del Negocio</strong><p class="muted">Elige cómo se calcula el valor de un Negocio y cómo se muestra en tu registro de Negocio. <a href="#">Más información. ↗</a></p><select class="ginput ginput--md" data-objsetting="amountMode" data-type="deals">${AMOUNT_MODES.map((a) => `<option ${s.amountMode === a ? 'selected' : ''}>${a}</option>`).join('')}</select></div>` : ''}
-    ${type === 'tickets' ? `<div class="ofield"><strong>Estado predeterminado del Ticket</strong><p class="muted">Estado con el que se crean los tickets nuevos.</p><select class="ginput ginput--md" data-objsetting="defaultStatus" data-type="tickets">${TICKET_STATUSES.map(([, l]) => `<option ${(s.defaultStatus || TICKET_STATUSES[0][1]) === l ? 'selected' : ''}>${l}</option>`).join('')}</select></div>` : ''}`;
+    ${type === 'tickets' ? `<div class="ofield"><strong>Estado predeterminado del Ticket</strong><p class="muted">Estado con el que se crean los tickets nuevos.</p><select class="ginput ginput--md" data-objsetting="defaultStatus" data-type="tickets">${TICKET_STATUSES.map(([, l]) => `<option ${(s.defaultStatus || TICKET_STATUSES[0][1]) === l ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
+    ${objCheck('tickets', 'autoCompany', 'Asociar los Tickets a la empresa principal del Contacto', 'Al crear un Ticket con un Contacto (formulario, ficha o importación) o al asociarle un Contacto después, el Ticket se asocia automáticamente a la empresa principal de ese Contacto. Las asociaciones que ya existen no se tocan.', s.autoCompany !== false)}` : ''}`;
   const assoc = `<h3>Asociaciones</h3><p><button class="olink" type="button" data-objects-tab="assoc">Gestionar asociaciones de ${m.s}</button><br /><span class="muted">Gestiona las relaciones entre tus ${m.p} y otros objetos.</span></p>`;
   const creating = `<h3>Creando ${m.p}</h3>
     <div class="othumb"><span class="othumb__img" aria-hidden="true"><i></i><i></i><i></i></span><div><button class="olink" type="button" data-act="customize-create" data-type="${type}">Personaliza el formulario "Crear ${m.s}"</button><br /><span class="muted">Agrega, elimina o edita campos en el formulario "Crear ${m.s}"</span></div></div>
@@ -1314,6 +1359,12 @@ root.addEventListener('submit', (e) => {
   }
   else if (what === 'password') { form.reset(); toast('Contraseña actualizada'); }
   else if (what === 'signature') { setSignature(d); toast('Firma guardada'); }
+  else if (what === 'ticketpipe-stages') {
+    const defs = ticketPipelineDefs(); const p = collectTicketPipeline(defs[Number(form.dataset.tpipe)]);
+    if (!p) return;
+    if (!ticketPipelineHasBoth(p.stages)) { toast('El pipeline necesita al menos un estado abierto y uno cerrado'); return; }
+    saveTicketPipelineDefs(defs); toast('Pipeline guardado'); render();
+  }
   else if (what === 'ticketpipeline') {
     const name = (d.name || '').trim();
     const list = ticketPipelines();
@@ -1373,6 +1424,7 @@ root.addEventListener('change', (e) => {
   else if (t.hasAttribute('data-objects-object')) { state.objectsObject = t.value; state.objectsTab = 'config'; window.history.replaceState(null, '', `#obj-${t.value}`); render(); }
   else if (t.hasAttribute('data-preview-team')) { state.previewTeam = t.value; render(); }
   else if (t.hasAttribute('data-pipe-select')) { state.pipeEdit = Number(t.value); render(); }
+  else if (t.hasAttribute('data-tpipe-select')) { state.tpipeEdit = Number(t.value); render(); }
   else if (t.hasAttribute('data-logic-preview')) { state.logicEdit.preview = t.value; render(); }
   else if (t.dataset.logicPropReq !== undefined) { state.logicEdit.draft.props[Number(t.dataset.logicPropReq)].required = t.checked; render(); }
   else if (t.hasAttribute('data-cond-prop') || t.hasAttribute('data-cond-op')) { const L = state.logicEdit; const box = t.closest('.lcond--edit'); L.adding.prop = box.querySelector('[data-cond-prop]').value; L.adding.op = box.querySelector('[data-cond-op]').value; const v = box.querySelector('[data-cond-value]'); L.adding.value = L.adding.prop === 'Etapa del negocio' || L.adding.prop === 'Pipeline' ? '' : (v ? v.value : ''); render(); }
@@ -1436,7 +1488,7 @@ root.addEventListener('click', (e) => {
   const cp = e.target.closest('[data-copy]');
   if (cp) { navigator.clipboard?.writeText(cp.dataset.copy); toast('Copiado'); return; }
   const tab = e.target.closest('[data-objects-tab]');
-  if (tab) { state.objectsTab = tab.dataset.objectsTab; state.pipeEdit = null; render(); return; }
+  if (tab) { state.objectsTab = tab.dataset.objectsTab; state.pipeEdit = null; state.tpipeEdit = null; render(); return; }
   const ptab = e.target.closest('[data-pipe-tab]');
   if (ptab) { state.pipeTab = ptab.dataset.pipeTab; render(); return; }
   // conditional property logic editor
@@ -1505,6 +1557,21 @@ root.addEventListener('click', (e) => {
   if (plrm) { const defs = dealPipelineDefs(); const p = defs[state.pipeEdit]; const list = labelsOf(p).slice(); list.splice(Number(plrm.dataset.pipelabelRm), 1); p.labelList = list; persistPipelines(defs, 'Etiqueta quitada'); render(); return; }
   const pcolor = e.target.closest('[data-stage-color]');
   if (pcolor) { const s = objSetting('deals'); s.stageColor = pcolor.dataset.stageColor; save('crm:settings:obj-deals', s); render(); toast('Colores del pipeline guardados'); return; }
+  const tpedit = e.target.closest('[data-tpipe-edit]');
+  if (tpedit) { closeMenus(); state.tpipeEdit = Number(tpedit.dataset.tpipeEdit); render(); return; }
+  const tpclone = e.target.closest('[data-tpipe-clone]');
+  if (tpclone) { closeMenus(); const defs = ticketPipelineDefs(); if (state.tpipeEdit !== null) collectTicketPipeline(defs[state.tpipeEdit]); const src = defs[Number(tpclone.dataset.tpipeClone)]; const copy = newTicketPipelineDef(`${src.name} (copia)`, src.stages); defs.push(copy); saveTicketPipelineDefs(defs); state.tpipeEdit = defs.length - 1; render(); toast(`Pipeline "${copy.name}" creado`); return; }
+  const tsmove = e.target.closest('[data-tstage-move]');
+  if (tsmove) { const defs = ticketPipelineDefs(); const p = collectTicketPipeline(defs[state.tpipeEdit]); const i = Number(tsmove.dataset.i); const j = i + Number(tsmove.dataset.tstageMove); if (p && j >= 0 && j < p.stages.length) { [p.stages[i], p.stages[j]] = [p.stages[j], p.stages[i]]; saveTicketPipelineDefs(defs); render(); } return; }
+  const tsrm = e.target.closest('[data-tstage-rm]');
+  if (tsrm) {
+    const defs = ticketPipelineDefs(); const p = collectTicketPipeline(defs[state.tpipeEdit]); const k = tsrm.dataset.tstageRm;
+    if (!p) return;
+    if (ALL.tickets().some((t) => t.pipeline === p.name && t.status === k)) { toast('Ese estado tiene tickets: muévelos a otro estado antes de eliminarlo'); return; }
+    const rest = p.stages.filter((s) => s[0] !== k);
+    if (!ticketPipelineHasBoth(rest)) { toast('El pipeline necesita al menos un estado abierto y uno cerrado'); return; }
+    p.stages = rest; saveTicketPipelineDefs(defs); render(); toast('Estado eliminado'); return;
+  }
   const pedit = e.target.closest('[data-pipe-edit]');
   if (pedit) { closeMenus(); state.pipeEdit = Number(pedit.dataset.pipeEdit); render(); return; }
   const pmove = e.target.closest('[data-pipe-move]');
@@ -1610,6 +1677,33 @@ root.addEventListener('click', (e) => {
   const a = act.dataset.act;
   closeMenus();
   if (a === 'toast') toast(act.dataset.msg);
+  else if (a === 'tpipe-back') { state.tpipeEdit = null; render(); }
+  else if (a === 'tstage-add') {
+    const defs = ticketPipelineDefs(); const p = collectTicketPipeline(defs[state.tpipeEdit]);
+    if (!p) return;
+    promptModal('Agregar estado', [['label', 'Nombre del estado'], ['type', 'Tipo', 'select', ['Abierto', 'Cerrado']]], 'Agregar', (d) => {
+      const label = (d.label || '').trim();
+      if (!label) return;
+      const closed = d.type === 'Cerrado';
+      const stage = [ticketStatusKey(p, label), label, closed ? 'closed' : 'open'];
+      const firstClosed = p.stages.findIndex((s) => s[2] === 'closed');
+      if (closed || firstClosed < 0) p.stages.push(stage); else p.stages.splice(firstClosed, 0, stage); // open statuses go before the closed ones
+      saveTicketPipelineDefs(defs);
+      toast(`Estado "${label}" agregado`);
+    });
+  }
+  else if (a === 'tpipe-rename') {
+    const defs = ticketPipelineDefs(); const p = defs[state.tpipeEdit];
+    if (!p) return;
+    promptModal('Cambiar nombre del pipeline', [['name', 'Nombre', 'text', p.name]], 'Guardar', (d) => {
+      const name = (d.name || '').trim();
+      if (!name || name === p.name) return;
+      if (defs.some((x) => x !== p && x.name.toLowerCase() === name.toLowerCase())) { toast('Ya existe un pipeline con ese nombre'); return; }
+      const old = p.name; p.name = name; saveTicketPipelineDefs(defs);
+      ALL.tickets().filter((t) => t.pipeline === old).forEach((t) => setField('tickets', t.id, 'pipeline', name)); // the tickets follow their pipeline
+      toast(`Pipeline renombrado a "${name}"`);
+    });
+  }
   else if (a === 'pipe-back') { state.pipeEdit = null; state.pipeSub = 'configure'; render(); }
   else if (a === 'pipe-desc') { const defs = dealPipelineDefs(); const p = collectPipeline(defs[state.pipeEdit]); promptModal('Descripción del pipeline', [['desc', 'Descripción', 'text', p.desc || '']], 'Guardar', (d) => { p.desc = d.desc.trim(); persistPipelines(defs, 'Descripción guardada'); }); }
   else if (a === 'pipe-rename') { const defs = dealPipelineDefs(); const p = collectPipeline(defs[state.pipeEdit]); promptModal('Cambiar nombre del pipeline', [['name', 'Nombre', 'text', p.name]], 'Guardar', (d) => { const name = d.name.trim(); if (!name || defs.some((x) => x !== p && x.name.toLowerCase() === name.toLowerCase())) { toast('Ese nombre no está disponible'); return; } const old = p.name; p.name = name; ALL.deals().filter((x) => x.pipeline === old).forEach((x) => setField('deals', x.id, 'pipeline', name)); persistPipelines(defs, 'Nombre guardado'); }); }

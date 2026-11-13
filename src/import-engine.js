@@ -4,7 +4,7 @@
 // de-duplication (e-mail, domain or record ID), the three import modes, associations by company, the error
 // catalogue with its impact, the import states (STARTED → PROCESSING → DONE / FAILED / CANCELED, DEFERRED when
 // three are running), the limits and the downloads.
-import { ALL, addRecord, setField, OWNERS, TODAY, getViewStore, setViewStore, strip, dealPipelines, stagesFor, ticketPipelines, TICKET_STATUSES, TASK_STATUSES, DEAL_STAGES } from './data.js';
+import { ALL, addRecord, setField, OWNERS, TODAY, getViewStore, setViewStore, strip, dealPipelines, stagesFor, ticketPipelines, ticketStatusesFor, TICKET_STATUSES, TASK_STATUSES, DEAL_STAGES } from './data.js';
 import { propertyList, customProperties, saveCustomProperties } from './properties.js';
 import { addSegment } from './segments-data.js';
 
@@ -283,7 +283,7 @@ export function convertValue(p, raw, opts = {}) {
   if (s.length > LIMITS.cellBytes) return { value: undefined, error: 'ROW_DATA_TOO_LARGE' };
   if (p.key === 'domain') { const d = normalizeDomain(s); return d ? { value: d } : { value: undefined, error: 'PROPERTY_VALIDATION_RULE_ERROR' }; }
   if (p.key === 'pipeline' || p.key === 'stage' || p.kind === 'stage') return { value: s }; // validated per pipeline in planImport
-  if (p.key === 'status' && p.kind === 'status') return pickOption(opts.object === 'tasks' ? TASK_STATUSES.map((x) => ({ value: x[0], label: x[1] })) : TICKET_STATUSES.map((x) => ({ value: x[0], label: x[1] })), s);
+  if (p.key === 'status' && p.kind === 'status') return opts.object === 'tasks' ? pickOption(TASK_STATUSES.map((x) => ({ value: x[0], label: x[1] })), s) : { value: s }; // ticket statuses are validated against the row's pipeline in planImport
   switch (p.kind) {
     case 'email': return EMAIL_RE.test(s) ? { value: s.toLowerCase() } : { value: undefined, error: p.key === 'email' ? 'INVALID_EMAIL' : 'INVALID_ADDITIONAL_EMAIL' };
     case 'phone': { const v = normalizePhone(s); return v ? { value: v } : { value: undefined, error: 'COULD_NOT_PARSE_NUMBER' }; }
@@ -412,6 +412,8 @@ export function planImport(table, mapping, options = {}) {
     }
     if (!dropCode && type === 'tickets') {
       if (data.pipeline !== undefined) { const hit = ticketPipelines().find((p) => strip(p) === strip(data.pipeline)); if (hit) data.pipeline = hit; else dropCode = 'INVALID_PIPELINE'; }
+      // the status must be one of the pipeline's own (by key or label)
+      if (!dropCode && data.status !== undefined) { const st = ticketStatusesFor(data.pipeline).find((x) => strip(x[0]) === strip(data.status) || strip(x[1]) === strip(data.status)); if (st) data.status = st[0]; else dropCode = 'INVALID_DEAL_STAGE'; }
     }
     // additional e-mails / domains: ; separated, each valid and not used by another record
     if (def.altField && data[def.altField] !== undefined) {
