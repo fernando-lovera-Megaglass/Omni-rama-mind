@@ -1,5 +1,20 @@
 # Progreso — Omni CRM
 
+## 2026-11-13 (sesión 5) · Selección masiva en las listas (barra de acciones del original)
+
+**Construido** (`src/list.js`, común a todas las listas; configurado en `contacts.js`, `companies.js` y `deals.js`)
+- Casilla por fila y casilla de encabezado «seleccionar todos los de la página»; las filas seleccionadas quedan resaltadas.
+- Con ≥1 fila seleccionada aparece una **barra fija sobre la tabla**: «N contactos seleccionados» (con concordancia: «1 empresa seleccionada»), X para limpiar y las acciones. Al marcar toda la página con más registros en la vista, la barra ofrece «Seleccionar los N contactos de la vista completa» (y después «Los N … están seleccionados · Limpiar selección»).
+- Acciones (cada una en un diálogo propio con Aplicar/Cancelar, cierra con Escape):
+  - **Asignar**: propietario de una lista → `setField(owner)` por registro (UPDATE en Supabase en modo conectado).
+  - **Editar**: propiedad de una lista (las editables del catálogo con sus opciones; sin nombre, correo ni calculadas) y valor nuevo (lista o texto según la propiedad) → `setField` por registro.
+  - **Eliminar**: confirmación «Eliminar N contactos» en rojo → `deleteRecords` (DELETE en Supabase), con aviso de que pueden restaurarse.
+  - **Crear tareas** (contactos): título, tipo, vencimiento y asignada a → una tarea por contacto, asociada a él (`contactId`).
+  - **Agregar a segmento** (contactos, empresas y negocios): segmento estático existente del mismo objeto o uno nuevo con nombre → `addStaticMembers` / `addSegment` con los ids.
+  - **Exportar**: CSV de la selección (ya existía).
+- Empresas y negocios usan la misma barra con Asignar, Editar, Eliminar, Agregar a segmento y Exportar; el resto de listas conservan Asignar, Editar, Eliminar y Exportar.
+- Pruebas: `scripts/smoke-bulk.mjs` (selección, página y vista completa, resaltado, las cinco acciones en contactos, Asignar/Eliminar en empresas y negocios, Escape) + suite completa (29) en verde; `npm run build` OK.
+
 ## 2026-11-13 (sesión 5) · «Crear contacto» como panel lateral del original (`exploracion-hubspot/exploracion-2026-11-13.md`)
 
 **Construido**

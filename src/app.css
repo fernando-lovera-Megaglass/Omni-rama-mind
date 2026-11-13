@@ -11850,3 +11850,157 @@ a.is-done {
 body.has-slideover {
   overflow: hidden;
 }
+
+/* ---------- Bulk selection bar over the table (the original's) and its dialogs ---------- */
+.bulk {
+  position: sticky;
+  top: 0;
+  z-index: 25;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-8);
+  padding: var(--sp-8) var(--sp-16);
+  background: #e5f5f8;
+  border-top: 1px solid #b6e1ea;
+  border-bottom: 1px solid #b6e1ea;
+  font-weight: 600;
+}
+
+.bulk__count {
+  color: var(--c-dark);
+}
+
+.bulk__clear {
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--c-link);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.bulk__clear:hover {
+  background: rgba(0, 97, 98, 0.1);
+}
+
+.bulk__actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-4);
+  margin-left: var(--sp-8);
+  padding-left: var(--sp-10);
+  border-left: 1px solid #b6e1ea;
+}
+
+.bulk__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--c-link);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.bulk__btn:hover {
+  background: rgba(0, 97, 98, 0.1);
+}
+
+.bulk__all {
+  margin-left: auto;
+  font-weight: 400;
+  color: var(--c-text);
+}
+
+.bulk__all[hidden] {
+  display: none;
+}
+
+.table tbody tr.is-selected td {
+  background: #e5f5f8;
+}
+
+.table tbody tr.is-selected:hover td {
+  background: #d6efec;
+}
+
+.bmodal {
+  position: fixed;
+  inset: 0;
+  z-index: 170;
+  display: none;
+}
+
+.bmodal.is-open {
+  display: block;
+}
+
+.bmodal__scrim {
+  position: absolute;
+  inset: 0;
+  background: rgba(33, 51, 67, 0.45);
+}
+
+.bmodal__panel {
+  position: absolute;
+  top: 12vh;
+  left: 50%;
+  width: 480px;
+  max-width: calc(100% - 32px);
+  transform: translateX(-50%);
+  background: var(--c-white);
+  border-radius: var(--r-md);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+}
+
+.bmodal__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--sp-16) var(--sp-20);
+  border-bottom: 1px solid var(--c-border);
+}
+
+.bmodal__head h3 {
+  margin: 0;
+  font-size: var(--fs-md);
+}
+
+.bmodal__close {
+  border: 0;
+  background: transparent;
+  color: var(--c-muted);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.bmodal__body {
+  padding: var(--sp-16) var(--sp-20);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-10);
+}
+
+.bmodal__body .field[hidden] {
+  display: none;
+}
+
+.bmodal__foot {
+  display: flex;
+  gap: var(--sp-8);
+  padding: var(--sp-10) var(--sp-20);
+  border-top: 1px solid var(--c-border);
+  background: var(--c-head);
+}

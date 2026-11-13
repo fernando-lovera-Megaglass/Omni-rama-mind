@@ -105,6 +105,7 @@ mountList({
     pipeline: dealPipelines().map((p) => [p, p]),
     type: [['Nuevo negocio', 'Nuevo negocio'], ['Negocio existente', 'Negocio existente']],
   },
+  bulk: { actions: ['assign', 'edit', 'delete', 'segment', 'export'] },
   readOnly: ['probability'],
   previewFields: ['amount', 'stage', 'pipeline', 'closeDate', 'owner', 'company', 'priority', 'type', 'hs_next_step', 'created'],
   // Standard views (labels shared with Configuración › Administrar vistas through std-views.js).

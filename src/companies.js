@@ -46,6 +46,7 @@ mountList({
     lifecycle: LIFECYCLES.map((l) => [l, l]),
     industry: ['Construcción', 'Arquitectura', 'Reformas', 'Inmobiliaria', 'Decoración'].map((x) => [x, x]),
   },
+  bulk: { actions: ['assign', 'edit', 'delete', 'segment', 'export'] },
   readOnly: ['contacts', 'deals'],
   previewFields: ['domain', 'phone', 'owner', 'industry', 'city', 'state', 'country', 'employees', 'revenue', 'lifecycle'],
   searchPlaceholder: 'Buscar nombre, dominio, teléfono...',

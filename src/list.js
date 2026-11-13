@@ -1,7 +1,8 @@
 // Generic object list: views, filter menus, search, sort, paging, selection,
 // column editor (full property catalog), advanced filters, CSV export/import, create drawer.
 import { wireMenus, closeMenus, toast, linkHtml, wireLinkTooltips } from './shell.js';
-import { addRecord, deleteRecords, restoreAll, getPrefs, setPrefs, getViewStore, setViewStore, matches, strip, toCsv, download, formatDate, formatMoney, formatShortDate, relativeTime, setField, TODAY, ALL } from './data.js';
+import { addRecord, deleteRecords, restoreAll, getPrefs, setPrefs, getViewStore, setViewStore, matches, strip, toCsv, download, formatDate, formatMoney, formatShortDate, relativeTime, setField, TODAY, ALL, OWNERS, TASK_TYPES } from './data.js';
+import { segments as allSegments, addSegment, addStaticMembers } from './segments-data.js';
 import { defaultTabs, deletedViews, saveDeletedViews } from './std-views.js';
 import { propertyGroups, propertyMap } from './properties.js';
 import { associationsFor, associationLabelOptions, assocPropertyGroups, assocValueOptions, assocConditionMatches, assocKindGroup, SINGULAR } from './assoc-filters.js';
@@ -249,6 +250,12 @@ export function mountList(cfg) {
 
   const OBJECTS = [['contacts', 'Contactos'], ['companies', 'Empresas'], ['deals', 'Negocios'], ['tickets', 'Tickets'], ['tasks', 'Tareas']];
   const plural = cfg.plural || cfg.title.toLowerCase();
+  // Bulk bar wording and actions (contacts add "Crear tareas" and "Agregar a segmento").
+  const bulkNoun = { singular: (cfg.bulk && cfg.bulk.singular) || (cfg.singular || cfg.title).toLowerCase(), plural: (cfg.bulk && cfg.bulk.plural) || plural };
+  const bulkActions = (cfg.bulk && cfg.bulk.actions) || ['assign', 'edit', 'delete', 'export'];
+  const bulkFem = cfg.bulk && cfg.bulk.feminine !== undefined ? cfg.bulk.feminine : /a$/.test(bulkNoun.singular); // "empresa seleccionada"
+  const bulkWord = (n, word) => `${word}${bulkFem ? 'a' : 'o'}${n === 1 ? '' : 's'}`; // seleccionado(s) / eliminada(s)…
+  const bulkN = (n) => `${n} ${n === 1 ? bulkNoun.singular : bulkNoun.plural}`;
 
   root.innerHTML = `
     <div class="lpage">
@@ -358,10 +365,17 @@ export function mountList(cfg) {
       ${cfg.summary ? `<div class="kpis" id="kpis"><button class="kpis__nav" type="button" data-action="kpis-prev" aria-label="Anterior">‹</button><div class="kpis__track" id="kpis-track"></div><button class="kpis__nav" type="button" data-action="kpis-next" aria-label="Siguiente">›</button></div>` : ''}
 
       <div class="bulk" id="bulk" hidden>
-        <span id="bulk-count">0 seleccionados</span>
-        <button class="btn btn--ghost btn--sm" type="button" data-action="bulk-owner">Asignar propietario</button>
-        <button class="btn btn--ghost btn--sm" type="button" data-action="bulk-export">Exportar selección</button>
-        <button class="btn btn--ghost btn--sm" type="button" data-action="delete">Eliminar</button>
+        <span class="bulk__count" id="bulk-count">0 seleccionados</span>
+        <button class="bulk__clear" type="button" data-action="bulk-clear" aria-label="Limpiar selección" title="Limpiar selección">×</button>
+        <span class="bulk__actions">
+          ${bulkActions.includes('assign') ? '<button class="bulk__btn" type="button" data-action="bulk-assign"><span aria-hidden="true">→</span> Asignar</button>' : ''}
+          ${bulkActions.includes('edit') ? '<button class="bulk__btn" type="button" data-action="bulk-edit"><span aria-hidden="true">✎</span> Editar</button>' : ''}
+          ${bulkActions.includes('delete') ? '<button class="bulk__btn" type="button" data-action="delete"><span aria-hidden="true">🗑</span> Eliminar</button>' : ''}
+          ${bulkActions.includes('tasks') ? '<button class="bulk__btn" type="button" data-action="bulk-tasks"><span aria-hidden="true">+</span> Crear tareas</button>' : ''}
+          ${bulkActions.includes('segment') ? '<button class="bulk__btn" type="button" data-action="bulk-segment"><span aria-hidden="true">≡</span> Agregar a segmento</button>' : ''}
+          ${bulkActions.includes('export') ? '<button class="bulk__btn" type="button" data-action="bulk-export"><span aria-hidden="true">↧</span> Exportar</button>' : ''}
+        </span>
+        <span class="bulk__all" id="bulk-all" hidden></span>
       </div>
 
       <div class="table-wrap" id="table-wrap">
@@ -1070,7 +1084,7 @@ export function mountList(cfg) {
     tbody.innerHTML = slice
       .map(
         (r) => `
-        <tr data-id="${r.id}" class="${state.previewId === Number(r.id) ? 'is-previewing' : ''}">
+        <tr data-id="${r.id}" class="${state.previewId === Number(r.id) ? 'is-previewing' : ''}${state.selected.has(Number(r.id)) ? ' is-selected' : ''}">
           <td class="table__check"><input type="checkbox" class="row-check" data-id="${r.id}" ${state.selected.has(Number(r.id)) ? 'checked' : ''} aria-label="Seleccionar" /></td>
           ${cols
             .map(
@@ -1115,8 +1129,22 @@ export function mountList(cfg) {
     const checkAll = $('check-all');
     checkAll.checked = slice.length > 0 && sel === slice.length;
     checkAll.indeterminate = sel > 0 && sel < slice.length;
-    $('bulk').hidden = state.selected.size === 0;
-    $('bulk-count').textContent = `${state.selected.size} seleccionado${state.selected.size === 1 ? '' : 's'}`;
+    // Bulk bar: how many are selected and, once the whole page is ticked, the offer to take the whole view.
+    const n = state.selected.size;
+    $('bulk').hidden = n === 0;
+    $('bulk-count').textContent = `${bulkN(n)} ${bulkWord(n, 'seleccionad')}`;
+    const inView = list.filter((r) => state.selected.has(Number(r.id))).length;
+    const bulkAll = $('bulk-all');
+    if (n && list.length > slice.length && inView >= list.length) {
+      bulkAll.hidden = false;
+      bulkAll.innerHTML = `${bulkFem ? 'Las' : 'Los'} ${list.length} ${bulkNoun.plural} de la vista están ${bulkWord(2, 'seleccionad')}. <button class="link-btn" type="button" data-action="bulk-clear">Limpiar selección</button>`;
+    } else if (slice.length && sel === slice.length && list.length > slice.length) {
+      bulkAll.hidden = false;
+      bulkAll.innerHTML = `<button class="link-btn" type="button" data-action="bulk-select-view">Seleccionar los ${list.length} ${bulkNoun.plural} de la vista completa</button>`;
+    } else {
+      bulkAll.hidden = true;
+      bulkAll.innerHTML = '';
+    }
 
     document.querySelectorAll('.qchip[data-filter]').forEach((chip) => {
       const key = chip.dataset.filter;
@@ -2235,6 +2263,63 @@ export function mountList(cfg) {
   // A page may bring its own create panel (contacts: the original's slide-over); the generic drawer otherwise.
   const createEntry = (prefill) => (cfg.openCreate ? cfg.openCreate(prefill) : openCreate(prefill));
 
+  // ---------- bulk actions (the original's bar over the table) ----------
+  // Properties a bulk edit may set: editable catalogue properties with the list's own option lists.
+  function bulkEditProps() {
+    const skip = new Set(['name', 'email', 'first', 'last', 'created', 'hs_object_id', 'hs_import_ids', 'domain', 'hs_additional_emails', 'hs_additional_domains', ...(cfg.readOnly || [])]);
+    const kinds = new Set(['text', 'enum', 'user', 'phone', 'number', 'priority', 'status', 'stage', 'url', 'bool', 'currency']);
+    const out = [];
+    Object.keys(cfg.editors || {}).forEach((key) => { if (!skip.has(key)) out.push({ key, label: (props[key] && props[key].label) || (cfg.columns.find((c) => c.key === key) || { label: key }).label, kind: 'enum', options: cfg.editors[key] }); });
+    Object.values(props).forEach((p) => {
+      if (skip.has(p.key) || out.some((x) => x.key === p.key) || !kinds.has(p.kind) || p.system || isSystem(p.key)) return;
+      const options = Array.isArray(p.options) && p.options.length ? p.options.map((o) => (Array.isArray(o) ? [o[0], o[1]] : [o, o])) : p.kind === 'bool' ? [['Sí', 'Sí'], ['No', 'No']] : null;
+      out.push({ key: p.key, label: p.label, kind: p.kind, options });
+    });
+    return out;
+  }
+  // One small dialog for every bulk action: body fields, Aplicar / Cancelar; onOk may return false to keep it open.
+  let bulkOnOk = null;
+  let bulkOnChange = null;
+  function bulkModal() {
+    let m = $('bulk-modal');
+    if (m) return m;
+    m = document.createElement('div');
+    m.className = 'bmodal';
+    m.id = 'bulk-modal';
+    m.setAttribute('aria-hidden', 'true');
+    m.innerHTML = `<div class="bmodal__scrim" data-bm="close"></div>
+      <div class="bmodal__panel" role="dialog" aria-modal="true" aria-labelledby="bulk-modal-title">
+        <div class="bmodal__head"><h3 id="bulk-modal-title"></h3><button class="bmodal__close" type="button" data-bm="close" aria-label="Cerrar">×</button></div>
+        <form class="bmodal__body" id="bulk-form" novalidate></form>
+        <div class="bmodal__foot"><button class="btn btn--primary" type="submit" form="bulk-form" id="bulk-ok">Aplicar</button><button class="btn btn--ghost" type="button" data-bm="close">Cancelar</button></div>
+      </div>`;
+    root.appendChild(m);
+    const close = () => { m.classList.remove('is-open'); m.setAttribute('aria-hidden', 'true'); bulkOnOk = null; bulkOnChange = null; };
+    m.addEventListener('click', (e) => { if (e.target.closest('[data-bm="close"]')) { e.preventDefault(); close(); } });
+    m.querySelector('#bulk-form').addEventListener('change', (e) => { if (e.target.dataset.bm && bulkOnChange) bulkOnChange(m.querySelector('#bulk-form')); });
+    m.querySelector('#bulk-form').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const d = Object.fromEntries(new FormData(e.target).entries());
+      const keep = bulkOnOk ? bulkOnOk(d) === false : false;
+      if (!keep) close();
+    });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && m.classList.contains('is-open')) close(); });
+    return m;
+  }
+  function bulkDialog({ title, body, okLabel = 'Aplicar', danger = false, onOk, onChange }) {
+    const m = bulkModal();
+    m.querySelector('#bulk-modal-title').textContent = title;
+    m.querySelector('#bulk-form').innerHTML = body;
+    const ok = m.querySelector('#bulk-ok');
+    ok.textContent = okLabel;
+    ok.className = `btn ${danger ? 'btn--danger' : 'btn--primary'}`;
+    bulkOnOk = onOk;
+    bulkOnChange = onChange || null;
+    m.classList.add('is-open');
+    m.setAttribute('aria-hidden', 'false');
+    setTimeout(() => m.querySelector('#bulk-form input, #bulk-form select')?.focus(), 0);
+  }
+
   // ---------- create ----------
   $('create-form').addEventListener('submit', (e) => {
     e.preventDefault();
@@ -2412,22 +2497,116 @@ export function mountList(cfg) {
       download(`${cfg.type}-${TODAY.toISOString().slice(0, 10)}.csv`, toCsv(list, visibleColumns()));
       toast(`${list.length} registro(s) exportados a CSV`);
     } else if (a === 'delete') {
-      deleteRecords(cfg.type, [...state.selected]);
-      toast(`${state.selected.size} registro(s) eliminados. Puedes restaurarlos desde Acciones.`);
+      const n = state.selected.size;
+      bulkDialog({
+        title: `Eliminar ${bulkN(n)}`,
+        body: `<p>Se eliminará${n === 1 ? '' : 'n'} <strong>${n}</strong> ${n === 1 ? bulkNoun.singular : bulkNoun.plural} ${bulkWord(n, 'seleccionad')}. Podrás restaurar los registros desde ⋮ › Restaurar registros eliminados.</p>`,
+        okLabel: `Eliminar ${bulkN(n)}`,
+        danger: true,
+        onOk: () => {
+          deleteRecords(cfg.type, [...state.selected]);
+          toast(`${bulkN(n)} ${bulkWord(n, 'eliminad')}. Puedes restaurar los registros desde ⋮ › Restaurar registros eliminados.`);
+          state.selected.clear();
+          render();
+        },
+      });
+    } else if (a === 'bulk-clear') {
       state.selected.clear();
       render();
+    } else if (a === 'bulk-select-view') {
+      filtered().forEach((r) => state.selected.add(Number(r.id)));
+      render();
+    } else if (a === 'bulk-assign') {
+      const n = state.selected.size;
+      const owners = (cfg.editors && cfg.editors.owner) || OWNERS.map((o) => [o, o]);
+      bulkDialog({
+        title: `Asignar ${n} ${n === 1 ? bulkNoun.singular : bulkNoun.plural}`,
+        body: `<label class="field"><span>Propietario</span><select name="owner">${owners.map(([v, l]) => `<option value="${esc(v)}">${esc(l)}</option>`).join('')}</select></label><p class="muted">Se cambia el propietario de los ${n === 1 ? bulkNoun.singular : bulkNoun.plural} seleccionados.</p>`,
+        okLabel: 'Asignar',
+        onOk: (d) => {
+          state.selected.forEach((id) => setField(cfg.type, id, 'owner', d.owner));
+          toast(`${bulkN(n)} ${bulkWord(n, 'asignad')} a ${d.owner}`);
+          state.selected.clear();
+          render();
+        },
+      });
+    } else if (a === 'bulk-edit') {
+      const n = state.selected.size;
+      const choices = bulkEditProps();
+      const valueField = (key) => {
+        const p = choices.find((x) => x.key === key) || choices[0];
+        if (!p) return '';
+        return p.options
+          ? `<label class="field" id="bulk-value-wrap"><span>Nuevo valor</span><select name="value">${p.options.map(([v, l]) => `<option value="${esc(v)}">${esc(l)}</option>`).join('')}</select></label>`
+          : `<label class="field" id="bulk-value-wrap"><span>Nuevo valor</span><input name="value" type="${p.kind === 'number' ? 'number' : 'text'}" autocomplete="off" /></label>`;
+      };
+      bulkDialog({
+        title: `Editar ${n} ${n === 1 ? bulkNoun.singular : bulkNoun.plural}`,
+        body: `<label class="field"><span>Propiedad</span><select name="key" data-bm="prop">${choices.map((p) => `<option value="${esc(p.key)}">${esc(p.label)}</option>`).join('')}</select></label>${valueField(choices[0] && choices[0].key)}<p class="muted">El valor se aplica a todos los ${n === 1 ? bulkNoun.singular : bulkNoun.plural} seleccionados.</p>`,
+        okLabel: 'Actualizar',
+        onChange: (form) => { const wrap = form.querySelector('#bulk-value-wrap'); if (wrap) wrap.outerHTML = valueField(form.elements.key.value); },
+        onOk: (d) => {
+          const p = choices.find((x) => x.key === d.key);
+          if (!p) return false;
+          const value = p.kind === 'number' ? Number(d.value) : d.value;
+          state.selected.forEach((id) => setField(cfg.type, id, p.key, value));
+          toast(`"${p.label}" actualizada en ${n} ${n === 1 ? bulkNoun.singular : bulkNoun.plural}`);
+          state.selected.clear();
+          render();
+          return true;
+        },
+      });
+    } else if (a === 'bulk-tasks') {
+      const n = state.selected.size;
+      const due = new Date(TODAY.getTime() + 3 * 86400000).toISOString().slice(0, 10);
+      bulkDialog({
+        title: `Crear ${n} ${n === 1 ? 'tarea' : 'tareas'}`,
+        body: `<label class="field"><span>Título</span><input name="title" type="text" value="Seguimiento" required /></label>
+          <label class="field"><span>Tipo de tarea</span><select name="type">${TASK_TYPES.map((t) => `<option>${t}</option>`).join('')}</select></label>
+          <label class="field"><span>Fecha de vencimiento</span><input name="due" type="date" value="${due}" /></label>
+          <label class="field"><span>Asignada a</span><select name="owner">${OWNERS.map((o) => `<option>${esc(o)}</option>`).join('')}</select></label>
+          <p class="muted">Se crea una tarea por cada ${bulkNoun.singular} seleccionado, asociada a él.</p>`,
+        okLabel: 'Crear tareas',
+        onOk: (d) => {
+          const rows = cfg.rows().filter((r) => state.selected.has(Number(r.id)));
+          rows.forEach((r) => addRecord('tasks', { name: `${d.title.trim() || 'Seguimiento'}: ${r.name}`, type: d.type, due: d.due ? new Date(`${d.due}T09:00`).toISOString() : TODAY.toISOString(), priority: 'medium', status: 'todo', owner: d.owner, contactId: r.id, contact: r.name, lastActivity: TODAY.toISOString() }));
+          toast(`${rows.length} ${rows.length === 1 ? 'tarea creada' : 'tareas creadas'}`);
+          state.selected.clear();
+          render();
+        },
+      });
+    } else if (a === 'bulk-segment') {
+      const n = state.selected.size;
+      const statics = allSegments().filter((s) => s.object === cfg.type && s.type === 'static');
+      bulkDialog({
+        title: `Agregar ${n} ${n === 1 ? bulkNoun.singular : bulkNoun.plural} a un segmento`,
+        body: `<label class="field"><span>Segmento estático</span><select name="segment" data-bm="segment">${statics.map((s) => `<option value="${s.id}">${esc(s.name)}</option>`).join('')}<option value="__new">Crear un segmento estático nuevo…</option></select></label>
+          <label class="field" id="bulk-seg-name" ${statics.length ? 'hidden' : ''}><span>Nombre del segmento nuevo</span><input name="name" type="text" autocomplete="off" /></label>
+          <p class="muted">Solo los segmentos estáticos admiten registros añadidos a mano; los activos se calculan con sus filtros.</p>`,
+        okLabel: 'Agregar',
+        onChange: (form) => { const wrap = form.querySelector('#bulk-seg-name'); if (wrap) wrap.hidden = form.elements.segment.value !== '__new'; },
+        onOk: (d) => {
+          const ids = [...state.selected];
+          let name;
+          if (d.segment === '__new' || !statics.length) {
+            name = (d.name || '').trim();
+            if (!name) { toast('Escribe el nombre del segmento nuevo'); return false; }
+            addSegment({ name, object: cfg.type, type: 'static', memberIds: ids, size: ids.length });
+          } else {
+            const seg = statics.find((s) => String(s.id) === String(d.segment));
+            name = seg ? seg.name : '';
+            addStaticMembers(d.segment, ids);
+          }
+          toast(`${bulkN(n)} ${bulkWord(n, 'agregad')} al segmento "${name}"`);
+          state.selected.clear();
+          render();
+          return true;
+        },
+      });
     } else if (a === 'restore') {
       restoreAll(cfg.type);
       toast('Registros restaurados');
       render();
-    } else if (a === 'bulk-owner') {
-      const owner = window.prompt('Nuevo propietario para los registros seleccionados:', 'Fernando L.');
-      if (owner) {
-        state.selected.forEach((id) => setField(cfg.type, id, 'owner', owner));
-        state.selected.clear();
-        render();
-        toast('Propietario actualizado');
-      }
     } else if (a === 'toggle-filters') {
       state.showFilters = !state.showFilters;
       setPrefs(cfg.type, { showFilters: state.showFilters });
