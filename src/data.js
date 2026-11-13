@@ -867,6 +867,104 @@ export function addHistoryEntry(recordType, recordId, key, from, to, label) {
   addActivity({ type: 'prop', recordType, recordId, text, who: 'Tú', when: Date.now(), extra: { key, from, to } });
 }
 
+// ---------- segments (Segmentos: active and static lists) ----------
+// Persisted in the `segments` table (supabase/segments.sql). Until that migration runs, segments live in
+// localStorage (crm:segments) and the page keeps working.
+const SEGMENTS_LS_KEY = 'crm:segments';
+let segmentsLive = DB_MODE;
+let segmentRows = [];
+let nextSegmentId = 1;
+function segmentFromDb(row) {
+  return {
+    id: Number(row.id), name: row.name || '', object: row.object || 'contacts', type: row.type || 'active', description: row.description || '', folder: row.folder || '',
+    creator: row.creator || '', updatedBy: row.updated_by || row.creator || '', filters: Array.isArray(row.filters) ? row.filters : [], memberIds: Array.isArray(row.member_ids) ? row.member_ids : [],
+    size: row.size === null || row.size === undefined ? null : Number(row.size), usedIn: Number(row.used_in || 0), campaign: row.campaign || '', access: row.access || {}, importId: row.import_id || null,
+    processedAt: row.processed_at || '', created: row.created || '', updated: row.updated || row.created || '', ...(row.extra || {}),
+  };
+}
+function segmentToDb(s) {
+  const { id, name, object, type, description, folder, creator, updatedBy, filters, memberIds, size, usedIn, campaign, access, importId, processedAt, created, updated, ...rest } = s;
+  return { name: name || '', object: object || 'contacts', type: type || 'active', description: description || '', folder: folder || '', creator: creator || '', updated_by: updatedBy || creator || '', filters: filters || [], member_ids: memberIds || [], size: size === null || size === undefined ? null : Math.round(Number(size)), used_in: Number(usedIn || 0), campaign: campaign || '', access: access || {}, import_id: importId || null, processed_at: processedAt || null, updated: updated || new Date().toISOString(), extra: rest };
+}
+export const segmentsAreLive = () => segmentsLive;
+export function listSegments() {
+  if (!segmentsLive) return read(SEGMENTS_LS_KEY, null);
+  return segmentRows.slice();
+}
+export function saveAllSegments(list) {
+  if (!segmentsLive) { write(SEGMENTS_LS_KEY, list); return; }
+  segmentRows = list.map((s) => ({ ...s }));
+}
+export function insertSegment(seg) {
+  if (!segmentsLive) { const list = read(SEGMENTS_LS_KEY, []) || []; list.unshift(seg); write(SEGMENTS_LS_KEY, list); return seg; }
+  const row = { ...seg, id: seg.id || nextSegmentId };
+  nextSegmentId = Math.max(nextSegmentId, Number(row.id) + 1);
+  segmentRows.unshift(row);
+  bump();
+  dbWrite(async () => {
+    const { error } = await supabase.from('segments').insert({ id: row.id, ...segmentToDb(row), created: row.created || new Date().toISOString() });
+    if (error) console.error('[supabase] insert segment', error);
+  });
+  return row;
+}
+export function patchSegment(id, patch) {
+  if (!segmentsLive) {
+    const list = read(SEGMENTS_LS_KEY, []) || [];
+    const i = list.findIndex((s) => Number(s.id) === Number(id));
+    if (i < 0) return null;
+    list[i] = { ...list[i], ...patch };
+    write(SEGMENTS_LS_KEY, list);
+    return list[i];
+  }
+  const i = segmentRows.findIndex((s) => Number(s.id) === Number(id));
+  if (i < 0) return null;
+  segmentRows[i] = { ...segmentRows[i], ...patch };
+  bump();
+  const row = segmentRows[i];
+  dbWrite(async () => {
+    const { error } = await supabase.from('segments').update(segmentToDb(row)).eq('id', id);
+    if (error) console.error('[supabase] update segment', error);
+  });
+  return row;
+}
+export function deleteSegments(ids) {
+  const set = new Set(ids.map(Number));
+  if (!segmentsLive) { write(SEGMENTS_LS_KEY, (read(SEGMENTS_LS_KEY, []) || []).filter((s) => !set.has(Number(s.id)))); return; }
+  segmentRows = segmentRows.filter((s) => !set.has(Number(s.id)));
+  bump();
+  dbWrite(async () => {
+    const { error } = await supabase.from('segments').delete().in('id', [...set]);
+    if (error) console.error('[supabase] delete segments', error);
+  });
+}
+// First run with the table available: move the segments kept in localStorage (or the sample set) into Supabase.
+export async function seedSegments(sample) {
+  if (!segmentsLive || segmentRows.length) return;
+  let rows = read(SEGMENTS_LS_KEY, null);
+  if (!Array.isArray(rows) || !rows.length) rows = typeof sample === 'function' ? sample() : [];
+  if (!rows.length) return;
+  const payload = rows.map((s) => ({ id: Number(s.id), ...segmentToDb(s), created: s.created || s.updated || new Date().toISOString() }));
+  for (let j = 0; j < payload.length; j += 200) {
+    const { error } = await supabase.from('segments').insert(payload.slice(j, j + 200));
+    if (error) { console.error('[supabase] seed segments', error); return; }
+  }
+  segmentRows = rows.map((s) => ({ ...s, id: Number(s.id) }));
+  nextSegmentId = segmentRows.reduce((m, s) => Math.max(m, Number(s.id) || 0), 0) + 1;
+  localStorage.removeItem(SEGMENTS_LS_KEY);
+  console.info(`[supabase] ${rows.length} segmentos cargados en la tabla segments.`);
+}
+async function fetchSegments() {
+  const all = [];
+  const PAGE = 1000;
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await supabase.from('segments').select('*').order('id').range(from, from + PAGE - 1);
+    if (error) throw error;
+    all.push(...data);
+    if (data.length < PAGE) break;
+  }
+  return all.map(segmentFromDb);
+}
+
 // ---------- Supabase bootstrap ----------
 async function fetchTable(type) {
   const all = [];
@@ -967,6 +1065,14 @@ async function initFromSupabase() {
       console.error('[supabase] tabla activities no disponible; cronología en localStorage.', e);
     }
     if (activitiesLive) await migrateLocalActivities();
+    try {
+      segmentRows = await fetchSegments();
+      nextSegmentId = segmentRows.reduce((m, s) => Math.max(m, Number(s.id) || 0), 0) + 1;
+    } catch (e) {
+      // La migración supabase/segments.sql aún no se ha ejecutado: los segmentos siguen en localStorage.
+      segmentsLive = false;
+      console.error('[supabase] tabla segments no disponible; segmentos en localStorage.', e);
+    }
   } catch (e) {
     console.error('[supabase] no se pudieron cargar los datos; se usa el modo demo con localStorage.', e);
     dbLive = false;

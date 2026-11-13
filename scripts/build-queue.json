@@ -10,8 +10,10 @@
     },
     {
       "id": "segmentos",
-      "status": "pending",
-      "instruction": "Continúa el proyecto Omni CRM (app/): implementa el módulo de Segmentos según especificacion-segmentos-propiedades-crm.md (PARTE A): segmentos activos y estáticos sobre contactos, empresas, negocios y tickets, editor de filtros reutilizando el sistema de filtros de src/list.js y src/filter-ops.js, entrada en la navegación (CRM > Listas). Persiste en Supabase (nueva tabla segments, migración en supabase/). Verifica con npm run build."
+      "status": "done",
+      "instruction": "Continúa el proyecto Omni CRM (app/): implementa el módulo de Segmentos según especificacion-segmentos-propiedades-crm.md (PARTE A): segmentos activos y estáticos sobre contactos, empresas, negocios y tickets, editor de filtros reutilizando el sistema de filtros de src/list.js y src/filter-ops.js, entrada en la navegación (CRM > Listas). Persiste en Supabase (nueva tabla segments, migración en supabase/). Verifica con npm run build.",
+      "completedAt": "2026-11-12T23:30:00-0600",
+      "note": "Construido por Claude (Craft Anything): editor de segmentos, tabla segments en Supabase (supabase/segments.sql), filtros compartidos (src/filter-editor.js). Pendiente del usuario: ejecutar la migración."
     },
     {
       "id": "cola-tareas",

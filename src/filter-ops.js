@@ -56,8 +56,9 @@ export function normalizeOp(op, group) {
 }
 
 // The wanted values of a condition as a list of comparable strings ("a, b" or ["a", "b"]).
+// Several values may be typed separated by ";" (Boston; Chicago), by "," or one per line.
 export const wantedList = (value) =>
-  (Array.isArray(value) ? value : String(value ?? '').split(/[,\n]/)).map((v) => strip(String(v).trim())).filter(Boolean);
+  (Array.isArray(value) ? value : String(value ?? '').split(/[;,\n]/)).map((v) => strip(String(v).trim())).filter(Boolean);
 
 const DAY = 86400000;
 const isNum = (n) => typeof n === 'number' && !Number.isNaN(n);

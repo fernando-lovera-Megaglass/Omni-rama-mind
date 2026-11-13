@@ -1,9 +1,10 @@
 // Segmentos: the list of segments as in the original (header actions, Gestionar / Análisis tabs, view tabs with
-// Carpetas, filter chips, search, Acciones, the table and the pager), with creation, cloning, folders and deletion.
+// Carpetas, filter chips, search, Acciones, the table and the pager). Creating or opening a segment goes to the
+// segment editor (segments/editor/); cloning, folders, conversion to static and deletion happen here.
 import { boot } from './page.js';
 import { wireMenus, closeMenus, toast } from './shell.js';
-import { ALL, formatDate } from './data.js';
-import { segments, saveSegments, folders, saveFolders, addSegment, updateSegment, removeSegments, segmentSize, segmentMembers, matchesSearch, objectLabel, SEGMENT_OBJECTS, TYPE_LABELS, ME } from './segments-data.js';
+import { formatDate } from './data.js';
+import { segments, folders, saveFolders, updateSegment, removeSegments, segmentSize, cloneSegment, convertToStatic, matchesSearch, objectLabel, SEGMENT_OBJECTS, TYPE_LABELS } from './segments-data.js';
 
 boot({ root: '../', active: 'crm', sub: 'Segmentos', title: 'Segmentos' });
 
@@ -14,14 +15,16 @@ const fmtWhen = (iso) => { const d = new Date(iso); return `${formatDate(iso)} $
 const num = (n) => Number(n || 0).toLocaleString('en-US');
 
 const state = { tab: 'manage', q: '', creator: '', type: '', object: '', used: '', page: 1, size: 25, selected: new Set(), sort: { key: 'updated', dir: -1 } };
+const sizeCache = new Map();
+const sizeOf = (s) => { const k = `${s.id}:${s.updated}`; if (!sizeCache.has(k)) sizeCache.set(k, segmentSize(s)); return sizeCache.get(k); };
 
 function filtered() {
   return segments()
-    .filter((s) => matchesSearch(s, state.q) && (!state.creator || s.creator === state.creator) && (!state.type || s.type === state.type) && (!state.object || s.object === state.object) && (!state.used || (state.used === 'used' ? s.usedIn > 0 : s.usedIn === 0)))
+    .filter((s) => matchesSearch(s, state.q) && (!state.creator || s.creator === state.creator) && (!state.type || s.type === state.type) && (!state.object || s.object === state.object) && (!state.used || (state.used === 'used' ? s.usedIn > 0 : !s.usedIn)))
     .sort((a, b) => {
       const k = state.sort.key;
-      const av = k === 'size' ? segmentSize(a) : k === 'updated' ? new Date(a.updated).getTime() : String(a[k] || '');
-      const bv = k === 'size' ? segmentSize(b) : k === 'updated' ? new Date(b.updated).getTime() : String(b[k] || '');
+      const av = k === 'size' ? sizeOf(a) : k === 'updated' ? new Date(a.updated).getTime() : String(a[k] || '');
+      const bv = k === 'size' ? sizeOf(b) : k === 'updated' ? new Date(b.updated).getTime() : String(b[k] || '');
       return (typeof av === 'number' ? av - bv : av.localeCompare(bv, 'es')) * state.sort.dir;
     });
 }
@@ -49,8 +52,8 @@ function render() {
       <div class="seg__actions">
         <div class="menu"><button class="btn btn--ghost btn--pillx" type="button" aria-haspopup="true" aria-expanded="false">Configuración de administración <span class="caret"></span></button><div class="menu__panel menu__panel--right"><button class="menu__item" type="button" data-act="folders">Carpetas</button><button class="menu__item" type="button" data-act="limits">Límites de segmentos</button><button class="menu__item" type="button" data-act="permissions">Permisos de segmentos</button></div></div>
         <a class="btn btn--ghost btn--pillx" href="../data/?from=contacts">Importación</a>
-        <div class="menu"><button class="btn btn--ghost btn--pillx" type="button" aria-haspopup="true" aria-expanded="false">Creación rápida <span class="caret"></span></button><div class="menu__panel menu__panel--right">${SEGMENT_OBJECTS.map(([k, l]) => `<button class="menu__item" type="button" data-quick="${k}">Segmento activo de ${l.toLowerCase()}s</button>`).join('')}</div></div>
-        <div class="menu"><button class="btn btn--primary btn--pillx" type="button" aria-haspopup="true" aria-expanded="false">Crear segmento <span class="caret"></span></button><div class="menu__panel menu__panel--right"><button class="menu__item" type="button" data-create="active">Segmento activo</button><button class="menu__item" type="button" data-create="static">Segmento estático</button></div></div>
+        <div class="menu"><button class="btn btn--ghost btn--pillx" type="button" aria-haspopup="true" aria-expanded="false">Creación rápida <span class="caret"></span></button><div class="menu__panel menu__panel--right">${SEGMENT_OBJECTS.map(([k, l]) => `<a class="menu__item" href="./editor/?object=${k}" data-quick="${k}">Segmento activo de ${l.toLowerCase()}s</a>`).join('')}</div></div>
+        <div class="menu"><button class="btn btn--primary btn--pillx" type="button" aria-haspopup="true" aria-expanded="false">Crear segmento <span class="caret"></span></button><div class="menu__panel menu__panel--right"><a class="menu__item" href="./editor/" data-create="active">Segmento activo</a><a class="menu__item" href="./editor/?type=static" data-create="static">Segmento estático</a></div></div>
       </div>
     </div>
     <div class="seg__tabs" role="tablist"><button class="seg__tab${state.tab === 'manage' ? ' is-active' : ''}" type="button" role="tab" data-tab="manage">Gestionar</button><button class="seg__tab${state.tab === 'analysis' ? ' is-active' : ''}" type="button" role="tab" data-tab="analysis">Análisis</button></div>
@@ -84,14 +87,14 @@ function render() {
         <tbody>${slice.length ? slice.map((s) => `
           <tr data-id="${s.id}">
             <td class="table__check"><input type="checkbox" class="seg-check" data-id="${s.id}" ${state.selected.has(Number(s.id)) ? 'checked' : ''} aria-label="Seleccionar ${esc(s.name)}" /></td>
-            <td><a class="seg__name" href="#" data-open="${s.id}">${esc(s.name)}</a></td>
-            <td><a class="seg__size" href="#" data-open="${s.id}">${num(segmentSize(s))}</a></td>
+            <td><a class="seg__name" href="./editor/?id=${s.id}">${esc(s.name)}</a></td>
+            <td><a class="seg__size" href="./editor/?id=${s.id}">${num(sizeOf(s))}</a></td>
             <td><span class="seg__type"><span class="seg__dot seg__dot--${s.type}"></span>${TYPE_LABELS[s.type] || s.type}</span></td>
             <td>${esc(objectLabel(s.object))}</td>
             <td><div>${esc(fmtWhen(s.updated))}</div><div class="muted">por ${esc(s.updatedBy || s.creator)}</div></td>
             <td>${esc(s.creator)}</td>
             <td>${s.folder ? `<a class="seg__folder" href="#" data-folder-filter="${esc(s.folder)}">${esc(s.folder)}</a>` : '<span class="muted">-</span>'}</td>
-            <td class="num">${s.usedIn ? `<a href="#" data-open="${s.id}">${s.usedIn}</a>` : '0'}</td>
+            <td class="num">${s.usedIn ? `<a href="./editor/?id=${s.id}">${s.usedIn}</a>` : '0'}</td>
           </tr>`).join('') : '<tr><td colspan="9" class="muted seg__empty">No hay segmentos que coincidan.</td></tr>'}</tbody>
       </table></div>
       <div class="pager pager--center">
@@ -109,7 +112,7 @@ function render() {
 
 function renderAnalysis(all) {
   const byType = (t) => all.filter((s) => s.type === t).length;
-  const byObject = SEGMENT_OBJECTS.map(([k, l]) => [l, all.filter((s) => s.object === k).length]);
+  const byObject = SEGMENT_OBJECTS.map(([k, l]) => [l, all.filter((s) => s.object === k)]);
   const used = all.filter((s) => s.usedIn > 0).length;
   const stale = all.filter((s) => (Date.now() - new Date(s.updated).getTime()) / 86400000 > 180).length;
   return `
@@ -122,13 +125,13 @@ function renderAnalysis(all) {
         <div class="seg__stat"><span>Sin actualizar en 6 meses</span><strong>${num(stale)}</strong></div>
       </div>
       <h3>Segmentos por objeto</h3>
-      <table class="mini-table seg__mini"><thead><tr><th>Objeto</th><th class="num">Segmentos</th><th class="num">Registros</th></tr></thead><tbody>${byObject.map(([l, n]) => `<tr><td>${l}</td><td class="num">${num(n)}</td><td class="num">${num(all.filter((s) => objectLabel(s.object) === l).reduce((t, s) => t + segmentSize(s), 0))}</td></tr>`).join('')}</tbody></table>
+      <table class="mini-table seg__mini"><thead><tr><th>Objeto</th><th class="num">Segmentos</th><th class="num">Registros</th></tr></thead><tbody>${byObject.map(([l, list]) => `<tr><td>${l}</td><td class="num">${num(list.length)}</td><td class="num">${num(list.reduce((t, s) => t + sizeOf(s), 0))}</td></tr>`).join('')}</tbody></table>
       <h3>Segmentos sin usar</h3>
       <p class="muted">${num(all.length - used)} segmentos no se usan en ningún workflow, correo ni informe. Puedes eliminarlos desde Gestionar › Acciones.</p>
     </div>`;
 }
 
-// ---------- modal ----------
+// ---------- modals (folders, move) ----------
 function openModal(title, body, foot = '') {
   $('seg-modal-title').textContent = title;
   $('seg-modal-body').innerHTML = body;
@@ -140,56 +143,11 @@ function closeModal() {
   $('seg-modal').classList.remove('is-open');
   $('seg-modal').setAttribute('aria-hidden', 'true');
 }
-function openCreate(type, object = 'contacts') {
-  openModal(type === 'static' ? 'Crear segmento estático' : 'Crear segmento activo', `
-    <p class="muted">${type === 'static' ? 'Los segmentos estáticos guardan los registros que cumplan la condición ahora y no cambian después.' : 'Los segmentos activos se actualizan solos: cada registro que cumpla los criterios entra y sale automáticamente.'}</p>
-    <label class="field"><span>Nombre del segmento</span><input type="text" id="seg-name" maxlength="80" placeholder="Por ejemplo: Instaladores Región Sur" /></label>
-    <label class="field"><span>Objeto</span><select id="seg-object">${SEGMENT_OBJECTS.map(([k, l]) => `<option value="${k}" ${k === object ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
-    <label class="field"><span>Criterio (opcional)</span><div class="seg__crit"><select id="seg-key"><option value="">Todos los registros</option><option value="owner">Propietario</option><option value="lifecycle">Etapa del ciclo de vida</option><option value="status">Estado</option><option value="city">Ciudad</option><option value="country">País/Región</option><option value="industry">Sector</option><option value="pipeline">Pipeline</option><option value="stage">Etapa</option><option value="priority">Prioridad</option></select><input type="text" id="seg-value" placeholder="Valor" /></div><small class="muted">Se incluyen los registros cuyo valor contenga el texto indicado.</small></label>
-    <label class="field"><span>Carpeta</span><select id="seg-folder"><option value="">Sin carpeta</option>${folders().map((f) => `<option>${esc(f)}</option>`).join('')}</select></label>`,
-    `<button class="btn btn--primary" type="button" data-act="create-confirm" data-type="${type}">Crear segmento</button><button class="btn btn--ghost" type="button" data-close>Cancelar</button>`);
-  $('seg-name').focus();
-}
-function createFromModal(type) {
-  const name = $('seg-name').value.trim();
-  if (!name) { toast('Escribe el nombre del segmento'); $('seg-name').focus(); return; }
-  const object = $('seg-object').value;
-  const key = $('seg-key').value;
-  const value = $('seg-value').value.trim();
-  const filters = key && value ? [{ key, op: 'contains', value }] : [];
-  const probe = { type: 'active', object, filters, size: ALL[object] ? ALL[object]().length : 0 };
-  const members = filters.length ? segmentMembers(probe).length : probe.size;
-  const seg = addSegment({ name, object, type, folder: $('seg-folder').value, filters: type === 'active' ? filters : [], size: type === 'active' && filters.length ? null : members });
-  closeModal();
-  state.page = 1;
-  state.q = '';
-  render();
-  toast(`Segmento "${seg.name}" creado con ${num(segmentSize(seg))} registros`);
-}
-function openSegment(id) {
-  const s = segments().find((x) => Number(x.id) === Number(id));
-  if (!s) return;
-  const members = segmentMembers(s).slice(0, 8);
-  const sub = (r) => r.email || r.domain || r.company || r.pipeline || '';
-  openModal(s.name, `
-    <dl class="colinfo">
-      <div><dt>Tipo</dt><dd><span class="seg__type"><span class="seg__dot seg__dot--${s.type}"></span>${TYPE_LABELS[s.type]}</span></dd></div>
-      <div><dt>Objeto</dt><dd>${esc(objectLabel(s.object))}</dd></div>
-      <div><dt>Tamaño</dt><dd>${num(segmentSize(s))} registros</dd></div>
-      <div><dt>Criterios</dt><dd>${s.filters && s.filters.length ? s.filters.map((c) => `${esc(c.key)} contiene «${esc(c.value)}»`).join(' y ') : s.importId ? `Registros de la importación ${s.importId}` : s.type === 'static' ? 'Miembros fijos' : 'Todos los registros'}</dd></div>
-      <div><dt>Carpeta</dt><dd>${s.folder ? esc(s.folder) : '-'}</dd></div>
-      <div><dt>Creador</dt><dd>${esc(s.creator)}</dd></div>
-      <div><dt>Última actualización</dt><dd>${esc(fmtWhen(s.updated))} por ${esc(s.updatedBy || s.creator)}</dd></div>
-      <div><dt>Se usa en</dt><dd>${s.usedIn ? `${s.usedIn} herramienta(s): workflow «Seguimiento ${esc(objectLabel(s.object).toLowerCase())}»` : 'Ningún workflow, correo ni informe'}</dd></div>
-    </dl>
-    ${members.length ? `<h3 class="seg__members-title">Primeros registros</h3><ul class="seg__members">${members.map((r) => `<li><a href="../${s.object}/record/?id=${r.id}">${esc(r.name)}</a>${sub(r) ? ` <span class="muted">· ${esc(sub(r))}</span>` : ''}</li>`).join('')}</ul>` : ''}`,
-    `<a class="btn btn--primary" href="../${s.object}/">Ver en ${esc(objectLabel(s.object))}s</a><button class="btn btn--ghost" type="button" data-rename="${s.id}">Cambiar nombre</button><button class="btn btn--ghost" type="button" data-close>Cerrar</button>`);
-}
 function openFolders() {
   const list = folders();
   const counts = Object.fromEntries(list.map((f) => [f, segments().filter((s) => s.folder === f).length]));
   openModal('Carpetas', `
-    <p class="muted">Agrupa los segmentos en carpetas. Mueve segmentos desde Acciones › Mover a carpeta.</p>
+    <p class="muted">Agrupa los segmentos en carpetas. Mueve segmentos desde Acciones › Mover a carpeta o desde "Añadir a carpeta" en el editor.</p>
     <table class="mini-table"><thead><tr><th>Carpeta</th><th class="num">Segmentos</th><th></th></tr></thead><tbody>${list.length ? list.map((f, i) => `<tr><td><strong>${esc(f)}</strong></td><td class="num">${counts[f] || 0}</td><td class="num"><button class="link-btn" type="button" data-folder-rm="${i}" ${counts[f] ? 'disabled title="Tiene segmentos"' : ''}>Eliminar</button></td></tr>`).join('') : '<tr><td colspan="3" class="muted">Todavía no hay carpetas.</td></tr>'}</tbody></table>
     <label class="field"><span>Nueva carpeta</span><input type="text" id="folder-name" maxlength="60" placeholder="Por ejemplo: Campañas 2026" /></label>`,
     '<button class="btn btn--primary" type="button" data-act="folder-create">Crear carpeta</button><button class="btn btn--ghost" type="button" data-close>Cerrar</button>');
@@ -217,24 +175,16 @@ root.addEventListener('click', (e) => {
   if (pg) { state.page = Number(pg.dataset.page); render(); return; }
   const sz = e.target.closest('[data-size]');
   if (sz) { state.size = Number(sz.dataset.size); state.page = 1; closeMenus(); render(); return; }
-  const open = e.target.closest('[data-open]');
-  if (open) { e.preventDefault(); openSegment(open.dataset.open); return; }
-  const quick = e.target.closest('[data-quick]');
-  if (quick) { closeMenus(); openCreate('active', quick.dataset.quick); return; }
-  const create = e.target.closest('[data-create]');
-  if (create) { closeMenus(); openCreate(create.dataset.create); return; }
   const bulk = e.target.closest('[data-bulk]');
   if (bulk) {
     closeMenus();
     const ids = [...state.selected];
     if (!ids.length) return;
     if (bulk.dataset.bulk === 'delete') { if (window.confirm(`¿Eliminar ${ids.length} segmento(s)?`)) { removeSegments(ids); state.selected.clear(); render(); toast('Segmentos eliminados'); } return; }
-    if (bulk.dataset.bulk === 'clone') { const list = segments(); ids.forEach((id) => { const s = list.find((x) => Number(x.id) === id); if (s) addSegment({ ...s, name: `${s.name} (copia)`, size: segmentSize(s), creator: ME, importId: null }); }); state.selected.clear(); state.page = 1; render(); toast(`${ids.length} segmento(s) clonado(s)`); return; }
-    if (bulk.dataset.bulk === 'static') { ids.forEach((id) => { const s = segments().find((x) => Number(x.id) === id); if (s && s.type === 'active') updateSegment(id, { type: 'static', size: segmentSize(s), filters: [] }); }); render(); toast('Convertidos en segmentos estáticos'); return; }
+    if (bulk.dataset.bulk === 'clone') { ids.forEach((id) => cloneSegment(id)); state.selected.clear(); state.page = 1; render(); toast(`${ids.length} segmento(s) clonado(s)`); return; }
+    if (bulk.dataset.bulk === 'static') { ids.forEach((id) => convertToStatic(id)); render(); toast('Convertidos en segmentos estáticos'); return; }
     if (bulk.dataset.bulk === 'folder') { openMoveToFolder(); return; }
   }
-  const rename = e.target.closest('[data-rename]');
-  if (rename) { const s = segments().find((x) => Number(x.id) === Number(rename.dataset.rename)); const name = window.prompt('Nuevo nombre del segmento:', s.name); if (name && name.trim()) { updateSegment(s.id, { name: name.trim() }); closeModal(); render(); toast('Nombre actualizado'); } return; }
   const frm = e.target.closest('[data-folder-rm]');
   if (frm) { const list = folders(); list.splice(Number(frm.dataset.folderRm), 1); saveFolders(list); openFolders(); toast('Carpeta eliminada'); return; }
   if (e.target.closest('[data-close]') || e.target === $('seg-modal')) { closeModal(); return; }
@@ -242,12 +192,11 @@ root.addEventListener('click', (e) => {
   if (!act) return;
   e.preventDefault();
   const a = act.dataset.act;
-  if (a === 'create-confirm') createFromModal(act.dataset.type);
-  else if (a === 'folders') openFolders();
+  if (a === 'folders') openFolders();
   else if (a === 'folder-create') { const name = $('folder-name').value.trim(); if (!name) { toast('Escribe el nombre de la carpeta'); return; } const list = folders(); if (!list.includes(name)) { list.push(name); saveFolders(list); } openFolders(); toast(`Carpeta "${name}" creada`); }
   else if (a === 'move-confirm') { const folder = $('move-folder').value; [...state.selected].forEach((id) => updateSegment(id, { folder })); state.selected.clear(); closeModal(); render(); toast(folder ? `Movidos a "${folder}"` : 'Sacados de su carpeta'); }
-  else if (a === 'limits') toast('Límites: 1.500 segmentos activos y 1.500 estáticos por cuenta.');
-  else if (a === 'permissions') toast('Permisos: los superadministradores pueden editar cualquier segmento; los usuarios, los suyos.');
+  else if (a === 'limits') toast('Límites: hasta 250 filtros por segmento (60 de objetos asociados); 1.500 segmentos activos y 1.500 estáticos por cuenta.');
+  else if (a === 'permissions') toast('Permisos: cada segmento define en Acceso quién lo ve y quién lo edita.');
   else if (a === 'add-view') toast('Vistas guardadas de segmentos: hasta 50 por usuario.');
   else if (a === 'all-views') toast('Solo existe la vista "Todos los segmentos".');
   else if (a === 'add-filter' || a === 'edit-filters' || a === 'advanced') toast('Usa los filtros de creador, tipo, objeto y uso, o busca por nombre.');
@@ -257,4 +206,4 @@ root.addEventListener('click', (e) => {
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
 
 render();
-export { state, render, openCreate, createFromModal };
+export { state, render };

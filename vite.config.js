@@ -20,6 +20,7 @@ const pages = {
   data: 'data/index.html',
   'data-import': 'data/import/index.html',
   segments: 'segments/index.html',
+  'segments-editor': 'segments/editor/index.html',
 };
 
 export default defineConfig({

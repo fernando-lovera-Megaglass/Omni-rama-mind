@@ -5,7 +5,8 @@ import { addRecord, deleteRecords, restoreAll, getPrefs, setPrefs, getViewStore,
 import { defaultTabs, deletedViews, saveDeletedViews } from './std-views.js';
 import { propertyGroups, propertyMap } from './properties.js';
 import { associationsFor, associationLabelOptions, assocPropertyGroups, assocValueOptions, assocConditionMatches, assocKindGroup, SINGULAR } from './assoc-filters.js';
-import { opsFor, kindGroup, normalizeOp, evalCondition, conditionValues, NO_VALUE_OPS, TWO_VALUE_OPS, MULTI_OPS, DAYS_OPS } from './filter-ops.js';
+import { opsFor, kindGroup, evalCondition, conditionValues } from './filter-ops.js';
+import { createFilterEditor } from './filter-editor.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
 
@@ -2155,20 +2156,7 @@ export function mountList(cfg) {
     renderColumnEditor();
   });
 
-  // ---------- advanced filters ----------
-  // Operators depend on the property type (text, number, date, list, checkbox); see filter-ops.js.
-  const propertyOptions = (selected) => {
-    const grouped = groups
-      .map((grp) => `<optgroup label="${esc(grp.title)}">${grp.items.map(([k, l]) => `<option value="${k}" ${selected === k ? 'selected' : ''}>${l}</option>`).join('')}</optgroup>`)
-      .join('');
-    const extra = cfg.columns.filter((c) => !props[c.key]);
-    return grouped + (extra.length ? `<optgroup label="Otras">${extra.map((c) => `<option value="${c.key}" ${selected === c.key ? 'selected' : ''}>${c.label}</option>`).join('')}</optgroup>` : '');
-  };
-  // Property choices of a linked object (association filters), grouped like the column editor.
-  const assocPropertyOptions = (kind, selected) =>
-    assocPropertyGroups(kind)
-      .map((grp) => `<optgroup label="${esc(grp.title)}">${grp.items.map(([k, l]) => `<option value="${k}" ${selected === k ? 'selected' : ''}>${l}</option>`).join('')}</optgroup>`)
-      .join('');
+  // ---------- advanced filters (shared editor: filter-editor.js) ----------
   const ownValueOptions = (key) => {
     const p = props[key];
     if (p && Array.isArray(p.options) && p.options.length && ['enum', 'user', 'bool'].includes(p.kind)) return p.options.map((o) => (Array.isArray(o) ? [o[1], o[1]] : [o, o]));
@@ -2176,135 +2164,19 @@ export function mountList(cfg) {
     if (f && f.options) return f.options.map(([, l]) => [l, l]);
     return null;
   };
-  const newCondition = (group) => ({ key: '', op: '', value: '', value2: '', group, assoc: '', label: '' });
-  const advAssocs = associationsFor(cfg.type);
-  // Operator family of a condition's property (own or of the linked object).
-  const condGroup = (c) => (c.key ? (c.assoc ? assocKindGroup(c.assoc, c.key) : ownGroup(c.key)) : 'text');
-  const condChoices = (c) => (c.key ? (c.assoc ? assocValueOptions(c.assoc, c.key) : ownValueOptions(c.key)) : null);
-  function renderAdvRows() {
-    if (!state.advanced.length) state.advanced = [newCondition(0)];
-    state.advanced.forEach((c) => {
-      c.group = Number(c.group) || 0;
-      c.assoc = c.assoc || '';
-      c.label = c.label || '';
-      c.value2 = c.value2 || '';
-      if (c.key) c.op = normalizeOp(c.op, condGroup(c));
-    });
-    const groupIds = [...new Set(state.advanced.map((c) => c.group))].sort((a, b) => a - b);
-    const labels = associationLabelOptions();
-    const valueHtml = (c) => {
-      const grp = condGroup(c);
-      const op = c.op;
-      const choices = condChoices(c);
-      const list = Array.isArray(c.value) ? c.value : String(c.value ?? '').split(/[,\n]/).map((s) => s.trim()).filter(Boolean);
-      if (!c.key) return '<input data-k="value" type="text" placeholder="Valor" aria-label="Valor" disabled />';
-      if (NO_VALUE_OPS.has(op)) return '<span class="advc__novalue muted">Sin valor</span>';
-      if (DAYS_OPS.has(op)) return `<span class="advc__days"><input data-k="value" type="number" min="0" step="1" value="${esc(c.value)}" placeholder="0" aria-label="Días" /><span>días</span></span>`;
-      if (TWO_VALUE_OPS.has(op)) {
-        const type = grp === 'date' ? 'date' : 'number';
-        return `<span class="advc__range"><input data-k="value" type="${type}" value="${esc(c.value)}" aria-label="Desde" /><span>y</span><input data-k="value2" type="${type}" value="${esc(c.value2)}" aria-label="Hasta" /></span>`;
-      }
-      if (MULTI_OPS.has(op) && choices) {
-        return `<div class="advc__multi" role="group" aria-label="Valores">${choices.map(([v, l]) => `<label class="advc__check"><input type="checkbox" data-multi value="${esc(v)}" ${list.includes(v) ? 'checked' : ''} /> <span>${esc(l)}</span></label>`).join('')}</div>`;
-      }
-      if (MULTI_OPS.has(op)) return `<input data-k="value" type="text" value="${esc(Array.isArray(c.value) ? c.value.join(', ') : c.value)}" placeholder="Uno o varios valores, separados por coma" aria-label="Valores" />`;
-      if (grp === 'number') return `<input data-k="value" type="number" step="any" value="${esc(c.value)}" placeholder="0" aria-label="Valor" />`;
-      if (grp === 'date') return `<input data-k="value" type="date" value="${esc(String(c.value).slice(0, 10))}" aria-label="Fecha" />`;
-      if (choices) return `<select data-k="value" aria-label="Valor"><option value="">Elige un valor…</option>${choices.map(([v, l]) => `<option value="${esc(v)}" ${c.value === v ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>`;
-      return `<input data-k="value" type="text" value="${esc(c.value)}" placeholder="Valor" aria-label="Valor" />`;
-    };
-    const rowHtml = (c, i) => {
-      const a = advAssocs.find((x) => x.key === c.assoc);
-      const ops = opsFor(condGroup(c));
-      const value = valueHtml(c);
-      const wide = value.startsWith('<div class="advc__multi"');
-      return `
-        <div class="advc${a ? ' advc--assoc' : ''}" data-i="${i}">
-          <div class="advc__top">
-            <select data-k="assoc" aria-label="Objeto">
-              <option value="">${esc(SINGULAR[cfg.type] || cfg.singular || cfg.title)} (este registro)</option>
-              ${advAssocs.map((x) => `<option value="${x.key}" ${c.assoc === x.key ? 'selected' : ''}>${x.label}</option>`).join('')}
-            </select>
-            ${a && a.labels ? `<select data-k="label" aria-label="Etiqueta de asociación"><option value="">Cualquier etiqueta</option>${labels.map((l) => `<option value="${esc(l)}" ${c.label === l ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>` : ''}
-            <button class="icon-btn advc__remove" type="button" data-remove aria-label="Quitar condición">×</button>
-          </div>
-          <div class="advc__row${wide ? ' advc__row--wide' : ''}">
-            <select data-k="key" aria-label="Propiedad"><option value="">Propiedad…</option>${a ? assocPropertyOptions(a.key, c.key) : propertyOptions(c.key)}</select>
-            <select data-k="op" aria-label="Condición" ${c.key ? '' : 'disabled'}>${ops.map(([v, l]) => `<option value="${v}" ${c.op === v ? 'selected' : ''}>${l}</option>`).join('')}</select>
-            ${value}
-          </div>
-        </div>`;
-    };
-    $('adv-groups').innerHTML = groupIds
-      .map((g, gi) => {
-        const idx = state.advanced.map((c, i) => [c, i]).filter(([c]) => c.group === g);
-        return `
-        ${gi > 0 ? '<div class="advg__or"><span>O</span></div>' : ''}
-        <section class="advg" data-g="${g}">
-          <header class="advg__head">
-            <strong>Grupo ${gi + 1}</strong>
-            <span class="muted">se cumplen todas las condiciones</span>
-            ${groupIds.length > 1 ? `<button class="icon-btn" type="button" data-remove-group="${g}" aria-label="Quitar grupo">×</button>` : ''}
-          </header>
-          ${idx.map(([c, i], j) => `${j > 0 ? '<div class="advc__and">Y</div>' : ''}${rowHtml(c, i)}`).join('')}
-          <button class="link-btn advg__add" type="button" data-add-cond="${g}">+ Añadir condición (Y)</button>
-        </section>`;
-      })
-      .join('');
-    const live = state.advanced.filter((c) => c.key);
-    const liveGroups = new Set(live.map((c) => c.group)).size;
-    const assocCount = live.filter((c) => c.assoc).length;
-    $('adv-summary').textContent = live.length
-      ? `${live.length} ${live.length === 1 ? 'condición' : 'condiciones'} en ${liveGroups} grupo${liveGroups === 1 ? '' : 's'}${assocCount ? ` · ${assocCount} por asociación` : ''}`
-      : 'Sin condiciones todavía. Elige una propiedad del registro o de un registro asociado.';
-  }
-  // Checkbox lists ("es cualquiera de") collect every ticked value into the condition.
-  $('adv-groups').addEventListener('change', (e) => {
-    if (!e.target.matches('[data-multi]')) return;
-    const row = e.target.closest('.advc');
-    const c = state.advanced[Number(row.dataset.i)];
-    c.value = [...row.querySelectorAll('[data-multi]:checked')].map((b) => b.value);
-    const live = state.advanced.filter((x) => x.key);
-    const liveGroups = new Set(live.map((x) => x.group)).size;
-    if (live.length) $('adv-summary').textContent = `${live.length} ${live.length === 1 ? 'condición' : 'condiciones'} en ${liveGroups} grupo${liveGroups === 1 ? '' : 's'}`;
+  const advEditor = createFilterEditor({
+    type: cfg.type,
+    container: $('adv-groups'),
+    summary: $('adv-summary'),
+    get: () => state.advanced,
+    set: (c) => { state.advanced = c; },
+    ownValueOptions,
+    fallbackKind: (key) => ownKind(key),
+    extraProperties: cfg.columns.filter((c) => !props[c.key]).map((c) => [c.key, c.label]),
+    singular: SINGULAR[cfg.type] || cfg.singular || cfg.title,
   });
-  $('adv-groups').addEventListener('input', (e) => {
-    const row = e.target.closest('.advc');
-    if (!row || !e.target.dataset.k) return;
-    const i = Number(row.dataset.i);
-    const k = e.target.dataset.k;
-    const c = state.advanced[i];
-    c[k] = e.target.value;
-    if (k === 'assoc') { c.key = ''; c.op = ''; c.value = ''; c.value2 = ''; c.label = ''; }
-    if (k === 'key') { c.op = opsFor(condGroup(c))[0][0]; c.value = ''; c.value2 = ''; }
-    if (k === 'op') { c.value = Array.isArray(c.value) || TWO_VALUE_OPS.has(c.op) || DAYS_OPS.has(c.op) || NO_VALUE_OPS.has(c.op) ? '' : c.value; c.value2 = ''; }
-    if (k === 'assoc' || k === 'key' || k === 'op') renderAdvRows();
-    else {
-      const live = state.advanced.filter((x) => x.key);
-      const liveGroups = new Set(live.map((x) => x.group)).size;
-      if (live.length) $('adv-summary').textContent = `${live.length} ${live.length === 1 ? 'condición' : 'condiciones'} en ${liveGroups} grupo${liveGroups === 1 ? '' : 's'}`;
-    }
-  });
-  $('adv-groups').addEventListener('click', (e) => {
-    const rm = e.target.closest('[data-remove]');
-    const rmGroup = e.target.closest('[data-remove-group]');
-    const add = e.target.closest('[data-add-cond]');
-    if (rm) {
-      const i = Number(rm.closest('.advc').dataset.i);
-      state.advanced.splice(i, 1);
-    } else if (rmGroup) {
-      const g = Number(rmGroup.dataset.removeGroup);
-      state.advanced = state.advanced.filter((c) => c.group !== g);
-    } else if (add) {
-      state.advanced.push(newCondition(Number(add.dataset.addCond)));
-    } else return;
-    renderAdvRows();
-  });
-  $('adv-add-group').addEventListener('click', () => {
-    const next = state.advanced.reduce((m, c) => Math.max(m, Number(c.group) || 0), -1) + 1;
-    state.advanced.push(newCondition(next));
-    renderAdvRows();
-  });
+  const renderAdvRows = () => advEditor.render();
+  $('adv-add-group').addEventListener('click', () => advEditor.addGroup());
   $('adv-apply').addEventListener('click', () => {
     state.page = 1;
     closeDrawer('adv-drawer');
