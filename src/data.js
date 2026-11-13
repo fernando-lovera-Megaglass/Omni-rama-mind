@@ -70,7 +70,19 @@ export function lifecycleTag(label) {
 const LIFECYCLE_MIX = [1, 1, 0, 1, 4, 1, 5, 1, 1, 0, 1, 4, 1, 2, 1, 5, 1, 3, 1, 6, 0, 1, 1, 7];
 const lifecycleFor = (i) => LIFECYCLES[LIFECYCLE_MIX[(i * 7) % LIFECYCLE_MIX.length]];
 export const SOURCES = ['Búsqueda orgánica', 'Referencias', 'Redes sociales', 'Tráfico directo', 'Correo'];
+// Real stages of the default pipeline (FUERZA DE VENTAS) with the close probability saved per stage:
+// [key, label, probability %]. They are the account's stage catalogue; Configuración › Objetos edits them.
 export const DEAL_STAGES = [
+  ['oferta', 'OFERTA A+W', 10],
+  ['cotizacion', 'Proyecto en Cotización', 30],
+  ['ganado_cliente', 'Proyecto Ganado por el cliente', 40],
+  ['evalua', 'Evalua', 80],
+  ['won', 'Ganado', 100],
+  ['lost', 'Perdido', 0],
+  ['deleted', 'Eliminado', 0],
+];
+// Stages the other pipelines were created with (kept so their deals stay where they are).
+export const LEGACY_STAGES = [
   ['appointment', 'Cita programada', 20],
   ['qualified', 'Calificado para comprar', 40],
   ['presentation', 'Presentación programada', 60],
@@ -79,6 +91,12 @@ export const DEAL_STAGES = [
   ['won', 'Cerrado ganado', 100],
   ['lost', 'Cerrado perdido', 0],
 ];
+// Where a FUERZA DE VENTAS deal that still carries a legacy key belongs (supabase/fuerza-ventas-stages.sql
+// applies the same mapping to the database; the app also applies it when reading, so nothing gets lost).
+export const LEGACY_TO_REAL = { appointment: 'oferta', qualified: 'cotizacion', presentation: 'ganado_cliente', decision: 'evalua', contract: 'evalua' };
+export const CLOSED_STAGES = ['won', 'lost', 'deleted'];
+export const isClosedStage = (key) => CLOSED_STAGES.includes(key);
+export const isOpenDeal = (r) => !isClosedStage(r.stage);
 export const TICKET_STATUSES = [
   ['new', 'Nuevo', 'tag--new'],
   ['waiting', 'En espera de contacto', 'tag--open'],
@@ -110,14 +128,16 @@ const EXTRA_STAGES = {
   install: ['install', 'Instalación programada', 95],
 };
 const baseStages = () => DEAL_STAGES.map((s) => [...s]);
+// The other pipelines keep the legacy base stages plus their own extras.
 function withExtras(keys) {
-  const stages = baseStages();
+  const stages = LEGACY_STAGES.map((s) => [...s]);
   const i = stages.findIndex((s) => s[0] === 'won');
   stages.splice(i, 0, ...keys.map((k) => [...EXTRA_STAGES[k]]));
   return stages;
 }
+export const DEFAULT_PIPELINE_NAME = 'FUERZA DE VENTAS';
 export const DEFAULT_DEAL_PIPELINES = [
-  { id: 102418, name: 'FUERZA DE VENTAS', desc: '', labels: 2, stages: withExtras([]) },
+  { id: 102418, name: DEFAULT_PIPELINE_NAME, desc: '', labels: 2, stages: baseStages() },
   { id: 740211, name: 'SACA SUMINISTRO', desc: '', labels: 1, stages: withExtras(['quote', 'negotiation']) },
   { id: 203877, name: 'SACA Instalaciones', desc: '', labels: 0, stages: withExtras(['visit', 'measure', 'quote', 'production', 'install']) },
   { id: 121930, name: 'Proyectos Nacionales Desarrolladores', desc: '', labels: 0, stages: withExtras(['quote']) },
@@ -130,18 +150,47 @@ const clonePipe = (p) => ({ ...p, stages: p.stages.map((s) => [...s]) });
 export function newPipelineDef(name, stages) {
   return { id: 100000 + (Math.abs(Array.from(name).reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7)) % 900000), name, desc: '', labels: 0, stages: (stages || DEAL_STAGES).map((s) => [...s]) };
 }
+// A pipeline definition saved before FUERZA DE VENTAS adopted its real stages is upgraded once: the stages
+// become the real ones and the per-stage settings (rules, automations, logic) follow the key mapping.
+const remapStageKeys = (obj) => (obj && typeof obj === 'object' ? Object.fromEntries(Object.entries(obj).map(([k, v]) => [LEGACY_TO_REAL[k] || k, v])) : obj);
+function upgradePipelineDef(p) {
+  if (!p || p.name !== DEFAULT_PIPELINE_NAME || !Array.isArray(p.stages) || !p.stages.some((s) => LEGACY_TO_REAL[s[0]])) return p;
+  const out = { ...p, stages: baseStages() };
+  ['required', 'automation', 'logic'].forEach((k) => { if (p[k]) out[k] = remapStageKeys(p[k]); });
+  return out;
+}
 export function dealPipelineDefs() {
   try {
     const saved = JSON.parse(localStorage.getItem(DEAL_PIPELINES_KEY));
     if (Array.isArray(saved) && saved.length) {
       // Older saves kept only the names.
       if (typeof saved[0] === 'string') return saved.map((name) => clonePipe(DEFAULT_DEAL_PIPELINES.find((p) => p.name === name) || newPipelineDef(name)));
-      return saved;
+      const upgraded = saved.map(upgradePipelineDef);
+      if (upgraded.some((p, i) => p !== saved[i])) localStorage.setItem(DEAL_PIPELINES_KEY, JSON.stringify(upgraded));
+      return upgraded;
     }
   } catch {
     /* ignore */
   }
   return DEFAULT_DEAL_PIPELINES.map(clonePipe);
+}
+// Every stage across the pipelines, the default pipeline's first (dropdowns that span all pipelines).
+export function allDealStages() {
+  const out = [];
+  const seen = new Set();
+  [...DEAL_STAGES, ...dealPipelineDefs().flatMap((p) => p.stages)].forEach((s) => { if (!seen.has(s[0])) { seen.add(s[0]); out.push([...s]); } });
+  return out;
+}
+// A deal's stage definition, looked up in its own pipeline first (the same key may exist in several).
+export function dealStageDef(pipeline, key) {
+  return stagesFor(pipeline).find((s) => s[0] === key) || allDealStages().find((s) => s[0] === key) || null;
+}
+export const dealStageLabel = (pipeline, key) => (dealStageDef(pipeline, key) || [key, key || '—'])[1];
+export const dealStageProb = (pipeline, key) => Number((dealStageDef(pipeline, key) || [0, 0, 0])[2]) || 0;
+// A FUERZA DE VENTAS deal read with a legacy stage key lands on the real stage it maps to.
+export function normalizeDealStage(r) {
+  if ((r.pipeline || DEFAULT_PIPELINE_NAME) !== DEFAULT_PIPELINE_NAME || !LEGACY_TO_REAL[r.stage]) return r;
+  return { ...r, stage: LEGACY_TO_REAL[r.stage] };
 }
 export function saveDealPipelineDefs(list) {
   localStorage.setItem(DEAL_PIPELINES_KEY, JSON.stringify(list));
@@ -571,7 +620,7 @@ function merge(type, base) {
   return [...extra, ...base]
     .filter((r) => !deleted.has(Number(r.id)))
     .map((r) => (overrides[r.id] ? { ...r, ...overrides[r.id] } : r))
-    .map((r) => (type === 'deals' ? withHomeAmount(r) : r));
+    .map((r) => (type === 'deals' ? withHomeAmount(normalizeDealStage(r)) : r));
 }
 
 // ---------- sample values for every catalog property ----------
@@ -729,23 +778,29 @@ function buildCompany(i) {
 
 const DEAL_KINDS = ['Instalación ventanas', 'Cerramiento terraza', 'Mampara de baño', 'Fachada de vidrio', 'Reforma oficina', 'Puertas correderas', 'Doble acristalamiento', 'Escaparate comercial', 'Barandilla de cristal', 'Lucernario', 'Muro cortina', 'Vidrio templado a medida'];
 function buildDeal(i) {
-  const stage = DEAL_STAGES[(i * 3) % DEAL_STAGES.length][0];
+  const pipeline = pipelineFor(i);
+  // Each deal sits in a stage of its own pipeline.
+  const stages = (DEFAULT_DEAL_PIPELINES.find((p) => p.name === pipeline) || { stages: DEAL_STAGES }).stages;
+  const stage = stages[hash(`deal-stage:${i}`) % stages.length][0];
   const companyIdx = (i * 7) % COMPANY_NAMES.length;
   return {
     id: i + 1,
     name: `${DEAL_KINDS[i % DEAL_KINDS.length]} ${COMPANY_NAMES[companyIdx].split(' ').slice(0, 2).join(' ')}`,
     amount: i % 13 === 12 ? 0 : 900 + (i * 731) % 120000,
     stage,
-    pipeline: pipelineFor(i),
+    pipeline,
     closeDate: daysAgo(40 - ((i * 13) % 160)),
     owner: OWNERS[(i * 7) % OWNERS.length],
     companyId: companyIdx + 1,
     company: COMPANY_NAMES[companyIdx],
     contactId: (i * 5) % COUNTS.contacts + 1,
     created: daysAgo((i * 7) % 400),
-    lastActivity: daysAgo((i * 3) % 45),
+    // Last activity at a time of day, so the board can say "hace 3 horas" for today's ones.
+    lastActivity: new Date(TODAY.getTime() - ((i * 3) % 45) * DAY - (((i * 5) % 20) + 1) * 3600000).toISOString(),
     priority: PRIORITIES[(i * 2) % 3][0],
     type: ['Nuevo negocio', 'Negocio existente'][i % 2],
+    // "Importante" tag of the board card.
+    important: i % 4 === 1,
   };
 }
 

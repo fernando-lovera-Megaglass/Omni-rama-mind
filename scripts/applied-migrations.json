@@ -1,0 +1,18 @@
+{
+  "schema.sql": {
+    "status": "saltada_destructiva",
+    "at": "2026-11-13T00:41:05-0600"
+  },
+  "auth.sql": {
+    "status": "aplicada",
+    "at": "2026-11-13T05:37:01-0600"
+  },
+  "invitations.sql": {
+    "status": "aplicada",
+    "at": "2026-11-13T18:51:04.177Z"
+  },
+  "fuerza-ventas-stages.sql": {
+    "status": "aplicada",
+    "at": "2026-11-13T21:17:18.495Z"
+  }
+}

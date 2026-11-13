@@ -250,7 +250,7 @@ click(document.querySelector('[data-pipe-edit="0"]'));
 const first = document.querySelector('[data-stage-label]');
 first.value = 'Primera cita';
 document.querySelector('form[data-save="pipeline"]').dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true }));
-log('pipeline saved:', JSON.parse(mem['crm:pipeline:deals']).appointment.label, '| def label:', JSON.parse(mem['crm:pipelines:deals'])[0].stages[0][1], '| page title:', document.querySelector('.spane h2').textContent.trim(), '| subtabs:', [...document.querySelectorAll('.ptabs--sub button')].map((b) => b.textContent).join(' | '));
+log('pipeline saved:', JSON.parse(mem['crm:pipeline:deals']).oferta.label, '| def label:', JSON.parse(mem['crm:pipelines:deals'])[0].stages[0][1], '| page title:', document.querySelector('.spane h2').textContent.trim(), '| subtabs:', [...document.querySelectorAll('.ptabs--sub button')].map((b) => b.textContent).join(' | '));
 log('stage columns:', [...document.querySelectorAll('.ptable--stages thead th')].map((t) => t.textContent.trim()).filter(Boolean).join(' | '), '| prob selects:', document.querySelectorAll('.pprob').length);
 click(document.querySelector('[data-act="stage-add"]'));
 log('stages after add:', JSON.parse(mem['crm:pipelines:deals'])[0].stages.length, '| rows:', document.querySelectorAll('.peditor tbody tr').length);
@@ -258,7 +258,7 @@ click(document.querySelector('[data-stage-move="1"]'));
 log('after move first stage:', JSON.parse(mem['crm:pipelines:deals'])[0].stages[0][0]);
 // conditional property logic
 log('logic cells:', document.querySelectorAll('[data-logic-edit]').length, '| built-in:', [...document.querySelectorAll('.plogic')].map((b) => b.textContent).join(' | '));
-click(document.querySelector('[data-logic-edit="qualified"]'));
+click(document.querySelector('[data-logic-edit="cotizacion"]'));
 log('logic editor open:', Boolean(document.querySelector('.logic')), '| title:', document.querySelector('#logic-title').textContent, '| groups:', document.querySelectorAll('.lgroup').length, '| cond:', document.querySelector('.lcond').textContent.replace(/\s+/g, ' ').trim(), '| preview empty:', Boolean(document.querySelector('.lpreview__empty')));
 click(document.querySelector('[data-logic-prop-add]'));
 document.querySelector('[data-prop-pick]').value = document.querySelector('[data-prop-pick] option').value;
@@ -275,7 +275,7 @@ prev.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
 log('preview other stage empty:', Boolean(document.querySelector('.lpreview__empty')));
 click(document.querySelector('[data-logic-save]'));
 const savedDef = JSON.parse(mem['crm:pipelines:deals'])[0];
-log('logic saved:', Object.keys(savedDef.logic).join(','), '| props:', savedDef.logic.qualified.props.length, '| required synced:', (savedDef.required.qualified || []).length, '| editor closed:', !document.querySelector('.logic'), '| cell:', document.querySelector('[data-logic-edit="qualified"]').textContent);
+log('logic saved:', Object.keys(savedDef.logic).join(','), '| props:', savedDef.logic.cotizacion.props.length, '| required synced:', (savedDef.required.cotizacion || []).length, '| editor closed:', !document.querySelector('.logic'), '| cell:', document.querySelector('[data-logic-edit="cotizacion"]').textContent);
 // rules, automation and labels of this pipeline
 click(document.querySelector('[data-pipe-sub="rules"]'));
 const ruleBox = document.querySelector('[data-pipe-rule="noBack"]');

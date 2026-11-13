@@ -4835,6 +4835,119 @@ td.cell--hl .cell__pen {
   color: var(--c-link);
 }
 
+/* Column footer: total and weighted amount of the stage ("Cantidad total" / "Cantidad ponderada") */
+.kcol__foot {
+  margin-top: auto;
+  padding: var(--sp-8) var(--sp-10) var(--sp-10);
+  border-top: 1px solid #cbd6e2;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--c-text);
+}
+
+.kfoot__row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.kfoot__amount {
+  font-weight: 600;
+}
+
+.kfoot__prob {
+  font-weight: 400;
+  color: var(--c-muted);
+}
+
+.kfoot__sep {
+  color: #cbd6e2;
+}
+
+.kfoot__label {
+  color: var(--c-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Deal cards: title, lines, "Importante" tag with the days in stage, owner avatar and last activity */
+.kcard--deal .kcard__name {
+  display: block;
+  margin-bottom: var(--sp-8);
+}
+
+.kcard__tags {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  margin-top: var(--sp-8);
+}
+
+.kcard__tag {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 3px;
+  background: #e5f5f8;
+  color: #0091ae;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.kcard__days {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 5px;
+  border-radius: 11px;
+  background: #f2545b;
+  color: var(--c-white);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.kcard__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  margin-top: var(--sp-10);
+  min-width: 0;
+}
+
+.kcard__meta .kcard__pill {
+  margin-top: 0;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.kcard__alert {
+  color: #f5a623;
+  font-size: 13px;
+}
+
+.kcard__actions a.is-pending {
+  color: var(--c-link);
+}
+
+.kcard__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  margin-left: 2px;
+  border-radius: 7px;
+  background: var(--c-link);
+  color: var(--c-white);
+  font-size: 9px;
+  font-weight: 600;
+  vertical-align: top;
+}
+
 @media (max-width: 767px) {
   .kcol {
     flex-basis: 280px;

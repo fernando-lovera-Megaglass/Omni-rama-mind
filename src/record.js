@@ -7,8 +7,8 @@ import { boot } from './page.js';
 import { toast, wireMenus, closeMenus, linkHtml, wireLinkTooltips } from './shell.js';
 import {
   findRecord, setField, deleteRecords, addRecord, allContacts, allCompanies, allDeals, allTickets, allTasks, ALL,
-  STATUSES, LIFECYCLES, SOURCES, OWNERS, DEAL_STAGES, TICKET_STATUSES, PRIORITIES, TASK_TYPES, TASK_STATUSES,
-  ticketStatusesFor, ticketStatusLabel, firstOpenTicketStatus, ticketPipelines, stagesFor,
+  STATUSES, LIFECYCLES, SOURCES, OWNERS, TICKET_STATUSES, PRIORITIES, TASK_TYPES, TASK_STATUSES,
+  ticketStatusesFor, ticketStatusLabel, firstOpenTicketStatus, ticketPipelines, stagesFor, allDealStages, dealStageLabel, dealStageProb, isClosedStage,
   formatDate, formatMoney, initials, colorFor, labelOf, toCsv, download, TODAY, assocLabels, CURRENCY_DEFS, CURRENCY_CODES,
   activitiesFor, addActivity, historyFor, addHistoryEntry,
 } from './data.js';
@@ -73,13 +73,13 @@ const CONFIG = {
   },
   deals: {
     label: 'Negocios', singular: 'negocio', sub: 'Negocios', listHref: `${root}deals/`,
-    title: (r) => r.name, subtitle: (r) => `${formatMoney(r.amount, r.deal_currency_code)} · ${labelOf(DEAL_STAGES, r.stage)}`, mail: () => '',
+    title: (r) => r.name, subtitle: (r) => `${formatMoney(r.amount, r.deal_currency_code)} · ${dealStageLabel(r.pipeline, r.stage)}`, mail: () => '',
     fields: [
-      ['amount', 'Importe', 'number'], ['deal_currency_code', 'Moneda', 'select', opt(CURRENCY_CODES.map((c) => [c, `${c} · ${CURRENCY_DEFS[c].name}`]))], ['stage', 'Etapa del negocio', 'select', opt(DEAL_STAGES.map(([k, l]) => [k, l]))], ['closeDate', 'Fecha de cierre', 'date'],
+      ['amount', 'Importe', 'number'], ['deal_currency_code', 'Moneda', 'select', opt(CURRENCY_CODES.map((c) => [c, `${c} · ${CURRENCY_DEFS[c].name}`]))], ['stage', 'Etapa del negocio', 'select', opt(allDealStages().map(([k, l]) => [k, l]))], ['closeDate', 'Fecha de cierre', 'date'],
       ['owner', 'Propietario del negocio', 'select', ownerOpts], ['company', 'Empresa asociada'], ['priority', 'Prioridad', 'select', opt(PRIORITIES.map(([k, l]) => [k, l]))],
-      ['type', 'Tipo de negocio', 'select', opt(['Nuevo negocio', 'Negocio existente'])], ['pipeline', 'Pipeline', 'ro'], ['created', 'Fecha de creación', 'date-ro'],
+      ['type', 'Tipo de negocio', 'select', opt(['Nuevo negocio', 'Negocio existente'])], ['important', 'Importante', 'select', [['true', 'Sí'], ['', 'No']]], ['pipeline', 'Pipeline', 'ro'], ['created', 'Fecha de creación', 'date-ro'],
     ],
-    highlights: (r) => [['Importe', formatMoney(r.amount, r.deal_currency_code)], ['Fecha de cierre', formatDate(r.closeDate)], ['Probabilidad', `${(DEAL_STAGES.find((s) => s[0] === r.stage) || [0, 0, 0])[2]} %`], ['Última actividad', formatDate(r.lastActivity)]],
+    highlights: (r) => [['Importe', formatMoney(r.amount, r.deal_currency_code)], ['Fecha de cierre', formatDate(r.closeDate)], ['Probabilidad', `${dealStageProb(r.pipeline, r.stage)} %`], ['Última actividad', formatDate(r.lastActivity)]],
     stages: true,
     assoc: (r) => [
       ['Contactos', r.contactId ? [byId(allContacts(), r.contactId)].filter(Boolean) : [], 'contacts'],
@@ -437,7 +437,7 @@ function propValue(p, v) {
   if (p.kind === 'percent') return `${v} %`;
   if (p.kind === 'date' || p.kind === 'datetime') return formatDate(v);
   if (p.kind === 'url' || p.kind === 'email' || p.kind === 'phone') return linkHtml(p.kind, v);
-  if (p.kind === 'stage') return esc(labelOf(DEAL_STAGES, v));
+  if (p.kind === 'stage') return esc(dealStageLabel(rec.pipeline, v));
   if (p.kind === 'priority') return esc(labelOf(PRIORITIES, v));
   if (p.kind === 'status') return esc(type === 'tickets' ? ticketStatusLabel(rec.pipeline, v) : labelOf(TASK_STATUSES, v));
   return esc(v);
@@ -569,10 +569,12 @@ function renderHeader() {
 
   const stagesEl = $('rec-stages');
   if (cfg.stages && type === 'deals') {
-    const idx = DEAL_STAGES.findIndex((s) => s[0] === rec.stage);
+    // The stage bar follows the deal's own pipeline: its open stages, then "Ganado".
+    const steps = stagesFor(rec.pipeline).filter((s) => !isClosedStage(s[0]) || s[0] === 'won');
+    const idx = steps.findIndex((s) => s[0] === rec.stage);
     stagesEl.hidden = false;
-    stagesEl.innerHTML = `<div class="stages">${DEAL_STAGES.filter((s) => s[0] !== 'lost')
-      .map((s, i) => `<button type="button" class="stages__step${i <= idx ? ' is-done' : ''}${s[0] === rec.stage ? ' is-current' : ''}" data-stage="${s[0]}" title="${s[1]}">${s[1]}</button>`)
+    stagesEl.innerHTML = `<div class="stages">${steps
+      .map((s, i) => `<button type="button" class="stages__step${i <= idx ? ' is-done' : ''}${s[0] === rec.stage ? ' is-current' : ''}" data-stage="${s[0]}" title="${esc(s[1])}">${esc(s[1])}</button>`)
       .join('')}</div>
       <div class="stages__actions"><button class="btn btn--primary btn--sm" type="button" data-stage="won">Marcar como ganado</button><button class="btn btn--ghost btn--sm" type="button" data-stage="lost">Marcar como perdido</button></div>`;
   } else if (cfg.stages && type === 'tickets') {
@@ -660,7 +662,7 @@ function kindLabel(kind, key) {
 function kindValue(kind, key, r) {
   const v = r[key];
   if (v === undefined || v === null || v === '') return '--';
-  if (kind === 'deals' && key === 'stage') return labelOf(DEAL_STAGES, v);
+  if (kind === 'deals' && key === 'stage') return dealStageLabel(r.pipeline, v);
   if (kind === 'tickets' && key === 'status') return ticketStatusLabel(r.pipeline, v);
   if (kind === 'tasks' && key === 'status') return labelOf(TASK_STATUSES, v);
   if (kind === 'contacts' && key === 'status') return labelOf(Object.entries(STATUSES).map(([k, [l]]) => [k, l]), v);

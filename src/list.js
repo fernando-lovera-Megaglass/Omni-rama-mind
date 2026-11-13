@@ -1216,7 +1216,9 @@ export function mountList(cfg) {
     if (!cfg.pipeline) return;
     const options = cfg.pipeline.options();
     if (state.pipeline && !options.includes(state.pipeline)) state.pipeline = '';
-    $('pipeline-label').textContent = state.pipeline || 'Todos los pipelines';
+    // The board always shows one pipeline: without a choice, the default one (the original's selector).
+    const shown = state.pipeline || (state.mode === 'board' && cfg.board && cfg.pipeline.boardDefault ? cfg.pipeline.boardDefault() : '');
+    $('pipeline-label').textContent = shown || 'Todos los pipelines';
     const q = pipelineQuery.trim().toLowerCase();
     const all = cfg.rows();
     const items = ['', ...options].filter((p) => !q || (p || 'Todos los pipelines').toLowerCase().includes(q));
@@ -1225,7 +1227,7 @@ export function mountList(cfg) {
           .map((p) => {
             const n = p ? all.filter((r) => String(r[cfg.pipeline.key]) === p).length : all.length;
             const detail = cfg.pipeline.detail ? cfg.pipeline.detail(p, all) : ''; // e.g. open / closed tickets of the pipeline
-            return `<button class="pmenu__item${(state.pipeline || '') === p ? ' is-current' : ''}" type="button" data-pipeline="${esc(p)}"><span>${esc(p || 'Todos los pipelines')}${detail ? `<small class="pmenu__detail">${esc(detail)}</small>` : ''}</span><span class="pmenu__count">${n}</span></button>`;
+            return `<button class="pmenu__item${shown === p ? ' is-current' : ''}" type="button" data-pipeline="${esc(p)}"><span>${esc(p || 'Todos los pipelines')}${detail ? `<small class="pmenu__detail">${esc(detail)}</small>` : ''}</span><span class="pmenu__count">${n}</span></button>`;
           })
           .join('')
       : '<p class="muted pmenu__empty">No hay pipelines que coincidan.</p>';
@@ -1267,9 +1269,33 @@ export function mountList(cfg) {
     try { const saved = JSON.parse(localStorage.getItem(`crm:${cfg.type}:boardcard`)); if (Array.isArray(saved) && saved.length) cardKeys = saved; } catch { /* ignore */ }
     const linesOf = (r) => (cardKeys ? cardKeys.map((k) => { const c = cfg.columns.find((x) => x.key === k); const p = props[k]; const label = (c && c.label) || (p && p.label) || k; const v = c && c.text ? c.text(r) : r[k]; return [label, v === undefined || v === null || v === '' ? '--' : String(v)]; }) : b.lines(r));
     const anyCollapsed = groups.some(([v]) => state.boardCollapsed.has(String(v)));
+    // The board may cover a subset of the list (deals: one pipeline at a time, as the original).
+    const scoped = b.scope ? b.scope(list, state) : list;
+    // A page may draw its own cards (deals); it gets the configured lines and the helpers.
+    const ctx = { lines: linesOf, customised: Boolean(cardKeys), esc, formatDate, relativeTime, state };
+    const defaultCard = (r) => {
+      const sub = b.sub ? b.sub(r) : null;
+      const when = r.lastActivity || r.created;
+      return `
+              <article class="kcard" draggable="true" data-id="${r.id}">
+                <div class="kcard__top">
+                  <a class="kcard__name" href="./record/?id=${r.id}">${esc(r.name)}</a>
+                  <span class="kcard__clock" title="Última actividad: ${formatDate(when)}" aria-label="Última actividad ${formatDate(when)}">◷</span>
+                </div>
+                <div class="kcard__lines">${linesOf(r).map(([k, v]) => `<div><span class="kcard__k">${esc(k)}:</span> ${esc(v)}</div>`).join('')}</div>
+                ${sub && sub.name ? `<div class="kcard__sub"><span class="avatar avatar--xs avatar--soft" aria-hidden="true">${esc(String(sub.name).split(' ').filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase())}</span><a href="${sub.href || '#'}">${esc(sub.name)}</a></div>` : ''}
+                <span class="kcard__pill"><span class="kcard__pill-ico">${ACT_ICON[r.lastActivityType] || '✉'}</span> ${relativeTime(when)} <span class="kcard__pill-sep">|</span> <span class="kcard__info" title="Tiempo desde la última actividad">ⓘ</span></span>
+                <div class="kcard__actions">
+                  <button type="button" data-preview="${r.id}" title="Vista previa" aria-label="Vista previa">▭</button>
+                  <button type="button" data-kai="${r.id}" title="Resumen" aria-label="Resumen"><span class="ai-spark">✦</span></button>
+                  <a href="./record/?id=${r.id}#email" title="Correo" aria-label="Correo">✉</a>
+                  <a href="./record/?id=${r.id}#note" title="Nota" aria-label="Nota">✎</a>
+                </div>
+              </article>`;
+    };
     board.innerHTML = groups
       .map(([value, label], gi) => {
-        const rows = list.filter((r) => String(r[b.key]) === String(value));
+        const rows = scoped.filter((r) => String(r[b.key]) === String(value));
         if (state.boardCollapsed.has(String(value))) {
           return `
         <section class="kcol kcol--collapsed tip" data-group="${esc(value)}">
@@ -1305,29 +1331,11 @@ export function mountList(cfg) {
           <div class="kcol__cards">
             ${rows
               .slice(0, 60)
-              .map((r) => {
-                const sub = b.sub ? b.sub(r) : null;
-                const when = r.lastActivity || r.created;
-                return `
-              <article class="kcard" draggable="true" data-id="${r.id}">
-                <div class="kcard__top">
-                  <a class="kcard__name" href="./record/?id=${r.id}">${esc(r.name)}</a>
-                  <span class="kcard__clock" title="Última actividad: ${formatDate(when)}" aria-label="Última actividad ${formatDate(when)}">◷</span>
-                </div>
-                <div class="kcard__lines">${linesOf(r).map(([k, v]) => `<div><span class="kcard__k">${esc(k)}:</span> ${esc(v)}</div>`).join('')}</div>
-                ${sub && sub.name ? `<div class="kcard__sub"><span class="avatar avatar--xs avatar--soft" aria-hidden="true">${esc(String(sub.name).split(' ').filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase())}</span><a href="${sub.href || '#'}">${esc(sub.name)}</a></div>` : ''}
-                <span class="kcard__pill"><span class="kcard__pill-ico">${ACT_ICON[r.lastActivityType] || '✉'}</span> ${relativeTime(when)} <span class="kcard__pill-sep">|</span> <span class="kcard__info" title="Tiempo desde la última actividad">ⓘ</span></span>
-                <div class="kcard__actions">
-                  <button type="button" data-preview="${r.id}" title="Vista previa" aria-label="Vista previa">▭</button>
-                  <button type="button" data-kai="${r.id}" title="Resumen" aria-label="Resumen"><span class="ai-spark">✦</span></button>
-                  <a href="./record/?id=${r.id}#email" title="Correo" aria-label="Correo">✉</a>
-                  <a href="./record/?id=${r.id}#note" title="Nota" aria-label="Nota">✎</a>
-                </div>
-              </article>`;
-              })
+              .map((r) => (b.card ? b.card(r, ctx) : defaultCard(r)))
               .join('')}
             ${rows.length > 60 ? `<p class="muted kcol__more">… y ${rows.length - 60} más. Usa los filtros para acotar.</p>` : ''}
           </div>
+          ${b.footer ? `<footer class="kcol__foot" data-foot="${esc(value)}">${b.footer(rows, value, label, state)}</footer>` : ''}
         </section>`;
       })
       .join('');

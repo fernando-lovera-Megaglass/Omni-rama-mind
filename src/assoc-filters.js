@@ -1,7 +1,7 @@
 // Association filters for the list pages ("Filtros avanzados"): which other objects a record is linked
 // to, how to reach the linked records (implied keys plus the associations added on the record page,
 // with their labels), and how a property of a linked record reads as text for comparisons.
-import { ALL, DEAL_STAGES, TICKET_STATUSES, TASK_STATUSES, PRIORITIES, STATUSES, assocLabels, formatDate, formatMoney, strip } from './data.js';
+import { ALL, allDealStages, TICKET_STATUSES, TASK_STATUSES, PRIORITIES, STATUSES, assocLabels, formatDate, formatMoney, strip } from './data.js';
 import { propertyGroups, propertyMap } from './properties.js';
 import { evalCondition, conditionValues, kindGroup } from './filter-ops.js';
 
@@ -74,7 +74,7 @@ export function assocText(kind, key, r) {
   if (v === undefined || v === null || v === '') return '';
   const p = assocPropertyMap(kind)[key];
   const k = p ? p.kind : '';
-  if (key === 'stage' || k === 'stage') return labelIn(DEAL_STAGES, v);
+  if (key === 'stage' || k === 'stage') return labelIn(allDealStages(), v);
   if (key === 'priority' || k === 'priority') return labelIn(PRIORITIES, v);
   if (key === 'status' || k === 'status') {
     if (kind === 'contacts') return (STATUSES[v] || [v])[0];
@@ -93,7 +93,7 @@ export function assocText(kind, key, r) {
 export function assocValueOptions(kind, key) {
   const p = assocPropertyMap(kind)[key];
   if (!p) return null;
-  if (key === 'stage' || p.kind === 'stage') return DEAL_STAGES.map((s) => [s[1], s[1]]);
+  if (key === 'stage' || p.kind === 'stage') return allDealStages().map((s) => [s[1], s[1]]);
   if (key === 'priority' || p.kind === 'priority') return PRIORITIES.map((s) => [s[1], s[1]]);
   if (key === 'status' || p.kind === 'status') {
     if (kind === 'contacts') return Object.values(STATUSES).map((s) => [s[0], s[0]]);

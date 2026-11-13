@@ -4,7 +4,7 @@
 import { mountShell, wireMenus, closeMenus, toast } from './shell.js';
 import {
   allContacts, allCompanies, allDeals, allTickets, allTasks, allActivities,
-  STATUSES, COLORS, OWNERS, DEAL_STAGES, PRIORITIES, TASK_TYPES, TODAY, formatDate, formatMoney, formatMoneyShort, homeCurrency, isTicketOpen, allTicketStatuses,
+  STATUSES, COLORS, OWNERS, DEAL_STAGES, PRIORITIES, TASK_TYPES, TODAY, formatDate, formatMoney, formatMoneyShort, homeCurrency, isTicketOpen, allTicketStatuses, isClosedStage,
 } from './data.js';
 
 mountShell({ root: '../', active: 'reports' });
@@ -169,7 +169,7 @@ function card(title, body, wide = false, note = '') {
 }
 
 // ---------- the numbers behind each dashboard ----------
-const dealClosed = (d) => d.stage === 'won' || d.stage === 'lost';
+const dealClosed = (d) => isClosedStage(d.stage);
 const taskDoneAt = (t) => t.completedAt || t.due;
 const ticketClosedAt = (t) => t.lastActivity || t.created;
 
