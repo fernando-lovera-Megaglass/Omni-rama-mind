@@ -867,6 +867,22 @@ export function addHistoryEntry(recordType, recordId, key, from, to, label) {
   addActivity({ type: 'prop', recordType, recordId, text, who: 'Tú', when: Date.now(), extra: { key, from, to } });
 }
 
+// Every activity of the account (the reports count calls and emails by date). In localStorage mode the
+// per-record keys are scanned; a storage without key enumeration (tests) simply yields none.
+export function allActivities() {
+  if (activitiesLive) return activityRows.slice();
+  const out = [];
+  try {
+    for (let i = 0; i < (localStorage.length || 0); i += 1) {
+      const k = localStorage.key(i);
+      const m = ACT_LS_RE.exec(k || '');
+      if (!m || m[2] !== 'notes') continue;
+      (read(k, []) || []).forEach((a) => out.push({ ...a, recordType: m[1], recordId: Number(m[3]) }));
+    }
+  } catch { /* no enumeration */ }
+  return out;
+}
+
 // ---------- segments (Segmentos: active and static lists) ----------
 // Persisted in the `segments` table (supabase/segments.sql). Until that migration runs, segments live in
 // localStorage (crm:segments) and the page keeps working.

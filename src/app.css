@@ -11498,3 +11498,57 @@ a.is-done {
     justify-content: flex-start;
   }
 }
+
+/* ---------- Reports on real data: neutral deltas, empty states, line-chart axis ---------- */
+.kpi__delta.is-flat {
+  color: var(--c-muted);
+}
+
+.card__note {
+  font-size: var(--fs-xs);
+  font-weight: 400;
+  margin-left: var(--sp-8);
+}
+
+.chart--bars.is-empty .bar__fill {
+  min-height: 2px;
+  opacity: 0.35;
+}
+
+.chart__empty {
+  margin: var(--sp-8) 0 0;
+  font-size: var(--fs-xs);
+}
+
+.chart__axis {
+  display: flex;
+  justify-content: space-between;
+  margin-top: var(--sp-4);
+  font-size: 11px;
+  color: var(--c-muted);
+}
+
+.chart__axis span {
+  flex: 1;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chart__axis span:first-child {
+  text-align: left;
+}
+
+.chart__axis span:last-child {
+  text-align: right;
+}
+
+.chart__total {
+  margin: var(--sp-8) 0 0;
+  font-size: var(--fs-xs);
+}
+
+.mini-table td.muted {
+  text-align: center;
+}

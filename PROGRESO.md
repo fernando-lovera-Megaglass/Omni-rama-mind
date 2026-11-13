@@ -1,5 +1,21 @@
 # Progreso — Omni CRM
 
+## 2026-11-13 (sesión 5) · Paneles con datos reales (cola `reportes-datos-reales`)
+
+**Construido**
+- `src/reports.js` reescrito: desaparecen las series simuladas (`series(seed…)`, factor `scale`). Todo sale de los registros que `src/data.js` ya carga de Supabase (`allContacts/allCompanies/allDeals/allTickets/allTasks` y la nueva `allActivities`), filtrados por el rango elegido (Últimos 7 / 30 / 90 días, Este año) y comparados con el periodo anterior de la misma duración (deltas reales; "Periodo anterior: N" cuando no hay base de comparación). Mismo diseño: 4 KPI arriba y tarjetas de línea, barras, dona y tabla con el menú ⋯.
+  - Ventas: negocios creados, ingresos cerrados (ganados por fecha de cierre, en la moneda de la empresa), contactos nuevos, tasa de cierre (ganados / cerrados); ingresos por periodo (línea con total), negocios creados por día/semana/mes, contactos por estado del lead (creados en el periodo), rendimiento por propietario (contactos nuevos, negocios creados, ingresos, tasa de cierre), llamadas registradas (actividades tipo llamada).
+  - Marketing: contactos nuevos, leads nuevos (etapa Lead…), correos registrados (actividades tipo correo), empresas nuevas; contactos creados por periodo, leads por fuente, contactos por etapa del ciclo de vida, empresas por sector (empresas nuevas, contactos nuevos, negocios abiertos).
+  - Servicio: tickets abiertos (todos los no cerrados), creados, cerrados (cerrados con última actividad en el periodo), tareas completadas (fecha de finalización o vencimiento); tickets creados por periodo, por estado, por prioridad, tareas por tipo (pendientes, vencidas, completadas).
+  - Barras por día (7 días), por semana (30 y 90) o por mes (este año); estados vacíos ("Sin registros en el periodo seleccionado") en lugar de ceros falsos; el eje del gráfico de línea muestra los periodos.
+- `src/data.js`: `allActivities()` (todas las actividades de la tabla `activities`; en modo local, las de localStorage).
+- "Hoy" para los rangos es la fecha de referencia de la app (`TODAY`), igual que en listas y tareas.
+- Pruebas: `scripts/smoke-reports.mjs` recalcula cada KPI desde los mismos registros para los 3 paneles y los 4 rangos, comprueba que las barras suman el total, que no aparece `NaN` y que un negocio ganado nuevo se refleja al instante. Suite completa (22 scripts) en verde; `npm run build` OK.
+
+**Notas**
+- Los indicadores que el CRM no guarda (visitas al sitio, tasa de apertura, tiempo de primera respuesta, satisfacción) se sustituyeron por métricas derivables de los registros.
+- Los tickets no tienen fecha de cierre propia: se usa la última actividad del ticket cerrado como aproximación.
+
 ## 2026-11-13 (sesión 5) · Cola de tareas estilo HubSpot (cola `cola-tareas`)
 
 **Construido**

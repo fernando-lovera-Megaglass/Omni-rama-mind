@@ -18,13 +18,14 @@
       "id": "cola-tareas",
       "status": "done",
       "instruction": "Continúa el proyecto Omni CRM (app/): implementa la cola de tareas estilo HubSpot en la página de tareas: vista de cola donde el usuario trabaja tareas una por una (completar y pasar a la siguiente), filtros por vencimiento (hoy, vencidas, próximas), y completar tarea desde la ficha del registro asociado. Verifica con npm run build.",
-      "completedAt": "2026-11-13T01:05:00-0600",
-      "note": "Construido por Claude (Craft Anything): src/task-queue.js (cola en localStorage, barra en las fichas), botón 'Iniciar N tareas' y filtro 'Fecha de vencimiento' en src/tasks.js, casilla de completar en la tarjeta Tareas de la ficha (src/record.js). Prueba scripts/smoke-task-queue.mjs."
+      "completedAt": "2026-11-13T00:41:05-0600"
     },
     {
       "id": "reportes-datos-reales",
-      "status": "pending",
-      "instruction": "Continúa el proyecto Omni CRM (app/): sustituye las series simuladas de src/reports.js por datos reales de Supabase (conteos y sumas de contacts, companies, deals, tickets, tasks según el rango de fechas seleccionado). Mantén el mismo diseño de paneles. Verifica con npm run build."
+      "status": "done",
+      "instruction": "Continúa el proyecto Omni CRM (app/): sustituye las series simuladas de src/reports.js por datos reales de Supabase (conteos y sumas de contacts, companies, deals, tickets, tasks según el rango de fechas seleccionado). Mantén el mismo diseño de paneles. Verifica con npm run build.",
+      "completedAt": "2026-11-13T01:40:00-0600",
+      "note": "Construido por Claude (Craft Anything): src/reports.js calcula KPI y gráficos desde los registros cargados de Supabase por rango (7/30/90 días, este año) con comparación al periodo anterior; data.js expone allActivities(). Prueba scripts/smoke-reports.mjs."
     },
     {
       "id": "dedupe-importacion",
