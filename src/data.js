@@ -792,6 +792,81 @@ export function download(name, text) {
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
 
+// ---------- activities (unified timeline: notes, calls, emails, meetings, tasks, property history) ----------
+// Persisted in the `activities` table (supabase/activities.sql). If that
+// migration has not been run yet, activities fall back to the legacy
+// per-record localStorage keys and the rest of the app keeps working.
+const ACT_NOTES_KEY = (type, id) => `crm:${type}:notes:${id}`;
+const ACT_HISTORY_KEY = (type, id) => `crm:${type}:history:${id}`;
+const ACT_MIGRATED_KEY = 'crm:activities:migrated';
+const ACT_LS_RE = /^crm:(contacts|companies|deals|tickets|tasks):(notes|history):(\d+)$/;
+let activitiesLive = DB_MODE;
+let activityRows = [];
+
+function activityFromDb(row) {
+  return {
+    id: row.id,
+    type: row.type,
+    recordType: row.record_type,
+    recordId: Number(row.record_id),
+    text: row.text || '',
+    who: row.who || '',
+    when: row.occurred_at ? new Date(row.occurred_at).getTime() : Date.now(),
+    extra: row.extra || {},
+  };
+}
+function activityToDb(ev) {
+  return {
+    type: ev.type,
+    record_type: ev.recordType,
+    record_id: ev.recordId,
+    text: ev.text || '',
+    who: ev.who || '',
+    occurred_at: new Date(ev.when || Date.now()).toISOString(),
+    extra: ev.extra || {},
+  };
+}
+
+export function activitiesFor(recordType, recordId) {
+  if (!activitiesLive) return read(ACT_NOTES_KEY(recordType, recordId), []);
+  return activityRows
+    .filter((a) => a.recordType === recordType && a.recordId === Number(recordId))
+    .sort((a, b) => b.when - a.when);
+}
+
+export function addActivity(ev) {
+  if (activitiesLive) {
+    activityRows.unshift({ ...ev, recordId: Number(ev.recordId) });
+    dbWrite(async () => {
+      const { error } = await supabase.from('activities').insert(activityToDb(ev));
+      if (error) console.error('[supabase] insert activity', error);
+    });
+    return;
+  }
+  const key = ACT_NOTES_KEY(ev.recordType, ev.recordId);
+  const list = read(key, []);
+  list.unshift({ type: ev.type, when: ev.when, who: ev.who, text: ev.text });
+  write(key, list);
+}
+
+export function historyFor(recordType, recordId) {
+  if (!activitiesLive) return read(ACT_HISTORY_KEY(recordType, recordId), []);
+  return activitiesFor(recordType, recordId)
+    .filter((a) => a.type === 'prop')
+    .map((a) => ({ key: a.extra.key, from: a.extra.from, to: a.extra.to, when: a.when, who: a.who }));
+}
+
+export function addHistoryEntry(recordType, recordId, key, from, to, label) {
+  const text = `Propiedad "${label || key}" actualizada.`;
+  if (!activitiesLive) {
+    const hk = ACT_HISTORY_KEY(recordType, recordId);
+    const h = read(hk, []);
+    h.unshift({ key, from, to, when: Date.now(), who: 'Tú' });
+    write(hk, h);
+  }
+  addActivity({ type: 'prop', recordType, recordId, text, who: 'Tú', when: Date.now(), extra: { key, from, to } });
+}
+
 // ---------- Supabase bootstrap ----------
 async function fetchTable(type) {
   const all = [];
@@ -821,6 +896,54 @@ async function seedAll() {
   }
 }
 
+async function fetchActivities() {
+  const all = [];
+  const PAGE = 1000;
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await supabase
+      .from('activities')
+      .select('*')
+      .order('id')
+      .range(from, from + PAGE - 1);
+    if (error) throw error;
+    all.push(...data);
+    if (data.length < PAGE) break;
+  }
+  return all.map(activityFromDb);
+}
+
+// One-time move of the legacy per-record localStorage timelines into the
+// activities table. Idempotent via ACT_MIGRATED_KEY.
+async function migrateLocalActivities() {
+  if (localStorage.getItem(ACT_MIGRATED_KEY) === '1') return;
+  const rows = [];
+  const doomed = [];
+  for (let i = 0; i < localStorage.length; i += 1) {
+    const k = localStorage.key(i);
+    const m = ACT_LS_RE.exec(k || '');
+    if (!m) continue;
+    const [, recordType, kind, recordId] = m;
+    let list = [];
+    try { list = JSON.parse(localStorage.getItem(k)) || []; } catch { list = []; }
+    if (!Array.isArray(list) || !list.length) continue;
+    doomed.push(k);
+    for (const ev of list) {
+      rows.push(kind === 'notes'
+        ? { type: ev.type || 'note', record_type: recordType, record_id: Number(recordId), text: ev.text || '', who: ev.who || '', occurred_at: new Date(ev.when || Date.now()).toISOString(), extra: {} }
+        : { type: 'prop', record_type: recordType, record_id: Number(recordId), text: `Propiedad "${ev.key}" actualizada.`, who: ev.who || '', occurred_at: new Date(ev.when || Date.now()).toISOString(), extra: { key: ev.key, from: ev.from, to: ev.to } });
+    }
+  }
+  if (rows.length) {
+    for (let j = 0; j < rows.length; j += 200) {
+      const { error } = await supabase.from('activities').insert(rows.slice(j, j + 200));
+      if (error) { console.error('[supabase] migración de actividades', error); return; }
+    }
+    doomed.forEach((k) => localStorage.removeItem(k));
+    console.info(`[supabase] ${rows.length} actividades migradas desde localStorage.`);
+  }
+  localStorage.setItem(ACT_MIGRATED_KEY, '1');
+}
+
 async function initFromSupabase() {
   try {
     for (const type of Object.keys(BUILDERS)) {
@@ -835,6 +958,15 @@ async function initFromSupabase() {
     for (const type of Object.keys(BUILDERS)) {
       nextId[type] = dbRows[type].reduce((m, r) => Math.max(m, Number(r.id) || 0), 0) + 1;
     }
+    try {
+      activityRows = await fetchActivities();
+    } catch (e) {
+      // La migración supabase/activities.sql aún no se ha ejecutado: la
+      // cronología sigue en localStorage hasta que exista la tabla.
+      activitiesLive = false;
+      console.error('[supabase] tabla activities no disponible; cronología en localStorage.', e);
+    }
+    if (activitiesLive) await migrateLocalActivities();
   } catch (e) {
     console.error('[supabase] no se pudieron cargar los datos; se usa el modo demo con localStorage.', e);
     dbLive = false;

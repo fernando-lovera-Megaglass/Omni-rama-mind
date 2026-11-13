@@ -9,6 +9,7 @@ import {
   findRecord, setField, deleteRecords, addRecord, allContacts, allCompanies, allDeals, allTickets, allTasks, ALL,
   STATUSES, LIFECYCLES, SOURCES, OWNERS, DEAL_STAGES, TICKET_STATUSES, PRIORITIES, TASK_TYPES, TASK_STATUSES,
   formatDate, formatMoney, initials, colorFor, labelOf, toCsv, download, TODAY, assocLabels, CURRENCY_DEFS, CURRENCY_CODES,
+  activitiesFor, addActivity, historyFor, addHistoryEntry,
 } from './data.js';
 import { propertyGroups, propertyMap } from './properties.js';
 const PROPERTIES = new Proxy({}, { get: (_, t) => propertyGroups(t) });
@@ -113,8 +114,6 @@ const $ = (s) => document.getElementById(s);
 const mount = $('record-root');
 const props = propertyMap(type);
 const FOLLOW_KEY = `crm:${type}:follow:${id}`;
-const NOTES_KEY = `crm:${type}:notes:${id}`;
-const HISTORY_KEY = `crm:${type}:history:${id}`;
 
 // ---------- static layout ----------
 mount.innerHTML = `
@@ -311,8 +310,8 @@ function renderQuick() {
     </div>`;
   wireMenus($('quick-row'));
 }
-const loadNotes = () => loadJson(NOTES_KEY, []);
-const loadHistory = () => loadJson(HISTORY_KEY, []);
+const loadNotes = () => activitiesFor(type, id);
+const loadHistory = () => historyFor(type, id);
 const isFollowing = () => localStorage.getItem(FOLLOW_KEY) === '1';
 
 function openModal(title, bodyHtml, footHtml = '<button class="btn btn--ghost" type="button" data-close>Cerrar</button>') {
@@ -1028,7 +1027,8 @@ function sampleEvents() {
 let actKind = '';
 let actQuery = '';
 function allEvents() {
-  return [...loadNotes(), ...sampleEvents()].sort((a, b) => b.when - a.when);
+  const real = loadNotes();
+  return (real.length ? real : sampleEvents()).sort((a, b) => b.when - a.when);
 }
 function renderTimeline() {
   const q = actQuery.toLowerCase();
@@ -1042,15 +1042,11 @@ function renderTimeline() {
   if ($('rec-timeline-short')) $('rec-timeline-short').innerHTML = allEvents().filter((e) => e.type === 'task' || e.type === 'email').slice(0, 2).map(item).join('');
 }
 function addEvent(ev) {
-  const notes = loadNotes();
-  notes.unshift(ev);
-  saveJson(NOTES_KEY, notes);
+  addActivity({ ...ev, recordType: type, recordId: id });
   renderTimeline();
 }
-function addHistory(key, from, to) {
-  const h = loadHistory();
-  h.unshift({ key, from, to, when: Date.now(), who: 'Tú' });
-  saveJson(HISTORY_KEY, h);
+function addHistory(key, from, to, label) {
+  addHistoryEntry(type, id, key, from, to, label);
 }
 
 function nextNumber(prefix) {
@@ -1195,9 +1191,9 @@ function renderAll() {
 function save(key, value, label) {
   const from = rec[key];
   setField(type, rec.id, key, value);
-  addHistory(key, from, value);
   rec = findRecord(type, id);
-  addEvent({ type: 'prop', when: Date.now(), who: 'Tú', text: `Propiedad "${label || (cfg.fields.find((f) => f[0] === key) || props[key] || { label: key })[1] || props[key]?.label || key}" actualizada.` });
+  const lbl = label || (cfg.fields.find((f) => f[0] === key) || props[key] || { label: key })[1] || props[key]?.label || key;
+  addHistory(key, from, value, lbl);
   renderAll();
   toast('Guardado');
 }
