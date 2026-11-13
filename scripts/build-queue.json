@@ -3,8 +3,10 @@
   "queue": [
     {
       "id": "actividades-formularios",
-      "status": "pending",
-      "instruction": "Continúa el proyecto Omni CRM (app/): mejora el módulo de actividades según especificacion-actividades-crm.md. Añade formularios dedicados al registrar llamada, correo y reunión desde la ficha del registro (fecha-hora, resultado, dirección, duración), escritura en la tabla activities de Supabase vía src/data.js, y edición/eliminación de actividades en la cronología. Verifica con npm run build antes de terminar."
+      "status": "done",
+      "instruction": "Continúa el proyecto Omni CRM (app/): mejora el módulo de actividades según especificacion-actividades-crm.md. Añade formularios dedicados al registrar llamada, correo y reunión desde la ficha del registro (fecha-hora, resultado, dirección, duración), escritura en la tabla activities de Supabase vía src/data.js, y edición/eliminación de actividades en la cronología. Verifica con npm run build antes de terminar.",
+      "completedAt": "2026-11-12T21:30:00-0600",
+      "note": "Construido por el constructor Kimi, sesión 3 (commit 1120611)"
     },
     {
       "id": "segmentos",
