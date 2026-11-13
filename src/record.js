@@ -217,6 +217,7 @@ mount.innerHTML = `
             <button class="chip" type="button" data-kind="call">Llamadas</button>
             <button class="chip" type="button" data-kind="task">Tareas</button>
             <button class="chip" type="button" data-kind="meeting">Reuniones</button>
+            <button class="chip" type="button" data-kind="message">Mensajes</button>
           </div>
           <form class="note" id="note-form">
             <textarea name="note" rows="3" placeholder="Escribe una nota..." aria-label="Nueva nota"></textarea>
@@ -328,6 +329,64 @@ function closeModal() {
 $('rec-modal').addEventListener('click', (e) => {
   if (e.target === $('rec-modal') || e.target.closest('[data-close]')) closeModal();
 });
+
+// ---------- "Registrar actividad": dedicated forms per type (espec actividades §2) ----------
+const CALL_OUTCOMES = ['Conectado', 'Ocupado', 'Dejó mensaje en directo', 'Dejó mensaje de voz', 'No contesta', 'Número equivocado'];
+const MEETING_LOCS = ['Llamada telefónica', 'Videoconferencia', 'Dirección'];
+const LOG_DURATIONS = [5, 10, 15, 30, 45, 60];
+const LOG_KINDS = { call: 'llamada', meeting: 'reunión', email: 'correo', message: 'mensaje' };
+const localDateStr = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const localTimeStr = (d) => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+function plusBusinessDays(n) {
+  const d = new Date();
+  let added = 0;
+  while (added < n) {
+    d.setDate(d.getDate() + 1);
+    if (d.getDay() !== 0 && d.getDay() !== 6) added += 1;
+  }
+  return d;
+}
+function openLogModal(kind, { schedule = false, channel = '' } = {}) {
+  const name = cfg.title(rec);
+  const base = schedule ? new Date(TODAY.getTime() + 2 * 86400000) : new Date();
+  const whenRow = `<div class="adv-row adv-row--two"><label class="field"><span>Fecha</span><input id="log-date" type="date" value="${localDateStr(base)}" /></label><label class="field"><span>Hora</span><input id="log-time" type="time" value="${schedule ? '10:00' : localTimeStr(base)}" /></label></div>`;
+  const outcomeRow = `<label class="field"><span>Resultado</span><select id="log-outcome">${CALL_OUTCOMES.map((o) => `<option>${o}</option>`).join('')}</select></label>`;
+  const dirRow = `<label class="field"><span>Dirección</span><select id="log-direction"><option>Saliente</option><option>Entrante</option></select></label>`;
+  const durSelect = (def) => `<select id="log-duration">${LOG_DURATIONS.map((m) => `<option value="${m}" ${m === def ? 'selected' : ''}>${m} minutos</option>`).join('')}</select>`;
+  const followRow = `<label class="log-follow"><input type="checkbox" id="log-followup" /> Crear una tarea de seguimiento</label>
+    <div class="log-follow__date" id="log-followup-row" hidden><label class="field"><span>Fecha de la tarea</span><input id="log-followup-date" type="date" value="${localDateStr(plusBusinessDays(2))}" /></label></div>`;
+  let body = '';
+  if (kind === 'call') {
+    body = `${whenRow}
+      <div class="adv-row adv-row--two">${dirRow}${outcomeRow}</div>
+      <label class="field"><span>Duración</span>${durSelect(15)}</label>
+      <label class="field"><span>Notas de la llamada</span><textarea id="log-notes" rows="3" placeholder="¿Qué se habló?"></textarea></label>
+      ${followRow}`;
+  } else if (kind === 'meeting') {
+    body = `<label class="field"><span>Título</span><input id="log-title" type="text" value="Reunión con ${esc(name)}" /></label>
+      ${whenRow}
+      <div class="adv-row adv-row--two"><label class="field"><span>Duración</span>${durSelect(30)}</label><label class="field"><span>Ubicación</span><select id="log-location">${MEETING_LOCS.map((o) => `<option>${o}</option>`).join('')}</select></label></div>
+      ${schedule ? '' : outcomeRow}
+      <label class="field"><span>Descripción</span><textarea id="log-notes" rows="3" placeholder="Orden del día, acuerdos..."></textarea></label>`;
+  } else if (kind === 'email') {
+    body = `<label class="field"><span>Asunto</span><input id="log-title" type="text" value="Correo a ${esc(name)}" /></label>
+      ${whenRow}
+      ${dirRow}
+      <label class="field"><span>Cuerpo</span><textarea id="log-notes" rows="3" placeholder="Resumen del correo enviado o recibido"></textarea></label>
+      ${followRow}`;
+  } else {
+    body = `${whenRow}
+      ${dirRow}
+      <label class="field"><span>Texto del mensaje</span><textarea id="log-notes" rows="3" placeholder="Mensaje enviado por ${esc(channel)}"></textarea></label>`;
+  }
+  const verb = schedule ? 'Programar' : 'Registrar';
+  const what = kind === 'message' ? 'mensaje' : LOG_KINDS[kind];
+  openModal(
+    `${verb} ${kind === 'message' ? `mensaje de ${channel}` : what}`,
+    body,
+    `<button class="btn btn--primary" type="button" data-confirm="logact" data-kind="${kind}" data-schedule="${schedule ? '1' : ''}" data-channel="${esc(channel)}">${verb} ${what}</button><button class="btn btn--ghost" type="button" data-close>Cancelar</button>`,
+  );
+}
 
 function displayValue(f, r) {
   const [key, , kind, options] = f;
@@ -1012,7 +1071,7 @@ function saveAssociations(ids, labels) {
   toast(`${names.length} ${names.length === 1 ? KIND_META[kind].s.toLowerCase() : KIND_META[kind].p.toLowerCase()} asociad${names.length === 1 ? 'o' : 'os'}`);
 }
 
-const ICONS = { note: '✎', email: '✉', call: '☏', created: '＋', task: '☑', meeting: '▦', stage: '➜', prop: '✎' };
+const ICONS = { note: '✎', email: '✉', call: '☏', created: '＋', task: '☑', meeting: '▦', stage: '➜', prop: '✎', message: '💬' };
 function sampleEvents() {
   const day = 86400000;
   const base = new Date(rec.created).getTime();
@@ -1033,10 +1092,26 @@ function allEvents() {
 function renderTimeline() {
   const q = actQuery.toLowerCase();
   const events = allEvents().filter((ev) => (!actKind || ev.type === actKind) && (!q || ev.text.toLowerCase().includes(q)));
+  const fmtWhen = (ev) => {
+    const d = new Date(ev.when);
+    const date = formatDate(d);
+    return ['call', 'meeting', 'email', 'message'].includes(ev.type) ? `${date} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}` : date;
+  };
+  const extraTags = (ev) => {
+    const x = ev.extra || {};
+    const tags = [];
+    if (x.outcome) tags.push(`Resultado: ${x.outcome}`);
+    if (x.direction) tags.push(x.direction);
+    if (x.durationMin) tags.push(`${x.durationMin} min`);
+    if (x.locationType) tags.push(x.locationType);
+    if (x.channel) tags.push(x.channel);
+    if (x.subject) tags.push(`Asunto: ${x.subject}`);
+    return tags.length ? `<div class="timeline__tags">${tags.map((t) => `<span class="tag tag--none">${esc(t)}</span>`).join('')}</div>` : '';
+  };
   const item = (ev) => `
     <li class="timeline__item">
       <span class="timeline__ico">${ICONS[ev.type] || '•'}</span>
-      <div class="timeline__body"><div class="timeline__meta"><strong>${esc(ev.who)}</strong> · ${formatDate(new Date(ev.when))}</div><div>${esc(ev.text)}</div></div>
+      <div class="timeline__body"><div class="timeline__meta"><strong>${esc(ev.who)}</strong> · ${fmtWhen(ev)}</div><div>${esc(ev.text)}</div>${extraTags(ev)}</div>
     </li>`;
   $('rec-timeline').innerHTML = events.length ? events.map(item).join('') : '<li class="muted">Sin actividades que coincidan.</li>';
   if ($('rec-timeline-short')) $('rec-timeline-short').innerHTML = allEvents().filter((e) => e.type === 'task' || e.type === 'email').slice(0, 2).map(item).join('');
@@ -1085,15 +1160,12 @@ function runMore(kind, sub) {
         toast(`${sub || 'Interacción'} registrada`);
       }
       break;
-    case 'log':
-      openModal(
-        `Registrar ${sub ? sub.toLowerCase() : 'actividad'}`,
-        `<label class="field"><span>Tipo</span><select id="log-type">${['Llamada', 'Correo', 'Reunión', 'Mensaje de LinkedIn', 'Mensaje de WhatsApp', 'SMS'].map((s) => `<option ${s === sub ? 'selected' : ''}>${s}</option>`).join('')}</select></label>
-         <label class="field"><span>Resultado</span><select id="log-outcome"><option>Conectado</option><option>Sin respuesta</option><option>Buzón de voz</option><option>Número incorrecto</option><option>Ocupado</option></select></label>
-         <label class="field"><span>Notas</span><textarea id="log-notes" rows="3" placeholder="¿Qué se habló?"></textarea></label>`,
-        `<button class="btn btn--primary" type="button" data-confirm="log">Registrar actividad</button><button class="btn btn--ghost" type="button" data-close>Cancelar</button>`,
-      );
+    case 'log': {
+      const map = { Llamada: ['call'], Correo: ['email'], Reunión: ['meeting'], 'Mensaje de LinkedIn': ['message', 'LinkedIn'], 'Mensaje de WhatsApp': ['message', 'WhatsApp'], SMS: ['message', 'SMS'] };
+      const [k, ch] = map[sub] || ['call'];
+      openLogModal(k, { channel: ch || '' });
       break;
+    }
     case 'whatsapp': {
       const digits = String(rec.mobilephone || rec.phone || '').replace(/\D/g, '');
       if (!digits) { toast('Este registro no tiene número de teléfono.'); break; }
@@ -1102,13 +1174,7 @@ function runMore(kind, sub) {
       break;
     }
     case 'schedule':
-      openModal(
-        'Programar una reunión',
-        `<label class="field"><span>Título</span><input id="meet-title" type="text" value="Reunión con ${esc(name)}" /></label>
-         <div class="adv-row adv-row--two"><label class="field"><span>Fecha</span><input id="meet-date" type="date" value="${new Date(TODAY.getTime() + 2 * 86400000).toISOString().slice(0, 10)}" /></label><label class="field"><span>Hora</span><input id="meet-time" type="time" value="10:00" /></label></div>
-         <label class="field"><span>Duración</span><select id="meet-dur"><option>15 minutos</option><option selected>30 minutos</option><option>60 minutos</option></select></label>`,
-        `<button class="btn btn--primary" type="button" data-confirm="schedule">Programar</button><button class="btn btn--ghost" type="button" data-close>Cancelar</button>`,
-      );
+      openLogModal('meeting', { schedule: true });
       break;
     case 'deal': {
       const d = addRecord('deals', {
@@ -1389,16 +1455,55 @@ $('rec-modal').addEventListener('click', (e) => {
     addEvent({ type: 'email', when: Date.now(), who: 'Tú', text: `Inscrito en la secuencia "${$('seq-name').value}" (${$('seq-when').value.toLowerCase()}).` });
     closeModal();
     toast('Inscrito en la secuencia');
-  } else if (what === 'log') {
-    const t = $('log-type').value;
-    const map = { Llamada: 'call', Correo: 'email', Reunión: 'meeting' };
-    addEvent({ type: map[t] || 'note', when: Date.now(), who: 'Tú', text: `${t} registrada · ${$('log-outcome').value}${$('log-notes').value.trim() ? `: ${$('log-notes').value.trim()}` : '.'}` });
+  } else if (what === 'logact') {
+    const kind = b.dataset.kind;
+    const schedule = b.dataset.schedule === '1';
+    const channel = b.dataset.channel || '';
+    const name = cfg.title(rec);
+    const dstr = $('log-date').value;
+    const when = dstr ? new Date(`${dstr}T${$('log-time').value || '09:00'}`).getTime() : Date.now();
+    const notes = ($('log-notes')?.value || '').trim();
+    const extra = {};
+    let text = '';
+    if (kind === 'call') {
+      extra.outcome = $('log-outcome').value;
+      extra.direction = $('log-direction').value;
+      extra.durationMin = Number($('log-duration').value);
+      text = notes || `Llamada ${extra.direction.toLowerCase()} con ${name}.`;
+    } else if (kind === 'meeting') {
+      const title = $('log-title').value.trim() || `Reunión con ${name}`;
+      extra.durationMin = Number($('log-duration').value);
+      extra.locationType = $('log-location').value;
+      if (!schedule) extra.outcome = $('log-outcome').value;
+      text = schedule ? `Reunión programada: ${title}${notes ? `. ${notes}` : ''}` : `${title}${notes ? ` — ${notes}` : ''}`;
+    } else if (kind === 'email') {
+      extra.direction = $('log-direction').value;
+      extra.subject = $('log-title').value.trim() || `Correo a ${name}`;
+      text = notes ? `${extra.subject} — ${notes}` : extra.subject;
+    } else {
+      extra.direction = $('log-direction').value;
+      extra.channel = channel;
+      text = notes || `Mensaje de ${channel} ${extra.direction.toLowerCase()}.`;
+    }
+    addEvent({ type: kind, when, who: 'Tú', text, extra });
+    if ($('log-followup')?.checked && $('log-followup-date').value) {
+      const contact = type === 'contacts' ? rec : byId(allContacts(), rec.contactId);
+      const task = addRecord('tasks', {
+        name: `Seguimiento de la ${kind === 'call' ? 'llamada' : 'correo'} con ${name}`,
+        type: kind === 'call' ? 'Llamada' : 'Correo',
+        status: 'todo',
+        priority: 'medium',
+        owner: rec.owner && rec.owner !== 'Sin asignar' ? rec.owner : 'Fernando L.',
+        contactId: contact ? contact.id : '',
+        contact: contact ? contact.name : '',
+        due: new Date(`${$('log-followup-date').value}T09:00`).toISOString(),
+        lastActivity: TODAY.toISOString(),
+      });
+      addEvent({ type: 'task', when: Date.now(), who: 'Tú', text: `Tarea de seguimiento creada: "${task.name}", vence el ${formatDate(task.due)}.` });
+      renderAssoc();
+    }
     closeModal();
-    toast('Actividad registrada');
-  } else if (what === 'schedule') {
-    addEvent({ type: 'meeting', when: Date.now(), who: 'Tú', text: `Reunión "${$('meet-title').value.trim()}" programada para el ${formatDate($('meet-date').value)} a las ${$('meet-time').value} (${$('meet-dur').value}).` });
-    closeModal();
-    toast('Reunión programada');
+    toast(schedule ? 'Reunión programada' : 'Actividad registrada');
   } else if (what === 'workflow') {
     addEvent({ type: 'stage', when: Date.now(), who: 'Tú', text: `Inscrito en el workflow "${$('wf-name').value}".` });
     closeModal();
@@ -1460,6 +1565,12 @@ if (!rec) {
       cardDraft.q = e.target.value;
       cardDraft.title = $('card-title').value;
       renderCardEditor();
+    }
+  });
+  $('rec-modal').addEventListener('change', (e) => {
+    if (e.target.id === 'log-followup') {
+      const row = $('log-followup-row');
+      if (row) row.hidden = !e.target.checked;
     }
   });
   $('rec-modal').addEventListener('change', (e) => {
@@ -1606,8 +1717,7 @@ if (!rec) {
         addEvent({ type: 'task', when: Date.now(), who: 'Tú', text: `Tarea creada: seguimiento con ${cfg.title(rec)} para ${formatDate(new Date(TODAY.getTime() + 3 * 86400000))}.` });
         toast('Tarea creada');
       } else if (a === 'call') {
-        addEvent({ type: 'call', when: Date.now(), who: 'Tú', text: 'Llamada registrada manualmente.' });
-        toast('Llamada registrada');
+        openLogModal('call');
       } else if (a === 'email') {
         openCompose({
           to: cfg.title(rec),
@@ -1624,8 +1734,7 @@ if (!rec) {
       } else if (a === 'signature') {
         editSignature();
       } else if (a === 'meeting') {
-        addEvent({ type: 'meeting', when: Date.now(), who: 'Tú', text: `Reunión programada para ${formatDate(new Date(TODAY.getTime() + 7 * 86400000))}.` });
-        toast('Reunión programada');
+        openLogModal('meeting', { schedule: true });
       }
     }
   });

@@ -1,5 +1,24 @@
 # Progreso — Omni CRM
 
+## 2026-11-12 (sesión 3) · Punto 1 (cierre): formularios dedicados para registrar actividades desde la ficha
+
+**Construido** (espec `especificacion-actividades-crm.md` §1–2)
+- `src/record.js`: nuevo `openLogModal(kind)` con formulario dedicado por tipo, con **fecha y hora** en que ocurrió (hora local, sin desfase UTC):
+  - **Llamada**: dirección (Entrante/Saliente), resultado (los 6 predeterminados de HubSpot: Conectado, Ocupado, Dejó mensaje en directo, Dejó mensaje de voz, No contesta, Número equivocado), duración (5–60 min) y notas.
+  - **Reunión**: título, duración, ubicación (Llamada telefónica / Videoconferencia / Dirección), descripción y —solo al registrar, no al programar— resultado.
+  - **Correo**: asunto, dirección y cuerpo. **Mensaje** (LinkedIn / WhatsApp / SMS): dirección y texto.
+  - **Tarea de seguimiento** (§2): al registrar llamada o correo, checkbox que crea una tarea real en `tasks` (vencimiento por defecto en 2 días laborables) y deja constancia en la cronología.
+- Los botones rápidos **Llamar** y **Reunión** y el menú Más › *Registrar actividad* / *Programar una reunión* abren estos formularios (antes grababan texto enlatado sin formulario).
+- Los datos estructurados viajan en la columna `extra` (jsonb) de `activities` (`outcome`, `direction`, `durationMin`, `locationType`, `channel`, `subject`); la cronología los muestra como etiquetas y con hora además de fecha. Nuevo tipo `message` con su chip de filtro «Mensajes».
+- `src/app.css`: `.timeline__tags`, `.log-follow`.
+- Sin migraciones nuevas (`extra` ya existía en `supabase/activities.sql`). Sin dependencias nuevas.
+
+**Lo que falta del punto 1** (según la espec)
+- Comentarios dentro de actividades, editar/eliminar actividad y restauración con papelera de 90 días.
+- Páginas índice de actividades (listado global por tipo) y filtros por propiedad de actividad en la cronología.
+- Asociaciones automáticas configurables y selector de asociaciones dentro del editor.
+- Asistentes en reuniones, `Tipo de llamada`, recordatorios/cola en tareas, correo postal y subtareas.
+
 ## 2026-11-12 (sesión 2) · Punto 3: monto ponderado en el tablero de negocios
 
 **Verificación previa:** el punto 2 (tablero Kanban con drag & drop entre etapas) ya estaba implementado en `src/list.js` (`renderBoard`, eventos `dragstart`/`dragover`/`drop` con reglas de pipeline vía `board.canMove`), y el pipeline predeterminado de 7 etapas con probabilidad de cierre ya existía en `DEAL_STAGES` (`src/data.js`) con el "Valor ponderado" en las métricas. Lo que faltaba del punto 3 era el **total ponderado por columna del tablero** (espec §2 y §9).

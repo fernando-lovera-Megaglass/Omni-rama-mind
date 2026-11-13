@@ -1524,6 +1524,26 @@ h1 {
   margin-bottom: var(--sp-2);
 }
 
+.timeline__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-4);
+  margin-top: var(--sp-4);
+}
+
+/* "Crear una tarea de seguimiento" inside the log-activity modal */
+.log-follow {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  font-weight: 600;
+  font-size: var(--fs-sm);
+}
+
+.log-follow__date {
+  margin-top: var(--sp-8);
+}
+
 .note {
   margin-bottom: var(--sp-16);
 }
