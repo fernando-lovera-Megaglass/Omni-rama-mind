@@ -1,0 +1,45 @@
+{
+  "project": "/Users/fernandolovera/Documents/Craft Anything/app-hubspot-com",
+  "queue": [
+    {
+      "id": "actividades-formularios",
+      "status": "pending",
+      "instruction": "Continúa el proyecto Omni CRM (app/): mejora el módulo de actividades según especificacion-actividades-crm.md. Añade formularios dedicados al registrar llamada, correo y reunión desde la ficha del registro (fecha-hora, resultado, dirección, duración), escritura en la tabla activities de Supabase vía src/data.js, y edición/eliminación de actividades en la cronología. Verifica con npm run build antes de terminar."
+    },
+    {
+      "id": "segmentos",
+      "status": "pending",
+      "instruction": "Continúa el proyecto Omni CRM (app/): implementa el módulo de Segmentos según especificacion-segmentos-propiedades-crm.md (PARTE A): segmentos activos y estáticos sobre contactos, empresas, negocios y tickets, editor de filtros reutilizando el sistema de filtros de src/list.js y src/filter-ops.js, entrada en la navegación (CRM > Listas). Persiste en Supabase (nueva tabla segments, migración en supabase/). Verifica con npm run build."
+    },
+    {
+      "id": "cola-tareas",
+      "status": "pending",
+      "instruction": "Continúa el proyecto Omni CRM (app/): implementa la cola de tareas estilo HubSpot en la página de tareas: vista de cola donde el usuario trabaja tareas una por una (completar y pasar a la siguiente), filtros por vencimiento (hoy, vencidas, próximas), y completar tarea desde la ficha del registro asociado. Verifica con npm run build."
+    },
+    {
+      "id": "reportes-datos-reales",
+      "status": "pending",
+      "instruction": "Continúa el proyecto Omni CRM (app/): sustituye las series simuladas de src/reports.js por datos reales de Supabase (conteos y sumas de contacts, companies, deals, tickets, tasks según el rango de fechas seleccionado). Mantén el mismo diseño de paneles. Verifica con npm run build."
+    },
+    {
+      "id": "dedupe-importacion",
+      "status": "pending",
+      "instruction": "Continúa el proyecto Omni CRM (app/): añade deduplicación automática por email al importar contactos (src/import-engine.js): detecta duplicados contra los existentes en Supabase y dentro del propio archivo, y ofrece las opciones de HubSpot (crear, actualizar existentes, o saltar duplicados) según especificacion-importacion-contactos-crm.md. Verifica con npm run build."
+    },
+    {
+      "id": "empresas-auto-dominio",
+      "status": "pending",
+      "instruction": "Continúa el proyecto Omni CRM (app/): implementa la creación y asociación automática de empresas por dominio de email del contacto según especificacion-empresas-crm.md sección 2: al crear o importar un contacto, comparar el dominio de su email con las empresas existentes, crear empresa si no existe (excluir dominios gratuitos como gmail.com), y asociar. Configurable con un checkbox en ajustes. Verifica con npm run build."
+    },
+    {
+      "id": "pipeline-tickets-default",
+      "status": "pending",
+      "instruction": "Continúa el proyecto Omni CRM (app/): crea el pipeline de soporte predeterminado de tickets con 4 estados (Nuevo, En espera de contacto, En espera de nosotros, Cerrado) según especificacion-tickets-crm.md, y la auto-asociación del ticket a la empresa principal del contacto. Verifica con npm run build."
+    },
+    {
+      "id": "auth-supabase",
+      "status": "pending",
+      "instruction": "Continúa el proyecto Omni CRM (app/): implementa autenticación real con Supabase Auth (pantalla de login/registro con email y contraseña, sesión persistente, protección de rutas, botón de cerrar sesión en el topbar). Prepara las políticas RLS por usuario en una migración en supabase/ con instrucciones claras, sin romper el acceso actual. Verifica con npm run build."
+    }
+  ]
+}
