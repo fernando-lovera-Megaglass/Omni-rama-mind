@@ -24,13 +24,14 @@
       "id": "reportes-datos-reales",
       "status": "done",
       "instruction": "Continúa el proyecto Omni CRM (app/): sustituye las series simuladas de src/reports.js por datos reales de Supabase (conteos y sumas de contacts, companies, deals, tickets, tasks según el rango de fechas seleccionado). Mantén el mismo diseño de paneles. Verifica con npm run build.",
-      "completedAt": "2026-11-13T01:40:00-0600",
-      "note": "Construido por Claude (Craft Anything): src/reports.js calcula KPI y gráficos desde los registros cargados de Supabase por rango (7/30/90 días, este año) con comparación al periodo anterior; data.js expone allActivities(). Prueba scripts/smoke-reports.mjs."
+      "completedAt": "2026-11-13T01:35:17-0600"
     },
     {
       "id": "dedupe-importacion",
-      "status": "pending",
-      "instruction": "Continúa el proyecto Omni CRM (app/): añade deduplicación automática por email al importar contactos (src/import-engine.js): detecta duplicados contra los existentes en Supabase y dentro del propio archivo, y ofrece las opciones de HubSpot (crear, actualizar existentes, o saltar duplicados) según especificacion-importacion-contactos-crm.md. Verifica con npm run build."
+      "status": "done",
+      "instruction": "Continúa el proyecto Omni CRM (app/): añade deduplicación automática por email al importar contactos (src/import-engine.js): detecta duplicados contra los existentes en Supabase y dentro del propio archivo, y ofrece las opciones de HubSpot (crear, actualizar existentes, o saltar duplicados) según especificacion-importacion-contactos-crm.md. Verifica con npm run build.",
+      "completedAt": "2026-11-13T02:20:00-0600",
+      "note": "Construido por Claude (Craft Anything): normalizeEmail + analyzeDuplicates en src/import-engine.js (coincidencias contra existentes y repetidos en el archivo con políticas primera/última/combinar), panel Duplicados en el paso 3 del asistente con los tres modos, refreshTable() en data.js para releer Supabase. Prueba scripts/smoke-dedupe.mjs."
     },
     {
       "id": "empresas-auto-dominio",

@@ -1,5 +1,22 @@
 # Progreso — Omni CRM
 
+## 2026-11-13 (sesión 5) · Desduplicación por correo al importar (cola `dedupe-importacion`)
+
+**Construido**
+- `src/import-engine.js`:
+  - `normalizeEmail` (sin espacios ni mayúsculas, sin `mailto:`/`<>`): el correo de la fila se guarda normalizado y se compara así contra el correo principal, los correos adicionales (`hs_additional_emails`) y el correo alternativo de los contactos existentes (los que `data.js` carga de Supabase).
+  - Repetidos dentro del archivo con política elegible (`options.fileDuplicates`): **Conservar la primera fila** (regla del original: las demás fallan con `DUPLICATE_UNIQUE_PROPERTY_VALUE`), **Conservar la última fila**, o **Combinar las filas** (la primera manda y las siguientes rellenan sus valores vacíos; la fila combinada queda como `merged`, no como error). Las filas idénticas siguen siendo `DUPLICATE_ROW_CONTENT`.
+  - Los tres modos del original deciden qué pasa con los que ya existen: **Crear y actualizar** (actualiza), **Solo crear** (salta los duplicados con `CREATE_ONLY_IMPORT`), **Solo actualizar** (salta las filas nuevas con `UPDATE_ONLY_IMPORT`).
+  - Cada fila del plan lleva `duplicateOf` (`existing` / `file`), el contacto coincidente (`matchId`, `matchName`, `matchValue`), si coincidió por correo adicional (`secondary`) y las propiedades que cambiarían (`changes`). Resumen con `duplicatesExisting`, `duplicatesInFile`, `merged`, `withoutKey`.
+  - `analyzeDuplicates(table, mapping, options)`: el informe previo (contra cuántos registros se comprobó, coincidencias con existentes, valores repetidos en el archivo y sus filas, nuevos, filas sin correo, inválidas).
+  - El historial de importaciones guarda `duplicates`, `fileDuplicates`, `merged` y `filePolicy`.
+- `src/data.js`: `refreshTable(type)` vuelve a leer la tabla de Supabase (y `dbIsLive()`); el asistente la llama al entrar en el paso 3 para que la comprobación use los contactos actuales, no solo los cargados al abrir la app.
+- `src/import-wizard.js` (paso 3 «Detalles»): nuevo panel **Duplicados por correo electrónico** con los contadores, las tres opciones para los existentes (modo de importación, con el efecto explicado en cifras), las tres políticas para los repetidos del archivo, la tabla de coincidencias (fila, correo, contacto existente, propiedades que cambian, acción) y la lista de valores repetidos. La vista previa del resultado cuenta las filas combinadas; la revisión muestra «Duplicados actualizados/saltados» y los repetidos del archivo. Funciona igual para empresas (dominio) y para ID de registro.
+- Pruebas: `scripts/smoke-dedupe.mjs` (análisis, modos, políticas, ejecución con combinación, segunda pasada, panel del asistente y revisión) + suite completa en verde; `npm run build` OK.
+
+**Notas**
+- Contra Supabase se compara con las filas que la app tiene en memoria tras `refreshTable` (lectura completa de la tabla al entrar en el paso 3); no hay consulta fila a fila.
+
 ## 2026-11-13 (sesión 5) · Paneles con datos reales (cola `reportes-datos-reales`)
 
 **Construido**

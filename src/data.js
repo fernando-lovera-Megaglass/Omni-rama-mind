@@ -997,6 +997,17 @@ async function fetchTable(type) {
   }
   return all.map((r) => augment(type, fromDb(type, r)));
 }
+// Re-read one table from Supabase so a check runs against the current rows (the import wizard does this
+// before looking for duplicates). Does nothing in local mode.
+export const dbIsLive = () => dbLive;
+export async function refreshTable(type) {
+  if (!dbLive || !BUILDERS[type]) return false;
+  dbRows[type] = await fetchTable(type);
+  nextId[type] = dbRows[type].reduce((m, r) => Math.max(m, Number(r.id) || 0), 0) + 1;
+  delete baseCache[type];
+  bump();
+  return true;
+}
 
 async function seedAll() {
   // First run with an empty database: load the sample dataset so the CRM

@@ -6,6 +6,7 @@ import { boot } from './page.js';
 import { toast } from './shell.js';
 import * as E from './import-engine.js';
 import { propertyGroups } from './properties.js';
+import { refreshTable, dbIsLive } from './data.js';
 
 const params = new URLSearchParams(location.search);
 const initialObject = E.OBJECTS[params.get('object')] ? params.get('object') : 'contacts';
@@ -28,7 +29,8 @@ const state = {
   panelColumn: null,
   newProp: null,
   name: '',
-  options: { mode: 'create_update', uniqueKey: E.objectDef(initialObject).defaultUnique, dateFormat: 'dmy', numberFormat: 'auto', timezone: 'America/Mexico_City', consent: false, createSegment: false, marketing: false, legalBasis: '' },
+  options: { mode: 'create_update', fileDuplicates: 'first', uniqueKey: E.objectDef(initialObject).defaultUnique, dateFormat: 'dmy', numberFormat: 'auto', timezone: 'America/Mexico_City', consent: false, createSegment: false, marketing: false, legalBasis: '' },
+  dupCheck: { live: false, at: null, pending: false }, // whether the duplicate check ran against a fresh read of Supabase
   importId: params.get('id') ? Number(params.get('id')) : null,
   progress: null,
   canceled: false,
@@ -166,29 +168,65 @@ function renderStep3() {
   const uniqueChoices = d.unique.filter((k) => k === 'hs_object_id' ? mapped.has('hs_object_id') : true);
   if (!uniqueChoices.includes(o.uniqueKey)) o.uniqueKey = uniqueChoices.includes(d.defaultUnique) ? d.defaultUnique : uniqueChoices[0];
   const plan = E.planImport(state.table, state.mapping, { ...o, object: state.object });
+  const dup = E.analyzeDuplicates(state.table, state.mapping, { ...o, object: state.object });
   const onlyId = d.unique.length === 1;
+  const n = (x) => Number(x || 0).toLocaleString('es-ES');
+  const single = d.singular;
+  const modeRadio = (value, title, small) => `<label class="radio${o.mode === value ? ' is-on' : ''}"><input type="radio" name="mode" value="${value}" ${o.mode === value ? 'checked' : ''} /> <span><strong>${title}</strong><small>${small}</small></span></label>`;
+  const fileRadio = ([value, title, small]) => `<label class="radio${o.fileDuplicates === value ? ' is-on' : ''}"><input type="radio" name="filedups" value="${value}" ${o.fileDuplicates === value ? 'checked' : ''} /> <span><strong>${title}</strong><small>${small}</small></span></label>`;
+  const dupsHtml = `
+      <section class="imp__dups" id="imp-dups">
+        <h3>Duplicados por ${esc(dup.keyLabel.toLowerCase())}</h3>
+        <p class="muted">Comprobado contra los ${n(dup.checkedAgainst)} ${objLabel()} de la cuenta${state.dupCheck.live ? ' (lectura reciente de Supabase)' : state.dupCheck.pending ? ' (actualizando desde Supabase…)' : ''} y dentro del archivo. Los correos se comparan sin mayúsculas ni espacios; un correo adicional también identifica al ${esc(single)}.</p>
+        <div class="imp__dupstats">
+          <div class="imp__dupstat${dup.existingCount ? ' is-hit' : ''}"><strong>${n(dup.existingCount)}</strong> <span>${dup.existingCount === 1 ? 'fila coincide con un' : 'filas coinciden con'} ${dup.existingCount === 1 ? esc(single) : objLabel()} existente${dup.existingCount === 1 ? '' : 's'}</span></div>
+          <div class="imp__dupstat${dup.inFileRows ? ' is-hit' : ''}"><strong>${n(dup.inFileRows)}</strong> <span>${dup.inFileRows === 1 ? 'fila repite' : 'filas repiten'} un valor ya usado en el archivo (${n(dup.inFile.length)} ${dup.inFile.length === 1 ? 'valor' : 'valores'})</span></div>
+          <div class="imp__dupstat"><strong>${n(dup.newCount)}</strong> <span>${dup.newCount === 1 ? `${esc(single)} nuevo` : `${objLabel()} nuevos`} sin coincidencia</span></div>
+          ${dup.withoutKey ? `<div class="imp__dupstat"><strong>${n(dup.withoutKey)}</strong> <span>filas sin ${esc(dup.keyLabel.toLowerCase())}: no se pueden desduplicar</span></div>` : ''}
+        </div>
+        <div class="imp__dupgrid">
+          <fieldset class="field"><span>Qué hacer con los ${objLabel()} que ya existen (modo de importación)</span>
+            ${modeRadio('create_update', 'Actualizar los existentes · Crear y actualizar', `Las ${n(dup.existingCount)} filas duplicadas actualizan al ${esc(single)} existente con los valores del archivo; las demás crean ${objLabel()} nuevos.`)}
+            ${modeRadio('create', 'Saltar los duplicados · Solo crear', `Las ${n(dup.existingCount)} filas duplicadas no se importan (CREATE_ONLY_IMPORT); solo se crean los ${n(dup.newCount)} ${objLabel()} nuevos.`)}
+            ${modeRadio('update', 'Solo actualizar los existentes', `Solo se actualizan los ${n(dup.existingCount)} ${objLabel()} existentes; las ${n(dup.newCount)} filas nuevas no se importan (UPDATE_ONLY_IMPORT).`)}
+          </fieldset>
+          <fieldset class="field"><span>Valores repetidos dentro del archivo</span>
+            ${E.FILE_DUPLICATE_POLICIES.map(fileRadio).join('')}
+          </fieldset>
+        </div>
+        ${dup.existing.length ? `<details class="imp__duplist" ${dup.existing.length <= 5 ? 'open' : ''}><summary>Ver coincidencias con ${objLabel()} existentes (${n(dup.existing.length)})</summary>
+          <div class="table-wrap"><table class="table imp__duptable"><thead><tr><th>Fila</th><th>${esc(dup.keyLabel)}</th><th>${esc(single.charAt(0).toUpperCase() + single.slice(1))} existente</th><th>Propiedades que cambian</th><th>Acción</th></tr></thead><tbody>${dup.existing.slice(0, 50).map((x) => `<tr><td>${x.row}</td><td>${esc(x.value)}${x.secondary ? ' <small class="muted">(correo adicional)</small>' : ''}</td><td>${esc(x.matchName)}${x.matchValue && String(x.matchValue).toLowerCase() !== String(x.value).toLowerCase() ? ` <small class="muted">${esc(x.matchValue)}</small>` : ''}</td><td>${x.changes.length ? esc(x.changes.map((k) => (E.propByKey(state.object, k) || { label: k }).label).join(', ')) : '<span class="muted">sin cambios</span>'}</td><td>${o.mode === 'create' ? '<span class="tag tag--none">Se salta</span>' : '<span class="tag tag--open">Actualiza</span>'}</td></tr>`).join('')}</tbody></table></div>${dup.existing.length > 50 ? '<p class="muted">Se muestran las primeras 50 coincidencias.</p>' : ''}</details>` : ''}
+        ${dup.inFile.length ? `<details class="imp__duplist"><summary>Ver valores repetidos en el archivo (${n(dup.inFile.length)})</summary><ul class="imp__dupvalues">${dup.inFile.slice(0, 50).map((g) => `<li><code>${esc(g.value)}</code> en las filas ${g.rows.join(', ')} → ${o.fileDuplicates === 'merge' ? 'se combinan en una' : o.fileDuplicates === 'last' ? `se importa la fila ${g.rows[g.rows.length - 1]}` : `se importa la fila ${g.rows[0]}`}</li>`).join('')}</ul></details>` : ''}
+      </section>`;
   root.innerHTML = frame(`
     <section class="imp__card">
       <h2>Detalles de la importación</h2>
       <div class="imp__grid">
         <label class="field"><span>Nombre de la importación</span><input type="text" id="imp-name" value="${esc(state.name)}" maxlength="80" /></label>
-        <fieldset class="field"><span>Modo de importación</span>
-          <label class="radio${o.mode === 'create_update' ? ' is-on' : ''}"><input type="radio" name="mode" value="create_update" ${o.mode === 'create_update' ? 'checked' : ''} /> <span><strong>Crear y actualizar</strong><small>Crea ${objLabel()} nuevos y actualiza los existentes que coincidan por el identificador único.</small></span></label>
-          <label class="radio${o.mode === 'create' ? ' is-on' : ''}"><input type="radio" name="mode" value="create" ${o.mode === 'create' ? 'checked' : ''} /> <span><strong>Solo crear</strong><small>Las filas que coinciden con un registro existente se ignoran.</small></span></label>
-          <label class="radio${o.mode === 'update' ? ' is-on' : ''}"><input type="radio" name="mode" value="update" ${o.mode === 'update' ? 'checked' : ''} /> <span><strong>Solo actualizar</strong><small>Las filas sin coincidencia se ignoran.</small></span></label>
-        </fieldset>
         <label class="field"><span>Identificador único para buscar ${objLabel()} existentes 🔑</span><select id="imp-unique">${uniqueChoices.map((k) => `<option value="${k}" ${o.uniqueKey === k ? 'selected' : ''}>${E.UNIQUE_LABELS[k]}${k === 'hs_object_id' ? ' (prevalece sobre cualquier otro)' : mapped.has(k) ? '' : ' (no mapeado: solo se crearán registros)'}</option>`).join('')}</select>${onlyId && !mapped.has('hs_object_id') ? `<small class="muted">Los ${objLabel()} solo se actualizan con la columna ID de registro; sin ella, todas las filas crean registros nuevos.</small>` : ''}</label>
         <label class="field"><span>Formato de fecha</span><select id="imp-date"><option value="dmy" ${o.dateFormat === 'dmy' ? 'selected' : ''}>Día-mes-año (31/10/2026)</option><option value="mdy" ${o.dateFormat === 'mdy' ? 'selected' : ''}>Mes-día-año (10/31/2026)</option><option value="ymd" ${o.dateFormat === 'ymd' ? 'selected' : ''}>Año-mes-día (2026-10-31)</option></select></label>
         <label class="field"><span>Zona horaria</span><select id="imp-tz">${['America/Mexico_City', 'America/New_York', 'America/Bogota', 'Europe/Madrid'].map((z) => `<option ${o.timezone === z ? 'selected' : ''}>${z}</option>`).join('')}</select></label>
         <label class="field"><span>Formato de número</span><select id="imp-num"><option value="auto" ${o.numberFormat === 'auto' ? 'selected' : ''}>Detectar automáticamente</option><option value="en" ${o.numberFormat === 'en' ? 'selected' : ''}>1,234.56</option><option value="es" ${o.numberFormat === 'es' ? 'selected' : ''}>1.234,56</option></select></label>
         ${state.object === 'contacts' ? `<label class="field"><span>Base legal del procesamiento (opcional)</span><select id="imp-legal"><option value="">Sin especificar</option><option ${o.legalBasis === 'Consentimiento' ? 'selected' : ''}>Consentimiento</option><option ${o.legalBasis === 'Interés legítimo' ? 'selected' : ''}>Interés legítimo</option><option ${o.legalBasis === 'Contrato' ? 'selected' : ''}>Contrato</option></select></label>` : ''}
       </div>
+      ${dupsHtml}
       <label class="imp__check imp__check--big"><input type="checkbox" id="imp-segment" ${o.createSegment ? 'checked' : ''} /> Crear un segmento (vista guardada de ${d.label}) con los registros de esta importación</label>
       ${state.object === 'contacts' ? `<label class="imp__check imp__check--big"><input type="checkbox" id="imp-marketing" ${o.marketing ? 'checked' : ''} /> Marcar como contactos de marketing</label>` : ''}
       <label class="imp__check imp__check--big imp__consent"><input type="checkbox" id="imp-consent" ${o.consent ? 'checked' : ''} /> <span><strong>${state.object === 'contacts' ? 'Confirmo que estos contactos esperan recibir comunicaciones y que no es una lista comprada.' : 'Confirmo que tengo permiso para usar estos datos y que no proceden de una lista comprada.'}</strong> <small class="muted">Obligatorio para finalizar.</small></span></label>
-      <div class="imp__plan"><strong>Vista previa del resultado:</strong> ${plan.summary.rows.toLocaleString('es-ES')} filas · ${plan.summary.toCreate} ${objLabel()} nuevos · ${plan.summary.toUpdate} actualizaciones · ${plan.summary.skipped} filas no se importarán${plan.errors.length ? ` · ${plan.errors.length} errores` : ''}</div>
+      <div class="imp__plan"><strong>Vista previa del resultado:</strong> ${plan.summary.rows.toLocaleString('es-ES')} filas · ${plan.summary.toCreate} ${objLabel()} nuevos · ${plan.summary.toUpdate} actualizaciones · ${plan.summary.skipped} filas no se importarán${plan.summary.merged ? ` · ${plan.summary.merged} filas combinadas` : ''}${plan.errors.length ? ` · ${plan.errors.length} errores` : ''}</div>
       <div class="imp__foot"><button class="btn btn--ghost" type="button" data-act="back2">Atrás</button><button class="btn btn--primary" type="button" data-act="finish" ${o.consent ? '' : 'disabled'}>Finalizar importación</button></div>
     </section>`, 3);
+}
+
+// Before the duplicate check, re-read the object's table from Supabase so records created from another
+// browser (or by a previous import) count as existing. Local mode keeps the rows it has.
+function refreshExisting() {
+  if (!dbIsLive() || state.dupCheck.pending) return;
+  state.dupCheck = { live: false, at: null, pending: true };
+  refreshTable(state.object)
+    .then(() => { state.dupCheck = { live: true, at: Date.now(), pending: false }; })
+    .catch(() => { state.dupCheck = { live: false, at: null, pending: false }; })
+    .then(() => { if (state.step === 3) renderStep3(); });
 }
 
 // ---------- finish: register and run ----------
@@ -243,6 +281,7 @@ function renderReview() {
         <div class="imp__stat"><span>${esc(label)} nuevos</span><strong>${Number(entry.newRecords || 0).toLocaleString('es-ES')}</strong></div>
         <div class="imp__stat"><span>${esc(label)} actualizados</span><strong>${Number(entry.updated || 0).toLocaleString('es-ES')}</strong></div>
         <div class="imp__stat"><span>Asociaciones nuevas</span><strong>${Number(entry.associations || 0).toLocaleString('es-ES')}</strong></div>
+        <div class="imp__stat"><span>Duplicados ${entry.mode === 'create' ? 'saltados' : 'actualizados'}</span><strong>${Number(entry.duplicates || 0).toLocaleString('es-ES')}</strong>${entry.fileDuplicates ? `<small class="muted">+ ${Number(entry.fileDuplicates).toLocaleString('es-ES')} repetidos en el archivo (${entry.filePolicy === 'merge' ? 'combinados' : entry.filePolicy === 'last' ? 'gana la última fila' : 'gana la primera fila'})</small>` : ''}</div>
         <div class="imp__stat"><span>Errores</span><strong>${(d.errors || []).length.toLocaleString('es-ES')}</strong></div>
       </div>
       ${entry.state === 'DONE' ? `<p class="muted">Las filas importadas pueden no coincidir con los registros: un identificador secundario que actualiza un ${esc(singular)} no cuenta como nuevo.</p>` : ''}
@@ -276,6 +315,7 @@ root.addEventListener('change', (e) => {
   }
   if (t.dataset.noover !== undefined) { state.mapping.find((x) => x.index === Number(t.dataset.noover)).noOverwrite = t.checked; return; }
   if (t.name === 'mode') { state.options.mode = t.value; renderStep3(); return; }
+  if (t.name === 'filedups') { state.options.fileDuplicates = t.value; renderStep3(); return; }
   if (t.id === 'imp-unique') { state.options.uniqueKey = t.value; renderStep3(); return; }
   if (t.id === 'imp-date') { state.options.dateFormat = t.value; renderStep3(); return; }
   if (t.id === 'imp-num') { state.options.numberFormat = t.value; renderStep3(); return; }
@@ -321,7 +361,7 @@ root.addEventListener('click', (e) => {
   else if (a === 'sample') { downloadBytes(`ejemplo-${state.object}.csv`, '﻿' + E.sampleCsv(state.object), 'text/csv'); toast('Archivo de ejemplo descargado'); }
   else if (a === 'next1') { if (!state.table) return; if (!state.mapping.length) state.mapping = E.autoMap(state.table.headers, state.language, state.object); state.step = 2; renderStep2(); }
   else if (a === 'back1') { state.step = 1; renderStep1(); }
-  else if (a === 'next2') { state.step = 3; state.panelColumn = null; renderStep3(); }
+  else if (a === 'next2') { state.step = 3; state.panelColumn = null; refreshExisting(); renderStep3(); }
   else if (a === 'back2') { state.step = 2; renderStep2(); }
   else if (a === 'np-create') {
     const name = $('np-name').value.trim();

@@ -347,28 +347,37 @@ const companyIndex = () => {
 };
 
 // ---------- plan: rows → create / update / skip with their errors ----------
+// E-mails are compared trimmed and in lower case ("Ana@Ejemplo.com " is the same contact as "ana@ejemplo.com").
+export const normalizeEmail = (raw) => String(raw ?? '').trim().replace(/^mailto:/i, '').replace(/^<(.*)>$/, '$1').toLowerCase();
+// What to do with a unique value repeated inside the file: keep the first row (the original's rule: the
+// other rows fail with DUPLICATE_UNIQUE_PROPERTY_VALUE), keep the last one, or merge the rows (later rows fill
+// the values the first row left empty).
+export const FILE_DUPLICATE_POLICIES = [['first', 'Conservar la primera fila', 'Las filas repetidas no se importan (DUPLICATE_UNIQUE_PROPERTY_VALUE).'], ['last', 'Conservar la última fila', 'La última fila con ese valor es la que se importa; las anteriores no.'], ['merge', 'Combinar las filas', 'Se importa una sola fila: la primera manda y las siguientes rellenan sus valores vacíos.']];
 export function planImport(table, mapping, options = {}) {
   const type = options.object || 'contacts';
   const def = objectDef(type);
   const mode = options.mode || 'create_update';
+  const filePolicy = FILE_DUPLICATE_POLICIES.some((p) => p[0] === options.fileDuplicates) ? options.fileDuplicates : 'first';
   const hasIdColumn = mapping.some((m) => m.key === 'hs_object_id' && !m.skip);
   const uniqueKey = def.unique.includes(options.uniqueKey) ? options.uniqueKey : hasIdColumn ? 'hs_object_id' : def.defaultUnique;
   const keyField = uniqueKey === 'hs_object_id' ? null : uniqueKey; // 'email' or 'domain'
+  const normKey = (v) => (keyField === 'domain' ? normalizeDomain(v) : normalizeEmail(v));
   const existing = ALL[type]();
   const byKey = new Map();
   const byAlt = new Map();
   const byId = new Map();
   existing.forEach((c) => {
-    const k = keyField ? (keyField === 'domain' ? normalizeDomain(c[keyField]) : String(c[keyField] || '').toLowerCase()) : '';
+    const k = keyField ? normKey(c[keyField]) : '';
     if (k && !byKey.has(k)) byKey.set(k, c);
     byId.set(String(c.id), c);
-    if (def.altField) String(c[def.altField] || '').split(';').map((x) => (keyField === 'domain' ? normalizeDomain(x) : x.trim().toLowerCase())).filter(Boolean).forEach((x) => byAlt.set(x, c));
-    if (type === 'contacts' && c.alt_email) byAlt.set(String(c.alt_email).toLowerCase(), c);
+    if (def.altField) String(c[def.altField] || '').split(';').map((x) => normKey(x)).filter(Boolean).forEach((x) => byAlt.set(x, c));
+    if (type === 'contacts' && c.alt_email) byAlt.set(normalizeEmail(c.alt_email), c);
   });
   const companies = type === 'contacts' || type === 'deals' ? companyIndex() : null;
   const active = mapping.filter((m) => m.key && !m.skip && propByKey(type, m.key));
   const unmapped = mapping.filter((m) => m.header && (!m.key || m.skip)).map((m) => m.header);
   const seenKey = new Set();
+  const firstRowByKey = new Map(); // unique value → index in `records` of the row kept for it
   const seenId = new Set();
   const seenContent = new Set();
   const records = [];
@@ -419,16 +428,39 @@ export function planImport(table, mapping, options = {}) {
     }
     // match an existing record: record ID prevails, then the unique property, then a secondary value
     let match = null;
+    let fileDup = false;
+    // the row's unique value, kept even when the row is dropped so the duplicate check can group it
+    let fileKey = keyField && data[keyField] ? normKey(data[keyField]) : uniqueKey === 'hs_object_id' && data.hs_object_id !== undefined ? `#${String(Math.round(Number(data.hs_object_id)))}` : null;
     if (!dropCode) {
       if (uniqueKey === 'hs_object_id' && data.hs_object_id !== undefined) {
         const id = String(Math.round(Number(data.hs_object_id)));
+        fileKey = `#${id}`;
         if (seenId.has(id)) dropCode = 'DUPLICATE_RECORD_ID';
         else if (!byId.has(id)) dropCode = 'INVALID_RECORD_ID';
         else match = byId.get(id);
         seenId.add(id);
       } else if (keyField && data[keyField]) {
-        const k = String(data[keyField]).toLowerCase();
-        if (seenKey.has(k)) dropCode = 'DUPLICATE_UNIQUE_PROPERTY_VALUE';
+        const k = normKey(data[keyField]);
+        fileKey = k;
+        if (keyField === 'email') data.email = k;
+        if (seenKey.has(k)) {
+          // the same unique value appeared in an earlier row of the file
+          fileDup = true;
+          const prev = records[firstRowByKey.get(k)];
+          if (filePolicy === 'first' || !prev) dropCode = 'DUPLICATE_UNIQUE_PROPERTY_VALUE';
+          else if (filePolicy === 'last') {
+            if (prev.action !== 'skip') { prev.action = 'skip'; prev.code = 'DUPLICATE_UNIQUE_PROPERTY_VALUE'; prev.replacedBy = rowNumber; prev.duplicateOf = 'file'; addErr(prev.rowNumber, null, 'DUPLICATE_UNIQUE_PROPERTY_VALUE'); }
+            firstRowByKey.set(k, records.length);
+          } else if (prev.action === 'skip') dropCode = 'DUPLICATE_UNIQUE_PROPERTY_VALUE';
+          else {
+            // merge: the first row rules, this one fills what it left empty
+            Object.entries(data).forEach(([f, v]) => { if (prev.data[f] === undefined || prev.data[f] === null || prev.data[f] === '') prev.data[f] = v; });
+            prev.mergedRows = [...(prev.mergedRows || []), rowNumber];
+            rowErrors.forEach(([m, code]) => addErr(rowNumber, m, code));
+            records.push({ rowNumber, action: 'merged', mergedInto: prev.rowNumber, duplicateOf: 'file', fileKey: k, data, cells });
+            return;
+          }
+        } else firstRowByKey.set(k, records.length);
         seenKey.add(k);
         match = byKey.get(k) || byAlt.get(k) || null;
       }
@@ -439,6 +471,11 @@ export function planImport(table, mapping, options = {}) {
     }
     if (!dropCode && mode === 'create' && match) dropCode = 'CREATE_ONLY_IMPORT';
     if (!dropCode && mode === 'update' && !match) dropCode = 'UPDATE_ONLY_IMPORT';
+    const matchInfo = match ? { matchId: match.id, matchName: match.name || match[keyField] || `#${match.id}`, matchValue: keyField ? match[keyField] || '' : String(match.id), changes: Object.keys(data).filter((k) => k !== 'hs_object_id' && String(match[k] ?? '') !== String(data[k] ?? '')) } : {};
+    // A row counts as an "existing" duplicate only when it is the row kept for its value; the other repeats of
+    // the same value inside the file count as "file" duplicates, so the two groups never overlap.
+    const keptForKey = !fileDup || (filePolicy === 'last' && dropCode !== 'DUPLICATE_UNIQUE_PROPERTY_VALUE');
+    const duplicateOf = fileDup && !keptForKey ? 'file' : match ? 'existing' : fileDup ? 'file' : null;
     // association by company (contacts and deals): name or domain of an existing company
     if (!dropCode && companies && data.company !== undefined) {
       const key = strip(data.company);
@@ -448,16 +485,54 @@ export function planImport(table, mapping, options = {}) {
       else if (type === 'deals') rowErrors.push([active.find((m) => m.key === 'company'), 'ASSOCIATION_RECORD_NOT_FOUND']);
     }
     rowErrors.forEach(([m, code]) => addErr(rowNumber, m, code));
-    if (dropCode) { if (!rowErrors.some(([, code]) => code === dropCode)) addErr(rowNumber, null, dropCode); records.push({ rowNumber, action: 'skip', code: dropCode, data, cells }); return; }
+    if (dropCode) { if (!rowErrors.some(([, code]) => code === dropCode)) addErr(rowNumber, null, dropCode); records.push({ rowNumber, action: 'skip', code: dropCode, duplicateOf, fileKey, ...matchInfo, data, cells }); return; }
     delete data.hs_object_id;
-    const secondary = Boolean(match && keyField && String(match[keyField] || '').toLowerCase() !== String(data[keyField] || '').toLowerCase());
+    const secondary = Boolean(match && keyField && normKey(match[keyField]) !== normKey(data[keyField]));
     if (secondary && uniqueKey !== 'hs_object_id') delete data[keyField]; // a secondary e-mail/domain never replaces the primary one unless the record ID is used
-    records.push({ rowNumber, action: match ? 'update' : 'create', matchId: match ? match.id : null, secondary, data, cells });
+    records.push({ rowNumber, action: match ? 'update' : 'create', matchId: match ? match.id : null, secondary, duplicateOf, fileKey, ...matchInfo, data, cells });
   });
   unmapped.forEach((h) => errors.push({ row: 0, column: h, key: '', code: 'PROPERTY_DEFINITION_NOT_FOUND', impact: errorImpact('PROPERTY_DEFINITION_NOT_FOUND'), rowDropped: false }));
   (table.warnings || []).forEach((w) => errors.push({ row: 0, column: w.column, key: '', code: w.code, impact: errorImpact(w.code), rowDropped: false }));
-  const summary = { rows: table.rows.length, toCreate: records.filter((r) => r.action === 'create').length, toUpdate: records.filter((r) => r.action === 'update').length, skipped: records.filter((r) => r.action === 'skip').length, errors: errors.length };
-  return { object: type, records, errors, summary, mode, uniqueKey, headers: table.headers };
+  const summary = {
+    rows: table.rows.length,
+    toCreate: records.filter((r) => r.action === 'create').length,
+    toUpdate: records.filter((r) => r.action === 'update').length,
+    skipped: records.filter((r) => r.action === 'skip').length,
+    merged: records.filter((r) => r.action === 'merged').length,
+    duplicatesExisting: records.filter((r) => r.duplicateOf === 'existing').length,
+    duplicatesInFile: records.filter((r) => r.action === 'merged' || r.code === 'DUPLICATE_UNIQUE_PROPERTY_VALUE' || r.code === 'DUPLICATE_RECORD_ID' || (r.code === 'DUPLICATE_ROW_CONTENT' && r.fileKey)).length,
+    withoutKey: keyField ? records.filter((r) => r.action === 'create' && (r.data[keyField] === undefined || r.data[keyField] === '')).length : 0,
+    errors: errors.length,
+  };
+  return { object: type, records, errors, summary, mode, uniqueKey, filePolicy, headers: table.headers };
+}
+
+// Duplicate check shown before importing: rows whose unique value (e-mail for contacts, domain for companies,
+// record ID otherwise) already belongs to a record of the account — the rows data.js loaded from Supabase — and
+// values repeated inside the file. The import mode decides what happens with the first group, the file policy
+// with the second.
+export function analyzeDuplicates(table, mapping, options = {}) {
+  const type = options.object || 'contacts';
+  const plan = planImport(table, mapping, { ...options, object: type, mode: 'create_update' });
+  const keyField = plan.uniqueKey === 'hs_object_id' ? null : plan.uniqueKey;
+  const existing = plan.records
+    .filter((r) => r.duplicateOf === 'existing' && r.action !== 'merged')
+    .map((r) => ({ row: r.rowNumber, value: keyField ? r.data[keyField] ?? r.fileKey : String(r.matchId), matchId: r.matchId, matchName: r.matchName, matchValue: r.matchValue, secondary: Boolean(r.secondary), changes: r.changes || [], action: r.action }));
+  const groups = new Map();
+  plan.records.forEach((r) => { if (!r.fileKey) return; const g = groups.get(r.fileKey) || { value: r.fileKey, rows: [] }; g.rows.push(r.rowNumber); groups.set(r.fileKey, g); });
+  const inFile = [...groups.values()].filter((g) => g.rows.length > 1);
+  return {
+    uniqueKey: plan.uniqueKey,
+    keyLabel: UNIQUE_LABELS[plan.uniqueKey] || plan.uniqueKey,
+    checkedAgainst: ALL[type]().length,
+    existing,
+    existingCount: existing.length,
+    inFile,
+    inFileRows: inFile.reduce((s, g) => s + g.rows.length - 1, 0),
+    newCount: plan.records.filter((r) => r.action === 'create').length,
+    withoutKey: plan.summary.withoutKey,
+    invalid: plan.records.filter((r) => r.code === 'INVALID_EMAIL' || r.code === 'INVALID_RECORD_ID').length,
+  };
 }
 
 // ---------- history, limits and states ----------
@@ -509,6 +584,7 @@ export function registerImport({ name, table, plan, options }) {
   const entry = {
     id, name, object: type, system: table.format === 'paste' ? 'paste' : 'file', source: table.format === 'paste' ? 'paste' : table.format, state: deferred ? 'DEFERRED' : 'STARTED',
     rows: table.rows.length, newRecords: 0, updated: 0, associations: 0, errors: plan.errors.length, by: ME, when: new Date().toISOString(), finishedAt: '', mode: plan.mode, uniqueKey: plan.uniqueKey, options,
+    duplicates: plan.summary.duplicatesExisting || 0, fileDuplicates: plan.summary.duplicatesInFile || 0, merged: plan.summary.merged || 0, filePolicy: plan.filePolicy || 'first',
   };
   saveHistory([entry, ...list]);
   saveDetail(id, { timeline: [{ state: entry.state, at: entry.when, note: deferred ? 'Hay 3 importaciones en proceso; esta empezará cuando termine una.' : '' }], headers: table.headers, mapping: options.mapping || [], errors: plan.errors, failedRows: plan.records.filter((r) => r.action === 'skip').map((r) => ({ row: r.rowNumber, code: r.code, cells: r.cells })), summary: plan.summary });
@@ -535,7 +611,7 @@ export async function runImport(id, plan, { onProgress, isCanceled, chunk = 40, 
   const result = { created: 0, updated: 0, associations: 0, failed: plan.records.filter((r) => r.action === 'skip').length, createdIds: [] };
   try {
     setState(id, 'PROCESSING');
-    const todo = plan.records.filter((r) => r.action !== 'skip');
+    const todo = plan.records.filter((r) => r.action === 'create' || r.action === 'update'); // merged rows travel inside the row they were merged into
     for (let i = 0; i < todo.length; i += chunk) {
       if (isCanceled && isCanceled()) { setState(id, 'CANCELED', `Cancelada por el usuario tras ${result.created + result.updated} registros.`); updateImport(id, { newRecords: result.created, updated: result.updated, associations: result.associations }); return { ...result, state: 'CANCELED' }; }
       todo.slice(i, i + chunk).forEach((r) => {
