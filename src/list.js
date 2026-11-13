@@ -1203,7 +1203,8 @@ export function mountList(cfg) {
         <section class="kcol" data-group="${esc(value)}">
           <header class="kcol__head">
             <h2>${esc(label)} <span class="kcol__count">${rows.length}</span></h2>
-            ${b.sum ? `<span class="kcol__sum">${esc(b.sum(rows))}</span>` : ''}
+            ${b.sum ? `<span class="kcol__sum" title="Total de la etapa">${esc(b.sum(rows))}</span>` : ''}
+            ${b.weighted ? `<span class="kcol__sum kcol__sum--weighted" title="Cantidad neta (ponderada): importe de la etapa × probabilidad de cierre">${esc(b.weighted(rows))}</span>` : ''}
             <span class="kcol__tools">
               <div class="menu">
                 <button class="kcol__tool" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Opciones de la etapa">⋮</button>

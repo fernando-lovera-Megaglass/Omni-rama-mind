@@ -89,6 +89,8 @@ mountList({
       if (a.closeDate) setField('deals', r.id, 'closeDate', TODAY.toISOString());
     },
     sum: (rows) => formatMoney(rows.reduce((s, d) => s + home(d), 0)),
+    // Weighted (net) amount of the column: stage total × close probability.
+    weighted: (rows) => `pond. ${formatMoneyShort(rows.reduce((s, d) => s + (home(d) * probOf(d)) / 100, 0))}`,
     lines: (r) => [
       ['Importe', money(r)],
       ['Fecha de cierre', formatDate(r.closeDate)],

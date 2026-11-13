@@ -3789,6 +3789,10 @@ td.cell--hl .cell__pen {
   white-space: nowrap;
 }
 
+.kcol__sum--weighted {
+  color: var(--c-link);
+}
+
 .kcol__head h2 {
   flex: 1;
   min-width: 0;
