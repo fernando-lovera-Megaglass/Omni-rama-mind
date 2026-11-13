@@ -19,6 +19,7 @@ const pages = {
   settings: 'settings/index.html',
   data: 'data/index.html',
   'data-import': 'data/import/index.html',
+  segments: 'segments/index.html',
 };
 
 export default defineConfig({

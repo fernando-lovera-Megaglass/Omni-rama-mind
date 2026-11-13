@@ -6,6 +6,7 @@
 // three are running), the limits and the downloads.
 import { ALL, addRecord, setField, OWNERS, TODAY, getViewStore, setViewStore, strip, dealPipelines, stagesFor, ticketPipelines, TICKET_STATUSES, TASK_STATUSES, DEAL_STAGES } from './data.js';
 import { propertyList, customProperties, saveCustomProperties } from './properties.js';
+import { addSegment } from './segments-data.js';
 
 export const ME = 'Fernando L.';
 export const IMPORTS_KEY = 'crm:imports';
@@ -584,6 +585,8 @@ export function createSegment(type, id, name) {
   store.custom.push({ id: viewId, name: name || `Importación ${id}`, owner: ME, share: 'private', base: 'all', filters: {}, advanced: [{ key: 'hs_import_ids', op: 'contains', value: String(id), value2: '', group: 0, assoc: '', label: '' }], sort: { key: 'created', dir: -1 }, columns: type === 'contacts' ? ['name', 'email', 'phone', 'owner', 'created'] : undefined, updated: Date.now() });
   store.open = [...(store.open || []), viewId];
   setViewStore(type, store);
+  // The segment also appears in Segmentos (an active segment on the import id).
+  if (type !== 'tasks') addSegment({ name: name || `Importación ${id}`, object: type, type: 'active', filters: [{ key: 'hs_import_ids', op: 'contains', value: String(id) }], importId: id });
   return viewId;
 }
 

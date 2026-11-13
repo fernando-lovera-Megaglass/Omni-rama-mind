@@ -15,7 +15,7 @@ const NAV = [
     ['Empresas', 'companies/'],
     ['Negocios', 'deals/'],
     ['Tickets', 'tickets/'],
-    ['Listas', '#'],
+    ['Segmentos', 'segments/'],
     ['Bandeja de entrada', '#'],
     ['Llamadas', '#'],
     ['Tareas', 'tasks/'],
