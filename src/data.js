@@ -396,6 +396,13 @@ const TABLE_COLS = {
 // anything else (associations, custom fields) is stored in the extra jsonb column.
 // Numeric/date columns reject empty strings in Postgres; store null instead.
 const EMPTY_AS_NULL = new Set(['company_id', 'contact_id', 'employees', 'revenue', 'amount', 'created', 'last_activity', 'close_date', 'due']);
+// Where a record field lives in Supabase: a real column, or inside the `extra` jsonb (the filter panel
+// translates its conditions into the query with this). { column, json } — json true when it is extra->>key.
+export function dbColumnFor(type, key) {
+  const col = (CAMEL_TO_DB[type] && CAMEL_TO_DB[type][key]) || key;
+  if ((TABLE_COLS[type] || []).includes(col)) return { column: col, json: false };
+  return { column: `extra->>${key}`, json: true };
+}
 function toDb(type, rec) {
   const props = PROP_CACHE[type] || propertyList(type);
   const propKeys = new Set(props.map((p) => p.key));

@@ -7,7 +7,9 @@ import { defaultTabs, deletedViews, saveDeletedViews } from './std-views.js';
 import { propertyGroups, propertyMap } from './properties.js';
 import { associationsFor, associationLabelOptions, assocPropertyGroups, assocValueOptions, assocConditionMatches, assocKindGroup, SINGULAR } from './assoc-filters.js';
 import { opsFor, kindGroup, evalCondition, conditionValues } from './filter-ops.js';
-import { createFilterEditor } from './filter-editor.js';
+import { createFilterEditor, newCondition } from './filter-editor.js';
+import { countWithConditions } from './filter-query.js';
+import { supabase as dbClient } from './supabaseClient.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
 
@@ -359,6 +361,7 @@ export function mountList(cfg) {
           <button class="icon-btn icon-btn--round icon-btn--sm" type="button" data-action="advanced" aria-label="Añadir filtro" title="Añadir filtro">+</button>
           <button class="icon-btn icon-btn--round icon-btn--sm" type="button" data-action="edit-quick" aria-label="Editar filtros rápidos" title="Editar filtros rápidos">✎</button>
           <span class="pill pill--adv" id="adv-pill" hidden><button type="button" data-action="advanced"><span class="ico ico--filter"></span> Filtros avanzados <span class="badge" id="adv-count">0</span></button><button type="button" data-action="adv-clear-all" aria-label="Quitar filtros avanzados">×</button></span>
+          <button class="link-btn" type="button" id="filters-clear-all" data-action="filters-clear-all" hidden>Borrar todo</button>
         </div>
       </div>
 
@@ -526,27 +529,44 @@ export function mountList(cfg) {
 
     <div class="drawer" id="adv-drawer" aria-hidden="true">
       <div class="drawer__panel drawer__panel--adv" role="dialog" aria-labelledby="adv-title">
-        <div class="drawer__head"><h2 id="adv-title">Filtros avanzados</h2><button class="drawer__close" type="button" data-close="adv-drawer" aria-label="Cerrar">×</button></div>
-        <div class="drawer__body">
-          <p class="muted adv-intro">Combina condiciones sobre el propio registro y sobre sus registros asociados. Dentro de un grupo deben cumplirse todas las condiciones (<strong>Y</strong>); entre grupos basta con que se cumpla uno (<strong>O</strong>).</p>
-          <details class="adv-help">
-            <summary>¿Qué puedo filtrar?</summary>
-            <dl>
-              <dt>Filtros avanzados</dt>
-              <dd>Condiciones sobre los datos del propio registro: su propietario, su fecha de creación, si tiene teléfono… Las opciones cambian según el tipo de propiedad: un texto ofrece «es igual a cualquiera de» o «contiene exactamente», un número «es mayor que» o «está entre», una fecha «es anterior a» o «es este mes», una lista «es cualquiera de». Ejemplo: «Propietario es cualquiera de: yo <strong>Y</strong> Número de teléfono es conocido».</dd>
-              <dt>Filtros por asociación</dt>
-              <dd>Condiciones sobre los registros vinculados (su empresa, sus negocios, sus tickets). El resultado sigue mostrando ${esc(plural)}. Ejemplo: «Empresa asociada › Estado/Región es igual a Florida». Con una etiqueta de asociación limitas la relación, por ejemplo solo la empresa principal.</dd>
-              <dt>Combinarlos</dt>
-              <dd>Sí: «Propietario es cualquiera de: yo <strong>Y</strong> Empresa asociada › Estado/Región es cualquiera de: Florida» mezcla un dato del registro con uno de su empresa. Un segundo grupo añade una alternativa (<strong>O</strong>).</dd>
-            </dl>
-          </details>
-          <p class="muted adv-summary" id="adv-summary"></p>
-          <div id="adv-groups"></div>
-          <button class="link-btn" type="button" id="adv-add-group">+ Añadir grupo de filtros (O)</button>
+        <div class="drawer__head"><h2 id="adv-title">Todos los filtros</h2><button class="drawer__close" type="button" data-close="adv-drawer" aria-label="Cerrar">×</button></div>
+        <div class="drawer__body allf">
+          <section class="allf__section" id="allf-assoc">
+            <h3>Asociación</h3>
+            <p class="muted">Filtrar por objeto asociado: ${esc(plural)} vinculados a otros registros (cualquiera, o los que cumplen un filtro por nombre).</p>
+            <div id="allf-assoc-rows"></div>
+            <button class="link-btn" type="button" data-allf="add-assoc">+ Agregar filtro de asociación</button>
+          </section>
+          <div class="allf__and"><span>Y</span></div>
+          <section class="allf__section" id="allf-advanced">
+            <h3>Filtros avanzados</h3>
+            <p class="muted adv-intro">Condiciones sobre las propiedades del ${esc(SINGULAR[cfg.type] || cfg.singular || cfg.title).toLowerCase()}: dentro de un grupo se cumplen todas (<strong>Y</strong>); entre grupos basta con una (<strong>O</strong>).</p>
+            <details class="adv-help">
+              <summary>¿Qué puedo filtrar?</summary>
+              <dl>
+                <dt>Filtros avanzados</dt>
+                <dd>Condiciones sobre los datos del propio registro: su propietario, su fecha de creación, si tiene teléfono… Las opciones cambian según el tipo de propiedad: un texto ofrece «es igual a cualquiera de» o «contiene exactamente», un número «es mayor que» o «está entre», una fecha «es anterior a» o «es este mes», una lista «es cualquiera de». Ejemplo: «Propietario es cualquiera de: yo <strong>Y</strong> Número de teléfono es conocido».</dd>
+                <dt>Filtros por asociación</dt>
+                <dd>Condiciones sobre los registros vinculados (su empresa, sus negocios, sus tickets). El resultado sigue mostrando ${esc(plural)}. Ejemplo: «Empresa asociada › Estado/Región es igual a Florida». Con una etiqueta de asociación limitas la relación, por ejemplo solo la empresa principal.</dd>
+                <dt>Combinarlos</dt>
+                <dd>Sí: «Propietario es cualquiera de: yo <strong>Y</strong> Empresa asociada › Estado/Región es cualquiera de: Florida» mezcla un dato del registro con uno de su empresa. Un segundo grupo añade una alternativa (<strong>O</strong>).</dd>
+              </dl>
+            </details>
+            <p class="muted adv-summary" id="adv-summary"></p>
+            <div id="adv-groups"></div>
+            <div class="allf__addwrap">
+              <button class="btn btn--ghost btn--sm" type="button" id="allf-add" data-allf="add" aria-haspopup="true" aria-expanded="false">+ Agregar filtro</button>
+              <div class="allf__pop" id="allf-pop" hidden>
+                <input type="search" id="allf-q" placeholder="Buscar propiedades de ${esc(SINGULAR[cfg.type] || cfg.singular || cfg.title).toLowerCase()}" aria-label="Buscar propiedades" autocomplete="off" />
+                <div id="allf-pop-list"></div>
+              </div>
+            </div>
+            <button class="link-btn" type="button" id="adv-add-group">+ Añadir grupo de filtros (O)</button>
+          </section>
         </div>
         <div class="drawer__foot">
           <button class="btn btn--primary" type="button" id="adv-apply">Aplicar filtros</button>
-          <button class="btn btn--ghost" type="button" id="adv-clear">Quitar todos</button>
+          <button class="btn btn--ghost" type="button" id="adv-clear">Borrar todo</button>
         </div>
       </div>
     </div>
@@ -634,13 +654,15 @@ export function mountList(cfg) {
   // of that association (optionally only those with cond.label) instead of the record itself.
   const groupedConditions = () => {
     const map = new Map();
-    state.advanced.filter((c) => c.key).forEach((c) => {
+    state.advanced.filter((c) => c.key && c.section !== 'assoc').forEach((c) => {
       const g = Number(c.group) || 0;
       if (!map.has(g)) map.set(g, []);
       map.get(g).push(c);
     });
     return [...map.values()];
   };
+  // The "Asociación" section of the panel: its conditions are joined with Y to the whole advanced block.
+  const assocSection = () => state.advanced.filter((c) => c.key && c.section === 'assoc');
   // Kind of a property of this list (explicit columns without a catalog entry get a sensible kind).
   const DATE_KEYS = new Set(['created', 'lastActivity', 'closeDate', 'due', 'closedate']);
   function ownKind(key) {
@@ -662,8 +684,9 @@ export function mountList(cfg) {
   const conditionMatches = (cond, r) => (cond.assoc ? assocConditionMatches(cfg.type, cond, r) : ownConditionMatches(cond, r));
   function applyAdvanced(list) {
     const grps = groupedConditions();
-    if (!grps.length) return list;
-    return list.filter((r) => grps.some((g) => g.every((cond) => conditionMatches(cond, r))));
+    const assoc = assocSection();
+    if (!grps.length && !assoc.length) return list;
+    return list.filter((r) => assoc.every((cond) => conditionMatches(cond, r)) && (!grps.length || grps.some((g) => g.every((cond) => conditionMatches(cond, r)))));
   }
 
   function filtered() {
@@ -1153,14 +1176,39 @@ export function mountList(cfg) {
       const label = v ? `${chip.dataset.label}: ${(f.options.find((o) => o[0] === v) || [v, v])[1]}` : chip.dataset.label;
       chip.innerHTML = `${label} <span class="caret"></span>`;
       chip.classList.toggle('is-set', Boolean(v));
+      // an active chip gets its own × to remove just that filter
+      let x = chip.parentElement.querySelector('.qchip__x');
+      if (v && !x) { x = document.createElement('button'); x.type = 'button'; x.className = 'qchip__x'; x.textContent = '×'; x.setAttribute('aria-label', `Quitar filtro ${chip.dataset.label}`); x.dataset.filterClear = key; chip.after(x); }
+      if (!v && x) x.remove();
     });
     const adv = state.advanced.filter((c) => c.key).length;
     $('adv-pill').hidden = adv === 0;
     $('adv-count').textContent = String(adv);
+    if ($('filters-clear-all')) $('filters-clear-all').hidden = !(adv || Object.values(state.filters).some(Boolean));
     renderPreview();
     renderPipeline();
     renderKpis(list);
+    verifyCount(list.length);
     if (cfg.onRender) cfg.onRender(list);
+  }
+  // With Supabase, the panel's conditions are also run as a WHERE on the table; the pill carries the
+  // database's count (only when every condition can be expressed and no other filter is active).
+  let countSeq = 0;
+  function verifyCount(local) {
+    const pill = $('total-pill');
+    if (!pill) return;
+    delete pill.dataset.dbCount;
+    pill.title = '';
+    const conds = state.advanced.filter((c) => c.key);
+    if (!dbClient || !conds.length || Object.values(state.filters).some(Boolean) || state.q || (cfg.pipeline && state.pipeline) || state.base !== cfg.views[0].key) return;
+    const seq = (countSeq += 1);
+    countWithConditions(dbClient, cfg.type, conds, { kindOf: ownKind })
+      .then((n) => {
+        if (seq !== countSeq || n === null) return;
+        pill.dataset.dbCount = String(n);
+        pill.title = `${n} según la consulta en Supabase${n !== local ? ` (${local} en esta vista)` : ''}`;
+      })
+      .catch(() => {});
   }
 
   // ---------- pipeline selector (deals) ----------
@@ -2195,18 +2243,97 @@ export function mountList(cfg) {
     if (f && f.options) return f.options.map(([, l]) => [l, l]);
     return null;
   };
+  // The editor works on the advanced block; the "Asociación" section keeps its own conditions (section: 'assoc').
   const advEditor = createFilterEditor({
     type: cfg.type,
     container: $('adv-groups'),
     summary: $('adv-summary'),
-    get: () => state.advanced,
-    set: (c) => { state.advanced = c; },
+    get: () => state.advanced.filter((c) => c.section !== 'assoc'),
+    set: (c) => { state.advanced = [...state.advanced.filter((x) => x.section === 'assoc'), ...c]; },
     ownValueOptions,
     fallbackKind: (key) => ownKind(key),
     extraProperties: cfg.columns.filter((c) => !props[c.key]).map((c) => [c.key, c.label]),
     singular: SINGULAR[cfg.type] || cfg.singular || cfg.title,
   });
-  const renderAdvRows = () => advEditor.render();
+  // ---------- "Todos los filtros": the association section and the add-filter popover ----------
+  const assocChoices = associationsFor(cfg.type);
+  function renderAssocRows() {
+    const box = $('allf-assoc-rows');
+    if (!box) return;
+    const rows = state.advanced.filter((c) => c.section === 'assoc');
+    box.innerHTML = rows.length
+      ? rows.map((c) => {
+        const i = state.advanced.indexOf(c);
+        const mode = c.op === 'filled' ? 'any' : 'name';
+        return `<div class="allf__assoc" data-i="${i}">
+          <select data-ak="assoc" aria-label="Objeto asociado">${assocChoices.map((a) => `<option value="${a.key}" ${c.assoc === a.key ? 'selected' : ''}>${esc(a.label)}</option>`).join('')}</select>
+          <select data-ak="mode" aria-label="Condición"><option value="any" ${mode === 'any' ? 'selected' : ''}>está asociado a cualquiera</option><option value="name" ${mode === 'name' ? 'selected' : ''}>está asociado a registros cuyo nombre contiene</option></select>
+          <button class="icon-btn" type="button" data-ak="rm" aria-label="Quitar filtro de asociación">×</button>
+          <input class="allf__assoc-value" data-ak="value" type="text" value="${esc(Array.isArray(c.value) ? c.value.join('; ') : c.value)}" placeholder="Nombre del registro asociado…" aria-label="Nombre" ${mode === 'name' ? '' : 'hidden'} />
+        </div>`;
+      }).join('')
+      : '<p class="muted allf__none">Sin filtros de asociación.</p>';
+  }
+  const KIND_ICON = (kind) => { const g = kindGroup(kind); return g === 'date' ? ['📅', 'date', 'Fecha'] : g === 'number' ? ['#', 'number', 'Número'] : g === 'bool' ? ['☑', 'bool', 'Casilla'] : g === 'enum' ? ['≡', 'enum', 'Lista'] : ['Abc', 'text', 'Texto']; };
+  function renderPropPop(q = '') {
+    const listEl = $('allf-pop-list');
+    if (!listEl) return;
+    const needle = strip(q);
+    const groups = propertyGroups(cfg.type).map((g) => ({ title: g.title, items: g.items.filter(([k, l]) => !needle || strip(l).includes(needle) || strip(k).includes(needle)) })).filter((g) => g.items.length);
+    listEl.innerHTML = groups.length
+      ? groups.map((g) => `<div class="allf__cat">${esc(g.title)}</div>${g.items.map(([k, l]) => { const [glyph, cls, title] = KIND_ICON(ownKind(k)); return `<button class="allf__prop" type="button" data-allf-prop="${esc(k)}"><span class="allf__ico allf__ico--${cls}" title="${title}">${glyph}</span><span>${esc(l)}</span></button>`; }).join('')}`).join('')
+      : '<p class="muted allf__empty">Ninguna propiedad coincide con la búsqueda.</p>';
+  }
+  function togglePropPop(open) {
+    const pop = $('allf-pop');
+    if (!pop) return;
+    const show = open === undefined ? pop.hidden : open;
+    pop.hidden = !show;
+    $('allf-add').setAttribute('aria-expanded', String(show));
+    if (show) { $('allf-q').value = ''; renderPropPop(''); setTimeout(() => $('allf-q').focus(), 0); }
+  }
+  // "+ Agregar filtro": the chosen property becomes a condition of the last group (filters stack with Y).
+  function addFilterFor(key) {
+    const own = state.advanced.filter((c) => c.section !== 'assoc');
+    const target = own.length ? Math.max(...own.map((c) => Number(c.group) || 0)) : 0;
+    const cond = { ...newCondition(target), key, op: opsFor(ownGroup(key))[0][0] };
+    const blank = state.advanced.findIndex((c) => c.section !== 'assoc' && !c.key && (Number(c.group) || 0) === target);
+    if (blank >= 0) state.advanced[blank] = cond; else state.advanced.push(cond);
+    renderAdvRows();
+    togglePropPop(false);
+    const row = [...$('adv-groups').querySelectorAll('.advc')].pop();
+    row?.querySelector('[data-k="op"]')?.focus();
+  }
+  const renderAdvRows = () => { advEditor.render(); renderAssocRows(); };
+  $('adv-drawer').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-allf]');
+    if (b) {
+      e.preventDefault();
+      if (b.dataset.allf === 'add') togglePropPop();
+      else if (b.dataset.allf === 'add-assoc') {
+        if (!assocChoices.length) { toast('Este objeto no tiene asociaciones que filtrar'); return; }
+        state.advanced.push({ ...newCondition(0), assoc: assocChoices[0].key, key: 'name', op: 'filled', section: 'assoc' });
+        renderAssocRows();
+      }
+      return;
+    }
+    const prop = e.target.closest('[data-allf-prop]');
+    if (prop) { addFilterFor(prop.dataset.allfProp); return; }
+    const rm = e.target.closest('[data-ak="rm"]');
+    if (rm) { state.advanced.splice(Number(rm.closest('.allf__assoc').dataset.i), 1); renderAssocRows(); return; }
+    if (!e.target.closest('.allf__addwrap')) togglePropPop(false);
+  });
+  $('adv-drawer').addEventListener('input', (e) => {
+    if (e.target.id === 'allf-q') { renderPropPop(e.target.value); return; }
+    const row = e.target.closest('.allf__assoc');
+    if (!row || !e.target.dataset.ak) return;
+    const c = state.advanced[Number(row.dataset.i)];
+    if (!c) return;
+    const k = e.target.dataset.ak;
+    if (k === 'assoc') c.assoc = e.target.value;
+    else if (k === 'mode') { c.op = e.target.value === 'any' ? 'filled' : 'contains'; renderAssocRows(); }
+    else if (k === 'value') c.value = e.target.value;
+  });
   $('adv-add-group').addEventListener('click', () => advEditor.addGroup());
   $('adv-apply').addEventListener('click', () => {
     state.page = 1;
@@ -2215,6 +2342,8 @@ export function mountList(cfg) {
   });
   $('adv-clear').addEventListener('click', () => {
     state.advanced = [];
+    state.filters = {};
+    state.page = 1;
     renderAdvRows();
     render();
   });
@@ -2398,6 +2527,8 @@ export function mountList(cfg) {
     activateView(open.dataset.openView);
   });
   $('filter-bar').addEventListener('click', (e) => {
+    const clear = e.target.closest('[data-filter-clear]');
+    if (clear) { delete state.filters[clear.dataset.filterClear]; state.page = 1; render(); return; }
     const item = e.target.closest('.menu__item[data-filter]');
     if (!item) return;
     state.filters[item.dataset.filter] = item.dataset.value;
@@ -2633,6 +2764,11 @@ export function mountList(cfg) {
     } else if (a === 'edit-quick') { window.location.href = `../settings/#obj-${cfg.type}:index`; }
     else if (a === 'adv-clear-all') {
       state.advanced = [];
+      render();
+    } else if (a === 'filters-clear-all') {
+      state.advanced = [];
+      state.filters = {};
+      state.page = 1;
       render();
     } else if (a === 'undo-layout') undoLayout();
     else if (a === 'mode-board') setMode('board');

@@ -1,5 +1,16 @@
 # Progreso — Omni CRM
 
+## 2026-11-13 (sesión 5) · Panel «Todos los filtros» del original (contactos, empresas y negocios)
+
+**Construido** (`src/list.js`, común a las listas; `src/filter-query.js` nuevo)
+- El botón «Filtro» / «Filtros avanzados» abre el panel lateral derecho **Todos los filtros** con dos secciones unidas por el conector **Y**:
+  - **Asociación** — «Filtrar por objeto asociado»: filas con el objeto (Empresa asociada, Negocio asociado, Ticket asociado según la lista) y la condición «está asociado a cualquiera» o «está asociado a registros cuyo nombre contiene …». Se guardan como condiciones de asociación (`section: 'assoc'`) y se combinan con Y con todo el bloque avanzado (también cuando este tiene varios grupos O).
+  - **Filtros avanzados** — el editor compartido (grupos Y/O) más el botón **+ Agregar filtro**, que abre un popover con buscador «Buscar propiedades de contacto» y las propiedades agrupadas por categoría (Información del contacto, etc.) con icono por tipo (Abc texto, 📅 fecha, # número, ☑ casilla, ≡ lista). Elegir una añade la condición al último grupo (apilado con Y) con su operador por tipo: texto (es igual a cualquiera de / contiene / comienza con / termina con / es conocido / es desconocido), fecha (es / anterior / posterior / entre / hace menos de N días / hoy, esta semana, este mes…), número (= / ≠ / > / ≥ / < / ≤ / entre), lista (es cualquiera de / no es ninguno de).
+  - Pie: **Aplicar filtros** y **Borrar todo** (vacía las dos secciones y los filtros rápidos).
+- Chips de filtro rápido sobre la tabla (Propietario del contacto, Fecha de creación, Última actividad, Estado del lead, Etapa del ciclo de vida): abren su mini-menú; el chip activo muestra «Propiedad: valor», cambia de color y lleva su propia × para quitarlo; un enlace «Borrar todo» junto a los chips limpia todo lo activo.
+- Los filtros se aplican a los registros cargados de Supabase y el recuento del pill «N contactos» los refleja al instante. Además `src/filter-query.js` traduce las condiciones del panel a la consulta de Supabase (WHERE: `in`, `not.in`, `ilike` con prefijo/sufijo, `is.null`, `gte/lte/gt/lt`, rangos de fechas relativos; columna real o `extra->>clave` según `dbColumnFor`) y, con conexión, el pill recibe el recuento de la base de datos (`data-db-count` y tooltip «N según la consulta en Supabase»); si una condición no se puede expresar (asociaciones, varios grupos O, números/fechas dentro de `extra`), se conserva el recuento local.
+- Pruebas: `scripts/smoke-all-filters.mjs` (estructura del panel, asociación «cualquiera» y por nombre, popover con búsqueda/categorías/iconos, operadores por tipo, apilado con Y, chips con ×, Borrar todo, traducción a consulta y recuento con cliente simulado) + suite completa (30) en verde; `npm run build` OK.
+
 ## 2026-11-13 (sesión 5) · Selección masiva en las listas (barra de acciones del original)
 
 **Construido** (`src/list.js`, común a todas las listas; configurado en `contacts.js`, `companies.js` y `deals.js`)
