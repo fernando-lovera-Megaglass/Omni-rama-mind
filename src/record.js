@@ -17,6 +17,7 @@ wireLinkTooltips();
 import { openCompose, editSignature } from './compose.js';
 import { ownerHtml } from './list.js';
 import { loadLayout, cardCatalog } from './layout-defaults.js';
+import { mountQueueBar, dueText, dueClass, completeTask } from './task-queue.js';
 
 const type = document.body.dataset.type;
 const root = '../../';
@@ -114,9 +115,11 @@ const $ = (s) => document.getElementById(s);
 const mount = $('record-root');
 const props = propertyMap(type);
 const FOLLOW_KEY = `crm:${type}:follow:${id}`;
+let queueBar = null; // the task-queue bar on top of the page (mounted at the end, refreshed after saves)
 
 // ---------- static layout ----------
 mount.innerHTML = `
+  <div class="tq" id="task-queue" hidden></div>
   <div class="record">
     <section class="record__left">
       <div class="card card--tight">
@@ -670,6 +673,12 @@ function assocCard(title, rows, kind) {
   });
   const sortable = ['created', ...s.props.filter((k) => k !== 'name')];
   const lines = s.props.filter((k) => k !== 'name');
+  // Tasks can be completed right here: pending ones first, a checkbox instead of the initials.
+  const isTask = kind === 'tasks';
+  if (isTask) list.sort((a, b) => Number(a.status === 'done') - Number(b.status === 'done'));
+  const head = (r) => isTask
+    ? `<input type="checkbox" class="assoc-card__check" data-task-done="${r.id}" ${r.status === 'done' ? 'checked' : ''} aria-label="${r.status === 'done' ? 'Reabrir tarea' : 'Marcar como completada'}" title="${r.status === 'done' ? 'Reabrir tarea' : 'Marcar como completada'}" /><a href="${href(r)}"><strong>${esc(r.name)}</strong></a><span class="assoc-card__due ${r.status === 'done' ? '' : dueClass(r)}">${r.status === 'done' ? 'Completada' : esc(dueText(r))}</span>`
+    : `<span class="assoc__logo">${esc(initials(r.name))}</span><a href="${href(r)}"><strong>${esc(r.name)}</strong></a>`;
   return `
     <div class="card card--assoc" data-kind="${kind}">
       <div class="card__head">
@@ -696,8 +705,8 @@ function assocCard(title, rows, kind) {
             .slice(0, 4)
             .map(
               (r) => `
-          <div class="assoc-card">
-            <div class="assoc-card__head"><span class="assoc__logo">${esc(initials(r.name))}</span><a href="${href(r)}"><strong>${esc(r.name)}</strong></a></div>
+          <div class="assoc-card${isTask && r.status === 'done' ? ' is-done' : ''}">
+            <div class="assoc-card__head">${head(r)}</div>
             ${lines.map((k) => `<div class="assoc-card__row"><span class="muted">${esc(kindLabel(kind, k))}:</span> <a href="#">${esc(kindValue(kind, k, r))}</a> <button class="copy" type="button" data-copy="${esc(kindValue(kind, k, r))}" aria-label="Copiar">⧉</button></div>`).join('')}
             ${s.quick ? `<span class="tag ${r.assocLabel === 'Principal' ? 'tag--done' : 'tag--none'} assoc-card__label">${esc(r.assocLabel === 'Principal' ? `${(KIND_META[kind] || { s: kind }).s} con ${cfg.singular} principal` : r.assocLabel)}</span>` : ''}
           </div>`,
@@ -1261,6 +1270,7 @@ function save(key, value, label) {
   const lbl = label || (cfg.fields.find((f) => f[0] === key) || props[key] || { label: key })[1] || props[key]?.label || key;
   addHistory(key, from, value, lbl);
   renderAll();
+  if (queueBar) queueBar.refresh();
   toast('Guardado');
 }
 
@@ -1770,6 +1780,18 @@ if (!rec) {
   mount.addEventListener('change', (e) => {
     const sel = e.target.closest('[data-lead]');
     if (sel) save(sel.dataset.lead, sel.value, sel.dataset.lead === 'lead_stage' ? 'Etapa del lead' : 'Tipo de lead');
+    // Completing (or reopening) an associated task from its card.
+    const cb = e.target.closest('[data-task-done]');
+    if (cb) {
+      const t = findRecord('tasks', cb.dataset.taskDone) || { name: 'Tarea' };
+      completeTask(cb.dataset.taskDone, cb.checked);
+      addEvent({ type: 'task', when: Date.now(), who: 'Tú', text: cb.checked ? `Tarea completada: "${t.name}".` : `Tarea reabierta: "${t.name}".` });
+      toast(cb.checked ? 'Tarea completada' : 'Tarea reabierta');
+      renderRight();
+      renderAi();
+      if (queueBar) queueBar.refresh();
+      return;
+    }
     if (e.target.id === 'file-add') {
       const files = loadFiles();
       [...e.target.files].forEach((f) => files.unshift({ name: f.name, size: f.size, when: formatDate(new Date()) }));
@@ -1994,3 +2016,8 @@ $('side-toggle').addEventListener('click', () => {
   applySide();
 });
 applySide();
+
+// Task queue bar ("Iniciar N tareas" on the tasks list): shown while a queue is in progress.
+if (rec) {
+  queueBar = mountQueueBar({ container: $('task-queue'), root, onChange: () => { rec = findRecord(type, id) || rec; renderAll(); } });
+}

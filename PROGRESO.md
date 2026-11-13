@@ -1,5 +1,17 @@
 # Progreso — Omni CRM
 
+## 2026-11-13 (sesión 5) · Cola de tareas estilo HubSpot (cola `cola-tareas`)
+
+**Construido**
+- `src/task-queue.js` (nuevo): estado de la cola en localStorage (`crm:taskqueue`: ids, posición, completadas, omitidas, nombre de la vista), tramos de vencimiento compartidos (`dueMatches`, `dueText`, `dayDiff`), `completeTask` (estado + `completedAt`), y `mountQueueBar` → barra fija en la parte superior de las fichas mientras hay una cola: "Tarea N de M" con barra de progreso, título (enlace a la tarea), vencimiento (rojo si venció, naranja si es hoy), tipo, prioridad, asignada a, contacto; botones ‹ ›, **Omitir**, **Completar y siguiente** (o "Siguiente" si ya está completada; "Completar y terminar" en la última) y **Salir de la cola**. Si la ficha abierta no es la de la tarea actual, ofrece "Ir a la tarea". Al terminar: "Cola terminada · completaste X de M" con "Trabajar las omitidas (k)", "Volver a tareas" y "Salir".
+- `src/tasks.js`: botón **Iniciar N tareas** en la barra de la lista (N = tareas pendientes de la vista actual, con sus filtros y orden; deshabilitado si no hay). Al pulsarlo abre la ficha del contacto asociado a la primera tarea (o la propia tarea si no tiene contacto), como el original. Nuevo filtro rápido **Fecha de vencimiento** (Vencidas, Hoy, Mañana, Esta semana, Próximos 7 días, Más adelante, Sin fecha); las vistas **Vencen hoy / Atrasadas / Próximas** calculan por día natural respecto a la fecha de referencia de la app. Banner "Cola en curso: tarea N de M … Continuar la cola / Salir" cuando hay una cola abierta. La columna de vencimiento colorea las vencidas y las de hoy.
+- `src/record.js`: la tarjeta **Tareas** de la ficha (contacto) muestra una casilla por tarea para **completarla o reabrirla ahí mismo** (pendientes primero, "Vence hoy / Venció hace N días / Completada"); al completar se registra en la cronología ("Tarea completada: …") y se refresca la barra de la cola. La ficha de la tarea ("Marcar como completada") también actualiza la barra.
+- Pruebas: `scripts/smoke-task-queue.mjs` (3 fases: lista, ficha de contacto con cola, ficha de tarea) + las 20 anteriores en verde. `npm run build` OK. Capturas en `/tmp/cany-shot/tq-*.png`.
+
+**Notas**
+- Las colas con nombre del original ("Mis colas", propiedad `hs_queue_membership_ids`) siguen siendo solo una propiedad de la tarea; la cola de trabajo se construye desde cualquier vista.
+- "Hoy" es la fecha de referencia de los datos de muestra (`TODAY` en `src/data.js`), no el reloj del equipo.
+
 ## 2026-11-12 (sesión 4) · Segmentos (espec `especificacion-segmentos-propiedades-crm.md`, PARTE A)
 
 **Construido**

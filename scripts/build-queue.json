@@ -12,13 +12,14 @@
       "id": "segmentos",
       "status": "done",
       "instruction": "Continúa el proyecto Omni CRM (app/): implementa el módulo de Segmentos según especificacion-segmentos-propiedades-crm.md (PARTE A): segmentos activos y estáticos sobre contactos, empresas, negocios y tickets, editor de filtros reutilizando el sistema de filtros de src/list.js y src/filter-ops.js, entrada en la navegación (CRM > Listas). Persiste en Supabase (nueva tabla segments, migración en supabase/). Verifica con npm run build.",
-      "completedAt": "2026-11-12T23:30:00-0600",
-      "note": "Construido por Claude (Craft Anything): editor de segmentos, tabla segments en Supabase (supabase/segments.sql), filtros compartidos (src/filter-editor.js). Pendiente del usuario: ejecutar la migración."
+      "completedAt": "2026-11-12T23:42:24-0600"
     },
     {
       "id": "cola-tareas",
-      "status": "pending",
-      "instruction": "Continúa el proyecto Omni CRM (app/): implementa la cola de tareas estilo HubSpot en la página de tareas: vista de cola donde el usuario trabaja tareas una por una (completar y pasar a la siguiente), filtros por vencimiento (hoy, vencidas, próximas), y completar tarea desde la ficha del registro asociado. Verifica con npm run build."
+      "status": "done",
+      "instruction": "Continúa el proyecto Omni CRM (app/): implementa la cola de tareas estilo HubSpot en la página de tareas: vista de cola donde el usuario trabaja tareas una por una (completar y pasar a la siguiente), filtros por vencimiento (hoy, vencidas, próximas), y completar tarea desde la ficha del registro asociado. Verifica con npm run build.",
+      "completedAt": "2026-11-13T01:05:00-0600",
+      "note": "Construido por Claude (Craft Anything): src/task-queue.js (cola en localStorage, barra en las fichas), botón 'Iniciar N tareas' y filtro 'Fecha de vencimiento' en src/tasks.js, casilla de completar en la tarjeta Tareas de la ficha (src/record.js). Prueba scripts/smoke-task-queue.mjs."
     },
     {
       "id": "reportes-datos-reales",
