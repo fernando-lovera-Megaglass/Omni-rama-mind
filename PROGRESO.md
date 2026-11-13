@@ -1,5 +1,18 @@
 # Progreso — Omni CRM
 
+## 2026-11-13 (sesión 5) · Datos ficticios de prueba en `activities` y `segments`
+
+**Construido**
+- `scripts/seed-demo-activities-segments.mjs` (ejecutar con `node --env-file=.env scripts/seed-demo-activities-segments.mjs`): siembra en Supabase, respetando el esquema actual de ambas tablas:
+  - 30 actividades de las últimas 3 semanas, con el prefijo «[Prueba]» y contenido claramente ficticio: 11 llamadas (resultados Conectado / Ocupado / No contesta / Dejó mensaje de voz / Dejó mensaje en directo / Número equivocado, entrantes y salientes, 5–30 min), 7 correos (asunto y dirección), 6 reuniones (duración, lugar, resultado; una programada) y 6 notas, asociadas a contactos (1, 2, 3, 5, 6, 11, 16, 21, 26), empresas (1, 4, 7, 8, 15, 22) y negocios (1, 2, 4, 5, 7, 9) de la muestra. `extra` lleva los mismos campos que escribe la ficha (`outcome`, `direction`, `durationMin`, `locationType`, `subject`).
+  - 12 segmentos «Prueba · …» (9 activos y 3 estáticos sobre contactos, empresas y negocios) con `filters` en el formato real del editor (Y dentro del grupo, O entre grupos, `anyof` en listas, `contains` en texto, `gt` en importes), tres carpetas («Pruebas de filtros», «Campañas ficticias») y campañas; los estáticos llevan `member_ids`. El tamaño de cada activo se calcula con el propio `segmentMembers` de la app y se guarda en `size`.
+  - Idempotente: cada fila lleva `extra.seed = "omni-demo-2026-11"`; al volver a ejecutar se borran solo las filas de la siembra anterior y se insertan de nuevo. No toca las demás filas.
+  - Fase 2 de verificación: carga los módulos de la app (con una sesión simulada para pasar la protección de rutas) y confirma que `segments()` ve los 12 segmentos con miembros y que `activitiesFor` lee las actividades de varios registros. Resultado: `activities` = 42 filas (30 sembradas), `segments` = 12.
+- `src/supabaseClient.js`: en Node (`import.meta.env` no existe) lee las claves de `process.env`, así los scripts con `--env-file=.env` usan los mismos módulos que la app. Las pruebas sin `.env` siguen en modo local.
+
+**Notas**
+- La siembra usa la clave anónima (políticas `anon full access`); `user_id` queda en NULL en esas filas.
+
 ## 2026-11-13 (sesión 5) · Autenticación real con Supabase Auth (cola `auth-supabase`)
 
 **Construido**

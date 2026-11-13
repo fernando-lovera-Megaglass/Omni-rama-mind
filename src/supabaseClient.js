@@ -2,8 +2,10 @@
 // demo mode with localStorage, so smoke tests and offline dev stay intact.
 import { createClient } from '@supabase/supabase-js';
 
-const url = import.meta.env?.VITE_SUPABASE_URL;
-const key = import.meta.env?.VITE_SUPABASE_ANON_KEY;
+// Vite fills import.meta.env in the browser; Node scripts (node --env-file=.env scripts/…) only have process.env.
+const env = import.meta.env || (typeof process !== 'undefined' && process.env) || {};
+const url = env.VITE_SUPABASE_URL;
+const key = env.VITE_SUPABASE_ANON_KEY;
 
 export const supabase = url && key ? createClient(url, key) : null;
 export const DB_MODE = !!supabase;
