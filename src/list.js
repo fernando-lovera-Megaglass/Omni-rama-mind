@@ -269,13 +269,15 @@ export function mountList(cfg) {
             <button class="menu__item" type="button" data-action="restore">Restaurar registros eliminados</button>
           </div>
         </div>
-        <div class="menu">
+        ${cfg.addDirect
+          ? `<button class="btn btn--primary btn--pillx" type="button" data-action="create">${cfg.addLabel || `Agregar ${plural}`}</button>`
+          : `<div class="menu">
           <button class="btn btn--primary btn--pillx" type="button" aria-haspopup="true" aria-expanded="false">${cfg.addLabel || `Agregar ${plural}`} <span class="caret"></span></button>
           <div class="menu__panel menu__panel--right">
             <button class="menu__item" type="button" data-action="create">${cfg.createLabel}</button>
             <a class="menu__item" href="../data/?from=${cfg.type}">Importar desde un archivo</a>
           </div>
-        </div>
+        </div>`}
       </div>
     </div>
 
@@ -1304,7 +1306,7 @@ export function mountList(cfg) {
       const mv = e.target.closest('[data-kcol-move]');
       if (mv) { closeMenus(); moveStage(mv.dataset.group, Number(mv.dataset.kcolMove)); return; }
       const add = e.target.closest('[data-kcol-add]');
-      if (add) { openCreate({ [cfg.board.key]: add.dataset.kcolAdd }); return; }
+      if (add) { createEntry({ [cfg.board.key]: add.dataset.kcolAdd }); return; }
       const ai = e.target.closest('[data-kai]');
       if (ai) {
         const r = recordById(ai.dataset.kai);
@@ -2230,6 +2232,8 @@ export function mountList(cfg) {
     Object.entries(pendingCreate || {}).forEach(([k, v]) => { const field = form.elements[k]; if (field) field.value = v; });
     openDrawer('create-drawer');
   }
+  // A page may bring its own create panel (contacts: the original's slide-over); the generic drawer otherwise.
+  const createEntry = (prefill) => (cfg.openCreate ? cfg.openCreate(prefill) : openCreate(prefill));
 
   // ---------- create ----------
   $('create-form').addEventListener('submit', (e) => {
@@ -2399,7 +2403,7 @@ export function mountList(cfg) {
     e.preventDefault();
     const a = el.dataset.action;
     closeMenus();
-    if (a === 'create') openCreate();
+    if (a === 'create') createEntry();
     else if (a === 'columns') openColumnEditor();
     else if (a === 'advanced') { renderAdvRows(); openDrawer('adv-drawer'); }
     else if (a === 'import') { location.href = `../data/?from=${cfg.type}`; } // imports live in Gestión de datos › Integración de datos, as in the original

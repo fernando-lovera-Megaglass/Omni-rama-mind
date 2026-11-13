@@ -11698,3 +11698,155 @@ a.is-done {
 .menu__item--static[hidden] {
   display: none;
 }
+
+/* ---------- "Crear contacto": slide-over panel on the right (no page change) ---------- */
+.slideover {
+  position: fixed;
+  inset: 0;
+  z-index: 160;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.slideover.is-open {
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.slideover__scrim {
+  position: absolute;
+  inset: 0;
+  background: rgba(33, 51, 67, 0.45);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.slideover.is-open .slideover__scrim {
+  opacity: 1;
+}
+
+.slideover__panel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 450px;
+  max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--c-white);
+  box-shadow: -12px 0 32px rgba(0, 0, 0, 0.25);
+  transform: translateX(100%);
+  transition: transform 0.25s ease;
+}
+
+.slideover.is-open .slideover__panel {
+  transform: translateX(0);
+}
+
+.slideover__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--sp-16) var(--sp-20);
+  background: var(--c-nav);
+  color: var(--c-white);
+}
+
+.slideover__head h2 {
+  margin: 0;
+  font-size: var(--fs-md);
+  font-weight: 600;
+}
+
+.slideover__close {
+  border: 0;
+  background: transparent;
+  color: var(--c-white);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.slideover__body {
+  flex: 1;
+  overflow: auto;
+  padding: var(--sp-16) var(--sp-20);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-10);
+}
+
+.slideover__foot {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  padding: var(--sp-10) var(--sp-20);
+  border-top: 1px solid var(--c-border);
+  background: var(--c-head);
+}
+
+.slideover .btn--primary:disabled,
+.slideover .btn--ghost:disabled {
+  background: #eaf0f6;
+  color: var(--c-muted);
+  border-color: transparent;
+  cursor: default;
+}
+
+.cc-req {
+  color: #d94c53;
+}
+
+.cc-dups {
+  margin-top: var(--sp-8);
+  padding: var(--sp-16);
+  border: 1px dashed var(--c-border);
+  border-radius: var(--r-md);
+  background: var(--c-head);
+  font-size: var(--fs-xs);
+}
+
+.cc-dups__hint {
+  margin: 0;
+  text-align: center;
+}
+
+.cc-dups__title {
+  margin: 0 0 var(--sp-8);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+
+.cc-dups__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cc-dups__list li {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--sp-8);
+  padding: var(--sp-4) 0;
+  border-top: 1px solid var(--c-border);
+}
+
+.cc-dups__list li:first-child {
+  border-top: 0;
+}
+
+.cc-dups--warn {
+  border: 1px solid #f5c26b;
+  background: #fdf3e1;
+}
+
+.cc-dups__actions {
+  display: flex;
+  gap: var(--sp-8);
+  margin: var(--sp-8) 0 0;
+}
+
+body.has-slideover {
+  overflow: hidden;
+}

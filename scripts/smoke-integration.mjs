@@ -106,7 +106,9 @@ for (const type of ['contacts', 'companies', 'deals', 'tickets', 'tasks']) {
   await import(resolve(here, `../src/${type}.js`) + '?links');
   const importLinks = [...document.querySelectorAll('a.menu__item')].filter((a) => /Importar/.test(a.textContent)).map((a) => a.getAttribute('href'));
   log(`${type} import entries:`, importLinks.join(' | '), '| old drawer gone:', !document.getElementById('import-drawer'));
-  if (importLinks.length !== 2 || importLinks.some((l) => l !== `../data/?from=${type}`) || document.getElementById('import-drawer')) fail(`${type} "Importar" should lead to Integración de datos`);
+  // contacts: "Agregar contactos" opens the create panel directly, so only the ⋮ menu offers "Importar"
+  const expectedLinks = type === 'contacts' ? 1 : 2;
+  if (importLinks.length !== expectedLinks || importLinks.some((l) => l !== `../data/?from=${type}`) || document.getElementById('import-drawer')) fail(`${type} "Importar" should lead to Integración de datos`);
 }
 const dom4 = new JSDOM('<!doctype html><body class="app"><aside id="sidenav"></aside><header id="topbar"></header><main id="dint-root"></main><div id="scrim"></div></body>', { url: 'http://localhost/data/?from=companies' });
 globalThis.window = dom4.window; globalThis.document = dom4.window.document; globalThis.location = dom4.window.location;

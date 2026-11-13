@@ -1,15 +1,20 @@
 import { boot } from './page.js';
 import { mountList, tag, link, avatarName, ownerHtml } from './list.js';
 import { allContacts, allDeals, STATUSES, LIFECYCLES, SOURCES, OWNERS, formatDate, formatShortDate, TODAY, lifecycleTag } from './data.js';
+import { mountCreateContact } from './create-contact.js';
 
 boot({ root: '../', active: 'crm', sub: 'Contactos', title: 'Contactos' });
 
 const days = (iso) => (TODAY - new Date(iso)) / 86400000;
 
-mountList({
+let createPanel = null; // the original's "Crear contacto" slide-over (mounted after the list)
+const list = mountList({
   type: 'contacts',
   title: 'Contactos',
   singular: 'Contacto',
+  // "Agregar contactos" opens the slide-over right away (imports live in Gestión de datos).
+  addDirect: true,
+  openCreate: (prefill) => createPanel && createPanel.open(prefill),
   plural: 'contactos',
   addLabel: 'Agregar contactos',
   createLabel: 'Crear contacto',
@@ -97,5 +102,6 @@ mountList({
     lastActivity: TODAY.toISOString(),
   }),
 });
+createPanel = mountCreateContact({ list });
 
-export { SOURCES };
+export { SOURCES, list, createPanel };

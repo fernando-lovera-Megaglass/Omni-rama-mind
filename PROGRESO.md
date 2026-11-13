@@ -1,5 +1,15 @@
 # Progreso — Omni CRM
 
+## 2026-11-13 (sesión 5) · «Crear contacto» como panel lateral del original (`exploracion-hubspot/exploracion-2026-11-13.md`)
+
+**Construido**
+- `src/create-contact.js` (nuevo) + `src/contacts.js`: «Agregar contactos» ya no abre un menú ni cambia de página: abre un **panel deslizante a la derecha** (450 px, sombra, cabecera oscura, cierra con la X, Cancelar, Escape o el fondo). Campos en el orden del original: Correo (email), Nombre *, Apellidos *, Cargo, Propietario del contacto (lista de propietarios; por defecto el usuario de la sesión, emparejado por nombre, o el primero), Estado o región, País/región (lista), Número de teléfono, Número de móvil, Rol de compra (Persona que toma la decisión, Influenciador, Usuario final, Otro).
+- **Crear** y **Crear y agregar otro** quedan deshabilitados hasta que Nombre y Apellidos tengan valor; «Crear y agregar otro» guarda, limpia y deja el panel abierto; «Cancelar» cierra sin guardar.
+- **Duplicados en vivo**: el área inferior empieza con «Comienza por escribir el nombre del Contacto, su correo o ambos.»; al escribir correo, nombre o apellidos (300 ms de espera) busca contactos parecidos — en Supabase con `ilike` sobre `name` y `email` (hasta 5), o en los registros locales sin conexión — y muestra «Posibles duplicados» con nombre y correo enlazados a la ficha. Al guardar con un **correo que ya existe** (comparación exacta sin mayúsculas) no se crea: avisa, enlaza al contacto existente («Abrir el existente») y permite cambiar el correo.
+- Guardado: `addRecord('contacts', …)` → INSERT en la tabla `contacts` de Supabase con las columnas existentes (`first`, `last`, `name`, `email`, `phone`, `mobilephone`, `owner`, `country`, `job_title`…; `state` y `hs_buying_role` van a `extra`), propietario = usuario actual, estado del lead Nuevo, etapa Lead, fuente «Creación manual»; después cierra el panel, refresca la lista y muestra «Contacto creado». La regla de empresa por dominio del correo (sesión anterior) sigue aplicándose al crear.
+- `src/list.js`: opción `addDirect` (botón directo en vez de menú) y `openCreate` (panel propio de la página) también para el «+» de las columnas del tablero; las demás listas conservan el cajón genérico.
+- Pruebas: `scripts/smoke-create-contact.mjs` (apertura sin navegar, orden de campos, obligatorios, propietario por defecto, duplicados con espera, crear y agregar otro, correo duplicado, cerrar con Cancelar/Escape/X, refresco de la lista) + suite completa (28) en verde; `npm run build` OK.
+
 ## 2026-11-13 (sesión 5) · Acceso solo para usuarios invitados
 
 **Construido**
