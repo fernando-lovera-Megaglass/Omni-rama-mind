@@ -8,7 +8,7 @@ import { toast, wireMenus, closeMenus, linkHtml, wireLinkTooltips } from './shel
 import {
   findRecord, setField, deleteRecords, addRecord, allContacts, allCompanies, allDeals, allTickets, allTasks, ALL,
   STATUSES, LIFECYCLES, SOURCES, OWNERS, DEAL_STAGES, TICKET_STATUSES, PRIORITIES, TASK_TYPES, TASK_STATUSES,
-  ticketStatusesFor, ticketStatusLabel, firstOpenTicketStatus, ticketPipelines,
+  ticketStatusesFor, ticketStatusLabel, firstOpenTicketStatus, ticketPipelines, stagesFor,
   formatDate, formatMoney, initials, colorFor, labelOf, toCsv, download, TODAY, assocLabels, CURRENCY_DEFS, CURRENCY_CODES,
   activitiesFor, addActivity, historyFor, addHistoryEntry,
 } from './data.js';
@@ -55,11 +55,14 @@ const CONFIG = {
   companies: {
     label: 'Empresas', singular: 'empresa', sub: 'Empresas', listHref: `${root}companies/`,
     title: (r) => r.name, subtitle: (r) => [r.industry, r.city].filter(Boolean).join(' · '), mail: (r) => r.domain,
+    // "Información clave" of the original's company record, in its order; the last one is calculated.
     fields: [
-      ['domain', 'Dominio'], ['phone', 'Número de teléfono', 'tel'], ['owner', 'Propietario de la empresa', 'select', ownerOpts],
-      ['industry', 'Sector', 'select', opt(['Construcción', 'Arquitectura', 'Reformas', 'Inmobiliaria', 'Decoración'])], ['city', 'Ciudad'],
-      ['employees', 'Empleados', 'number'], ['revenue', 'Ingresos anuales (€)', 'number'], ['lifecycle', 'Etapa del ciclo de vida', 'select', opt(LIFECYCLES)],
-      ['created', 'Fecha de creación', 'date-ro'],
+      ['name', 'Nombre'], ['address', 'Dirección'], ['city', 'Ciudad'], ['owner', 'Propietario', 'select', ownerOpts],
+      ['lifecycle', 'Etapa del ciclo de vida', 'select', opt(LIFECYCLES)], ['hs_lead_status', 'Estado del lead', 'select', opt(['Nuevo', 'Abierto', 'En progreso', 'Abierto para negocio', 'No calificado', 'Intento de contacto', 'Conectado', 'Mal momento'])],
+      ['industry', 'Sector', 'select', opt(['Construcción', 'Arquitectura', 'Reformas', 'Inmobiliaria', 'Decoración', 'Fabricación de vidrio'])], ['customer_type', 'Tipo de Cliente', 'select', opt(['Instalador', 'Distribuidor', 'Arquitecto', 'Constructor', 'Particular'])],
+      ['notes_last_contacted', 'Último contacto', 'date'], ['target_account', 'Cuenta objetivo', 'select', opt(['Sí', 'No'])], ['products_of_interest', 'Productos de interés'],
+      ['assoc_deals_count', 'Negocios asociados', 'calc', (r) => String(allDeals().filter((d) => Number(d.companyId) === Number(r.id)).length)],
+      ['domain', 'Dominio'], ['phone', 'Número de teléfono', 'tel'], ['employees', 'Empleados', 'number'], ['revenue', 'Ingresos anuales', 'number'], ['created', 'Fecha de creación', 'date-ro'],
     ],
     highlights: (r) => [['Fecha de creación', formatDate(r.created)], ['Etapa del ciclo de vida', r.lifecycle], ['Última actividad', formatDate(r.lastActivity)], ['Ingresos anuales', formatMoney(r.revenue)]],
     assoc: (r) => [
@@ -166,6 +169,7 @@ mount.innerHTML = `
             <h1 id="rec-name">Registro <button class="pencil" type="button" data-act="rename" aria-label="Editar nombre">✎</button></h1>
             <p class="record__sub" id="rec-sub"></p>
             <p class="record__mail" id="rec-mail"></p>
+            <p class="record__mail" id="rec-phone"></p>
           </div>
         </div>
         <div class="record__quick" id="quick-row"></div>
@@ -188,6 +192,7 @@ mount.innerHTML = `
           </span>
         </div>
         <dl class="props" id="rec-props"></dl>
+        <p class="props__custom"><button class="link-btn" type="button" data-act="customize-props">Personalizar</button></p>
       </div>
     </section>
 
@@ -228,6 +233,11 @@ mount.innerHTML = `
             <button class="chip" type="button" data-kind="task">Tareas</button>
             <button class="chip" type="button" data-kind="meeting">Reuniones</button>
             <button class="chip" type="button" data-kind="message">Mensajes</button>
+          </div>
+          <div class="act-selects" id="act-selects">
+            <label class="act-select"><span>Fecha de actividad</span><select id="act-date"><option value="">Todas las fechas</option><option value="0">Hoy</option><option value="7">Últimos 7 días</option><option value="30">Últimos 30 días</option><option value="90">Últimos 90 días</option></select></label>
+            <label class="act-select"><span>Actividad asignada a</span><select id="act-who"><option value="">Cualquiera</option><option value="Tú">Tú</option>${OWNERS.filter((o) => o !== 'Sin asignar').map((o) => `<option value="${esc(o)}">${esc(o)}</option>`).join('')}<option value="Sistema">Sistema</option></select></label>
+            <button class="link-btn" type="button" data-actclear="1" id="act-clear" hidden>Borrar todo</button>
           </div>
           <form class="note" id="note-form">
             <textarea name="note" rows="3" placeholder="Escribe una nota..." aria-label="Nueva nota"></textarea>
@@ -401,6 +411,7 @@ function openLogModal(kind, { schedule = false, channel = '' } = {}) {
 function displayValue(f, r) {
   const [key, , kind, options] = f;
   const v = r[key];
+  if (kind === 'calc') return esc(typeof options === 'function' ? options(r) : '--'); // calculated (e.g. "Negocios asociados")
   if (key === 'owner' || (props[key] && props[key].kind === 'user')) return ownerHtml(v, 'sm');
   if (v === undefined || v === null || v === '') return EMPTY;
   if (kind === 'select') return esc((options.find((o) => String(o[0]) === String(v)) || [v, v])[1]);
@@ -462,7 +473,7 @@ function currentFields() {
 }
 function cardTitle() {
   const saved = loadCard();
-  return (saved && saved.title) || 'Acerca de este objeto';
+  return (saved && saved.title) || (type === 'companies' ? 'Información clave' : 'Acerca de este objeto');
 }
 
 let cardDraft = null;
@@ -517,7 +528,7 @@ function renderProps() {
   $('about-title').textContent = cardTitle();
   $('rec-props').innerHTML = currentFields()
     .map((f) => {
-      const ro = f[2] === 'ro' || f[2] === 'date-ro';
+      const ro = f[2] === 'ro' || f[2] === 'date-ro' || f[2] === 'calc';
       return `<div class="props__row" data-key="${f[0]}">
         <dt>${f[1]}</dt>
         <dd class="props__value">${displayValue(f, rec)}${ro ? '' : `<button class="props__edit" type="button" data-edit-key="${f[0]}" aria-label="Editar ${f[1]}">✎</button>`}</dd>
@@ -548,7 +559,11 @@ function renderHeader() {
   $('rec-name').firstChild.textContent = `${cfg.title(rec)} `;
   $('rec-sub').textContent = cfg.subtitle(rec);
   const mail = cfg.mail(rec);
-  $('rec-mail').innerHTML = mail ? `<a href="${mail.includes('@') ? `mailto:${esc(mail)}` : '#'}">${esc(mail)}</a> <span class="ext">↗</span>` : '';
+  const copyBtn = (v) => `<button class="copy" type="button" data-copy="${esc(v)}" aria-label="Copiar ${esc(v)}" title="Copiar">⧉</button>`;
+  $('rec-mail').innerHTML = mail ? `<a href="${mail.includes('@') ? `mailto:${esc(mail)}` : `https://${esc(mail.replace(/^https?:\/\//, ''))}`}" ${mail.includes('@') ? '' : 'target="_blank" rel="noopener"'}>${esc(mail)}</a> ${copyBtn(mail)} <span class="ext">↗</span>` : '';
+  // Phone with its own copy button (the original's company header shows domain and phone side by side).
+  const phone = rec.phone || rec.mobilephone || '';
+  if ($('rec-phone')) $('rec-phone').innerHTML = phone ? `<a href="tel:${esc(String(phone).replace(/\s+/g, ''))}">${esc(phone)}</a> ${copyBtn(phone)}` : '';
   $('follow-item').textContent = isFollowing() ? 'Dejar de seguir' : 'Seguir';
   if ($('rec-highlights')) $('rec-highlights').innerHTML = cfg.highlights(rec).map(([k, v]) => `<div class="highlight"><span class="highlight__label">${k}</span><span class="highlight__value">${esc(v)}</span></div>`).join('');
 
@@ -716,11 +731,13 @@ function assocCard(title, rows, kind) {
               (r) => `
           <div class="assoc-card${isTask && r.status === 'done' ? ' is-done' : ''}">
             <div class="assoc-card__head">${head(r)}</div>
-            ${lines.map((k) => `<div class="assoc-card__row"><span class="muted">${esc(kindLabel(kind, k))}:</span> <a href="#">${esc(kindValue(kind, k, r))}</a> <button class="copy" type="button" data-copy="${esc(kindValue(kind, k, r))}" aria-label="Copiar">⧉</button></div>`).join('')}
+            ${lines.map((k) => (kind === 'deals' && k === 'stage'
+              ? `<div class="assoc-card__row"><span class="muted">${esc(kindLabel(kind, k))}:</span> <select class="acard-stage" data-deal-stage="${r.id}" aria-label="Etapa de ${esc(r.name)}">${stagesFor(r.pipeline).map((s) => `<option value="${esc(s[0])}" ${s[0] === r.stage ? 'selected' : ''}>${esc(s[1])}</option>`).join('')}</select></div>`
+              : `<div class="assoc-card__row"><span class="muted">${esc(kindLabel(kind, k))}:</span> <a href="#">${esc(kindValue(kind, k, r))}</a> <button class="copy" type="button" data-copy="${esc(kindValue(kind, k, r))}" aria-label="Copiar">⧉</button></div>`)).join('')}
             ${s.quick ? `<span class="tag ${r.assocLabel === 'Principal' ? 'tag--done' : 'tag--none'} assoc-card__label">${esc(r.assocLabel === 'Principal' ? `${(KIND_META[kind] || { s: kind }).s} con ${cfg.singular} principal` : r.assocLabel)}</span>` : ''}
           </div>`,
             )
-            .join('') + `<a class="link-btn assoc-more" href="${root}${kind}/">Ver todos los elementos asociados del tipo ${esc(s.title)} ↗</a>`
+            .join('') + `<a class="link-btn assoc-more" href="${root}${kind}/${type === 'companies' ? `?company=${rec.id}` : type === 'contacts' ? `?contact=${rec.id}` : ''}">Ver todos los elementos asociados del tipo ${esc(s.title)} ↗</a>`
         : rows.length
           ? '<p class="muted">Ningún registro coincide con la búsqueda o el filtro.</p>'
           : `<div class="assoc-empty"><span class="assoc-empty__art" aria-hidden="true"></span><p class="muted">${esc(emptyText(kind))}</p></div>`}
@@ -897,7 +914,7 @@ function middleCardHtml(id) {
       return `<div class="card"><div class="card__head"><h3 class="card__title">${esc(label)}</h3><span class="ai-badge">✦ AI</span></div><ul class="bullets bullets--ok">
         <li>Valora la calidad del vidrio templado y la garantía.</li><li>Buena experiencia con la última instalación.</li><li>Responde rápido a los correos del equipo.</li></ul></div>`;
     case 'missing': {
-      const empty = currentFields().filter((f) => f[2] !== 'ro' && f[2] !== 'date-ro' && (rec[f[0]] === undefined || rec[f[0]] === null || rec[f[0]] === ''));
+      const empty = currentFields().filter((f) => f[2] !== 'ro' && f[2] !== 'date-ro' && f[2] !== 'calc' && (rec[f[0]] === undefined || rec[f[0]] === null || rec[f[0]] === ''));
       return `<div class="card"><h3 class="card__title">${esc(label)}</h3>${empty.length
         ? `<p>Faltan <strong>${empty.length}</strong> datos en este registro:</p><ul class="chips-list">${empty.map((f) => `<li><button class="chip" type="button" data-fill="${f[0]}">${esc(f[1])} +</button></li>`).join('')}</ul>`
         : '<p class="muted">Todos los datos de la tarjeta están completos. ✓</p>'}</div>`;
@@ -1111,13 +1128,17 @@ function sampleEvents() {
 }
 let actKind = '';
 let actQuery = '';
+let actDate = ''; // '' | days back ('0' = today)
+let actWho = ''; // '' | 'Tú' | owner name | 'Sistema'
+const actDateOk = (ev) => { if (actDate === '') return true; const n = Number(actDate); const start = new Date(); start.setHours(0, 0, 0, 0); return new Date(ev.when).getTime() >= start.getTime() - n * 86400000; };
 function allEvents() {
   const real = loadNotes();
   return (real.length ? real : sampleEvents()).sort((a, b) => b.when - a.when);
 }
 function renderTimeline() {
   const q = actQuery.toLowerCase();
-  const events = allEvents().filter((ev) => (!actKind || ev.type === actKind) && (!q || ev.text.toLowerCase().includes(q)));
+  const events = allEvents().filter((ev) => (!actKind || ev.type === actKind) && (!q || ev.text.toLowerCase().includes(q)) && actDateOk(ev) && (!actWho || ev.who === actWho));
+  if ($('act-clear')) $('act-clear').hidden = !(actKind || actDate || actWho || q);
   const fmtWhen = (ev) => {
     const d = new Date(ev.when);
     const date = formatDate(d);
@@ -1734,6 +1755,15 @@ if (!rec) {
       renderTimeline();
       return;
     }
+    if (e.target.closest('[data-actclear]')) {
+      actKind = ''; actDate = ''; actWho = ''; actQuery = '';
+      document.querySelectorAll('#act-filters .chip').forEach((c) => c.classList.toggle('is-set', c.dataset.kind === ''));
+      if ($('act-date')) $('act-date').value = '';
+      if ($('act-who')) $('act-who').value = '';
+      if ($('act-search')) $('act-search').value = '';
+      renderTimeline();
+      return;
+    }
     const quick = e.target.closest('[data-action]');
     if (quick) {
       const a = quick.dataset.action;
@@ -1797,6 +1827,22 @@ if (!rec) {
   mount.addEventListener('change', (e) => {
     const sel = e.target.closest('[data-lead]');
     if (sel) save(sel.dataset.lead, sel.value, sel.dataset.lead === 'lead_stage' ? 'Etapa del lead' : 'Tipo de lead');
+    if (e.target.id === 'act-date' || e.target.id === 'act-who') {
+      if (e.target.id === 'act-date') actDate = e.target.value; else actWho = e.target.value;
+      renderTimeline();
+      return;
+    }
+    // The stage of an associated deal is a dropdown on its card (saved straight away).
+    const stageSel = e.target.closest('[data-deal-stage]');
+    if (stageSel) {
+      const dealId = stageSel.dataset.dealStage;
+      const label = (stageSel.options[stageSel.selectedIndex] || {}).textContent || stageSel.value;
+      setField('deals', dealId, 'stage', stageSel.value);
+      addEvent({ type: 'stage', when: Date.now(), who: 'Tú', text: `Negocio "${(findRecord('deals', dealId) || {}).name || dealId}" movido a la etapa ${label}.` });
+      toast(`Etapa actualizada: ${label}`);
+      renderRight();
+      return;
+    }
     // Completing (or reopening) an associated task from its card.
     const cb = e.target.closest('[data-task-done]');
     if (cb) {

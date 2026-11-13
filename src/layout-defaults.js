@@ -133,7 +133,7 @@ export function defaultLayout(type) {
     tabs: [
       {
         id: 'overview',
-        label: 'Información destacada',
+        label: type === 'companies' ? 'Información' : 'Información destacada',
         sections: [
           { title: 'Vista general', cards: ['insights', 'recent'] },
           { title: 'Salud', cards: ['sentiment', 'challenges', 'positive'] },

@@ -1,5 +1,16 @@
 # Progreso — Omni CRM
 
+## 2026-11-13 (sesión 5) · Ficha de Empresa del original y panel «Crear empresa»
+
+**Construido**
+- `src/record.js` (ficha de empresa; las mejoras generales aplican a todas las fichas):
+  - Cabecera: avatar con inicial, nombre, **dominio y teléfono con botón de copiar al portapapeles**; acciones circulares Nota / Correo / Llamar / Tarea / Reunión / Más (ya registraban la actividad en la tabla `activities` de Supabase).
+  - Tarjeta izquierda **«Información clave»** con los campos en el orden del original: Nombre, Dirección, Ciudad, Propietario, Etapa del ciclo de vida, Estado del lead, Sector, Tipo de Cliente, Último contacto, Cuenta objetivo, Productos de interés y **«Negocios asociados» calculado** (recuento de negocios con `companyId` de la empresa, solo lectura; nuevo tipo de campo `calc`), más Dominio, Teléfono, Empleados, Ingresos y Fecha de creación; enlace **Personalizar** bajo la tarjeta.
+  - Columna derecha: tarjetas Contactos (N) / Negocios (N) / Tickets (N) con «+ Agregar» (buscador de existentes o crear nuevo), búsqueda, filtros y orden dentro de la tarjeta, etiqueta «Contacto con empresa principal», y en los negocios la **Etapa como desplegable editable en la propia tarjeta** (guarda con `setField` → UPDATE en Supabase, nota en la cronología). «Ver todos los elementos asociados» lleva a la lista **filtrada** por la empresa (`?company=<id>`; desde una ficha de contacto, `?contact=<id>`): `src/list.js` convierte el parámetro en una condición avanzada.
+  - Centro: pestañas **Información** (en empresas; «Información destacada» en el resto) / Descripción / **Actividades** / Información avanzada. En Actividades, sub-pestañas Notas, Correos, Llamadas, Tareas, Reuniones, Mensajes y **filtros «Fecha de actividad»** (hoy, 7, 30, 90 días) y **«Actividad asignada a»** (Tú, propietarios, Sistema) con «Borrar todo».
+- `src/create-company.js` (nuevo) + `src/companies.js`: «Agregar empresas» abre el panel lateral **Crear empresa** con Nombre de dominio, Nombre de la empresa (obligatorio), Propietario (usuario actual por defecto), Estado o región, País/región, Número de teléfono y Sector; detección de duplicados por dominio o nombre mientras se escribe («Comienza por escribir un nombre de dominio, un nombre de cuenta o ambos.»; `ilike` en Supabase o registros locales), aviso con enlace si el dominio ya existe; Crear / Crear y agregar otro / Cancelar; inserta en `companies` y refresca la lista.
+- Pruebas: `scripts/smoke-company-record.mjs` (cabecera y copiar, Información clave y campo calculado, pestañas y filtros de actividades, tarjetas de asociación con etapa editable y «Ver todos» filtrado, panel Crear empresa con duplicados, lista filtrada por `?company=`) + suite completa (31) en verde; `npm run build` OK.
+
 ## 2026-11-13 (sesión 5) · Panel «Todos los filtros» del original (contactos, empresas y negocios)
 
 **Construido** (`src/list.js`, común a las listas; `src/filter-query.js` nuevo)

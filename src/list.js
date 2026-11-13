@@ -2803,6 +2803,13 @@ export function mountList(cfg) {
     } else if (cfg.onAction) cfg.onAction(a, el);
   });
 
+  // Arriving from a record page ("Ver todos los … asociados"): only the records linked to it.
+  const urlParams = new URLSearchParams(location.search);
+  const linked = [['company', 'companyId', 'companies'], ['contact', 'contactId', 'contacts']].find(([p]) => urlParams.get(p));
+  if (linked && cfg.type !== linked[2] && !state.advanced.some((c) => c.key)) {
+    state.advanced = [{ ...newCondition(0), key: linked[1], op: 'in', value: [urlParams.get(linked[0])] }];
+  }
+
   wireMenus();
   wireLinkTooltips();
   render();

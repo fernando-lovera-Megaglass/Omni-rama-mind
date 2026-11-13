@@ -1,6 +1,7 @@
 import { boot } from './page.js';
 import { mountList, avatarName, ownerHtml } from './list.js';
 import { allCompanies, allContacts, allDeals, OWNERS, LIFECYCLES, formatDate, formatMoney, formatMoneyShort, formatShortDate, TODAY, lifecycleTag, toHomeCurrency, homeCurrency } from './data.js';
+import { mountCreateCompany } from './create-company.js';
 
 boot({ root: '../', active: 'crm', sub: 'Empresas', title: 'Empresas' });
 
@@ -8,13 +9,16 @@ const days = (iso) => (TODAY - new Date(iso)) / 86400000;
 const contactCount = (id) => allContacts().filter((c) => Number(c.companyId) === Number(id)).length;
 const openDeals = (id) => allDeals().filter((d) => Number(d.companyId) === Number(id) && d.stage !== 'won' && d.stage !== 'lost').length;
 
-mountList({
+let createPanel = null; // the original's "Crear empresa" slide-over (mounted after the list)
+const list = mountList({
   type: 'companies',
   title: 'Empresas',
   singular: 'Empresa',
   plural: 'empresas',
   addLabel: 'Agregar empresas',
   createLabel: 'Crear empresa',
+  addDirect: true,
+  openCreate: (prefill) => createPanel && createPanel.open(prefill),
   // Metrics card above the table ("Mostrar métricas" in the gear menu); hidden until the person turns it on.
   metricsDefault: false,
   summary: (rows) => {
@@ -91,3 +95,6 @@ mountList({
   ],
   normalize: (d) => ({ ...d, owner: d.owner || 'Sin asignar', lifecycle: d.lifecycle || 'Lead', lastActivity: TODAY.toISOString(), revenue: 0 }),
 });
+createPanel = mountCreateCompany({ list });
+
+export { list, createPanel };
