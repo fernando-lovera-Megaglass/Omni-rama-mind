@@ -3,7 +3,8 @@
 // Supabase and all edits go to the database. Without them, edits, additions
 // and deletions are kept in localStorage so the demo remembers them.
 import { propertyList } from './properties.js';
-import { supabase, DB_MODE } from './supabaseClient.js';
+import { supabase, DB_MODE, createAnonProbe } from './supabaseClient.js';
+import { requireSession, signOut, siteRoot } from './auth.js';
 
 const FIRST = ['Ana', 'Luis', 'Marta', 'Pedro', 'Lucía', 'Javier', 'Carmen', 'Diego', 'Elena', 'Raúl', 'Sara', 'Hugo', 'Paula', 'Álvaro', 'Nuria', 'Iván', 'Laura', 'Sergio', 'Irene', 'Mario', 'Clara', 'Andrés', 'Beatriz', 'Tomás', 'Rocío', 'Daniel', 'Eva', 'Jorge', 'Alicia', 'Pablo', 'Silvia', 'Rubén', 'María José', 'Juan Carlos', 'Guadalupe', 'Ximena', 'Rodrigo', 'Valentina', 'Mateo', 'Camila', 'Santiago', 'Renata', 'Emilio', 'Fernanda', 'Joaquín', 'Patricia', 'Óscar', 'Verónica', 'Ignacio', 'Lorena'];
 const LAST = ['Torres', 'Martín', 'Gómez', 'Ruiz', 'Fernández', 'López', 'Díaz', 'Sánchez', 'Navarro', 'Moreno', 'Jiménez', 'Romero', 'Ortega', 'Castro', 'Serrano', 'Molina', 'Garrido', 'Pascual', 'Blanco', 'Herrera', 'Vidal', 'Peña', 'Cano', 'Ibáñez', 'Reyes', 'Prieto', 'Campos', 'Vargas', 'Lozano', 'Méndez', 'Gil', 'Santos', 'Zurita Rico', 'Cubas Vicencio', 'Hernández Zuviri', 'Zúñiga Verde', 'Garduño', 'De la Fuente', 'Ochoa', 'Salazar', 'Quintero', 'Villanueva', 'Esparza', 'Beltrán'];
@@ -1243,10 +1244,39 @@ async function migrateLocalActivities() {
   localStorage.setItem(ACT_MIGRATED_KEY, '1');
 }
 
+// Signed in, but the tables look empty while the anon key still sees rows: the policies for authenticated
+// users (supabase/auth.sql) have not been applied yet. Explain it instead of showing an empty CRM or seeding.
+async function anonSeesRows(table) {
+  try {
+    const probe = createAnonProbe();
+    if (!probe) return false;
+    const { count, error } = await probe.from(table).select('id', { count: 'exact', head: true });
+    return !error && Number(count) > 0;
+  } catch {
+    return false;
+  }
+}
+function showRlsNotice(session) {
+  const email = session?.user?.email || '';
+  document.body.innerHTML = `<main style="max-width:640px;margin:80px auto;padding:32px;font-family:'Lexend Deca',Helvetica,Arial,sans-serif;color:#333;border:1px solid #dfe3eb;border-radius:8px;background:#fff">
+    <h1 style="font-size:22px;margin:0 0 12px">Falta un paso en Supabase</h1>
+    <p>Has iniciado sesión como <strong>${email.replace(/[&<>]/g, '')}</strong>, pero la base de datos todavía no deja leer ni escribir a los usuarios autenticados (solo a la clave anónima).</p>
+    <ol style="line-height:1.6"><li>Abre el <strong>SQL Editor</strong> del proyecto de Supabase.</li><li>Pega y ejecuta el archivo <code>supabase/auth.sql</code> (añade las políticas para usuarios autenticados sin quitar el acceso actual).</li><li>Vuelve a cargar esta página.</li></ol>
+    <p style="margin-top:20px"><button id="rls-reload" type="button" style="padding:10px 16px;border:0;border-radius:6px;background:#ff5c35;color:#fff;font:inherit;font-weight:600">Volver a cargar</button> <button id="rls-signout" type="button" style="padding:10px 16px;border:1px solid #dfe3eb;border-radius:6px;background:#fff;color:#006162;font:inherit;font-weight:600">Cerrar sesión</button></p>
+  </main>`;
+  document.getElementById('rls-reload').onclick = () => location.reload();
+  document.getElementById('rls-signout').onclick = async () => { await signOut(); location.replace(siteRoot()); };
+}
 async function initFromSupabase() {
+  // Route protection: without a session the browser goes to the login page and nothing else loads.
+  const session = await requireSession();
   try {
     for (const type of Object.keys(BUILDERS)) {
       dbRows[type] = await fetchTable(type);
+    }
+    if (session && !dbRows.contacts.length && !dbRows.companies.length && (await anonSeesRows('contacts'))) {
+      showRlsNotice(session);
+      await new Promise(() => {});
     }
     if (!dbRows.contacts.length && !dbRows.companies.length) {
       await seedAll();

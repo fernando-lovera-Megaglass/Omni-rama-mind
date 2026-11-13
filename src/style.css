@@ -413,3 +413,37 @@ p {
     display: none;
   }
 }
+
+/* ---------- Sign-in with Supabase Auth: password step, links, messages ---------- */
+.form__links {
+  margin: var(--sp-16) 0 0;
+  font-size: 12.8px;
+  text-align: center;
+}
+
+.form__links a {
+  color: var(--c-link);
+}
+
+.form__input + .form__label {
+  margin-top: var(--sp-16);
+}
+
+.form__submit:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.alert[hidden] {
+  display: none;
+}
+
+.alert--ok {
+  border-color: #a5d9d2;
+  background: #e5f8f6;
+}
+
+.alert--ok .alert__title,
+.alert--ok .alert__body {
+  color: #0b5c54;
+}

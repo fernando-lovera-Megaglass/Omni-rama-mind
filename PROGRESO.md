@@ -1,5 +1,19 @@
 # Progreso — Omni CRM
 
+## 2026-11-13 (sesión 5) · Autenticación real con Supabase Auth (cola `auth-supabase`)
+
+**Construido**
+- `src/auth.js` (nuevo): sesión con correo y contraseña sobre Supabase Auth (la sesión persiste y se renueva sola en localStorage): `getSession`, `currentUser`, `requireSession` (protección de rutas: sin sesión manda a la pantalla de inicio con `?next=` para volver después), `signIn`, `signUp` (con confirmación por correo si el proyecto la exige), `resetPassword`, `updatePassword`, `signOut`, `onAuthChange`, mensajes en español (`authMessage`). Sin Supabase (modo local y pruebas) todo queda desactivado y la app funciona como antes.
+- `src/data.js`: antes de cargar cualquier dato, `initFromSupabase` exige sesión (`requireSession`). Si hay sesión pero las tablas parecen vacías mientras la clave anónima sí ve filas, muestra un aviso a pantalla completa pidiendo ejecutar `supabase/auth.sql` (y no intenta sembrar datos).
+- `index.html` + `src/main.js` (pantalla de inicio): la primera pintura es la del original (solo el correo). «Continuar» muestra el paso de contraseña (con «¿Olvidaste tu contraseña?» y «Usar otro correo»); «crear una cuenta» pasa al registro (contraseña y confirmación, mínimo 6 caracteres); restablecer contraseña envía el enlace; el enlace de recuperación abre el formulario de contraseña nueva. Los errores y avisos se muestran en la caja de alerta existente. Con sesión activa, la pantalla entra directamente. Sin Supabase, «Continuar» entra como antes.
+- `src/shell.js`: el menú de cuenta de la barra superior muestra la inicial, el nombre o correo del usuario y su correo, y el botón **Cerrar sesión** cierra la sesión y vuelve a la pantalla de inicio (también si la sesión se cierra en otra pestaña).
+- `supabase/auth.sql` (nueva migración, instrucciones dentro): PASO 1 seguro — mantiene las políticas `anon full access` (no rompe el acceso actual), añade `authenticated full access` en companies, contacts, deals, tickets, tasks, activities y segments (sin ellas un usuario con sesión vería el CRM vacío), añade `user_id uuid default auth.uid()` con índice en cada tabla, y crea `profiles` con disparador al registrarse. PASO 2 opcional y comentado — aislar por usuario (`owner only`, quita el acceso anónimo) con las instrucciones para asignar las filas existentes.
+  - ⚠️ **Acción pendiente del usuario:** 1) en Supabase › Authentication › Providers activar Email (y decidir «Confirm email»); 2) en URL Configuration poner la URL de la app; 3) ejecutar `supabase/auth.sql` en el SQL Editor; 4) abrir la app, «crear una cuenta» y entrar. Hasta ejecutar el SQL, tras iniciar sesión se ve el aviso explicativo.
+- Pruebas: `scripts/smoke-auth.mjs` (helpers, protección de rutas, pantalla de inicio en todos sus modos, menú de cuenta y cierre de sesión con un cliente de prueba) + suite completa (26) en verde; `npm run build` OK. Comprobado contra el proyecto real: `/contacts/` sin sesión redirige a la pantalla de inicio y una contraseña incorrecta devuelve «Correo o contraseña incorrectos».
+
+**Notas**
+- Las claves (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`) siguen en `app/.env`; la anon key es pública por diseño y la seguridad real la dan las políticas RLS del PASO 2 cuando se active.
+
 ## 2026-11-13 (sesión 5) · Pipeline de soporte con estados propios y empresa del contacto en tickets (cola `pipeline-tickets-default`, espec `especificacion-tickets-crm.md`)
 
 **Construido**

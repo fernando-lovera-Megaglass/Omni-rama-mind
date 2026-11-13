@@ -1,6 +1,8 @@
 // Shared side navigation and top bar for the app pages.
 // `root` is the relative path back to the site root ('../' or '../../').
 
+import { authEnabled, currentUser, signOut, onAuthChange, siteRoot, goTo, userLabel, userInitial } from './auth.js';
+
 // Main navigation: [icon, label, landing page, flyout entries]. Entries with '#'
 // are sections of the real product that this version does not include yet.
 const NAV = [
@@ -200,14 +202,15 @@ export function mountShell({ root, active, sub }) {
       <span class="topbar__divider" aria-hidden="true"></span>
       <div class="menu" id="account-menu">
         <button class="topbar__account" type="button" aria-haspopup="true" aria-expanded="false">
-          <span class="avatar avatar--sm avatar--soft">M</span>
-          <span class="topbar__account-text">Megaglass</span>
+          <span class="avatar avatar--sm avatar--soft" id="account-avatar">M</span>
+          <span class="topbar__account-text" id="account-name">Megaglass</span>
           <span class="caret"></span>
         </button>
         <div class="menu__panel menu__panel--right">
-          <a class="menu__item" href="#">Perfil y preferencias</a>
-          <a class="menu__item" href="#">Configuración de la cuenta</a>
-          <a class="menu__item" href="${root}">Cerrar sesión</a>
+          <span class="menu__item menu__item--static" id="account-email" hidden></span>
+          <a class="menu__item" href="${root}settings/#prefs-general">Perfil y preferencias</a>
+          <a class="menu__item" href="${root}settings/">Configuración de la cuenta</a>
+          <button class="menu__item" type="button" id="signout">Cerrar sesión</button>
         </div>
       </div>
     </div>`;
@@ -219,6 +222,31 @@ export function mountShell({ root, active, sub }) {
 
   wireMenus();
   wireGlobalSearch(root);
+  wireAccount(root);
+}
+
+// Signed-in user in the account menu and the "Cerrar sesión" button (Supabase Auth). Without Supabase the
+// menu keeps the account name and the button just goes back to the start page.
+function wireAccount(root) {
+  const btn = document.getElementById('signout');
+  if (!btn) return;
+  const leave = async () => {
+    btn.disabled = true;
+    await signOut();
+    goTo(authEnabled() ? siteRoot() : root);
+  };
+  btn.addEventListener('click', (e) => { e.preventDefault(); closeMenus(); leave(); });
+  if (!authEnabled()) return;
+  currentUser().then((user) => {
+    if (!user) return;
+    document.getElementById('account-avatar').textContent = userInitial(user);
+    document.getElementById('account-name').textContent = userLabel(user);
+    const mail = document.getElementById('account-email');
+    mail.textContent = user.email || '';
+    mail.hidden = !user.email;
+  });
+  // Signed out from another tab (or the session expired): back to the login page.
+  onAuthChange((event) => { if (event === 'SIGNED_OUT') goTo(siteRoot()); });
 }
 
 function wireGlobalSearch(root) {

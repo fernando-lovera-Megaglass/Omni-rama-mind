@@ -42,13 +42,14 @@
       "id": "pipeline-tickets-default",
       "status": "done",
       "instruction": "Continúa el proyecto Omni CRM (app/): crea el pipeline de soporte predeterminado de tickets con 4 estados (Nuevo, En espera de contacto, En espera de nosotros, Cerrado) según especificacion-tickets-crm.md, y la auto-asociación del ticket a la empresa principal del contacto. Verifica con npm run build.",
-      "completedAt": "2026-11-13T04:05:00-0600",
-      "note": "Construido por Claude (Craft Anything): pipelines de tickets con estados propios (abierto/cerrado) y Pipeline de soporte con los 4 estados en src/data.js, editor en Configuración › Objetos › Tickets › Pipelines, tablero/ficha/importación por pipeline, autoAssociateTicketCompany (empresa principal del contacto, interruptor en ajustes). Prueba scripts/smoke-ticket-statuses.mjs."
+      "completedAt": "2026-11-13T04:41:09-0600"
     },
     {
       "id": "auth-supabase",
-      "status": "pending",
-      "instruction": "Continúa el proyecto Omni CRM (app/): implementa autenticación real con Supabase Auth (pantalla de login/registro con email y contraseña, sesión persistente, protección de rutas, botón de cerrar sesión en el topbar). Prepara las políticas RLS por usuario en una migración en supabase/ con instrucciones claras, sin romper el acceso actual. Verifica con npm run build."
+      "status": "done",
+      "instruction": "Continúa el proyecto Omni CRM (app/): implementa autenticación real con Supabase Auth (pantalla de login/registro con email y contraseña, sesión persistente, protección de rutas, botón de cerrar sesión en el topbar). Prepara las políticas RLS por usuario en una migración en supabase/ con instrucciones claras, sin romper el acceso actual. Verifica con npm run build.",
+      "completedAt": "2026-11-13T05:10:00-0600",
+      "note": "Construido por Claude (Craft Anything): src/auth.js (Supabase Auth, sesión persistente, requireSession en data.js), pantalla de inicio con paso de contraseña/registro/restablecer (src/main.js), Cerrar sesión en el topbar (src/shell.js), migración supabase/auth.sql (políticas authenticated + user_id + profiles; paso 2 opcional owner-only). Pendiente del usuario: ejecutar auth.sql y activar Email en Authentication. Prueba scripts/smoke-auth.mjs."
     }
   ]
 }

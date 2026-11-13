@@ -11686,3 +11686,15 @@ a.is-done {
   margin: var(--sp-8) 0 0;
   font-size: var(--fs-xs);
 }
+
+/* ---------- Account menu: signed-in user ---------- */
+.menu__item--static {
+  display: block;
+  color: var(--c-muted);
+  font-size: var(--fs-xs);
+  cursor: default;
+}
+
+.menu__item--static[hidden] {
+  display: none;
+}
