@@ -163,7 +163,7 @@ function saveNow() {
 }
 function moduleForm(m) {
   const p = m.props;
-  const f = (prop, label, kind = 'text', extra = '') => `<label class="field"><span>${label}</span>${kind === 'textarea' ? `<textarea data-prop="${prop}" rows="4">${esc(p[prop] || '')}</textarea>` : `<input data-prop="${prop}" type="${kind}" value="${esc(p[prop] ?? '')}" ${extra} />`}</label>`;
+  const f = (prop, label, kind = 'text', extra = '') => `<label class="field"><span>${esc(label)}</span>${kind === 'textarea' ? `<textarea data-prop="${prop}" rows="4">${esc(p[prop] || '')}</textarea>` : `<input data-prop="${prop}" type="${kind}" value="${esc(p[prop] ?? '')}" ${extra} />`}</label>`;
   let fields = '';
   if (m.type === 'text') fields = f('html', 'Texto (admite HTML sencillo: <p>, <h1>, <strong>, <a>)', 'textarea');
   else if (m.type === 'button') fields = f('label', 'Texto del botón') + f('url', 'Enlace', 'url') + `<label class="field"><span>Alineación</span><select data-prop="align">${['left', 'center', 'right'].map((a) => `<option value="${a}" ${p.align === a ? 'selected' : ''}>${{ left: 'Izquierda', center: 'Centro', right: 'Derecha' }[a]}</option>`).join('')}</select></label>`;

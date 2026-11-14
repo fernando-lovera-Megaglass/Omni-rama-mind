@@ -5456,12 +5456,17 @@ td.cell--hl .cell__pen {
   cursor: default;
 }
 
-.mk-module__form textarea {
+.mk-module__form textarea,
+.mk-module__form input,
+.mk-module__form select {
+  width: 100%;
   padding: var(--sp-8);
   border: 1px solid var(--c-border);
   border-radius: var(--r-sm);
   font: inherit;
   font-size: var(--fs-sm);
+  font-weight: 400;
+  background: var(--c-white);
 }
 
 .mk-module__formfoot {
