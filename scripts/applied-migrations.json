@@ -54,5 +54,9 @@
   "conversations.sql": {
     "status": "aplicada",
     "at": "2026-11-14T12:48:55.681Z"
+  },
+  "marketing-emails.sql": {
+    "status": "aplicada",
+    "at": "2026-11-14T13:45:06.779Z"
   }
 }

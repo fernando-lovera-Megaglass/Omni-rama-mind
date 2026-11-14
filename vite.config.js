@@ -22,6 +22,7 @@ const pages = {
   segments: 'segments/index.html',
   'segments-editor': 'segments/editor/index.html',
   inbox: 'inbox/index.html',
+  'marketing-email': 'marketing/email/index.html',
 };
 
 export default defineConfig({

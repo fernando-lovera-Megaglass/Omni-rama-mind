@@ -1407,6 +1407,21 @@ export function addActivity(ev) {
   list.unshift({ type: ev.type, when: ev.when, who: ev.who, text: ev.text, extra: ev.extra || {} });
   write(key, list);
 }
+// Many entries at once (a marketing e-mail sent to hundreds of contacts): one insert per 200 rows.
+export function addActivities(events) {
+  if (!events.length) return;
+  if (activitiesLive) {
+    events.forEach((ev) => activityRows.unshift({ ...ev, recordId: Number(ev.recordId) }));
+    dbWrite(async () => {
+      for (let i = 0; i < events.length; i += 200) {
+        const { error } = await supabase.from('activities').insert(events.slice(i, i + 200).map(activityToDb));
+        if (error) console.error('[supabase] insert activities', error);
+      }
+    });
+    return;
+  }
+  events.forEach((ev) => addActivity(ev));
+}
 
 export function historyFor(recordType, recordId) {
   if (!activitiesLive) return read(ACT_HISTORY_KEY(recordType, recordId), []);

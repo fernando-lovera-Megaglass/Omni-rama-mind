@@ -22,9 +22,9 @@ const NAV = [
     ['Llamadas', '#'],
     ['Tareas', 'tasks/'],
   ]],
-  ['marketing', 'Marketing', '#', [
+  ['marketing', 'Marketing', 'marketing/email/', [
     ['Campañas', '#'],
-    ['Correo', '#'],
+    ['Correo', 'marketing/email/'],
     ['Redes sociales', '#'],
     ['Anuncios', '#'],
     ['Formularios', '#'],
