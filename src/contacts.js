@@ -30,6 +30,8 @@ const list = mountList({
   // "Agregar contactos" opens the slide-over right away (imports live in Gestión de datos).
   addDirect: true,
   openCreate: (prefill) => createPanel && createPanel.open(prefill),
+  // "Acciones" next to "Agregar": export, duplicates, trash, bulk edit, format fixes.
+  actionsMenu: true,
   // Bulk bar over the table (the original's selection bar): assign, edit, delete, tasks, segment, export.
   bulk: { actions: ['assign', 'edit', 'delete', 'tasks', 'segment', 'export'] },
   plural: 'contactos',

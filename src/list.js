@@ -1,7 +1,8 @@
 // Generic object list: views, filter menus, search, sort, paging, selection,
 // column editor (full property catalog), advanced filters, CSV export/import, create drawer.
 import { wireMenus, closeMenus, toast, linkHtml, wireLinkTooltips } from './shell.js';
-import { addRecord, deleteRecords, restoreAll, getPrefs, setPrefs, getViewStore, setViewStore, matches, strip, toCsv, download, formatDate, formatMoney, formatShortDate, relativeTime, setField, TODAY, ALL, OWNERS, TASK_TYPES } from './data.js';
+import { addRecord, deleteRecords, restoreAll, restoreRecords, trashedRecords, mergeRecords, softDeletes, getPrefs, setPrefs, getViewStore, setViewStore, matches, strip, toCsv, download, formatDate, formatMoney, formatShortDate, relativeTime, setField, TODAY, ALL, OWNERS, TASK_TYPES } from './data.js';
+import { findDuplicateGroups, suggestedKeep, formatFixes } from './duplicates.js';
 import { segments as allSegments, addSegment, addStaticMembers, segmentMembers } from './segments-data.js';
 import { defaultTabs, deletedViews, saveDeletedViews } from './std-views.js';
 import { propertyGroups, propertyMap } from './properties.js';
@@ -271,15 +272,29 @@ export function mountList(cfg) {
         </div>
       </div>
       <div class="page-head__actions">
-        <div class="menu">
+        ${cfg.actionsMenu
+          ? `<div class="menu" id="actions-menu">
+          <button class="btn btn--ghost btn--pillx" type="button" aria-haspopup="true" aria-expanded="false">Acciones <span class="caret"></span></button>
+          <div class="menu__panel menu__panel--right">
+            <button class="menu__item" type="button" data-action="export">Exportar</button>
+            <button class="menu__item" type="button" data-action="dupes">Gestionar duplicados</button>
+            <button class="menu__item" type="button" data-action="trash">Restaurar registros eliminados</button>
+            <button class="menu__item" type="button" data-action="bulk-edit-menu">Editar propiedades en lote</button>
+            <button class="menu__item" type="button" data-action="fix-format">Corregir problemas de formato</button>
+            <div class="menu__sep"></div>
+            <button class="menu__item" type="button" data-action="columns">Editar columnas</button>
+            <a class="menu__item" href="../data/?from=${cfg.type}">Importar</a>
+          </div>
+        </div>`
+          : `<div class="menu">
           <button class="icon-btn icon-btn--round" type="button" aria-label="Más opciones" aria-haspopup="true">⋮</button>
           <div class="menu__panel menu__panel--right">
             <button class="menu__item" type="button" data-action="columns">Editar columnas</button>
             <button class="menu__item" type="button" data-action="export">Exportar vista</button>
             <a class="menu__item" href="../data/?from=${cfg.type}">Importar</a>
-            <button class="menu__item" type="button" data-action="restore">Restaurar registros eliminados</button>
+            <button class="menu__item" type="button" data-action="${softDeletes(cfg.type) ? 'trash' : 'restore'}">Restaurar registros eliminados</button>
           </div>
-        </div>
+        </div>`}
         ${cfg.addDirect
           ? `<button class="btn btn--primary btn--pillx" type="button" data-action="create">${cfg.addLabel || `Agregar ${plural}`}</button>`
           : `<div class="menu">
@@ -2491,6 +2506,104 @@ export function mountList(cfg) {
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && m.classList.contains('is-open')) close(); });
     return m;
   }
+  // ---------- Acciones menu: duplicates, trash, format fixes ----------
+  // One modal drawer shared by "Gestionar duplicados" and "Restaurar registros eliminados".
+  function actionsDrawer() {
+    let d = $('actions-drawer');
+    if (d) return d;
+    d = document.createElement('div');
+    d.className = 'drawer drawer--modal';
+    d.id = 'actions-drawer';
+    d.setAttribute('aria-hidden', 'true');
+    d.innerHTML = `<div class="drawer__panel drawer__panel--modal">
+        <div class="drawer__head drawer__head--light"><h2 id="actions-title"></h2><button class="drawer__close" type="button" data-close="actions-drawer" aria-label="Cerrar">×</button></div>
+        <div class="actions-body" id="actions-body"></div>
+        <div class="drawer__foot" id="actions-foot"></div>
+      </div>`;
+    root.appendChild(d);
+    d.addEventListener('click', (e) => {
+      const merge = e.target.closest('[data-dupe-merge]');
+      if (merge) {
+        const gi = merge.dataset.dupeMerge;
+        const section = d.querySelector(`[data-dupe-group="${gi}"]`);
+        const keep = section.querySelector(`input[name="keep-${gi}"]:checked`);
+        const ids = [...section.querySelectorAll('tbody tr[data-id]')].map((tr) => Number(tr.dataset.id));
+        if (!keep) { toast('Elige el registro que quieres conservar'); return; }
+        const result = mergeRecords(cfg.type, Number(keep.value), ids.filter((id) => id !== Number(keep.value)));
+        if (!result) { toast('No se pudo fusionar'); return; }
+        toast(`${result.merged} ${result.merged === 1 ? 'registro fusionado' : 'registros fusionados'} en "${result.kept.name}"${result.filled.length ? ` · ${result.filled.length} ${result.filled.length === 1 ? 'propiedad completada' : 'propiedades completadas'}` : ''}`);
+        state.selected.clear();
+        renderDupes();
+        render();
+        return;
+      }
+      const skip = e.target.closest('[data-dupe-skip]');
+      if (skip) { const s = d.querySelector(`[data-dupe-group="${skip.dataset.dupeSkip}"]`); if (s) s.remove(); if (!d.querySelector('[data-dupe-group]')) $('actions-body').innerHTML = '<p class="muted">No quedan grupos por revisar.</p>'; return; }
+      const one = e.target.closest('[data-trash-restore]');
+      if (one) { const n = restoreRecords(cfg.type, [Number(one.dataset.trashRestore)]); toast(n ? 'Registro restaurado' : 'No se pudo restaurar'); renderTrash(); render(); return; }
+      if (e.target.closest('[data-trash-restore-all]')) { const n = restoreRecords(cfg.type, trashedRecords(cfg.type).map((r) => r.id)); toast(`${n} ${n === 1 ? 'registro restaurado' : 'registros restaurados'}`); renderTrash(); render(); }
+    });
+    return d;
+  }
+  const keyCol = cfg.type === 'companies' ? ['Dominio', (r) => r.domain || ''] : ['Correo', (r) => r.email || ''];
+  function renderDupes() {
+    actionsDrawer();
+    const groups = findDuplicateGroups(cfg.type, cfg.rows());
+    $('actions-title').textContent = `Gestionar duplicados · ${groups.length} ${groups.length === 1 ? 'grupo' : 'grupos'}`;
+    const why = (k) => ({ email: 'mismo correo', name: 'mismo nombre', domain: 'mismo dominio' }[k] || k);
+    $('actions-body').innerHTML = groups.length
+      ? `<p class="muted">Posibles duplicados por ${cfg.type === 'companies' ? 'dominio o nombre' : 'correo o nombre'}. En cada grupo elige el registro que se conserva: los demás se fusionan en él (rellenan sus propiedades vacías, sus asociaciones pasan a él) y van a la papelera.</p>${groups
+        .map((g, gi) => {
+          const keep = suggestedKeep(g.records);
+          return `<section class="dupes__group" data-dupe-group="${gi}">
+          <div class="dupes__head"><strong>${g.records.length} registros · ${esc(g.keys.map(why).join(' y '))}</strong></div>
+          <table class="table dupes__table"><thead><tr><th>Conservar</th><th>Nombre</th><th>${keyCol[0]}</th><th>Teléfono</th><th>Propietario</th><th>Creado</th></tr></thead><tbody>
+            ${g.records.map((r) => `<tr data-id="${r.id}"><td><input type="radio" name="keep-${gi}" value="${r.id}" ${Number(r.id) === Number(keep.id) ? 'checked' : ''} aria-label="Conservar ${esc(r.name)}" /></td><td><a href="./record/?id=${r.id}">${esc(r.name)}</a></td><td>${esc(keyCol[1](r))}</td><td>${esc(r.phone || '')}</td><td>${esc(r.owner || '')}</td><td>${esc(formatDate(r.created))}</td></tr>`).join('')}
+          </tbody></table>
+          <div class="dupes__actions"><button class="btn btn--primary btn--sm" type="button" data-dupe-merge="${gi}">Fusionar</button><button class="btn btn--ghost btn--sm" type="button" data-dupe-skip="${gi}">Omitir</button></div>
+        </section>`;
+        })
+        .join('')}`
+      : `<p class="muted">No se han encontrado posibles duplicados por ${cfg.type === 'companies' ? 'dominio ni por nombre' : 'correo ni por nombre'}.</p>`;
+    $('actions-foot').innerHTML = '<button class="btn btn--ghost" type="button" data-close="actions-drawer">Cerrar</button>';
+  }
+  function openDupes() { renderDupes(); openDrawer('actions-drawer'); }
+  function renderTrash() {
+    actionsDrawer();
+    const rows = trashedRecords(cfg.type);
+    $('actions-title').textContent = `Restaurar registros eliminados · ${rows.length}`;
+    $('actions-body').innerHTML = rows.length
+      ? `<p class="muted">Los registros eliminados se guardan en la papelera${softDeletes(cfg.type) ? ' (con su fecha de eliminación en Supabase)' : ''}. Restaura los que necesites.</p>
+        <table class="table trash__table"><thead><tr><th>Nombre</th><th>${keyCol[0]}</th><th>Propietario</th><th>Eliminado</th><th></th></tr></thead><tbody>
+          ${rows.map((r) => `<tr data-id="${r.id}"><td>${esc(r.name)}</td><td>${esc(keyCol[1](r))}</td><td>${esc(r.owner || '')}</td><td>${r.deletedAt ? esc(formatDate(r.deletedAt)) : '<span class="muted">--</span>'}</td><td><button class="btn btn--ghost btn--sm" type="button" data-trash-restore="${r.id}">Restaurar</button></td></tr>`).join('')}
+        </tbody></table>`
+      : '<p class="muted">La papelera está vacía.</p>';
+    $('actions-foot').innerHTML = `${rows.length ? '<button class="btn btn--primary" type="button" data-trash-restore-all>Restaurar todos</button>' : ''}<button class="btn btn--ghost" type="button" data-close="actions-drawer">Cerrar</button>`;
+  }
+  function openTrash() { renderTrash(); openDrawer('actions-drawer'); }
+  // "Corregir problemas de formato": names in title case and phones in a single format, for the selection.
+  function fixFormat() {
+    if (!state.selected.size) { toast('Selecciona primero en la tabla los registros que quieres corregir'); return; }
+    const rows = cfg.rows().filter((r) => state.selected.has(Number(r.id)));
+    const changes = rows.map((r) => ({ r, fixes: formatFixes(cfg.type, r) })).filter((x) => x.fixes.length);
+    const all = changes.flatMap((x) => x.fixes);
+    const names = all.filter((f) => !/phone/.test(f.key)).length;
+    const phones = all.length - names;
+    const sample = changes.flatMap((x) => x.fixes.map((f) => `<li><span class="muted">${esc(x.r.name)} · ${esc(f.label)}:</span> ${esc(String(f.from))} <span class="fix__arrow">→</span> <strong>${esc(String(f.to))}</strong></li>`)).slice(0, 8);
+    bulkDialog({
+      title: 'Corregir problemas de formato',
+      body: all.length
+        ? `<p>De ${rows.length} ${rows.length === 1 ? bulkNoun.singular : bulkNoun.plural} ${bulkWord(rows.length, 'seleccionad')}, ${changes.length} ${changes.length === 1 ? 'tiene' : 'tienen'} algo que corregir: <strong>${names}</strong> ${names === 1 ? 'nombre' : 'nombres'} (mayúsculas y minúsculas) y <strong>${phones}</strong> ${phones === 1 ? 'teléfono' : 'teléfonos'} (formato internacional).</p><ul class="fixlist">${sample.join('')}${all.length > sample.length ? `<li class="muted">… y ${all.length - sample.length} más</li>` : ''}</ul>`
+        : `<p>Los ${rows.length} ${bulkWord(rows.length, 'seleccionad')} ya tienen los nombres y teléfonos bien formateados.</p>`,
+      okLabel: all.length ? 'Corregir' : 'Cerrar',
+      onOk: () => {
+        if (!all.length) return;
+        changes.forEach(({ r, fixes }) => fixes.forEach((f) => setField(cfg.type, r.id, f.key, f.to)));
+        toast(`${all.length} ${all.length === 1 ? 'corrección aplicada' : 'correcciones aplicadas'} en ${changes.length} ${changes.length === 1 ? bulkNoun.singular : bulkNoun.plural}`);
+        render();
+      },
+    });
+  }
   function bulkDialog({ title, body, okLabel = 'Aplicar', danger = false, onOk, onChange }) {
     const m = bulkModal();
     m.querySelector('#bulk-modal-title').textContent = title;
@@ -2673,9 +2786,17 @@ export function mountList(cfg) {
     const el = e.target.closest('[data-action]');
     if (!el) return;
     e.preventDefault();
-    const a = el.dataset.action;
+    let a = el.dataset.action;
     closeMenus();
+    // "Editar propiedades en lote" from the Acciones menu works on the selected rows.
+    if (a === 'bulk-edit-menu') {
+      if (!state.selected.size) { toast('Selecciona primero en la tabla los registros que quieres editar'); return; }
+      a = 'bulk-edit';
+    }
     if (a === 'create') createEntry();
+    else if (a === 'dupes') openDupes();
+    else if (a === 'trash') openTrash();
+    else if (a === 'fix-format') fixFormat();
     else if (a === 'columns') openColumnEditor();
     else if (a === 'advanced') { renderAdvRows(); openDrawer('adv-drawer'); }
     else if (a === 'import') { location.href = `../data/?from=${cfg.type}`; } // imports live in Gestión de datos › Integración de datos, as in the original

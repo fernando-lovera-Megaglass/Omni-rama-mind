@@ -19,6 +19,8 @@ const list = mountList({
   createLabel: 'Crear empresa',
   addDirect: true,
   openCreate: (prefill) => createPanel && createPanel.open(prefill),
+  // "Acciones" next to "Agregar": export, duplicates, trash, bulk edit, format fixes.
+  actionsMenu: true,
   // Parent / subsidiary companies: the gear menu can nest the subsidiaries under their parent.
   hierarchy: { parentKey: 'parentCompanyId', label: 'Mostrar las secundarias bajo su matriz' },
   // Metrics card above the table ("Mostrar métricas" in the gear menu); hidden until the person turns it on.

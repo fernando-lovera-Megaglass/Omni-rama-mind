@@ -4867,6 +4867,63 @@ td.cell--hl .cell__pen {
   font-weight: 600;
 }
 
+/* "Acciones" drawer of the lists: duplicates and trash */
+.actions-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: var(--sp-16) var(--sp-20);
+}
+
+.actions-body > p:first-child {
+  margin-top: 0;
+}
+
+.dupes__group {
+  margin-bottom: var(--sp-16);
+  padding: var(--sp-10) var(--sp-16);
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-md);
+  background: #f5f8fa;
+}
+
+.dupes__head {
+  margin-bottom: var(--sp-8);
+}
+
+.dupes__table,
+.trash__table {
+  width: 100%;
+  min-width: 0;
+  background: var(--c-white);
+}
+
+.dupes__table td,
+.dupes__table th,
+.trash__table td,
+.trash__table th {
+  padding: var(--sp-8) var(--sp-10);
+  font-size: var(--fs-sm);
+}
+
+.dupes__actions {
+  display: flex;
+  gap: var(--sp-8);
+  margin-top: var(--sp-10);
+}
+
+.fixlist {
+  margin: var(--sp-10) 0 0;
+  padding-left: var(--sp-16);
+  font-size: var(--fs-sm);
+  line-height: 1.6;
+}
+
+.fix__arrow {
+  color: var(--c-muted);
+  margin: 0 4px;
+}
+
 /* Company hierarchy: parent / subsidiaries cards on the record, nested rows on the list */
 .hier__item {
   display: flex;

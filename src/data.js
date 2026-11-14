@@ -489,9 +489,9 @@ const K = (type, what) => `crm:${type}:${what}`;
 // ---------- Supabase mapping ----------
 // JS records use camelCase; the database uses snake_case columns.
 const CAMEL_TO_DB = {
-  contacts: { companyId: 'company_id', lastActivity: 'last_activity', lastActivityType: 'last_activity_type', jobTitle: 'job_title' },
-  companies: { lastActivity: 'last_activity', lastActivityType: 'last_activity_type', parentCompanyId: 'parent_company_id' },
-  deals: { closeDate: 'close_date', companyId: 'company_id', contactId: 'contact_id', lastActivity: 'last_activity' },
+  contacts: { companyId: 'company_id', lastActivity: 'last_activity', lastActivityType: 'last_activity_type', jobTitle: 'job_title', deletedAt: 'deleted_at' },
+  companies: { lastActivity: 'last_activity', lastActivityType: 'last_activity_type', parentCompanyId: 'parent_company_id', deletedAt: 'deleted_at' },
+  deals: { closeDate: 'close_date', companyId: 'company_id', contactId: 'contact_id', lastActivity: 'last_activity', deletedAt: 'deleted_at' },
   tickets: { contactId: 'contact_id', lastActivity: 'last_activity' },
   tasks: { contactId: 'contact_id', lastActivity: 'last_activity' },
 };
@@ -499,9 +499,9 @@ const DB_TO_CAMEL = Object.fromEntries(
   Object.entries(CAMEL_TO_DB).map(([t, m]) => [t, Object.fromEntries(Object.entries(m).map(([a, b]) => [b, a]))])
 );
 const TABLE_COLS = {
-  contacts: ['id', 'first', 'last', 'name', 'email', 'phone', 'mobilephone', 'owner', 'company_id', 'company', 'status', 'created', 'last_activity', 'last_activity_type', 'lifecycle', 'city', 'country', 'source', 'job_title', 'customer_type'],
-  companies: ['id', 'name', 'domain', 'phone', 'owner', 'industry', 'city', 'country', 'employees', 'revenue', 'lifecycle', 'created', 'last_activity', 'last_activity_type', 'parent_company_id'],
-  deals: ['id', 'name', 'amount', 'stage', 'pipeline', 'close_date', 'owner', 'company_id', 'company', 'contact_id', 'created', 'last_activity', 'priority', 'type'],
+  contacts: ['id', 'first', 'last', 'name', 'email', 'phone', 'mobilephone', 'owner', 'company_id', 'company', 'status', 'created', 'last_activity', 'last_activity_type', 'lifecycle', 'city', 'country', 'source', 'job_title', 'customer_type', 'deleted_at'],
+  companies: ['id', 'name', 'domain', 'phone', 'owner', 'industry', 'city', 'country', 'employees', 'revenue', 'lifecycle', 'created', 'last_activity', 'last_activity_type', 'parent_company_id', 'deleted_at'],
+  deals: ['id', 'name', 'amount', 'stage', 'pipeline', 'close_date', 'owner', 'company_id', 'company', 'contact_id', 'created', 'last_activity', 'priority', 'type', 'deleted_at'],
   tickets: ['id', 'name', 'status', 'priority', 'pipeline', 'owner', 'contact_id', 'source', 'created', 'last_activity', 'description'],
   tasks: ['id', 'name', 'type', 'status', 'priority', 'owner', 'contact_id', 'contact', 'due', 'created', 'last_activity'],
 };
@@ -605,29 +605,117 @@ export function setField(type, id, field, value) {
   afterSet(type, id, field, value);
 }
 
+// ---------- papelera (soft-delete): contacts, companies and deals keep their rows with deleted_at ----------
+const SOFT_DELETE = new Set(['contacts', 'companies', 'deals']);
+const trashRows = {}; // live: deleted rows per type (deletedAt set), out of dbRows
+const DELETED_AT_KEY = (type) => K(type, 'deletedat'); // local: id → when it was deleted
+export const softDeletes = (type) => SOFT_DELETE.has(type);
 export function deleteRecords(type, ids) {
+  const doomed = new Set(ids.map(Number));
   if (dbLive) {
     const rows = dbRows[type] || [];
-    const doomed = new Set(ids.map(Number));
+    const stamp = new Date().toISOString();
     for (let i = rows.length - 1; i >= 0; i -= 1) {
-      if (doomed.has(Number(rows[i].id))) rows.splice(i, 1);
+      if (doomed.has(Number(rows[i].id))) {
+        const [r] = rows.splice(i, 1);
+        if (SOFT_DELETE.has(type)) (trashRows[type] = trashRows[type] || []).unshift({ ...r, deletedAt: stamp });
+      }
     }
     bump();
     dbWrite(async () => {
-      const { error } = await supabase.from(type).delete().in('id', [...doomed]);
+      const q = SOFT_DELETE.has(type) ? supabase.from(type).update({ deleted_at: stamp }).in('id', [...doomed]) : supabase.from(type).delete().in('id', [...doomed]);
+      const { error } = await q;
       if (error) console.error('[supabase] delete', type, error);
     });
     return;
   }
   const d = getDeleted(type);
-  ids.forEach((id) => d.add(Number(id)));
+  const when = read(DELETED_AT_KEY(type), {});
+  const stamp = new Date().toISOString();
+  ids.forEach((id) => { d.add(Number(id)); when[Number(id)] = stamp; });
+  write(DELETED_AT_KEY(type), when);
   write(K(type, 'deleted'), [...d]);
+}
+// The deleted records of a type, newest deletion first (the "Restaurar registros eliminados" view).
+export function trashedRecords(type) {
+  if (dbLive) return (trashRows[type] || []).slice().sort((a, b) => new Date(b.deletedAt || 0) - new Date(a.deletedAt || 0));
+  const d = getDeleted(type);
+  if (!d.size) return [];
+  const when = read(DELETED_AT_KEY(type), {});
+  const all = [...getExtra(type).map((r) => augment(type, { ...r })), ...baseRecords(type)];
+  const overrides = getOverrides(type);
+  return all.filter((r) => d.has(Number(r.id))).map((r) => ({ ...r, ...(overrides[r.id] || {}), deletedAt: when[Number(r.id)] || '' })).sort((a, b) => new Date(b.deletedAt || 0) - new Date(a.deletedAt || 0));
+}
+// Puts deleted records back (deleted_at = null).
+export function restoreRecords(type, ids) {
+  const wanted = new Set(ids.map(Number));
+  if (dbLive) {
+    const trash = trashRows[type] || [];
+    const back = [];
+    for (let i = trash.length - 1; i >= 0; i -= 1) {
+      if (wanted.has(Number(trash[i].id))) { const [r] = trash.splice(i, 1); const { deletedAt, ...rest } = r; back.push({ ...rest, deletedAt: null }); }
+    }
+    if (!back.length) return 0;
+    (dbRows[type] = dbRows[type] || []).push(...back);
+    dbRows[type].sort((a, b) => Number(a.id) - Number(b.id));
+    bump();
+    dbWrite(async () => {
+      const { error } = await supabase.from(type).update({ deleted_at: null }).in('id', back.map((r) => Number(r.id)));
+      if (error) console.error('[supabase] restore', type, error);
+    });
+    return back.length;
+  }
+  const d = getDeleted(type);
+  const when = read(DELETED_AT_KEY(type), {});
+  let n = 0;
+  wanted.forEach((id) => { if (d.delete(id)) n += 1; delete when[id]; });
+  write(DELETED_AT_KEY(type), when);
+  write(K(type, 'deleted'), [...d]);
+  return n;
+}
+
+// "Gestionar duplicados": merges `otherIds` into `keepId`. Empty fields of the kept record are filled from
+// the others, everything associated to the others now points to it, and the others go to the trash.
+export function mergeRecords(type, keepId, otherIds) {
+  const all = ALL[type]();
+  const keep = all.find((r) => Number(r.id) === Number(keepId));
+  const others = (otherIds || []).map((id) => all.find((r) => Number(r.id) === Number(id))).filter((r) => r && Number(r.id) !== Number(keepId));
+  if (!keep || !others.length) return null;
+  const SKIP = new Set(['id', 'created', 'deletedAt', 'name', 'first', 'last', 'lastActivity', 'lastActivityType', 'company', 'companyId', 'parentCompanyId']);
+  const filled = [];
+  const empty = (v) => v === undefined || v === null || v === '' || v === 'Sin asignar';
+  others.forEach((o) => Object.entries(o).forEach(([k, v]) => {
+    if (SKIP.has(k) || k.startsWith('assoc_') || k.startsWith('num_') || empty(v)) return;
+    if (empty(keep[k])) { keep[k] = v; filled.push(k); setField(type, keep.id, k, v); }
+  }));
+  const ids = new Set(others.map((o) => Number(o.id)));
+  if (type === 'contacts') {
+    ['deals', 'tickets', 'tasks'].forEach((t) => ALL[t]().forEach((x) => { if (ids.has(Number(x.contactId))) { setField(t, x.id, 'contactId', Number(keep.id)); if (t === 'tasks') setField(t, x.id, 'contact', keep.name); } }));
+    const links = [...new Set([Number(keep.companyId) || 0, ...(keep.assoc_companies || []).map(Number), ...others.flatMap((o) => [Number(o.companyId) || 0, ...(o.assoc_companies || []).map(Number)])].filter((n) => n > 0))];
+    if (links.length) {
+      const labels = Object.assign({}, ...others.map((o) => o.assoc_labels_companies || {}), keep.assoc_labels_companies || {});
+      if (!keep.companyId) { const first = others.find((o) => o.companyId); if (first) { setField('contacts', keep.id, 'companyId', Number(first.companyId)); setField('contacts', keep.id, 'company', first.company || ''); } }
+      setField('contacts', keep.id, 'assoc_companies', links);
+      setField('contacts', keep.id, 'assoc_labels_companies', labels);
+    }
+  } else if (type === 'companies') {
+    allContacts().forEach((c) => {
+      if (ids.has(Number(c.companyId))) { setField('contacts', c.id, 'companyId', Number(keep.id)); setField('contacts', c.id, 'company', keep.name); }
+      if (Array.isArray(c.assoc_companies) && c.assoc_companies.some((x) => ids.has(Number(x)))) setField('contacts', c.id, 'assoc_companies', [...new Set(c.assoc_companies.map((x) => (ids.has(Number(x)) ? Number(keep.id) : Number(x))))]);
+    });
+    ['deals', 'tickets'].forEach((t) => ALL[t]().forEach((x) => { if (ids.has(Number(x.companyId))) { setField(t, x.id, 'companyId', Number(keep.id)); setField(t, x.id, 'company', keep.name); } }));
+    allCompanies().forEach((c) => { if (ids.has(Number(c.parentCompanyId)) && Number(c.id) !== Number(keep.id)) setField('companies', c.id, 'parentCompanyId', Number(keep.id)); });
+    if (!keep.parentCompanyId) { const withParent = others.find((o) => o.parentCompanyId && !ids.has(Number(o.parentCompanyId)) && Number(o.parentCompanyId) !== Number(keep.id)); if (withParent) setField('companies', keep.id, 'parentCompanyId', Number(withParent.parentCompanyId)); }
+  }
+  addActivity({ type: 'stage', recordType: type, recordId: Number(keep.id), text: `Registros fusionados en este ${type === 'contacts' ? 'contacto' : type === 'companies' ? 'empresa' : 'registro'}: ${others.map((o) => o.name).join(', ')}.`, who: 'Tú', when: Date.now(), extra: { merged: [...ids] } });
+  deleteRecords(type, [...ids]);
+  return { kept: keep, merged: others.length, filled };
 }
 
 export function restoreAll(type) {
+  if (dbLive && SOFT_DELETE.has(type)) return restoreRecords(type, (trashRows[type] || []).map((r) => r.id));
   if (dbLive) {
-    // In database mode deletes are real, so "restore" re-inserts the sample
-    // records whose ids are missing.
+    // Hard-deleted types: "restore" re-inserts the sample records whose ids are missing.
     const rows = dbRows[type] || [];
     const have = new Set(rows.map((r) => Number(r.id)));
     const missing = [];
@@ -1084,7 +1172,7 @@ export function download(name, text) {
   document.body.appendChild(a);
   a.click();
   a.remove();
-  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  setTimeout(() => { try { URL.revokeObjectURL(a.href); } catch { /* page already gone */ } }, 1000);
 }
 
 // ---------- companies by e-mail domain (especificacion-empresas-crm.md §2) ----------
@@ -1550,7 +1638,12 @@ async function fetchTable(type) {
     all.push(...data);
     if (data.length < PAGE) break;
   }
-  return all.map((r) => augment(type, fromDb(type, r)));
+  // Soft-deleted rows go to the trash, the rest to the list.
+  const live = [];
+  const trash = [];
+  all.forEach((r) => (SOFT_DELETE.has(type) && r.deleted_at ? trash : live).push(r));
+  trashRows[type] = trash.map((r) => augment(type, fromDb(type, r)));
+  return live.map((r) => augment(type, fromDb(type, r)));
 }
 // Re-read one table from Supabase so a check runs against the current rows (the import wizard does this
 // before looking for duplicates). Does nothing in local mode.
