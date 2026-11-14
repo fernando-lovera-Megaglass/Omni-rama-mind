@@ -2,7 +2,7 @@
 // (Y inside a group, O between groups, own properties, associated records and membership of other segments)
 // and static segments with a fixed membership edited by hand. Persisted through data.js in the Supabase
 // table `segments` (supabase/segments.sql) with a localStorage fallback and a sample set on first run.
-import { ALL, TODAY, strip, listSegments, saveAllSegments, insertSegment, patchSegment, deleteSegments, seedSegments, segmentsAreLive } from './data.js';
+import { ALL, TODAY, strip, listSegments, saveAllSegments, insertSegment, patchSegment, deleteSegments, seedSegments, segmentsAreLive, logSystem } from './data.js';
 import { matcherFor, countConditions, LIMITS } from './filter-editor.js';
 
 export const FOLDERS_KEY = 'crm:segments:folders';
@@ -72,6 +72,7 @@ export function addSegment({ name, object = 'contacts', type = 'active', folder 
   const now = new Date().toISOString();
   const entry = { id: Math.max(0, ...list.map((s) => Number(s.id) || 0)) + 1, name, type, object, size, usedIn: 0, updated: now, created: now, updatedBy: creator, creator, folder, filters, memberIds, importId, description, campaign, access, processedAt: '' };
   insertSegment(entry);
+  (memberIds || []).forEach((rid) => logSystem(object, rid, `Añadido al segmento «${name}».`, { segment: entry.id }));
   return entry;
 }
 export function updateSegment(id, patch) {
@@ -129,7 +130,10 @@ export function processSegment(id) {
 export function addStaticMembers(id, recordIds) {
   const seg = segmentById(id);
   if (!seg) return null;
-  const ids = [...new Set([...(seg.memberIds || []).map(Number), ...recordIds.map(Number)])];
+  const before = new Set((seg.memberIds || []).map(Number));
+  const ids = [...new Set([...before, ...recordIds.map(Number)])];
+  // Each record newly added gets an entry on its timeline.
+  recordIds.map(Number).filter((rid) => !before.has(rid)).forEach((rid) => logSystem(seg.object, rid, `Añadido al segmento «${seg.name}».`, { segment: seg.id }));
   return updateSegment(id, { memberIds: ids, size: ids.length });
 }
 export function removeStaticMembers(id, recordIds) {

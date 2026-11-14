@@ -9,7 +9,7 @@ import {
   findRecord, setField, deleteRecords, addRecord, allContacts, allCompanies, allDeals, allTickets, allTasks, ALL,
   STATUSES, LIFECYCLES, SOURCES, OWNERS, TICKET_STATUSES, PRIORITIES, TASK_TYPES, TASK_STATUSES,
   ticketStatusesFor, ticketStatusLabel, firstOpenTicketStatus, ticketPipelines, stagesFor, allDealStages, dealStageLabel, dealStageProb, isClosedStage,
-  formatDate, formatMoney, initials, colorFor, labelOf, toCsv, download, TODAY, assocLabels, CURRENCY_DEFS, CURRENCY_CODES,
+  formatDate, formatMoney, initials, colorFor, labelOf, toCsv, download, TODAY, assocLabels, CURRENCY_DEFS, CURRENCY_CODES, relativeTimeFine,
   activitiesFor, addActivity, historyFor, addHistoryEntry, getSetting, setSetting, settingsLive, settingScope, lineItemsFor, fetchLineItems, lineItemsTotal,
   parentCompanyOf, childCompaniesOf, isCompanyDescendant,
 } from './data.js';
@@ -246,6 +246,7 @@ mount.innerHTML = `
             <button class="chip" type="button" data-kind="task">Tareas</button>
             <button class="chip" type="button" data-kind="meeting">Reuniones</button>
             <button class="chip" type="button" data-kind="message">Mensajes</button>
+            <button class="chip" type="button" data-kind="system">Sistema</button>
           </div>
           <div class="act-selects" id="act-selects">
             <label class="act-select"><span>Fecha de actividad</span><select id="act-date"><option value="">Todas las fechas</option><option value="0">Hoy</option><option value="7">Últimos 7 días</option><option value="30">Últimos 30 días</option><option value="90">Últimos 90 días</option></select></label>
@@ -1226,7 +1227,9 @@ function saveAssociations(ids, labels) {
   toast(`${names.length} ${names.length === 1 ? KIND_META[kind].s.toLowerCase() : KIND_META[kind].p.toLowerCase()} asociad${names.length === 1 ? 'o' : 'os'}`);
 }
 
-const ICONS = { note: '✎', email: '✉', call: '☏', created: '＋', task: '☑', meeting: '▦', stage: '➜', prop: '✎', message: '💬' };
+const ICONS = { note: '✎', email: '✉', call: '☏', created: '＋', task: '☑', meeting: '▦', stage: '➜', prop: '✎', message: '💬', system: '⚙' };
+// Title of a timeline entry by type (what the collapsed row shows first).
+const KIND_TITLE = { note: 'Nota', email: 'Correo', call: 'Llamada', created: 'Registro creado', task: 'Tarea', meeting: 'Reunión', stage: 'Asociación', prop: 'Propiedad actualizada', message: 'Mensaje', system: 'Actividad del sistema' };
 function sampleEvents() {
   const day = 86400000;
   const base = new Date(rec.created).getTime();
@@ -1240,6 +1243,7 @@ function sampleEvents() {
 }
 let actKind = '';
 let actQuery = '';
+const openEvents = new Set(); // timeline entries expanded by the person
 let actDate = ''; // '' | days back ('0' = today)
 let actWho = ''; // '' | 'Tú' | owner name | 'Sistema'
 const actDateOk = (ev) => { if (actDate === '') return true; const n = Number(actDate); const start = new Date(); start.setHours(0, 0, 0, 0); return new Date(ev.when).getTime() >= start.getTime() - n * 86400000; };
@@ -1267,10 +1271,22 @@ function renderTimeline() {
     if (x.subject) tags.push(`Asunto: ${x.subject}`);
     return tags.length ? `<div class="timeline__tags">${tags.map((t) => `<span class="tag tag--none">${esc(t)}</span>`).join('')}</div>` : '';
   };
+  // Each entry: icon by type, title, who logged it and when (relative); click expands the full text,
+  // the exact date and the details.
+  const titleOf = (ev) => { const x = ev.extra || {}; const base = KIND_TITLE[ev.type] || 'Actividad'; return x.subject ? `${base}: ${x.subject}` : base; };
+  const evKey = (ev) => `${ev.id || ''}:${ev.when}:${ev.type}`;
   const item = (ev) => `
-    <li class="timeline__item">
-      <span class="timeline__ico">${ICONS[ev.type] || '•'}</span>
-      <div class="timeline__body"><div class="timeline__meta"><strong>${esc(ev.who)}</strong> · ${fmtWhen(ev)}</div><div>${esc(ev.text)}</div>${extraTags(ev)}</div>
+    <li class="timeline__item${openEvents.has(evKey(ev)) ? ' is-open' : ''}" data-ev="${esc(evKey(ev))}">
+      <span class="timeline__ico" aria-hidden="true">${ICONS[ev.type] || '•'}</span>
+      <div class="timeline__body">
+        <button class="timeline__head" type="button" aria-expanded="${openEvents.has(evKey(ev))}">
+          <span class="timeline__title">${esc(titleOf(ev))}</span>
+          <span class="timeline__chev" aria-hidden="true">⌄</span>
+        </button>
+        <div class="timeline__meta"><strong>${esc(ev.who)}</strong> · <span title="${esc(fmtWhen(ev))}">${esc(relativeTimeFine(ev.when))}</span></div>
+        <div class="timeline__text">${esc(ev.text)}</div>
+        <div class="timeline__detail"><div class="muted">${esc(fmtWhen(ev))}</div>${extraTags(ev)}</div>
+      </div>
     </li>`;
   $('rec-timeline').innerHTML = events.length ? events.map(item).join('') : '<li class="muted">Sin actividades que coincidan.</li>';
   if ($('rec-timeline-short')) $('rec-timeline-short').innerHTML = allEvents().filter((e) => e.type === 'task' || e.type === 'email').slice(0, 2).map(item).join('');
@@ -1900,6 +1916,15 @@ if (!rec) {
       toast(`Guía "${guide.dataset.guide}": 1) Prepara el contexto · 2) Haz las preguntas clave · 3) Registra el resultado.`);
       return;
     }
+    const evHead = e.target.closest('.timeline__head');
+    if (evHead) {
+      const li = evHead.closest('.timeline__item');
+      const key = li.dataset.ev;
+      if (openEvents.has(key)) openEvents.delete(key); else openEvents.add(key);
+      li.classList.toggle('is-open', openEvents.has(key));
+      evHead.setAttribute('aria-expanded', String(openEvents.has(key)));
+      return;
+    }
     const kind = e.target.closest('#act-filters [data-kind]');
     if (kind) {
       actKind = kind.dataset.kind;
@@ -2006,7 +2031,7 @@ if (!rec) {
       const dealId = stageSel.dataset.dealStage;
       const label = (stageSel.options[stageSel.selectedIndex] || {}).textContent || stageSel.value;
       setField('deals', dealId, 'stage', stageSel.value);
-      addEvent({ type: 'stage', when: Date.now(), who: 'Tú', text: `Negocio "${(findRecord('deals', dealId) || {}).name || dealId}" movido a la etapa ${label}.` });
+      renderTimeline(); // data.js logs the stage change here and on the deal (system entries)
       toast(`Etapa actualizada: ${label}`);
       renderRight();
       return;

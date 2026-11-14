@@ -625,7 +625,7 @@ export async function runImport(id, plan, { onProgress, isCanceled, chunk = 40, 
           const defaults = newRecordDefaults(type, r.data);
           const data = { ...defaults, ...r.data, ...stamp };
           Object.keys(data).forEach((k) => { if (data[k] === undefined) delete data[k]; });
-          const rec = addRecord(type, data);
+          const rec = addRecord(type, data, { origin: 'Importación' });
           result.created += 1;
           result.createdIds.push(rec.id);
           // a company found or created from the e-mail domain (companies specification §2) counts as an association

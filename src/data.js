@@ -373,6 +373,24 @@ export function formatShortDate(d) {
   return `${String(x.getDate()).padStart(2, '0')}/${String(x.getMonth() + 1).padStart(2, '0')}/${x.getFullYear()}`;
 }
 
+// "hace 5 minutos", "hace 3 horas", "ayer", "hace 4 días"… from the real clock (timeline entries).
+export function relativeTimeFine(d, now = Date.now()) {
+  if (!d) return '--';
+  const ms = Math.max(0, now - (d instanceof Date ? d : new Date(d)).getTime());
+  const min = Math.round(ms / 60000);
+  if (min < 1) return 'ahora mismo';
+  if (min < 60) return `hace ${min} ${min === 1 ? 'minuto' : 'minutos'}`;
+  const h = Math.round(ms / 3600000);
+  if (h < 24) return `hace ${h} ${h === 1 ? 'hora' : 'horas'}`;
+  const days = Math.round(ms / DAY);
+  if (days === 1) return 'ayer';
+  if (days < 30) return `hace ${days} días`;
+  const months = Math.round(days / 30);
+  if (months < 2) return 'hace un mes';
+  if (months < 12) return `hace ${months} meses`;
+  const years = Math.round(days / 365);
+  return years < 2 ? 'hace un año' : `hace ${years} años`;
+}
 export function relativeTime(d) {
   if (!d) return '--';
   const x = d instanceof Date ? d : new Date(d);
@@ -736,7 +754,8 @@ export function restoreAll(type) {
   write(K(type, 'deleted'), []);
 }
 
-export function addRecord(type, fields) {
+// opts.origin: where the record comes from ("Creación manual", "Importación"…), for the timeline entry.
+export function addRecord(type, fields, opts = {}) {
   if (dbLive) {
     const id = nextId[type];
     nextId[type] += 1;
@@ -747,18 +766,36 @@ export function addRecord(type, fields) {
       const { error } = await supabase.from(type).insert(toDb(type, rec, true));
       if (error) console.error('[supabase] insert', type, error);
     });
-    return afterAdd(type, rec);
+    return afterAdd(type, rec, opts);
   }
   const extra = getExtra(type);
   const rec = { id: 1000 + extra.length + 1, created: TODAY.toISOString(), ...fields };
   extra.unshift(rec);
   write(K(type, 'extra'), extra);
-  return afterAdd(type, rec);
+  return afterAdd(type, rec, opts);
 }
+// ---------- automatic timeline entries (type 'system') ----------
+export const SYSTEM_WHO = 'Sistema';
+export function logSystem(recordType, recordId, text, extra = {}) {
+  if (!recordType || !recordId) return;
+  addActivity({ type: 'system', recordType, recordId: Number(recordId), text, who: SYSTEM_WHO, when: Date.now(), extra });
+}
+const RECORD_WORD = { contacts: 'Contacto', companies: 'Empresa', deals: 'Negocio', tickets: 'Ticket', tasks: 'Tarea' };
+const findIn = (type, id) => (ALL[type] ? ALL[type]() : []).find((r) => Number(r.id) === Number(id));
 // Rules that run right after a record is created or a field changes (companies by e-mail domain, §2 of the
 // companies specification). They never break the write that triggered them.
 const COMPANY_LINK_FIELDS = new Set(['companyId', 'assoc_companies', 'assoc_labels_companies']);
-function afterAdd(type, rec) {
+function afterAdd(type, rec, opts = {}) {
+  // "Registro creado a partir de…" first, so what the automations add next stays newest on the timeline.
+  try {
+    const origin = opts.origin || (typeof rec.source === 'string' && rec.source) || 'Creación manual';
+    logSystem(type, rec.id, `${RECORD_WORD[type] || 'Registro'} creado a partir de ${origin}.`, { origin });
+    if ((type === 'deals' || type === 'tickets') && opts.logAssoc !== false) {
+      const word = RECORD_WORD[type];
+      if (rec.contactId) logSystem('contacts', rec.contactId, `${word} «${rec.name}» creado y asociado a este contacto.`, { [type]: rec.id });
+      if (rec.companyId) logSystem('companies', rec.companyId, `${word} «${rec.name}» creado y asociado a esta empresa.`, { [type]: rec.id });
+    }
+  } catch (e) { console.error('[cronología]', e); }
   if (type === 'contacts') { try { autoAssociateCompany(rec); } catch (e) { console.error('[empresas automáticas]', e); } }
   if (type === 'contacts' && (rec.companyId || (rec.assoc_companies || []).length)) { try { syncContactCompanies(rec.id); } catch (e) { console.error('[contact_companies]', e); } }
   if (type === 'tickets') { try { autoAssociateTicketCompany(rec); } catch (e) { console.error('[tickets: empresa del contacto]', e); } }
@@ -768,6 +805,27 @@ function afterSet(type, id, field, value) {
   if (type === 'contacts' && (field === 'email' || field === 'website') && value) { try { autoAssociateCompany(id); } catch (e) { console.error('[empresas automáticas]', e); } }
   if (type === 'contacts' && COMPANY_LINK_FIELDS.has(field)) { try { syncContactCompanies(id); } catch (e) { console.error('[contact_companies]', e); } }
   if (type === 'tickets' && field === 'contactId' && value) { try { autoAssociateTicketCompany(id); } catch (e) { console.error('[tickets: empresa del contacto]', e); } }
+  try {
+    // A deal changing stage: on the deal and on its contact and company.
+    if (type === 'deals' && field === 'stage') {
+      const d = findIn('deals', id);
+      if (d) {
+        const label = dealStageLabel(d.pipeline, value);
+        logSystem('deals', d.id, `Etapa cambiada a «${label}».`, { stage: value });
+        if (d.contactId) logSystem('contacts', d.contactId, `Negocio «${d.name}» pasó a la etapa «${label}».`, { deal: d.id, stage: value });
+        if (d.companyId) logSystem('companies', d.companyId, `Negocio «${d.name}» pasó a la etapa «${label}».`, { deal: d.id, stage: value });
+      }
+    }
+    // A task completed: on the task's contact and deal.
+    if (type === 'tasks' && field === 'status' && value === 'done') {
+      const t = findIn('tasks', id);
+      if (t) {
+        logSystem('tasks', t.id, 'Tarea completada.', {});
+        if (t.contactId) logSystem('contacts', t.contactId, `Tarea «${t.name}» completada.`, { task: t.id });
+        if (t.dealId) logSystem('deals', t.dealId, `Tarea «${t.name}» completada.`, { task: t.id });
+      }
+    }
+  } catch (e) { console.error('[cronología]', e); }
 }
 
 function merge(type, base) {

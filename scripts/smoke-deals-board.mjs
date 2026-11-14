@@ -118,7 +118,7 @@ const freshSum = data.allDeals().filter((d) => d.pipeline === 'FUERZA DE VENTAS'
 if (foot(toKey)[0] !== `${short(freshSum)} | Cantidad total`) fail('the new total should include the moved deal');
 const acts = data.activitiesFor('deals', migrated.id);
 log('timeline:', acts[0] && acts[0].type, '|', acts[0] && acts[0].text, '| saved override:', JSON.parse(mem['crm:deals:overrides'])[migrated.id].stage);
-if (!acts[0] || acts[0].type !== 'stage' || JSON.parse(mem['crm:deals:overrides'])[migrated.id].stage !== toKey) fail('the move should be persisted and logged');
+if (!acts[0] || acts[0].type !== 'system' || JSON.parse(mem['crm:deals:overrides'])[migrated.id].stage !== toKey) fail('the move should be persisted and logged');
 // the days-in-stage counter restarts after the move
 const movedCard = document.querySelector('.kcard[data-id="' + migrated.id + '"]');
 if (movedCard.querySelector('.kcard__days')) fail('a freshly moved deal has no stale counter');

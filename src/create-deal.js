@@ -250,7 +250,9 @@ export function mountCreateDeal({ root = document.getElementById('list-root') ||
     showError('');
     try {
       const rec = build();
-      const made = addRecord('deals', rec);
+      const nItems = state.items.filter((x) => String(x.name || '').trim()).length;
+      // The association entries follow the panel's checkboxes (below), so data.js only logs the creation itself.
+      const made = addRecord('deals', rec, { origin: `Creación manual${nItems ? ` con ${nItems} ${nItems === 1 ? 'elemento' : 'elementos'} de pedido` : ''}`, logAssoc: false });
       const lines = addLineItems(made.id, state.items.map((x) => ({ ...x, currency: rec.deal_currency_code })));
       // The other side of each association: records not covered by the deal's own keys list the deal too.
       const mirror = (kind, c) => {
@@ -263,7 +265,6 @@ export function mountCreateDeal({ root = document.getElementById('list-root') ||
       };
       state.contacts.forEach((c) => mirror('contacts', c));
       state.companies.forEach((c) => mirror('companies', c));
-      addActivity({ type: 'created', recordType: 'deals', recordId: Number(made.id), text: `Negocio creado${lines.length ? ` con ${lines.length} elemento${lines.length === 1 ? '' : 's'} de pedido` : ''}.`, who: 'Tú', when: Date.now(), extra: {} });
       toast('Negocio creado');
       if (list && typeof list.render === 'function') list.render();
       if (onCreated) onCreated(made, { lines });

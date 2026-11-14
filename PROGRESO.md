@@ -1,5 +1,13 @@
 # Progreso — Omni CRM
 
+## 2026-11-14 (sesión 5) · Cronología de la ficha más viva (entradas automáticas, filtros, entradas expandibles)
+
+**Construido**
+- **Entradas automáticas** (`src/data.js`, `logSystem` → `activities` con `type = 'system'` y `who = 'Sistema'` en Supabase): al crear un registro («Contacto/Empresa/Negocio/Ticket/Tarea creado a partir de Creación manual / Importación…»; las importaciones pasan el origen y el panel «Crear negocio» añade los elementos de pedido), al crear un negocio o ticket también en su contacto y empresa; cuando un **negocio cambia de etapa** (en el negocio y en su contacto y empresa, con la etiqueta real de la etapa); al **agregar a un segmento** estático (`src/segments-data.js`, solo la primera vez); y al **completar una tarea** (en la tarea, su contacto y su negocio). Las notas manuales que duplicaban el cambio de etapa (tablero y tarjeta de negocios de la ficha) se quitaron.
+- **Filtros** de la pestaña Actividades: tipos Notas / Correos / Llamadas / Tareas / Reuniones / Mensajes / **Sistema**, «Fecha de actividad», «Actividad asignada a» (Tú, propietarios, Sistema) y «Borrar todo».
+- **Entradas** (`src/record.js`): icono por tipo (⚙ para el sistema), **título** (Nota, Correo, Llamada, Tarea, Reunión, Actividad del sistema… y el asunto si lo hay), **quién la registró** y **fecha relativa** («hace 3 horas», «ayer»; la fecha exacta al pasar el ratón) y texto en una línea; **al hacer clic se expande** (texto completo, fecha y hora exactas y etiquetas como resultado, duración o canal); el estado abierto se conserva al refrescar.
+- Pruebas: `scripts/smoke-timeline.mjs` (creación con origen, negocio asociado creado y cambio de etapa en los tres registros, segmento sin duplicar, tarea completada, forma de las filas, chips y filtros, diseño y expansión de las entradas, Borrar todo) + `smoke-deals-board` y `smoke-create-deal` adaptados; suite completa (40) en verde; `npm run build` OK; rebuild_check «would pass, 90 %».
+
 ## 2026-11-14 (sesión 5) · Menú «Acciones» en Contactos y Empresas + papelera (soft-delete)
 
 **Construido**

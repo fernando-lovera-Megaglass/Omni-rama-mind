@@ -1,6 +1,6 @@
 import { boot } from './page.js';
 import { mountList, tag, link, ownerHtml } from './list.js';
-import { allDeals, allCompanies, allTasks, DEAL_STAGES, PRIORITIES, OWNERS, formatDate, formatMoney, formatMoneyShort, labelOf, classOf, initials, TODAY, dealPipelines, dealPipelineDefs, stagesFor, allDealStages, isClosedStage, addRecord, setField, addActivity, activitiesFor, CURRENCY_DEFS, CURRENCY_CODES, homeCurrency, toHomeCurrency } from './data.js';
+import { allDeals, allCompanies, allTasks, DEAL_STAGES, PRIORITIES, OWNERS, formatDate, formatMoney, formatMoneyShort, labelOf, classOf, initials, TODAY, dealPipelines, dealPipelineDefs, stagesFor, allDealStages, isClosedStage, addRecord, setField, activitiesFor, CURRENCY_DEFS, CURRENCY_CODES, homeCurrency, toHomeCurrency } from './data.js';
 import { toast } from './shell.js';
 import { mountCreateDeal } from './create-deal.js';
 
@@ -166,8 +166,7 @@ const list = mountList({
     // After a drop: the entry date of the stage (days-in-stage counter), the timeline entry, then the
     // automations defined in the pipeline's "Automatizar" tab. The stage itself is already saved.
     onMove: (r, to, label) => {
-      setField('deals', r.id, 'stageEnteredAt', TODAY.toISOString());
-      addActivity({ type: 'stage', recordType: 'deals', recordId: r.id, text: `Negocio movido a la etapa ${label}.`, who: 'Tú', when: Date.now(), extra: { key: 'stage', from: r.stage, to } });
+      setField('deals', r.id, 'stageEnteredAt', TODAY.toISOString()); // the stage change itself is logged by data.js (system entry)
       const d = defOf(r.pipeline);
       const a = (d.automation || {})[to];
       if (!a) return;

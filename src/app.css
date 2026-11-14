@@ -1524,6 +1524,60 @@ h1 {
   margin-bottom: var(--sp-2);
 }
 
+/* Expandable entries: title row (button), who + relative time, one-line text that opens on click */
+.timeline__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.timeline__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-8);
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  color: var(--c-text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.timeline__title {
+  font-weight: 600;
+}
+
+.timeline__chev {
+  color: var(--c-muted);
+  transition: transform 0.15s ease;
+}
+
+.timeline__item.is-open .timeline__chev {
+  transform: rotate(180deg);
+}
+
+.timeline__text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.timeline__item.is-open .timeline__text {
+  white-space: normal;
+}
+
+.timeline__detail {
+  display: none;
+  margin-top: var(--sp-4);
+  font-size: var(--fs-xs);
+}
+
+.timeline__item.is-open .timeline__detail {
+  display: block;
+}
+
 .timeline__tags {
   display: flex;
   flex-wrap: wrap;
