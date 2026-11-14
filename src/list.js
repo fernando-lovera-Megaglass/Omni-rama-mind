@@ -88,6 +88,8 @@ export function mountList(cfg) {
     density: prefs.density === 'compact' ? 'compact' : 'comfortable',
     // Zebra striping (alternate rows tinted), also from the gear menu.
     zebra: prefs.zebra === true,
+    // Hierarchy (companies): child records nested under their parent, from the gear menu.
+    nested: Boolean(cfg.hierarchy) && prefs.nested === true,
     // "Mostrar métricas" in the gear menu: the summary tiles above the table (null = follow the account setting).
     metrics: typeof prefs.metrics === 'boolean' ? prefs.metrics : null,
     boardCollapsed: new Set(prefs.boardCollapsed || []),
@@ -713,7 +715,28 @@ export function mountList(cfg) {
       if (typeof av === 'number' && typeof bv === 'number') return (av - bv) * state.sort.dir;
       return String(av ?? '').localeCompare(String(bv ?? ''), 'es') * state.sort.dir;
     });
-    return list;
+    return state.nested && cfg.hierarchy ? nestChildren(list) : list;
+  }
+  // Hierarchy: each record whose parent is in the list follows that parent (indented); the rest keep the sort.
+  const depthOf = new Map();
+  function nestChildren(list) {
+    depthOf.clear();
+    const key = cfg.hierarchy.parentKey;
+    const ids = new Set(list.map((r) => Number(r.id)));
+    const byParent = new Map();
+    list.forEach((r) => { const p = Number(r[key]); if (p && ids.has(p) && p !== Number(r.id)) { if (!byParent.has(p)) byParent.set(p, []); byParent.get(p).push(r); } });
+    const out = [];
+    const placed = new Set();
+    const walk = (r, depth) => {
+      if (placed.has(Number(r.id))) return;
+      placed.add(Number(r.id));
+      depthOf.set(Number(r.id), depth);
+      out.push(r);
+      (byParent.get(Number(r.id)) || []).forEach((child) => walk(child, depth + 1));
+    };
+    list.forEach((r) => { const p = Number(r[key]); if (!(p && ids.has(p) && p !== Number(r.id))) walk(r, 0); });
+    list.forEach((r) => walk(r, 0)); // records inside a cycle, if any
+    return out;
   }
 
   // ---------- saved views ----------
@@ -1055,6 +1078,7 @@ export function mountList(cfg) {
       ${toggle('toggle-freeze', state.frozen, 'Fijar la primera columna')}
       ${toggle('toggle-density', state.density === 'compact', 'Filas compactas')}
       ${toggle('toggle-zebra', state.zebra, 'Vista en zebra')}
+      ${cfg.hierarchy ? toggle('toggle-nested', state.nested, cfg.hierarchy.label || 'Mostrar secundarias bajo la matriz') : ''}
       <div class="menu__sep"></div>
       <div class="vsmenu__label">Vista${v ? `: <span class="vsmenu__view">${esc(v.name)}</span>` : ''}</div>
       ${item('view-save', 'Guardar vista', { disabled: std || !dirty })}
@@ -1131,14 +1155,14 @@ export function mountList(cfg) {
     tbody.innerHTML = slice
       .map(
         (r) => `
-        <tr data-id="${r.id}" class="${state.previewId === Number(r.id) ? 'is-previewing' : ''}${state.selected.has(Number(r.id)) ? ' is-selected' : ''}">
+        <tr data-id="${r.id}" class="${state.previewId === Number(r.id) ? 'is-previewing' : ''}${state.selected.has(Number(r.id)) ? ' is-selected' : ''}${state.nested && depthOf.get(Number(r.id)) ? ' row--child' : ''}"${state.nested && depthOf.get(Number(r.id)) ? ` data-depth="${depthOf.get(Number(r.id))}" style="--depth:${depthOf.get(Number(r.id))}"` : ''}>
           <td class="table__check"><input type="checkbox" class="row-check" data-id="${r.id}" ${state.selected.has(Number(r.id)) ? 'checked' : ''} aria-label="Seleccionar" /></td>
           ${cols
             .map(
               (c, i) =>
                 `<td class="${c.className || ''}${i === 0 ? ' table__first' : ''}${isEditable(c.key) ? ' cell--editable' : ''}${i > 0 && isSystem(c.key) ? ' cell--locked' : ''}${fzClass(i)}${hlOf(c, r) ? ' cell--hl' : ''}" data-key="${c.key}" data-id="${r.id}" title="${i > 0 && isSystem(c.key) ? 'Valor calculado por el sistema (solo lectura)' : esc(cellText(c, r))}" style="${fzStyle(i)}${hlOf(c, r) ? `background:${hlOf(c, r)};` : ''}">${
                   i === 0
-                    ? `<div class="firstcell"><div class="firstcell__content">${cellHtml(c, r)}</div><button class="preview-btn" type="button" data-preview="${r.id}" aria-label="Vista previa"><span class="preview-btn__tip">Vista previa</span>▭</button></div>`
+                    ? `<div class="firstcell">${state.nested && depthOf.get(Number(r.id)) ? '<span class="hier__mark" aria-hidden="true">↳</span>' : ''}<div class="firstcell__content">${cellHtml(c, r)}</div><button class="preview-btn" type="button" data-preview="${r.id}" aria-label="Vista previa"><span class="preview-btn__tip">Vista previa</span>▭</button></div>`
                     : `${cellHtml(c, r)}${isEditable(c.key) ? '<span class="cell__pen" aria-hidden="true">✎</span>' : isSystem(c.key) ? '<span class="cell__lock" aria-hidden="true"></span>' : ''}`
                 }</td>`,
             )
@@ -2788,6 +2812,11 @@ export function mountList(cfg) {
       setPrefs(cfg.type, { zebra: state.zebra });
       render();
       toast(state.zebra ? 'Vista en zebra activada' : 'Vista en zebra desactivada');
+    } else if (a === 'toggle-nested') {
+      state.nested = !state.nested;
+      setPrefs(cfg.type, { nested: state.nested });
+      render();
+      toast(state.nested ? 'Las secundarias se muestran bajo su matriz' : 'Lista plana');
     } else if (a === 'toggle-metrics') {
       state.metrics = !metricsShown();
       setPrefs(cfg.type, { metrics: state.metrics });

@@ -23,3 +23,24 @@ export const SEED_CONTACT_PROPERTIES = [
   ['adjunto', 'Adjunto', 'text'],
   ['files', 'Files', 'text'],
 ].map(([key, label, kind, visible]) => ({ key, label, kind, group: SEED_GROUP, desc: '', visible: Boolean(visible), archived: false }));
+// The account's real custom company properties (supabase/custom-properties-companies.sql): text unless
+// noted; «Tipo de cliente» is a dropdown, latitud / longitud are numbers.
+export const SEED_COMPANY_PROPERTIES = [
+  ['rfc', 'RFC', 'text'],
+  ['tipo_de_cliente', 'Tipo de cliente', 'enum', false, ['Instalador', '50 Top Glazier', 'Desarrollador', 'Arquitecto']],
+  ['tipo_principal_de_cliente_de_vidrio', 'Tipo principal de cliente de vidrio', 'text'],
+  ['especialidad_de_la_empresa', 'Especialidad de la empresa', 'text'],
+  ['grupo', 'Grupo', 'text'],
+  ['productos_de_interes', 'Productos de interés', 'text'],
+  ['proyectos_recientes', 'Proyectos recientes', 'text'],
+  ['direccion_factura', 'Dirección de factura', 'text'],
+  ['nombre_a_quien_factura', 'Nombre a quien factura', 'text'],
+  ['numero_de_telefono_2', 'Número de teléfono 2', 'text'],
+  ['paisregion', 'País/región', 'text'],
+  ['latitud', 'Latitud', 'number'],
+  ['longitud', 'Longitud', 'number'],
+  ['mapsly', 'Mapsly', 'text'],
+  ['contactado', 'Contactado', 'text'],
+  ['rol', 'Rol', 'text'],
+].map(([key, label, kind, visible, options]) => ({ key, label, kind, options, group: SEED_GROUP, desc: '', visible: Boolean(visible), archived: false }));
+export const SEED_BY_TYPE = { contacts: SEED_CONTACT_PROPERTIES, companies: SEED_COMPANY_PROPERTIES };

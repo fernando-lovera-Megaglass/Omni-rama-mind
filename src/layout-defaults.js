@@ -34,6 +34,10 @@ export function cardCatalog(type) {
     playbooks: { label: 'Guías prácticas', desc: 'Guías prácticas (valor predeterminado)', zone: 'right' },
   };
   if (type === 'contacts') cards.lead = { label: 'Seguimiento de etapa de lead', desc: 'Seguimiento de etapa de lead (valor predeterminado)', zone: 'right' };
+  if (type === 'companies') {
+    cards.parent = { label: 'Empresa matriz', desc: 'Empresa matriz (valor predeterminado)', zone: 'right' };
+    cards.subsidiaries = { label: 'Empresas secundarias', desc: 'Empresas secundarias (valor predeterminado)', zone: 'right' };
+  }
   (ASSOC_KINDS[type] || []).forEach((k) => {
     const km = TYPE_META[k];
     cards[`assoc-${k}`] = { label: km.p, desc: `${km.p} Tarjeta de asociación (valor predeterminado)`, zone: 'right', assoc: k };
@@ -41,6 +45,8 @@ export function cardCatalog(type) {
   // Extra cards available to team views (as in the original editor).
   cards.collaborators = { label: 'Colaboradores', desc: 'Colaboradores (valor predeterminado)', zone: 'left' };
   if (type === 'deals') cards.dealscore = { label: 'Calificación de negocios', desc: 'Calificación de negocios (valor predeterminado)', zone: 'middle' };
+  // The deal's line items (deal_line_items), as added from the "Crear negocio" panel.
+  if (type === 'deals') cards.lineitems = { label: 'Elementos de pedido', desc: 'Elementos de pedido del negocio (valor predeterminado)', zone: 'right' };
   const extraAssoc = type === 'deals' ? ['Cotizaciones', 'Tickets', 'Enlaces de pago', 'Pagos', 'Negocios', 'Facturas', 'Suscripciones', 'Pedidos', 'Carritos', 'Contratos', 'Notas de crédito'] : type === 'companies' ? ['Cotizaciones', 'Facturas', 'Suscripciones', 'Pedidos', 'Contratos'] : type === 'contacts' ? ['Cotizaciones', 'Pagos', 'Suscripciones', 'Pedidos', 'Carritos'] : ['Negocios', 'Empresas'];
   extraAssoc.forEach((label, i) => { cards[`x-${i}-${label.toLowerCase().replace(/[^a-z]+/g, '')}`] = { label, desc: `${label} Tarjeta de asociación (valor predeterminado)`, zone: 'right', extra: true }; });
   cards.gdrive = { label: 'Archivos adjuntos de Google Drive', desc: 'Google Drive Attachments (valor predeterminado)', zone: 'right' };
@@ -123,7 +129,9 @@ export function saveViewLayout(type, name, layout) {
 export function defaultLayout(type) {
   const right = ['summary'];
   if (type === 'contacts') right.push('lead');
+  if (type === 'companies') right.push('parent', 'subsidiaries');
   (ASSOC_KINDS[type] || []).forEach((k) => right.push(`assoc-${k}`));
+  if (type === 'deals') right.push('lineitems');
   right.push('attachments', 'playbooks');
   return {
     name: 'Vista predeterminada',

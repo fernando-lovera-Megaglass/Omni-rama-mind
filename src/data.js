@@ -2,7 +2,7 @@
 // When VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are set, records live in
 // Supabase and all edits go to the database. Without them, edits, additions
 // and deletions are kept in localStorage so the demo remembers them.
-import { propertyList, loadCustomProperties, setCustomPropertyWriter, localCustomProperties, clearLocalCustomProperties, customPropToDb, CUSTOM_OBJECT_NAME, SEED_CONTACT_PROPERTIES } from './properties.js';
+import { propertyList, loadCustomProperties, setCustomPropertyWriter, localCustomProperties, clearLocalCustomProperties, customPropToDb, CUSTOM_OBJECT_NAME, SEED_BY_TYPE } from './properties.js';
 import { supabase, DB_MODE, createAnonProbe } from './supabaseClient.js';
 import { requireSession, signOut, siteRoot } from './auth.js';
 
@@ -426,7 +426,7 @@ const K = (type, what) => `crm:${type}:${what}`;
 // JS records use camelCase; the database uses snake_case columns.
 const CAMEL_TO_DB = {
   contacts: { companyId: 'company_id', lastActivity: 'last_activity', lastActivityType: 'last_activity_type', jobTitle: 'job_title' },
-  companies: { lastActivity: 'last_activity', lastActivityType: 'last_activity_type' },
+  companies: { lastActivity: 'last_activity', lastActivityType: 'last_activity_type', parentCompanyId: 'parent_company_id' },
   deals: { closeDate: 'close_date', companyId: 'company_id', contactId: 'contact_id', lastActivity: 'last_activity' },
   tickets: { contactId: 'contact_id', lastActivity: 'last_activity' },
   tasks: { contactId: 'contact_id', lastActivity: 'last_activity' },
@@ -436,7 +436,7 @@ const DB_TO_CAMEL = Object.fromEntries(
 );
 const TABLE_COLS = {
   contacts: ['id', 'first', 'last', 'name', 'email', 'phone', 'mobilephone', 'owner', 'company_id', 'company', 'status', 'created', 'last_activity', 'last_activity_type', 'lifecycle', 'city', 'country', 'source', 'job_title', 'customer_type'],
-  companies: ['id', 'name', 'domain', 'phone', 'owner', 'industry', 'city', 'country', 'employees', 'revenue', 'lifecycle', 'created', 'last_activity', 'last_activity_type'],
+  companies: ['id', 'name', 'domain', 'phone', 'owner', 'industry', 'city', 'country', 'employees', 'revenue', 'lifecycle', 'created', 'last_activity', 'last_activity_type', 'parent_company_id'],
   deals: ['id', 'name', 'amount', 'stage', 'pipeline', 'close_date', 'owner', 'company_id', 'company', 'contact_id', 'created', 'last_activity', 'priority', 'type'],
   tickets: ['id', 'name', 'status', 'priority', 'pipeline', 'owner', 'contact_id', 'source', 'created', 'last_activity', 'description'],
   tasks: ['id', 'name', 'type', 'status', 'priority', 'owner', 'contact_id', 'contact', 'due', 'created', 'last_activity'],
@@ -868,7 +868,24 @@ function buildCompany(i) {
     lastActivity: daysAgo((i * 7) % 60),
     lastActivityType: ['email', 'call', 'meeting'][i % 3],
     lifecycle: lifecycleFor(i * 5),
+    // A few companies hang from a parent company (the original's matriz / secundarias).
+    parentCompanyId: i % 6 === 2 ? ((i * 5) % 7) + 1 : '',
   };
+}
+// ---------- company hierarchy (parent_company_id) ----------
+export const parentCompanyOf = (c) => (c && c.parentCompanyId ? allCompanies().find((x) => Number(x.id) === Number(c.parentCompanyId)) || null : null);
+export const childCompaniesOf = (id) => allCompanies().filter((x) => Number(x.parentCompanyId) === Number(id));
+// Whether `companyId` is `ancestorId` itself or hangs (at any depth) from it — a parent must never be one of them.
+export function isCompanyDescendant(ancestorId, companyId) {
+  const seen = new Set();
+  let cur = allCompanies().find((x) => Number(x.id) === Number(companyId));
+  while (cur) {
+    if (Number(cur.id) === Number(ancestorId)) return true;
+    if (seen.has(Number(cur.id))) return false;
+    seen.add(Number(cur.id));
+    cur = parentCompanyOf(cur);
+  }
+  return false;
 }
 
 const DEAL_KINDS = ['Instalación ventanas', 'Cerramiento terraza', 'Mampara de baño', 'Fachada de vidrio', 'Reforma oficina', 'Puertas correderas', 'Doble acristalamiento', 'Escaparate comercial', 'Barandilla de cristal', 'Lucernario', 'Muro cortina', 'Vidrio templado a medida'];
@@ -1439,8 +1456,8 @@ async function migrateLocalCustomProperties(existing) {
 // The account's real contact properties are part of the catalog: if the table misses any (an older
 // custom-properties.sql, or rows deleted by hand) they are inserted again, never overwritten.
 async function ensureSeedProperties(rows) {
-  const have = new Set(rows.filter((r) => r.objeto === 'contact').map((r) => r.name));
-  const missing = SEED_CONTACT_PROPERTIES.filter((s) => !have.has(s.key)).map((s) => customPropToDb('contacts', s));
+  const have = new Set(rows.map((r) => `${r.objeto}:${r.name}`));
+  const missing = Object.entries(SEED_BY_TYPE).flatMap(([type, seeds]) => seeds.filter((s) => !have.has(`${CUSTOM_OBJECT_NAME[type]}:${s.key}`)).map((s) => customPropToDb(type, s)));
   if (!missing.length) return 0;
   const { error } = await supabase.from('custom_properties').upsert(missing, { onConflict: 'objeto,name', ignoreDuplicates: true });
   if (error) { console.error('[supabase] siembra de propiedades personalizadas', error); return 0; }

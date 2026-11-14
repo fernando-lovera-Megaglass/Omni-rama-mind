@@ -186,4 +186,14 @@ type('name', 'Nadie');
 click(document.querySelector('#cd-panel .slideover__foot [data-cd="cancel"]'));
 log('Cancelar closes and clears:', !panel().classList.contains('is-open') && f.name.value === '', '| total unchanged:', total() === before + 2);
 if (panel().classList.contains('is-open') || f.name.value || total() !== before + 2) fail('Cancelar');
+// 10) the deal record shows the line items card with the saved lines and their total
+const dom2 = new JSDOM('<!doctype html><body class="app" data-type="deals"><aside id="sidenav"></aside><header id="topbar"></header><main id="record-root"></main><div id="scrim"></div></body>', { url: `http://localhost/deals/record/?id=${made.id}` });
+globalThis.window = dom2.window; globalThis.document = dom2.window.document; globalThis.location = dom2.window.location; globalThis.HTMLElement = dom2.window.HTMLElement;
+dom2.window.HTMLElement.prototype.scrollIntoView = function () {};
+await import(resolve(here, '../src/record.js'));
+await wait(20);
+const liCard = document.querySelector('[data-card="lineitems"]');
+const liRows = liCard ? [...liCard.querySelectorAll('tbody tr')].map((tr) => [...tr.querySelectorAll('td')].map(text).join(' | ')) : [];
+log('record card:', text(liCard && liCard.querySelector('.card__toggle')), '| rows:', liRows.join(' // '), '| total:', text(liCard && liCard.querySelector('tfoot td:last-child')));
+if (!liCard || liRows.length !== 2 || !/Vidrio templado 10 mm \| 12 \| \$1,500 \| \$18,000/.test(liRows[0]) || text(liCard.querySelector('tfoot td:last-child')) !== '$18,751.50') fail('the deal record should list the line items with the total');
 log('OK');

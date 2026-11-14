@@ -10,7 +10,8 @@ import {
   STATUSES, LIFECYCLES, SOURCES, OWNERS, TICKET_STATUSES, PRIORITIES, TASK_TYPES, TASK_STATUSES,
   ticketStatusesFor, ticketStatusLabel, firstOpenTicketStatus, ticketPipelines, stagesFor, allDealStages, dealStageLabel, dealStageProb, isClosedStage,
   formatDate, formatMoney, initials, colorFor, labelOf, toCsv, download, TODAY, assocLabels, CURRENCY_DEFS, CURRENCY_CODES,
-  activitiesFor, addActivity, historyFor, addHistoryEntry, getSetting, setSetting, settingsLive, settingScope,
+  activitiesFor, addActivity, historyFor, addHistoryEntry, getSetting, setSetting, settingsLive, settingScope, lineItemsFor, fetchLineItems, lineItemsTotal,
+  parentCompanyOf, childCompaniesOf, isCompanyDescendant,
 } from './data.js';
 import { propertyGroups, propertyMap } from './properties.js';
 const PROPERTIES = new Proxy({}, { get: (_, t) => propertyGroups(t) });
@@ -990,6 +991,39 @@ function middleCardHtml(id) {
 }
 const FILES_KEY = `crm:${type}:files:${id}`;
 const loadFiles = () => loadJson(FILES_KEY, []);
+// ---------- company hierarchy cards ----------
+const companyItem = (c) => `<div class="hier__item"><span class="assoc__logo">${esc(initials(c.name))}</span><a href="./record/?id=${c.id}">${esc(c.name)}</a>${c.domain ? `<small>${esc(c.domain)}</small>` : ''}</div>`;
+let parentQuery = '';
+// "Empresa matriz": the parent company with a search box to assign or change it (never itself or a subsidiary).
+function parentCompanyCard(label) {
+  const parent = parentCompanyOf(rec);
+  const q = parentQuery.trim().toLowerCase();
+  const hits = q ? allCompanies().filter((c) => Number(c.id) !== Number(rec.id) && (c.name.toLowerCase().includes(q) || String(c.domain || '').toLowerCase().includes(q))).slice(0, 6) : [];
+  return `<div class="card" data-card="parent"><div class="card__head"><button class="card__toggle" type="button" data-toggle="parent"><span class="chev">⌄</span> ${esc(label)}</button>${parent ? `<button class="link-btn" type="button" data-parent-clear aria-label="Quitar la empresa matriz">Quitar</button>` : ''}</div>
+    <div data-pane="parent">
+      ${parent ? companyItem(parent) : '<p class="muted">Esta empresa no cuelga de ninguna otra.</p>'}
+      <div class="hier__search"><input type="search" id="parent-q" value="${esc(parentQuery)}" placeholder="${parent ? 'Cambiar la empresa matriz' : 'Buscar la empresa matriz'}" aria-label="Buscar la empresa matriz" autocomplete="off" />
+        ${q ? `<ul class="hier__results" id="parent-results">${hits.length ? hits.map((c) => { const blocked = isCompanyDescendant(rec.id, c.id); return `<li><button type="button" data-parent-pick="${c.id}" ${blocked ? 'disabled title="Es una empresa secundaria de esta"' : ''}><strong>${esc(c.name)}</strong>${c.domain ? `<span class="muted">${esc(c.domain)}</span>` : ''}${blocked ? '<span class="muted">(secundaria)</span>' : ''}</button></li>`; }).join('') : '<li><span class="muted" style="padding:0 10px">Ninguna empresa coincide.</span></li>'}</ul>` : ''}
+      </div>
+    </div></div>`;
+}
+// "Empresas secundarias": the companies that hang from this one.
+function subsidiariesCard(label) {
+  const kids = childCompaniesOf(rec.id);
+  return `<div class="card" data-card="subsidiaries"><div class="card__head"><button class="card__toggle" type="button" data-toggle="subsidiaries"><span class="chev">⌄</span> ${esc(label)} (${kids.length})</button></div>
+    <div data-pane="subsidiaries">${kids.length ? kids.map(companyItem).join('') : '<p class="muted">Ninguna empresa cuelga de esta. Asigna esta empresa como matriz desde la ficha de la secundaria.</p>'}</div></div>`;
+}
+function setParentCompany(parentId) {
+  const parent = parentId ? allCompanies().find((c) => Number(c.id) === Number(parentId)) : null;
+  if (parentId && (!parent || Number(parent.id) === Number(rec.id) || isCompanyDescendant(rec.id, parent.id))) { toast('Una empresa no puede colgar de sí misma ni de una de sus secundarias'); return; }
+  parentQuery = '';
+  const from = parentCompanyOf(rec);
+  setField(type, rec.id, 'parentCompanyId', parent ? Number(parent.id) : '');
+  rec = findRecord(type, id);
+  addEvent({ type: 'stage', when: Date.now(), who: 'Tú', text: parent ? `Empresa matriz: ${parent.name}${from ? ` (antes ${from.name})` : ''}.` : `Empresa matriz quitada${from ? ` (${from.name})` : ''}.` });
+  renderRight();
+  toast(parent ? `Empresa matriz: ${parent.name}` : 'Empresa matriz quitada');
+}
 function rightCardHtml(cardId) {
   const label = (CATALOG[cardId] || { label: cardId }).label;
   if (cardId === 'summary') {
@@ -1003,6 +1037,9 @@ function rightCardHtml(cardId) {
     const found = assocRows().find((x) => x[2] === kind);
     return found ? assocCard(found[0], found[1], kind) : '';
   }
+  if (cardId === 'lineitems' && type === 'deals') return lineItemsCard(label);
+  if (cardId === 'parent' && type === 'companies') return parentCompanyCard(label);
+  if (cardId === 'subsidiaries' && type === 'companies') return subsidiariesCard(label);
   if (cardId === 'attachments') {
     const files = loadFiles();
     return `<div class="card"><div class="card__head"><button class="card__toggle" type="button" data-toggle="files"><span class="chev">⌄</span> ${esc(label)} (${files.length})</button><label class="link-btn files__add">+ Subir<input type="file" id="file-add" multiple hidden /></label></div>
@@ -1018,6 +1055,23 @@ function renderRight() {
   const L = layoutOf();
   $('rec-right').innerHTML = L.right.map(rightCardHtml).join('');
   renderLead();
+}
+// "Elementos de pedido" of a deal: the lines saved in deal_line_items (fetched once from Supabase).
+let lineItemsFetched = false;
+function lineItemsCard(label) {
+  if (!lineItemsFetched) {
+    lineItemsFetched = true;
+    Promise.resolve(fetchLineItems(rec.id)).then(() => renderRight()).catch((e) => console.error('[elementos de pedido]', e));
+  }
+  const rows = lineItemsFor(rec.id);
+  const code = rec.deal_currency_code;
+  const money = (n) => formatMoney(n, code);
+  return `<div class="card" data-card="lineitems"><div class="card__head"><button class="card__toggle" type="button" data-toggle="lineitems"><span class="chev">⌄</span> ${esc(label)} (${rows.length})</button></div>
+    <div data-pane="lineitems">${rows.length
+      ? `<table class="lineitems"><thead><tr><th>Producto</th><th>Cant.</th><th>Precio</th><th>Importe</th></tr></thead><tbody>${rows
+          .map((r) => `<tr><td>${esc(r.name)}</td><td>${esc(r.quantity)}</td><td>${esc(money(r.price))}</td><td>${esc(money(r.quantity * r.price))}</td></tr>`)
+          .join('')}</tbody><tfoot><tr><td colspan="3">Total</td><td>${esc(money(lineItemsTotal(rows)))}</td></tr></tfoot></table>`
+      : '<p class="muted">Este negocio no tiene elementos de pedido. Se añaden al crear el negocio.</p>'}</div></div>`;
 }
 function renderAssoc() {
   renderRight();
@@ -1788,6 +1842,9 @@ if (!rec) {
       toast('Copiado');
       return;
     }
+    const pp = e.target.closest('[data-parent-pick]');
+    if (pp) { if (!pp.disabled) setParentCompany(pp.dataset.parentPick); return; }
+    if (e.target.closest('[data-parent-clear]')) { setParentCompany(''); return; }
     const btn = e.target.closest('[data-edit-key]');
     if (btn) {
       // Inline editing (card or "Todas las propiedades"): the value becomes an input / dropdown / date picker
@@ -1983,6 +2040,15 @@ if (!rec) {
       renderAllProps(e.target.value);
     } else if (e.target.id === 'allprops-q') {
       renderAllPropsPanel();
+    } else if (e.target.id === 'parent-q') {
+      parentQuery = e.target.value;
+      const card = e.target.closest('[data-card="parent"]');
+      if (card) {
+        card.outerHTML = parentCompanyCard((CATALOG.parent || { label: 'Empresa matriz' }).label);
+        const inp = $('parent-q');
+        inp.focus();
+        inp.setSelectionRange(inp.value.length, inp.value.length);
+      }
     }
   });
 }

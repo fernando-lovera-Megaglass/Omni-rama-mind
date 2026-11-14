@@ -1,7 +1,7 @@
 // Property catalog: every property that can be added as a table column, grouped
 // the way the column editor shows them. Each item: [key, label, type, options].
 // Types: text, number, currency, percent, date, datetime, enum, bool, user, email, phone, url, id.
-import { SEED_CONTACT_PROPERTIES, SEED_GROUP } from './custom-properties.js';
+import { SEED_CONTACT_PROPERTIES, SEED_COMPANY_PROPERTIES, SEED_BY_TYPE, SEED_GROUP } from './custom-properties.js';
 
 const OWNER_OPTS = ['Fernando L.', 'Sofía R.', 'Sin asignar'];
 const YESNO = ['Sí', 'No'];
@@ -530,7 +530,7 @@ export const PROPERTIES = {
 // data.js reads them at start-up into this module and registers the writer that saves changes back.
 // Without the table (local mode) they stay in localStorage, as before.
 const CUSTOM_KEY = (type) => `crm:customprops:${type}`;
-export { SEED_CONTACT_PROPERTIES, SEED_GROUP };
+export { SEED_CONTACT_PROPERTIES, SEED_COMPANY_PROPERTIES, SEED_BY_TYPE, SEED_GROUP };
 // Objects the table knows (its check constraint); tasks keep their custom properties in localStorage.
 export const CUSTOM_OBJECT_NAME = { contacts: 'contact', companies: 'company', deals: 'deal', tickets: 'ticket' };
 const TYPE_OF_OBJECT = Object.fromEntries(Object.entries(CUSTOM_OBJECT_NAME).map(([t, o]) => [o, t]));
@@ -562,7 +562,7 @@ export function localCustomProperties(type) {
 }
 export function clearLocalCustomProperties(type) { localStorage.removeItem(CUSTOM_KEY(type)); }
 // Without the table, the account's real contact properties still exist (they are part of the catalog).
-const withSeed = (type, list) => (type === 'contacts' ? [...list, ...SEED_CONTACT_PROPERTIES.filter((s) => !list.some((p) => p && p.key === s.key)).map((s) => ({ ...s }))] : list);
+const withSeed = (type, list) => (SEED_BY_TYPE[type] ? [...list, ...SEED_BY_TYPE[type].filter((s) => !list.some((p) => p && p.key === s.key)).map((s) => ({ ...s }))] : list);
 export function customProperties(type) {
   if (remote && CUSTOM_OBJECT_NAME[type]) return (remote[type] || []).map((p) => ({ ...p }));
   return withSeed(type, localCustomProperties(type).filter((p) => p && p.key));

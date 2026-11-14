@@ -1,5 +1,18 @@
 # Progreso — Omni CRM
 
+## 2026-11-14 (sesión 5) · Empresas: propiedades reales de Megaglass y jerarquía matriz / secundarias
+
+**Construido**
+- **Propiedades reales de empresas**: migración `supabase/custom-properties-companies.sql` (aplicada: 16 filas con objeto `company` en `custom_properties`): rfc, tipo_de_cliente (desplegable: Instalador, 50 Top Glazier, Desarrollador, Arquitecto), tipo_principal_de_cliente_de_vidrio, especialidad_de_la_empresa, grupo, productos_de_interes, proyectos_recientes, direccion_factura, nombre_a_quien_factura, numero_de_telefono_2, paisregion, latitud y longitud (número), mapsly, contactado y rol, en el grupo «Información de Megaglass». `src/custom-properties.js` (`SEED_COMPANY_PROPERTIES`, `SEED_BY_TYPE`) las conoce también en modo local y `data.js` las vuelve a sembrar si faltan; aparecen en la ficha (Información avanzada y «Ver todas las propiedades», editables), en el editor de columnas y en los filtros, sin valores inventados.
+- **Jerarquía**: migración `supabase/company_hierarchy.sql` (aplicada): columna `parent_company_id` en `companies` (+ índice). `src/data.js`: columna mapeada (`parentCompanyId`), ayudantes `parentCompanyOf`, `childCompaniesOf`, `isCompanyDescendant`; datos de muestra con algunas secundarias. Ficha de empresa (`src/record.js`, `src/layout-defaults.js`): tarjeta **«Empresa matriz»** (la matriz con enlace, buscador para asignarla o cambiarla, «Quitar»; nunca la propia empresa ni una de sus secundarias, que aparece deshabilitada; guarda con `setField` → UPDATE en Supabase y deja nota en la cronología) y tarjeta **«Empresas secundarias (N)»** con las que cuelgan de ella; ambas en el diseño predeterminado y en el editor de diseño.
+- Lista de empresas (`src/companies.js`, `src/list.js`, opción genérica `hierarchy`): en el menú ⚙ «Ver configuración», **«Mostrar las secundarias bajo su matriz»** (preferencia guardada): cada secundaria se coloca justo debajo de su matriz, con sangría y marca ↳ (varios niveles); columnas opcionales «Empresa matriz» (enlace) y «Empresas secundarias» (conteo).
+- Pruebas: `scripts/smoke-company-hierarchy.mjs` (catálogo de las 16 propiedades y sus tipos, ayudantes, lista plana vs. anidada con orden y marcas, columnas, tarjetas de la ficha, asignar por buscador, matriz lista a la secundaria, bloqueo de sí misma / secundaria, Quitar) + suite completa (36) en verde; `npm run build` OK; rebuild_check «would pass, 90 %».
+
+## 2026-11-14 (sesión 5) · Tarjeta «Elementos de pedido» en la ficha del negocio
+
+**Construido**
+- `src/layout-defaults.js` + `src/record.js`: la columna derecha de la ficha de un negocio incluye la tarjeta **«Elementos de pedido (N)»** (también disponible en el editor de diseño de la ficha): producto, cantidad, precio e importe de cada línea guardada en `deal_line_items` desde el panel «Crear negocio», con el total en la moneda del negocio; con Supabase las líneas se leen una vez al abrir la ficha (`fetchLineItems`). Prueba: `scripts/smoke-create-deal.mjs` ampliada (la ficha muestra las dos líneas y el total); suite completa en verde; `npm run build` OK.
+
 ## 2026-11-13 (sesión 5) · Ficha de contacto con edición inline, «Ver todas las propiedades» y Personalizar en Supabase
 
 **Construido** (`src/record.js`, vale para todas las fichas)

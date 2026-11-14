@@ -4835,6 +4835,125 @@ td.cell--hl .cell__pen {
   color: var(--c-link);
 }
 
+/* Deal record: "Elementos de pedido" card */
+.lineitems {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: var(--sp-8);
+  font-size: var(--fs-sm);
+}
+
+.lineitems th {
+  padding: 0 var(--sp-4) var(--sp-4);
+  text-align: left;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--c-muted);
+}
+
+.lineitems td {
+  padding: var(--sp-4);
+  border-top: 1px solid var(--c-border);
+  vertical-align: middle;
+}
+
+.lineitems td:nth-child(n + 2),
+.lineitems th:nth-child(n + 2) {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.lineitems tfoot td {
+  font-weight: 600;
+}
+
+/* Company hierarchy: parent / subsidiaries cards on the record, nested rows on the list */
+.hier__item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  padding: var(--sp-8) 0;
+}
+
+.hier__item + .hier__item {
+  border-top: 1px solid var(--c-border);
+}
+
+.hier__item a {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.hier__item small {
+  color: var(--c-muted);
+}
+
+.hier__search {
+  position: relative;
+  margin-top: var(--sp-8);
+}
+
+.hier__search input {
+  width: 100%;
+  height: 36px;
+  padding: 0 var(--sp-10);
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-sm);
+  font: inherit;
+  font-size: var(--fs-sm);
+}
+
+.hier__results {
+  list-style: none;
+  margin: var(--sp-4) 0 0;
+  padding: var(--sp-4) 0;
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-sm);
+  background: var(--c-white);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  max-height: 200px;
+  overflow: auto;
+}
+
+.hier__results button {
+  display: flex;
+  gap: var(--sp-8);
+  align-items: baseline;
+  width: 100%;
+  padding: var(--sp-8) var(--sp-10);
+  border: 0;
+  background: transparent;
+  text-align: left;
+  font: inherit;
+  font-size: var(--fs-sm);
+  color: var(--c-text);
+  cursor: pointer;
+}
+
+.hier__results button:hover,
+.hier__results button:focus {
+  background: #eaf0f6;
+  outline: 0;
+}
+
+.hier__results button[disabled] {
+  color: var(--c-muted);
+  cursor: not-allowed;
+}
+
+.table tr.row--child .firstcell {
+  padding-left: calc(var(--depth, 1) * 22px);
+}
+
+.hier__mark {
+  margin-right: 4px;
+  color: var(--c-muted);
+}
+
 /* Record page: "Ver todas las propiedades" slide-over (search, counter, groups with inline editing) */
 .props__custom .link-btn + .link-btn {
   margin-left: var(--sp-16);

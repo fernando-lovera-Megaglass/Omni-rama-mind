@@ -1,6 +1,6 @@
 import { boot } from './page.js';
-import { mountList, avatarName, ownerHtml } from './list.js';
-import { allCompanies, allContacts, allDeals, OWNERS, LIFECYCLES, formatDate, formatMoney, formatMoneyShort, formatShortDate, TODAY, lifecycleTag, toHomeCurrency, homeCurrency } from './data.js';
+import { mountList, avatarName, ownerHtml, link } from './list.js';
+import { allCompanies, allContacts, allDeals, OWNERS, LIFECYCLES, formatDate, formatMoney, formatMoneyShort, formatShortDate, TODAY, lifecycleTag, toHomeCurrency, homeCurrency, parentCompanyOf, childCompaniesOf } from './data.js';
 import { mountCreateCompany } from './create-company.js';
 
 boot({ root: '../', active: 'crm', sub: 'Empresas', title: 'Empresas' });
@@ -19,6 +19,8 @@ const list = mountList({
   createLabel: 'Crear empresa',
   addDirect: true,
   openCreate: (prefill) => createPanel && createPanel.open(prefill),
+  // Parent / subsidiary companies: the gear menu can nest the subsidiaries under their parent.
+  hierarchy: { parentKey: 'parentCompanyId', label: 'Mostrar las secundarias bajo su matriz' },
   // Metrics card above the table ("Mostrar métricas" in the gear menu); hidden until the person turns it on.
   metricsDefault: false,
   summary: (rows) => {
@@ -70,6 +72,8 @@ const list = mountList({
   ],
   columns: [
     { key: 'name', label: 'Nombre de la empresa', render: (r) => avatarName(r.id, r.name, `./record/?id=${r.id}`) },
+    { key: 'parentCompanyId', label: 'Empresa matriz', default: false, editable: false, text: (r) => (parentCompanyOf(r) || {}).name || '', sortValue: (r) => (parentCompanyOf(r) || {}).name || '', render: (r) => { const p = parentCompanyOf(r); return p ? link(`./record/?id=${p.id}`, p.name) : '<span class="muted">--</span>'; } },
+    { key: 'subsidiaries', label: 'Empresas secundarias', default: false, editable: false, text: (r) => String(childCompaniesOf(r.id).length), sortValue: (r) => childCompaniesOf(r.id).length },
     { key: 'domain', label: 'Dominio' },
     { key: 'phone', label: 'Número de teléfono' },
     { key: 'owner', label: 'Propietario de la empresa', render: (r) => ownerHtml(r.owner) },
