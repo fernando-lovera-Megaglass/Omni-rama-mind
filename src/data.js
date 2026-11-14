@@ -1404,7 +1404,7 @@ export function addActivity(ev) {
   }
   const key = ACT_NOTES_KEY(ev.recordType, ev.recordId);
   const list = read(key, []);
-  list.unshift({ type: ev.type, when: ev.when, who: ev.who, text: ev.text });
+  list.unshift({ type: ev.type, when: ev.when, who: ev.who, text: ev.text, extra: ev.extra || {} });
   write(key, list);
 }
 

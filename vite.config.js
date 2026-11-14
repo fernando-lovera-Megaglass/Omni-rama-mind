@@ -21,6 +21,7 @@ const pages = {
   'data-import': 'data/import/index.html',
   segments: 'segments/index.html',
   'segments-editor': 'segments/editor/index.html',
+  inbox: 'inbox/index.html',
 };
 
 export default defineConfig({

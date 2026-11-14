@@ -50,5 +50,9 @@
   "soft_delete.sql": {
     "status": "aplicada",
     "at": "2026-11-14T05:25:14.935Z"
+  },
+  "conversations.sql": {
+    "status": "aplicada",
+    "at": "2026-11-14T12:48:55.681Z"
   }
 }

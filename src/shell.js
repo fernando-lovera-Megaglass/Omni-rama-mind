@@ -18,7 +18,7 @@ const NAV = [
     ['Negocios', 'deals/'],
     ['Tickets', 'tickets/'],
     ['Segmentos', 'segments/'],
-    ['Bandeja de entrada', '#'],
+    ['Bandeja de entrada', 'inbox/', '<span class="sidenav__badge" data-nav-badge="inbox" hidden></span>'],
     ['Llamadas', '#'],
     ['Tareas', 'tasks/'],
   ]],
@@ -54,7 +54,7 @@ const NAV = [
   ]],
   ['service', 'Servicio', 'tickets/', [
     ['Tickets', 'tickets/'],
-    ['Bandeja de entrada', '#'],
+    ['Bandeja de entrada', 'inbox/', '<span class="sidenav__badge" data-nav-badge="inbox" hidden></span>'],
     ['Encuestas de feedback', '#'],
     ['Portal del cliente', '#'],
     ['Base de conocimientos', '#'],
@@ -92,6 +92,14 @@ const NAV_BOTTOM = [
   ['marketplace', 'Marketplace', '#'],
 ];
 
+// Counter badges on the side navigation (e.g. unread conversations on "Bandeja de entrada" and the CRM icon).
+export function setNavBadge(key, n) {
+  document.querySelectorAll(`[data-nav-badge="${key}"]`).forEach((b) => {
+    b.textContent = n > 99 ? '99+' : String(n || '');
+    b.hidden = !n;
+    b.setAttribute('aria-label', n ? `${n} sin leer` : '');
+  });
+}
 export function mountShell({ root, active, sub }) {
   const sidenav = document.getElementById('sidenav');
   const topbar = document.getElementById('topbar');
@@ -100,7 +108,7 @@ export function mountShell({ root, active, sub }) {
   const item = ([key, label, href, children]) => `
     <div class="sidenav__group${key === active ? ' is-active' : ''}">
       <a class="sidenav__item${key === active ? ' is-active' : ''}" href="${href === '#' ? '#' : root + href}" ${href === '#' ? 'data-soon="1"' : ''}>
-        <span class="ico ico--${key}"></span><span class="sidenav__label">${label}</span>
+        <span class="ico ico--${key}"></span><span class="sidenav__label">${label}</span>${key === 'crm' ? '<span class="sidenav__railbadge" data-nav-badge="inbox" hidden></span>' : ''}
       </a>
       ${
         children
