@@ -24,6 +24,7 @@ const pages = {
   inbox: 'inbox/index.html',
   'marketing-email': 'marketing/email/index.html',
   templates: 'templates/index.html',
+  snippets: 'snippets/index.html',
 };
 
 export default defineConfig({

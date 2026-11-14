@@ -22,6 +22,7 @@ const NAV = [
     ['Llamadas', '#'],
     ['Tareas', 'tasks/'],
     ['Plantillas de mensaje', 'templates/'],
+    ['Fragmentos', 'snippets/'],
   ]],
   ['marketing', 'Marketing', 'marketing/email/', [
     ['Campañas', '#'],
@@ -83,7 +84,7 @@ const NAV = [
   ['library', 'Biblioteca', 'templates/', [
     ['Plantillas', 'templates/'],
     ['Documentos', '#'],
-    ['Fragmentos', '#'],
+    ['Fragmentos', 'snippets/'],
     ['Archivos', '#'],
   ]],
 ];

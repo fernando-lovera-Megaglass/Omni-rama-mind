@@ -4,6 +4,9 @@
 import { toast, wireMenus, closeMenus } from './shell.js';
 import { addRecord, formatDate, TODAY, allContacts } from './data.js';
 import { ready as templatesReady, templates as savedTemplates, resolveTokens } from './templates-data.js';
+import { openTokenPicker, chipHtml, chipsToMarkers, renderTokens, contextFromRecord, insertAtCaret } from './tokens.js';
+import { snippets as savedSnippets } from './snippets-data.js';
+import { attachSnippetAutocomplete } from './snippet-autocomplete.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
 const SIG_KEY = 'crm:signature';
@@ -29,7 +32,6 @@ const SEQUENCES = ['Prospección instaladores (5 pasos)', 'Reactivación de clie
 const DOCUMENTS = ['Catálogo Megaglass 2026.pdf', 'Ficha técnica vidrio templado.pdf', 'Guía de instalación.pdf'];
 const MEETINGS = ['Llamada de 15 minutos', 'Visita técnica (60 min)', 'Presentación de propuesta (30 min)'];
 const QUOTES = ['Crear cotización nueva', 'Cotización #1042 — Fachada Cristales Norte', 'Cotización #1039 — Mamparas Hogar Luz'];
-const SNIPPETS = ['Horario de atención: L–V 9:00–18:00.', 'Garantía de 10 años en vidrio templado.', 'Plazo habitual de instalación: 3–4 semanas.'];
 
 let el = null;
 let ctx = null;
@@ -88,6 +90,14 @@ function mount() {
 function tokenContact() {
   const known = ctx.contactId ? allContacts().find((c) => String(c.id) === String(ctx.contactId)) : null;
   return known || { first: ctx.firstName, name: ctx.to, company: ctx.company, email: (ctx.recipients[0] || {}).email || '' };
+}
+// What the personalisation tokens read from here: the contact (with its company, deal, ticket and owner);
+// the "De" sender stands in as the owner when the contact has none.
+function composeContext() {
+  const c = tokenContact();
+  const sender = SENDERS[ctx.senderIdx || 0];
+  const extra = !c.owner || c.owner === 'Sin asignar' ? { owner: { first: sender[0].split(' ')[0], last: sender[0].split(' ').slice(1).join(' '), name: sender[0], email: sender[1], phone: '', jobTitle: '' } } : {};
+  return contextFromRecord('contacts', c, extra);
 }
 
 function render() {
@@ -168,7 +178,8 @@ function render() {
         <button type="button" data-cm="image" title="Insertar imagen">🖼</button>
         <div class="menu"><button type="button" aria-haspopup="true"><strong>Insertar</strong> <span class="caret"></span></button><div class="menu__panel">
           <div class="menu__title">Insertar</div>
-          ${SNIPPETS.map((s) => `<button class="menu__item" type="button" data-snippet="${esc(s)}">Fragmento: ${s}</button>`).join('')}
+          <button class="menu__item" type="button" data-cm="ins-token">Token de personalización</button>
+          <button class="menu__item" type="button" data-cm="ins-snippet">Fragmento</button>
           <button class="menu__item" type="button" data-meet="${esc(MEETINGS[0])}">Enlace de reunión</button>
           <button class="menu__item" type="button" data-doc="${esc(DOCUMENTS[0])}">Documento</button>
           <button class="menu__item" type="button" data-quote="${esc(QUOTES[1])}">Cotización</button>
@@ -214,6 +225,8 @@ function render() {
       const plain = text.textContent;
       el.querySelector('#cmp-slash').hidden = !(plain.trim() === '/' || plain.endsWith(' /'));
     });
+    // "#atajo" inserts a snippet with this contact's data in place of its tokens.
+    attachSnippetAutocomplete(text, { context: composeContext });
   }
 }
 
@@ -222,7 +235,7 @@ function insertHtml(html) {
   text.focus();
   const plain = text.textContent.trim();
   if (plain === '/') text.innerHTML = '';
-  document.execCommand('insertHTML', false, html);
+  insertAtCaret(text, html);
   ctx.body = text.innerHTML;
   el.querySelector('#cmp-slash').hidden = true;
 }
@@ -240,7 +253,12 @@ function aiText(kind) {
 }
 
 function send(whenLabel) {
-  const subject = (el.querySelector('#cmp-subject') || {}).value || ctx.subject || '(sin asunto)';
+  // Personalisation tokens (chips or {{…}} markers) become the contact's real data when the e-mail goes out.
+  syncFields();
+  const tokenCtx = composeContext();
+  const subject = renderTokens((el.querySelector('#cmp-subject') || {}).value || ctx.subject || '(sin asunto)', tokenCtx);
+  ctx.subject = subject;
+  ctx.body = renderTokens(chipsToMarkers(ctx.body || ''), tokenCtx);
   const recipients = ctx.recipients.map((r) => r.name || r.email).join(', ');
   if (!ctx.recipients.length) {
     toast('Añade al menos un destinatario');
@@ -297,6 +315,8 @@ function wire() {
         if (url) insertHtml(`<a href="${esc(url)}">${esc(url)}</a>`);
       } else if (a === 'image') toast('Arrastra una imagen al cuerpo del correo o usa el clip para adjuntarla.');
       else if (a === 'video') insertHtml('<p>▶ <a href="#">Vídeo: presentación Megaglass</a></p>');
+      else if (a === 'ins-token') openTokenPicker({ anchor: t.closest('.menu'), onPick: ({ token, defaultValue }) => insertHtml(`${chipHtml(token, defaultValue)} `) });
+      else if (a === 'ins-snippet') openTokenPicker({ anchor: t.closest('.menu'), mode: 'snippet', snippets: savedSnippets(), onPick: ({ snippet }) => insertHtml(renderTokens(snippet.body, composeContext())) });
       return;
     }
     const tpl = t.closest('[data-tpl]');
@@ -322,8 +342,6 @@ function wire() {
     if (meet) { closeMenus(); insertHtml(`<p>📅 <a href="#">Reservar: ${esc(meet.dataset.meet)}</a></p>`); return; }
     const quote = t.closest('[data-quote]');
     if (quote) { closeMenus(); insertHtml(`<p>🧾 <a href="#">${esc(quote.dataset.quote)}</a></p>`); return; }
-    const snip = t.closest('[data-snippet]');
-    if (snip) { closeMenus(); insertHtml(`<p>${esc(snip.dataset.snippet)}</p>`); return; }
     const ai = t.closest('[data-ai]');
     if (ai) {
       closeMenus();

@@ -5,11 +5,14 @@
 import { boot } from './page.js';
 import { toast, wireMenus, closeMenus } from './shell.js';
 import { allContacts, relativeTimeFine, formatDate } from './data.js';
-import { ready, templates, templateById, folders, owners, createTemplate, updateTemplate, cloneTemplate, deleteTemplates, moveTemplates, setShared, createFolder, stats, resolveTokens, bodyText, templatesCsv, TOKEN_GROUPS, SNIPPETS, LIBRARY, ME } from './templates-data.js';
+import { ready, templates, templateById, folders, owners, createTemplate, updateTemplate, cloneTemplate, deleteTemplates, moveTemplates, setShared, createFolder, stats, bodyText, templatesCsv, LIBRARY, ME } from './templates-data.js';
 import { getSignature, editSignature, signatureHtmlOf } from './compose.js';
+import { openTokenPicker, chipHtml, markersToChips, chipsToMarkers, renderTokens, contextFromRecord, plainText } from './tokens.js';
+import { ready as snippetsReady, snippets } from './snippets-data.js';
+import { attachSnippetAutocomplete } from './snippet-autocomplete.js';
 
 boot({ root: '../', active: 'crm', sub: 'Plantillas de mensaje', title: 'Plantillas de mensaje' });
-await ready;
+await Promise.all([ready, snippetsReady]);
 
 const root = document.getElementById('tpl-root');
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -150,7 +153,8 @@ const cancelBtn = '<button class="btn btn--secondary" type="button" data-bm="clo
 const folderOptions = (value) => `<option value="">Sin carpeta</option>${folders().map((f) => `<option value="${esc(f)}" ${f === value ? 'selected' : ''}>${esc(f)}</option>`).join('')}`;
 
 // ---------- editor ----------
-const insertMenu = (target) => `<div class="menu tpe__insert"><button class="btn btn--secondary btn--sm" type="button" aria-haspopup="true">Insertar <span class="caret"></span></button><div class="menu__panel menu__panel--picker">${TOKEN_GROUPS.map(([g, toks]) => `<div class="menu__note">Token de personalización · ${esc(g)}</div>${toks.map(([k, l]) => `<button class="menu__item" type="button" data-ins-token="${k}" data-target="${target}">${esc(l)}</button>`).join('')}`).join('')}<div class="menu__sep"></div><div class="menu__note">Fragmento</div>${SNIPPETS.map(([n], i) => `<button class="menu__item" type="button" data-ins-snippet="${i}" data-target="${target}">${esc(n)}</button>`).join('')}</div></div>`;
+// "Insertar": the two-step token picker (object → property + default value) or a saved snippet.
+const insertMenu = (target) => `<div class="menu tpe__insert"><button class="btn btn--secondary btn--sm" type="button" aria-haspopup="true">Insertar <span class="caret"></span></button><div class="menu__panel"><button class="menu__item" type="button" data-ins="token" data-target="${target}">Token de personalización</button><button class="menu__item" type="button" data-ins="snippet" data-target="${target}">Fragmento</button></div></div>`;
 function openEditor(id, preset = {}) {
   const t = id ? templateById(id) : null;
   if (id && !t) { toast('Esa plantilla ya no existe.'); return; }
@@ -188,7 +192,7 @@ function openEditor(id, preset = {}) {
             ${insertMenu('body')}
             <button class="tpe__ai" type="button" data-te="ai">✦ Generar con IA</button>
           </div>
-          <div class="tpe__body" id="tpe-body" contenteditable="true" data-placeholder="Escribe el cuerpo del correo…">${editor.body}</div>
+          <div class="tpe__body" id="tpe-body" contenteditable="true" data-placeholder="Escribe el cuerpo del correo…">${markersToChips(editor.body)}</div>
           <p class="tpe__sig muted">Se incluirá la firma predeterminada. <button class="link-btn" type="button" data-te="edit-sig">Editar</button></p>
         </section>
         <aside class="tpe__pane tpe__preview" id="tpe-preview" ${editor.preview ? '' : 'hidden'} aria-label="Vista previa">
@@ -201,6 +205,8 @@ function openEditor(id, preset = {}) {
         </aside>
       </div>
     </div>`, `<button class="btn btn--primary" type="button" id="tpe-save" data-te="save" disabled>Guardar plantilla</button>${cancelBtn}`, { size: 'xl' });
+  // "#atajo" inside the body inserts a snippet keeping its tokens as chips (they resolve per contact later).
+  attachSnippetAutocomplete($('tpe-body'), { resolve: false });
   renderPreview();
   syncSave();
   const name = $('tpe-name');
@@ -216,7 +222,9 @@ function renderPreview() {
   const c = editor.contactId ? allContacts().find((x) => String(x.id) === String(editor.contactId)) : null;
   if (!c) { box.innerHTML = '<p class="tpe__hint">Selecciona un contacto y pulsa «Generar» para ver el correo con sus datos.</p>'; return; }
   const s = sender();
-  box.innerHTML = `<div class="tpe__mail"><div class="tpe__mailhead"><div><span class="muted">Para:</span> ${esc(c.name)}${c.email ? ` &lt;${esc(c.email)}&gt;` : ''}</div><div><span class="muted">De:</span> ${esc(s.name)} &lt;${esc(s.email)}&gt;</div><div><span class="muted">Asunto:</span> <strong>${esc(resolveTokens(editor.subject, c, s) || '(sin asunto)')}</strong></div></div><div class="tpe__mailbody">${resolveTokens(editor.body, c, s)}${signatureHtmlOf()}</div></div>`;
+  // Every {{objeto.propiedad|predeterminado}} filled with this contact (and its company, deal, ticket, owner).
+  const ctx = contextFromRecord('contacts', c);
+  box.innerHTML = `<div class="tpe__mail"><div class="tpe__mailhead"><div><span class="muted">Para:</span> ${esc(c.name)}${c.email ? ` &lt;${esc(c.email)}&gt;` : ''}</div><div><span class="muted">De:</span> ${esc(s.name)} &lt;${esc(s.email)}&gt;</div><div><span class="muted">Asunto:</span> <strong>${esc(renderTokens(editor.subject, ctx) || '(sin asunto)')}</strong></div></div><div class="tpe__mailbody">${renderTokens(chipsToMarkers(editor.body), ctx)}${signatureHtmlOf()}</div></div>`;
 }
 const exec = (cmd, arg) => { if (typeof document.execCommand !== 'function') return false; try { return document.execCommand(cmd, false, arg); } catch { return false; } };
 function insertIntoBody(html) {
@@ -252,7 +260,7 @@ function insertIntoSubject(text) {
 }
 function saveEditor() {
   if (!editor) return;
-  const patch = { name: editor.name, subject: editor.subject, body: editor.body, folder: editor.folder, shared: editor.shared };
+  const patch = { name: editor.name, subject: editor.subject, body: chipsToMarkers(editor.body), folder: editor.folder, shared: editor.shared };
   const out = editor.id ? updateTemplate(editor.id, patch) : createTemplate({ ...patch, ownerId: editor.ownerId });
   if (!out) { toast('Escribe un nombre y el cuerpo de la plantilla.'); return; }
   const created = !editor.id;
@@ -306,10 +314,15 @@ function exportCsv() {
 function onModalClick(e) {
   const close = e.target.closest('[data-bm="close"]');
   if (close) { e.preventDefault(); closeModal(); return; }
-  const tok = e.target.closest('[data-ins-token]');
-  if (tok) { const text = `{{${tok.dataset.insToken}}}`; if (tok.dataset.target === 'subject') insertIntoSubject(text); else insertIntoBody(text); closeMenus(); return; }
-  const snip = e.target.closest('[data-ins-snippet]');
-  if (snip) { const [, text] = SNIPPETS[Number(snip.dataset.insSnippet)]; if (snip.dataset.target === 'subject') insertIntoSubject(text); else insertIntoBody(`<p>${esc(text)}</p>`); closeMenus(); return; }
+  const ins = e.target.closest('[data-ins]');
+  if (ins) {
+    const target = ins.dataset.target;
+    const anchor = ins.closest('.menu');
+    closeMenus();
+    if (ins.dataset.ins === 'token') openTokenPicker({ anchor, onPick: ({ token, defaultValue, marker }) => { if (target === 'subject') insertIntoSubject(marker); else insertIntoBody(`${chipHtml(token, defaultValue)} `); } });
+    else openTokenPicker({ anchor, mode: 'snippet', snippets: snippets(), onPick: ({ snippet }) => { if (target === 'subject') insertIntoSubject(plainText(snippet.body)); else insertIntoBody(markersToChips(snippet.body)); } });
+    return;
+  }
   const fmt = e.target.closest('[data-fmt]');
   if (fmt) {
     e.preventDefault();
@@ -333,7 +346,7 @@ function onModalClick(e) {
   } else if (a === 'generate') { editor.contactId = $('tpe-contact').value; renderPreview(); if (!editor.contactId) toast('Selecciona un contacto para generar la vista previa.'); }
   else if (a === 'link') { const url = window.prompt('URL del enlace', 'https://'); if (url) insertIntoBody(`<a href="${esc(url)}">${esc(url)}</a>`); }
   else if (a === 'image') { const url = window.prompt('URL de la imagen', 'https://'); if (url) insertIntoBody(`<img src="${esc(url)}" alt="" style="max-width:100%">`); }
-  else if (a === 'ai') { insertIntoBody('<p>Hola {{contacto.nombre}},</p><p>Te escribo desde Megaglass porque creemos que {{contacto.empresa}} puede beneficiarse de nuestras soluciones de vidrio templado y laminado: entregas en plazo, instalación propia y 10 años de garantía.</p><p>¿Tienes 15 minutos esta semana para una llamada?</p><p>Un saludo,<br>{{propietario.nombre}}</p>'); toast('Borrador generado con IA (simulado). Revísalo antes de guardar.'); }
+  else if (a === 'ai') { insertIntoBody(markersToChips('<p>Hola {{contacto.nombre}},</p><p>Te escribo desde Megaglass porque creemos que {{contacto.empresa|tu empresa}} puede beneficiarse de nuestras soluciones de vidrio templado y laminado: entregas en plazo, instalación propia y 10 años de garantía.</p><p>¿Tienes 15 minutos esta semana para una llamada?</p><p>Un saludo,<br>{{propietario.nombre}}</p>')); toast('Borrador generado con IA (simulado). Revísalo antes de guardar.'); }
   else if (a === 'edit-sig') { editSignature(); renderPreview(); }
   else if (a === 'create-folder') { const f = createFolder($('tpf-name').value); if (!f) { toast('Escribe el nombre de la carpeta.'); return; } closeModal(); renderTable(); toast(`Carpeta «${f.name}» creada`); }
   else if (a === 'confirm-move') { const ids = te.dataset.ids.split(',').filter(Boolean); const n = moveTemplates(ids, $('tpm-folder').value); closeModal(); state.selected.clear(); renderTable(); toast(`${plural(n, 'plantilla movida', 'plantillas movidas')}`); }

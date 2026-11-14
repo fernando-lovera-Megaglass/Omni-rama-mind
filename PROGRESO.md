@@ -1,5 +1,15 @@
 # Progreso — Omni CRM
 
+## 2026-11-14 (sesión 5) · Módulo «Fragmentos» + fichas de personalización compartidas
+
+**Construido**
+- **Migración `supabase/snippets.sql`** (aplicada): tablas **`snippets`** (id, name, body, shortcut único, folder, owner_id, created_at, updated_at) y **`snippet_folders`**; semilla de 3 fragmentos `[Prueba]` (#horario, #garantia, #plazo) y 2 carpetas. `src/snippets-data.js` (Supabase o localStorage): crear/editar/clonar (atajo «-copia»)/eliminar/mover, carpetas, `validateShortcut` (una sola palabra, sin espacios, único) y `matchShortcut`.
+- **Lista** (`snippets/`, `src/snippets.js`, menú CRM › Fragmentos y Biblioteca › Fragmentos): «Fragmentos» + «N creados»; Nueva carpeta y **Crear fragmento** (verde oscuro); buscador «Buscar» y «Propietario: Cualquiera»; carpetas; tabla con selección múltiple y columnas Nombre (abre el editor), Creado por, Fecha de creación, Fecha de modificación; «Acciones» al pasar el ratón: Clonar, Mover, Eliminar (con confirmación); paginación Anterior / páginas / Siguiente.
+- **Editor «Fragmento nuevo»**: texto introductorio con «Más información»; Nombre interno *; casilla «Seleccionar una carpeta» que muestra el selector; Texto del fragmento * (Negrita, Cursiva, Subrayado, Tachado, Más, enlace y **Personalizar**); Atajo * con prefijo «#», texto de ayuda y validación en vivo; «Guardar fragmento» solo con los 3 campos válidos.
+- **Fichas de personalización** (`src/tokens.js`, compartido): selector en 2 pasos (Contacto, Empresa, Propietario, Negocio, Ticket → lista buscable de TODAS las propiedades, incluidas las personalizadas de Omni) con «Valor predeterminado»; el token se ve como chip no editable («Nombre del contacto») y se guarda como `{{objeto.propiedad|predeterminado}}`; motor `renderTokens` que lee el registro real (y su empresa, negocio, ticket y propietario), usa el predeterminado si está vacío y «» si no hay. Se usa en plantillas (Insertar → Token de personalización / Fragmento, vista previa con contacto), fragmentos (Personalizar), compositor de correo (Insertar, resolución al enviar) y notas de la cronología (resolución al guardar).
+- **Autocompletado «#atajo»** (`src/snippet-autocomplete.js`): en el compositor de correo, en la nota de la cronología y en el cuerpo del editor de plantillas, escribir «#» + atajo lista los fragmentos; Enter/Tab/clic inserta el texto con los tokens resueltos con el registro (en plantillas se conservan como chips).
+- Pruebas: `scripts/smoke-snippets.mjs` (lista, catálogo de tokens y resolución, crear con Personalizar y validación de atajo, editar, clonar, eliminar, carpetas/búsqueda/orden/paginación, autocompletado con # en el compositor y en un textarea de nota, tokens resueltos al enviar); `smoke-templates.mjs` adaptado al selector de tokens. Comprobado en vivo: alta/edición/clon/borrado en Supabase y resolución con datos reales.
+
 ## 2026-11-14 (sesión 5) · Módulo «Plantillas de mensaje» (CRM › Plantillas de mensaje)
 
 **Construido**

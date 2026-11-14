@@ -17,6 +17,8 @@ import { propertyGroups, propertyMap } from './properties.js';
 const PROPERTIES = new Proxy({}, { get: (_, t) => propertyGroups(t) });
 wireLinkTooltips();
 import { openCompose, editSignature } from './compose.js';
+import { renderTokens, contextFromRecord } from './tokens.js';
+import { attachSnippetAutocomplete } from './snippet-autocomplete.js';
 import { ownerHtml } from './list.js';
 import { loadLayout, cardCatalog } from './layout-defaults.js';
 import { mountQueueBar, dueText, dueClass, completeTask } from './task-queue.js';
@@ -1973,6 +1975,12 @@ if (!rec) {
     }
   });
 
+  // "#atajo" in the note box inserts a snippet with this record's data in place of its tokens.
+  const wireNoteBox = (ta) => attachSnippetAutocomplete(ta, { context: () => contextFromRecord(type, rec) });
+  mount.addEventListener('focusin', (e) => { if (e.target.matches && e.target.matches('#note-form textarea')) wireNoteBox(e.target); });
+  const noteBox = mount.querySelector('#note-form textarea');
+  if (noteBox) wireNoteBox(noteBox);
+
   mount.addEventListener('submit', (e) => {
     const form = e.target.closest('.props__form');
     if (form) {
@@ -1983,7 +1991,8 @@ if (!rec) {
     if (e.target.id === 'note-form') {
       e.preventDefault();
       const ta = e.target.querySelector('textarea');
-      const text = ta.value.trim();
+      // Any {{objeto.propiedad}} left in the note becomes this record's data.
+      const text = renderTokens(ta.value.trim(), contextFromRecord(type, rec));
       if (!text) return;
       addEvent({ type: 'note', when: Date.now(), who: 'Tú', text });
       ta.value = '';

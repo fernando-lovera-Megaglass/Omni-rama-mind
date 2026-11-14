@@ -1,8 +1,9 @@
 // Plantillas de mensaje: the message_templates / message_template_folders tables with Supabase, localStorage
 // otherwise (same [Prueba] seed). Also the personalisation tokens ({{contacto.nombre}}…) and their
 // resolution against a real contact, the snippets and the template library.
-import { allContacts, allCompanies, dbIsLive } from './data.js';
+import { dbIsLive } from './data.js';
 import { supabase } from './supabaseClient.js';
+import { renderTokens, contextFromRecord, ownerRecord } from './tokens.js';
 
 export const ME = 'Fernando L.';
 const LS_T = 'crm:message_templates';
@@ -22,20 +23,19 @@ export const SNIPPETS = [
   ['Garantía', 'Todos nuestros vidrios templados tienen 10 años de garantía.'],
   ['Plazo de instalación', 'El plazo habitual de instalación es de 3 a 4 semanas desde la aceptación del presupuesto.'],
 ];
-const OWNER_EMAIL = { 'Fernando L.': 'fernando-lovera@megaglass.us', 'Sofía R.': 'sofia@megaglass.us', 'Diego G.': 'diego@megaglass.us', 'Laura M.': 'laura@megaglass.us' };
-// Replaces every {{token}} with the contact's data (legacy {{nombre}}, {{empresa}} and {{remitente}} too).
+// Replaces every {{objeto.propiedad|predeterminado}} with the contact's data (src/tokens.js); the legacy
+// {{nombre}}, {{empresa}} and {{remitente}} of the first built-in templates still work. The sender stands
+// in as the owner when the contact has none.
 export function resolveTokens(text, contact, sender = {}) {
   const c = contact || {};
-  const company = c.companyId ? allCompanies().find((x) => Number(x.id) === Number(c.companyId)) : allCompanies().find((x) => x.name && x.name === c.company) || null;
-  const first = c.first || String(c.name || '').split(' ')[0] || '';
-  const owner = c.owner && c.owner !== 'Sin asignar' ? c.owner : sender.name || ME;
-  const values = {
-    'contacto.nombre': first, 'contacto.apellidos': c.last || '', 'contacto.nombre_completo': c.name || first, 'contacto.correo': c.email || '', 'contacto.cargo': c.jobTitle || '', 'contacto.telefono': c.phone || c.mobilephone || '', 'contacto.ciudad': c.city || '', 'contacto.empresa': c.company || (company && company.name) || '',
-    'empresa.nombre': (company && company.name) || c.company || '', 'empresa.dominio': (company && company.domain) || '', 'empresa.sector': (company && company.industry) || '', 'empresa.ciudad': (company && company.city) || '',
-    'propietario.nombre': owner, 'propietario.correo': sender.email || OWNER_EMAIL[owner] || '',
-    nombre: first, empresa: c.company || (company && company.name) || 'tu empresa', remitente: sender.name || owner,
-  };
-  return String(text || '').replace(/{{\s*([\w.]+)\s*}}/g, (m, k) => (values[k] !== undefined ? values[k] : ''));
+  const c0 = c.first || c.name ? c : { ...c, first: String(c.name || '').split(' ')[0] };
+  const senderOwner = sender.name ? { ...(ownerRecord(sender.name) || { first: sender.name.split(' ')[0], last: '', name: sender.name, phone: '', jobTitle: '' }), email: sender.email || (ownerRecord(sender.name) || {}).email || '' } : null;
+  const ctx = contextFromRecord('contacts', c0, senderOwner && (!c0.owner || c0.owner === 'Sin asignar') ? { owner: senderOwner } : {});
+  const legacy = String(text || '')
+    .replace(/{{\s*nombre\s*}}/g, '{{contacto.nombre}}')
+    .replace(/{{\s*empresa\s*}}/g, '{{contacto.empresa|tu empresa}}')
+    .replace(/{{\s*remitente\s*}}/g, () => (senderOwner ? senderOwner.name : '{{propietario.nombre_completo}}'));
+  return renderTokens(legacy, ctx);
 }
 // Ready-made templates for "Desde biblioteca de plantillas".
 export const LIBRARY = [
