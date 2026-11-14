@@ -43,4 +43,29 @@ export const SEED_COMPANY_PROPERTIES = [
   ['contactado', 'Contactado', 'text'],
   ['rol', 'Rol', 'text'],
 ].map(([key, label, kind, visible, options]) => ({ key, label, kind, options, group: SEED_GROUP, desc: '', visible: Boolean(visible), archived: false }));
-export const SEED_BY_TYPE = { contacts: SEED_CONTACT_PROPERTIES, companies: SEED_COMPANY_PROPERTIES };
+// The account's real custom deal properties (supabase/custom-properties-deals.sql): text except «Fecha ganado».
+export const SEED_DEAL_PROPERTIES = [
+  ['cotizador', 'Cotizador', 'text'],
+  ['ciudad', 'Ciudad', 'text'],
+  ['estado', 'Estado', 'text'],
+  ['colonia', 'Colonia', 'text'],
+  ['acabados', 'Acabados', 'text'],
+  ['avance_de_obra', 'Avance de obra', 'text'],
+  ['cimentacion', 'Cimentación', 'text'],
+  ['clase_de_proyecto', 'Clase de proyecto', 'text'],
+  ['clave_id', 'Clave ID', 'text'],
+  ['cliente', 'Cliente', 'text'],
+  ['contactado', 'Contactado', 'text'],
+  ['descripcion', 'Descripción', 'text'],
+  ['detalles', 'Detalles', 'text'],
+  ['duplicado', 'Duplicado', 'text'],
+  ['estatus_de_obra', 'Estatus de obra', 'text'],
+  ['estatus_llamada', 'Estatus de llamada', 'text'],
+  ['fecha_ganado', 'Fecha ganado', 'date'],
+  ['folio_aw_management', 'Folio AW Management', 'text'],
+  ['folio_easy_glass', 'Folio Easy Glass', 'text'],
+  ['formato_cotizacion', 'Formato de cotización', 'text'],
+  ['fuente_origen', 'Fuente de origen', 'text'],
+  ['informacion_del_proyecto', 'Información del proyecto', 'text'],
+].map(([key, label, kind]) => ({ key, label, kind, group: SEED_GROUP, desc: '', visible: false, archived: false }));
+export const SEED_BY_TYPE = { contacts: SEED_CONTACT_PROPERTIES, companies: SEED_COMPANY_PROPERTIES, deals: SEED_DEAL_PROPERTIES };

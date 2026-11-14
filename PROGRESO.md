@@ -1,5 +1,12 @@
 # Progreso — Omni CRM
 
+## 2026-11-14 (sesión 5) · Negocios: propiedades personalizadas reales de Megaglass
+
+**Construido**
+- Migración `supabase/custom-properties-deals.sql` (aplicada; `custom_properties` tiene ahora 19 de contacto, 16 de empresa y **22 de negocio**): cotizador, ciudad, estado, colonia, acabados, avance_de_obra, cimentacion, clase_de_proyecto, clave_id, cliente, contactado, descripcion, detalles, duplicado, estatus_de_obra, estatus_llamada, **fecha_ganado (fecha)**, folio_aw_management, folio_easy_glass, formato_cotizacion, fuente_origen e informacion_del_proyecto, en el grupo «Información de Megaglass». `src/custom-properties.js` (`SEED_DEAL_PROPERTIES`, `SEED_BY_TYPE.deals`) las conoce en modo local y `data.js` las vuelve a sembrar si faltan.
+- Dónde aparecen: ficha del negocio (Información avanzada y «Ver todas las propiedades», **editables inline** con input de texto o selector de fecha; también se pueden llevar a la tarjeta «Acerca de» con Personalizar), editor de columnas de la vista de tabla (grupo propio; la columna muestra el valor real) y popover de filtros avanzados (Fecha ganado con operadores de fecha). Sin valores de muestra. `src/deals.js` exporta `list` y `createPanel` como las demás listas.
+- Pruebas: `scripts/smoke-deal-props.mjs` (catálogo en orden y tipos, sin decoración, columna con valor real, popover de filtros con operadores de fecha, panel de la ficha con contador y edición de texto y fecha, Personalizar) + suite completa (38) en verde; `npm run build` OK; rebuild_check «would pass, 90 %».
+
 ## 2026-11-14 (sesión 5) · Negocios: los 8 pipelines reales de Megaglass en Supabase
 
 **Construido**

@@ -266,3 +266,5 @@ const list = mountList({
   },
 });
 createPanel = mountCreateDeal({ list });
+
+export { list, createPanel };

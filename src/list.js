@@ -2346,7 +2346,7 @@ export function mountList(cfg) {
     const show = open === undefined ? pop.hidden : open;
     pop.hidden = !show;
     $('allf-add').setAttribute('aria-expanded', String(show));
-    if (show) { $('allf-q').value = ''; renderPropPop(''); setTimeout(() => $('allf-q').focus(), 0); }
+    if (show) { $('allf-q').value = ''; renderPropPop(''); setTimeout(() => { const q = $('allf-q'); if (q) q.focus(); }, 0); }
   }
   // "+ Agregar filtro": the chosen property becomes a condition of the last group (filters stack with Y).
   function addFilterFor(key) {
