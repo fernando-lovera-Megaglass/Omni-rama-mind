@@ -31,8 +31,10 @@ click(document.querySelector('.record__quick [data-action="email"]'));
 log('open:', !$('compose').hidden, '| to chips:', document.querySelectorAll('#cmp-to-chips .chip-to').length, '| tabs:', [...document.querySelectorAll('.compose__tabs > .menu > button')].map((b) => b.textContent.trim()).join(' | '));
 log('from:', document.querySelector('.compose__frombtn').textContent.trim());
 log('signature name:', document.querySelector('.sig__name').textContent, '| cta:', document.querySelector('.sig__cta').textContent);
-click(document.querySelector('[data-tpl="0"]'));
-log('template subject:', $('cmp-subject').value, '| body has text:', $('cmp-text').textContent.length > 20);
+// Saved message templates (CRM › Plantillas de mensaje) with the contact's data in place of the tokens.
+log('templates listed:', document.querySelectorAll('#cmp-tpl-panel [data-tpl]').length, '| manage link:', Boolean(document.querySelector('#cmp-tpl-panel a[href$="templates/"]')));
+click(document.querySelector('#cmp-tpl-panel [data-tpl]'));
+log('template subject:', $('cmp-subject').value, '| body has text:', $('cmp-text').textContent.length > 20, '| tokens resolved:', !$('cmp-text').innerHTML.includes('{{') && !$('cmp-subject').value.includes('{{'));
 click(document.querySelector('[data-cm="cc"]'));
 log('cc row shown:', Boolean($('cmp-cc')));
 click(document.querySelector('[data-doc]'));

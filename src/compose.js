@@ -2,7 +2,8 @@
 // header with drag handle / collapse / expand / close, tool tabs, Para / De / Asunto,
 // rich-text body with signature, formatting toolbar, associations, Enviar + follow-up task.
 import { toast, wireMenus, closeMenus } from './shell.js';
-import { addRecord, formatDate, TODAY } from './data.js';
+import { addRecord, formatDate, TODAY, allContacts } from './data.js';
+import { ready as templatesReady, templates as savedTemplates, resolveTokens } from './templates-data.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
 const SIG_KEY = 'crm:signature';
@@ -21,12 +22,9 @@ const DEFAULT_SIG = {
   address: 'Brickell AVE STE 950976, Miami, FL 33131-2848',
   cta: "Let's Talk",
 };
-const TEMPLATES = [
-  ['Seguimiento de propuesta', 'Seguimiento: propuesta de {{empresa}}', 'Hola {{nombre}},<br><br>Quería hacer seguimiento de la propuesta que te enviamos. ¿Has tenido ocasión de revisarla? Quedo a tu disposición para resolver cualquier duda.<br><br>Un saludo,'],
-  ['Presentación de Megaglass', 'Soluciones de vidrio para {{empresa}}', 'Hola {{nombre}},<br><br>Soy {{remitente}}, de Megaglass. Fabricamos e instalamos soluciones de vidrio para fachadas, cerramientos y mamparas. Me encantaría conocer tus próximos proyectos y ver cómo podemos ayudar.<br><br>¿Te viene bien una llamada esta semana?<br><br>Saludos,'],
-  ['Confirmación de visita técnica', 'Confirmación de visita técnica', 'Hola {{nombre}},<br><br>Te confirmo la visita técnica para tomar medidas. Si necesitas cambiar la fecha, responde a este correo.<br><br>Gracias,'],
-  ['Envío de cotización', 'Cotización {{empresa}}', 'Hola {{nombre}},<br><br>Adjunto la cotización solicitada. Incluye materiales, instalación y plazos de entrega. Cualquier ajuste que necesites, dímelo.<br><br>Un saludo,'],
-];
+// "Plantillas" lists the saved message templates (CRM › Plantillas de mensaje); a late load refreshes the panel.
+const rootPath = () => document.body.dataset.root || '';
+const tplPanelHtml = () => `${savedTemplates().length ? savedTemplates().map((t) => `<button class="menu__item" type="button" data-tpl="${esc(t.id)}">${esc(t.name)}${t.shared ? '' : ' <span class="muted">· Privada</span>'}</button>`).join('') : '<div class="menu__note">Todavía no hay plantillas guardadas</div>'}<div class="menu__sep"></div><a class="menu__item" href="${rootPath()}templates/">Administrar plantillas</a>`;
 const SEQUENCES = ['Prospección instaladores (5 pasos)', 'Reactivación de clientes', 'Seguimiento post-cotización'];
 const DOCUMENTS = ['Catálogo Megaglass 2026.pdf', 'Ficha técnica vidrio templado.pdf', 'Guía de instalación.pdf'];
 const MEETINGS = ['Llamada de 15 minutos', 'Visita técnica (60 min)', 'Presentación de propuesta (30 min)'];
@@ -86,11 +84,10 @@ function mount() {
   document.body.appendChild(el);
 }
 
-function fill(tpl, s) {
-  return tpl
-    .replace(/{{nombre}}/g, ctx.firstName || ctx.to || '')
-    .replace(/{{empresa}}/g, ctx.company || 'tu empresa')
-    .replace(/{{remitente}}/g, s.name);
+// The contact the composer was opened for (its record when known, otherwise what the caller passed).
+function tokenContact() {
+  const known = ctx.contactId ? allContacts().find((c) => String(c.id) === String(ctx.contactId)) : null;
+  return known || { first: ctx.firstName, name: ctx.to, company: ctx.company, email: (ctx.recipients[0] || {}).email || '' };
 }
 
 function render() {
@@ -111,7 +108,7 @@ function render() {
     </header>
     <div class="compose__body">
       <nav class="compose__tabs">
-        <div class="menu"><button type="button" aria-haspopup="true">Plantillas</button><div class="menu__panel">${TEMPLATES.map((t, i) => `<button class="menu__item" type="button" data-tpl="${i}">${t[0]}</button>`).join('')}<div class="menu__sep"></div><button class="menu__item" type="button" data-cm="manage-tpl">Administrar plantillas</button></div></div>
+        <div class="menu"><button type="button" aria-haspopup="true">Plantillas</button><div class="menu__panel" id="cmp-tpl-panel">${tplPanelHtml()}</div></div>
         <div class="menu"><button type="button" aria-haspopup="true">Secuencias</button><div class="menu__panel">${SEQUENCES.map((s) => `<button class="menu__item" type="button" data-seq="${esc(s)}">${s}</button>`).join('')}</div></div>
         <div class="menu"><button type="button" aria-haspopup="true">Documentos</button><div class="menu__panel">${DOCUMENTS.map((d) => `<button class="menu__item" type="button" data-doc="${esc(d)}">${d}</button>`).join('')}</div></div>
         <div class="menu"><button type="button" aria-haspopup="true">Reuniones <span class="caret"></span></button><div class="menu__panel">${MEETINGS.map((m) => `<button class="menu__item" type="button" data-meet="${esc(m)}">${m}</button>`).join('')}</div></div>
@@ -300,18 +297,21 @@ function wire() {
         if (url) insertHtml(`<a href="${esc(url)}">${esc(url)}</a>`);
       } else if (a === 'image') toast('Arrastra una imagen al cuerpo del correo o usa el clip para adjuntarla.');
       else if (a === 'video') insertHtml('<p>▶ <a href="#">Vídeo: presentación Megaglass</a></p>');
-      else if (a === 'manage-tpl') toast('La administración de plantillas estará disponible en la próxima versión.');
       return;
     }
     const tpl = t.closest('[data-tpl]');
     if (tpl) {
-      const s = loadSig();
-      const [, subj, body] = TEMPLATES[Number(tpl.dataset.tpl)];
-      ctx.subject = fill(subj, s);
-      ctx.body = fill(body, s);
+      const tp = savedTemplates().find((x) => x.id === tpl.dataset.tpl);
       closeMenus();
+      if (!tp) { toast('Esa plantilla ya no existe.'); return; }
+      syncFields();
+      const sender = SENDERS[ctx.senderIdx || 0];
+      const who = { name: sender[0], email: sender[1] };
+      const contact = tokenContact();
+      ctx.subject = resolveTokens(tp.subject, contact, who);
+      ctx.body = resolveTokens(tp.body, contact, who);
       render();
-      toast('Plantilla aplicada');
+      toast(`Plantilla «${tp.name}» aplicada`);
       return;
     }
     const seq = t.closest('[data-seq]');
@@ -454,13 +454,15 @@ export function openCompose(options) {
   el.style.bottom = '';
   el.hidden = false;
   render();
+  templatesReady.then(() => { const p = el && el.querySelector('#cmp-tpl-panel'); if (p) p.innerHTML = tplPanelHtml(); });
   const subj = el.querySelector('#cmp-subject');
   if (subj) subj.focus();
 }
 
 export const getSignature = () => loadSig();
 export const setSignature = (s) => saveSig({ ...loadSig(), ...s });
-export const emailTemplates = () => TEMPLATES.map(([name, subject, body]) => ({ name, subject, body }));
+export const signatureHtmlOf = (s) => signatureHtml(s || loadSig());
+export const emailTemplates = () => savedTemplates().map(({ name, subject, body }) => ({ name, subject, body }));
 
 export function editSignature() {
   const s = loadSig();

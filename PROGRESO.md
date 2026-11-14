@@ -1,5 +1,14 @@
 # Progreso — Omni CRM
 
+## 2026-11-14 (sesión 5) · Módulo «Plantillas de mensaje» (CRM › Plantillas de mensaje)
+
+**Construido**
+- **Migración `supabase/message_templates.sql`** (aplicada): tablas **`message_templates`** (id, name, subject, body, owner_id, folder, shared, created_at, updated_at) y **`message_template_folders`** (las carpetas de «Nueva carpeta»), con las mismas políticas que el resto; semilla de 3 plantillas `[Prueba]` y 2 carpetas (Ventas, Soporte). `src/templates-data.js` lee/escribe en Supabase (localStorage sin conexión), define los tokens de personalización ({{contacto.nombre}}, {{contacto.empresa}}, {{empresa.dominio}}, {{propietario.nombre}}…), los fragmentos y la biblioteca.
+- **Lista** (`templates/`, `src/templates.js`, menú CRM › Plantillas de mensaje y Fuerza de ventas/Biblioteca › Plantillas): título con contador «N creados»; botones Nueva carpeta, Analizar, Exportar (CSV) y Nueva plantilla (Desde cero / Desde biblioteca de plantillas); buscador «Buscar en plantillas» y filtro «Propietario: Cualquiera»; panel de carpetas con conteos; tabla con selección múltiple (barra Mover/Eliminar), columnas ordenables Nombre (abre el editor), Propietario, Fecha de creación y de modificación («hace X»); menú «Acciones» al pasar el ratón: Clonar, Mover (a carpeta), Administrar lo que se comparte (Privado / Compartido con todos), Eliminar (con confirmación); paginación Primero / Anterior / páginas / Siguiente / Última.
+- **Editor** (modal grande): barra con Compartido con todos/Privado, Seleccionar una carpeta y Propietario; panel «Redactar plantilla de correo electrónico» con Nombre, Asunto + Insertar (tokens de contacto/empresa/propietario y fragmentos), editor enriquecido (Negrita, Cursiva, Subrayado, Tachado, Más: listas/cita/encabezados, enlace, imagen, Insertar, «Generar con IA» simulado) y nota «Se incluirá la firma predeterminada. Editar»; panel «Vista previa del correo electrónico de ejemplo» con Seleccionar contacto + Generar (tokens resueltos con los datos reales y la firma) y «Ocultar vista previa»; Guardar plantilla se habilita solo con nombre y cuerpo.
+- **Integración con el compositor** de la ficha de contacto: el menú Plantillas lista las plantillas guardadas (con «Administrar plantillas» → la lista) e inserta asunto y cuerpo con los tokens resueltos para ese contacto; Configuración › Plantillas de correo muestra las mismas.
+- Pruebas: `scripts/smoke-templates.mjs` (lista, crear desde cero, editar, clonar, eliminar, vista previa con contacto, carpetas, compartir, búsqueda/filtros/orden, selección múltiple, paginación, exportar, analizar, biblioteca y compositor). Comprobado en vivo: alta, edición, clon y borrado de una plantilla y su carpeta en Supabase (limpiados).
+
 ## 2026-11-14 (sesión 5) · Módulo «Correo de marketing» (Marketing › Correo)
 
 **Construido**

@@ -21,6 +21,7 @@ const NAV = [
     ['Bandeja de entrada', 'inbox/', '<span class="sidenav__badge" data-nav-badge="inbox" hidden></span>'],
     ['Llamadas', '#'],
     ['Tareas', 'tasks/'],
+    ['Plantillas de mensaje', 'templates/'],
   ]],
   ['marketing', 'Marketing', 'marketing/email/', [
     ['Campañas', '#'],
@@ -49,7 +50,7 @@ const NAV = [
     ['Tareas', 'tasks/'],
     ['Pronóstico', '#'],
     ['Programador de reuniones', '#'],
-    ['Plantillas', '#'],
+    ['Plantillas', 'templates/'],
     ['Secuencias', '#'],
   ]],
   ['service', 'Servicio', 'tickets/', [
@@ -79,8 +80,8 @@ const NAV = [
     ['Modelo de datos', '#'],
     ['Enriquecimiento de datos', '#'],
   ]],
-  ['library', 'Biblioteca', '#', [
-    ['Plantillas', '#'],
+  ['library', 'Biblioteca', 'templates/', [
+    ['Plantillas', 'templates/'],
     ['Documentos', '#'],
     ['Fragmentos', '#'],
     ['Archivos', '#'],
@@ -104,6 +105,8 @@ export function mountShell({ root, active, sub }) {
   const sidenav = document.getElementById('sidenav');
   const topbar = document.getElementById('topbar');
   if (!sidenav || !topbar) return;
+  // Pages' relative root, for modules (the e-mail composer) that link to other pages.
+  document.body.dataset.root = root || '';
 
   const item = ([key, label, href, children]) => `
     <div class="sidenav__group${key === active ? ' is-active' : ''}">
