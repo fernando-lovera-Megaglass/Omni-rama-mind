@@ -605,13 +605,16 @@ export function addRecord(type, fields) {
 }
 // Rules that run right after a record is created or a field changes (companies by e-mail domain, §2 of the
 // companies specification). They never break the write that triggered them.
+const COMPANY_LINK_FIELDS = new Set(['companyId', 'assoc_companies', 'assoc_labels_companies']);
 function afterAdd(type, rec) {
   if (type === 'contacts') { try { autoAssociateCompany(rec); } catch (e) { console.error('[empresas automáticas]', e); } }
+  if (type === 'contacts' && (rec.companyId || (rec.assoc_companies || []).length)) { try { syncContactCompanies(rec.id); } catch (e) { console.error('[contact_companies]', e); } }
   if (type === 'tickets') { try { autoAssociateTicketCompany(rec); } catch (e) { console.error('[tickets: empresa del contacto]', e); } }
   return rec;
 }
 function afterSet(type, id, field, value) {
   if (type === 'contacts' && (field === 'email' || field === 'website') && value) { try { autoAssociateCompany(id); } catch (e) { console.error('[empresas automáticas]', e); } }
+  if (type === 'contacts' && COMPANY_LINK_FIELDS.has(field)) { try { syncContactCompanies(id); } catch (e) { console.error('[contact_companies]', e); } }
   if (type === 'tickets' && field === 'contactId' && value) { try { autoAssociateTicketCompany(id); } catch (e) { console.error('[tickets: empresa del contacto]', e); } }
 }
 
@@ -619,10 +622,88 @@ function merge(type, base) {
   const extra = getExtra(type).map((r) => augment(type, { ...r }));
   const overrides = getOverrides(type);
   const deleted = getDeleted(type);
+  // Contacts carry their company links (contact_companies) and their real activity counts.
+  const counts = type === 'contacts' ? activityCounts('contacts') : null;
   return [...extra, ...base]
     .filter((r) => !deleted.has(Number(r.id)))
     .map((r) => (overrides[r.id] ? { ...r, ...overrides[r.id] } : r))
-    .map((r) => (type === 'deals' ? withHomeAmount(normalizeDealStage(r)) : r));
+    .map((r) => (type === 'deals' ? withHomeAmount(normalizeDealStage(r)) : type === 'contacts' ? withActivityCounts(withCompanyLinks(r), counts) : r));
+}
+
+// ---------- contact ↔ companies (contact_companies: a contact can belong to several companies) ----------
+// With Supabase the table is the source of truth and the contact's companyId/company (primary) and
+// assoc_companies / assoc_labels_companies (all of them, with labels) are derived from it when reading; in
+// local mode those fields live on the record as before. Writes go through the record's fields (setField)
+// and are mirrored to the table right after (afterSet / afterAdd).
+let contactCompanyRows = null; // null until the table has been read
+let contactCompanyIndex = null;
+const linkFromDb = (r) => ({ id: r.id, contactId: Number(r.contact_id), companyId: Number(r.company_id), label: r.label || 'Sin etiqueta', isPrimary: Boolean(r.is_primary) });
+async function fetchContactCompanies() {
+  const all = [];
+  const PAGE = 1000;
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await supabase.from('contact_companies').select('*').order('id').range(from, from + PAGE - 1);
+    if (error) throw error;
+    all.push(...data);
+    if (data.length < PAGE) break;
+  }
+  return all.map(linkFromDb);
+}
+function linksByContact() {
+  if (!contactCompanyIndex) {
+    contactCompanyIndex = new Map();
+    (contactCompanyRows || []).forEach((l) => { const a = contactCompanyIndex.get(l.contactId) || []; a.push(l); contactCompanyIndex.set(l.contactId, a); });
+  }
+  return contactCompanyIndex;
+}
+export const contactCompaniesLive = () => contactCompanyRows !== null;
+// The companies of a contact as its record describes them: [{ companyId, label, isPrimary }], primary first.
+export function contactCompanyLinks(r) {
+  const labels = r.assoc_labels_companies || {};
+  const primary = Number(r.companyId) || 0;
+  const ids = [...new Set([primary, ...(Array.isArray(r.assoc_companies) ? r.assoc_companies : [])].map(Number).filter((n) => n > 0))];
+  return ids.map((companyId) => ({ companyId, isPrimary: companyId === primary, label: companyId === primary ? 'Principal' : labels[companyId] === 'Principal' ? 'Sin etiqueta' : labels[companyId] || 'Sin etiqueta' }));
+}
+function withCompanyLinks(r) {
+  if (!contactCompanyRows) return r;
+  const links = linksByContact().get(Number(r.id));
+  if (!links || !links.length) return r;
+  const primary = links.find((l) => l.isPrimary) || links[0];
+  const company = allCompanies().find((c) => Number(c.id) === primary.companyId);
+  return {
+    ...r,
+    companyId: primary.companyId,
+    company: company ? company.name : r.company || '',
+    assoc_companies: links.map((l) => l.companyId),
+    assoc_labels_companies: Object.fromEntries(links.map((l) => [l.companyId, l === primary ? 'Principal' : l.label === 'Principal' ? 'Sin etiqueta' : l.label])),
+  };
+}
+// Mirrors a contact's company fields to the table (replace its rows), in memory now and in Supabase after.
+function syncContactCompanies(contactId) {
+  if (!contactCompanyRows) return;
+  const raw = (dbRows.contacts || []).find((r) => Number(r.id) === Number(contactId));
+  if (!raw) return;
+  const desired = contactCompanyLinks(raw).map((l) => ({ id: null, contactId: Number(contactId), companyId: l.companyId, label: l.label, isPrimary: l.isPrimary }));
+  contactCompanyRows = [...contactCompanyRows.filter((l) => l.contactId !== Number(contactId)), ...desired];
+  contactCompanyIndex = null;
+  bump();
+  dbWrite(async () => {
+    const { error: delErr } = await supabase.from('contact_companies').delete().eq('contact_id', Number(contactId));
+    if (delErr) { console.error('[supabase] contact_companies delete', delErr); return; }
+    if (!desired.length) return;
+    const { error } = await supabase.from('contact_companies').insert(desired.map((l) => ({ contact_id: l.contactId, company_id: l.companyId, label: l.label, is_primary: l.isPrimary })));
+    if (error) console.error('[supabase] contact_companies insert', error);
+  });
+}
+// Real activity counts per record (the catalog's "Número de actividades de ventas"), from the timeline.
+function activityCounts(recordType) {
+  const counts = new Map();
+  allActivities().forEach((a) => { if (a.recordType === recordType && a.type !== 'prop') counts.set(Number(a.recordId), (counts.get(Number(a.recordId)) || 0) + 1); });
+  return counts;
+}
+function withActivityCounts(r, counts) {
+  const n = counts.get(Number(r.id)) || 0;
+  return { ...r, num_notes: n, num_contacted_notes: n };
 }
 
 // ---------- sample values for every catalog property ----------
@@ -729,6 +810,13 @@ function phoneFor(i, salt) {
   return `${dial}${a} ${b} ${c}`;
 }
 
+const STATES_BY_COUNTRY = {
+  España: ['Madrid', 'Cataluña', 'Andalucía', 'Comunidad Valenciana'],
+  México: ['Nuevo León', 'Jalisco', 'Ciudad de México', 'Querétaro'],
+  'Estados Unidos': ['Florida', 'Arizona', 'Texas', 'Florida'],
+  Colombia: ['Cundinamarca', 'Antioquia', 'Valle del Cauca', 'Atlántico'],
+  Portugal: ['Lisboa', 'Oporto', 'Algarve', 'Braga'],
+};
 function buildContact(i) {
   const first = FIRST[(i * 7) % FIRST.length];
   const last = LAST[(i * 11 + 3) % LAST.length];
@@ -754,6 +842,10 @@ function buildContact(i) {
     city: CITIES[(i * 5) % CITIES.length],
     country: ['España', 'España', 'México', 'Estados Unidos', 'Colombia', 'Portugal'][(i * 7) % 6],
     source: SOURCES[(i * 7) % 5],
+    // State / region by country (the account's "Glaziers Florida / Arizona" views filter on it).
+    state: STATES_BY_COUNTRY[['España', 'España', 'México', 'Estados Unidos', 'Colombia', 'Portugal'][(i * 7) % 6]][(i * 5) % 4],
+    // Some contacts belong to a second company besides the primary one (the original's "N registros").
+    ...(!noCompany && i % 10 === 4 ? { assoc_companies: [companyIdx + 1, ((companyIdx + 5) % COMPANY_NAMES.length) + 1], assoc_labels_companies: { [companyIdx + 1]: 'Principal', [((companyIdx + 5) % COMPANY_NAMES.length) + 1]: 'Facturación' } } : {}),
     jobTitle: i % 6 === 5 ? '' : ['Gerente', 'Arquitecta', 'Jefe de obra', 'Compras', 'Dirección', 'Administración', 'Project Manager', 'Estimator', 'Senior Project Manager', 'Dueño/a', 'Supervisor', 'Purchasing'][(i * 11) % 12],
     customer_type: ['Instalador', 'Distribuidor', 'Arquitecto', 'Constructor', 'Particular'][(i * 3) % 5],
   };
@@ -1465,6 +1557,14 @@ async function initFromSupabase() {
     }
     for (const type of Object.keys(BUILDERS)) {
       nextId[type] = dbRows[type].reduce((m, r) => Math.max(m, Number(r.id) || 0), 0) + 1;
+    }
+    try {
+      contactCompanyRows = await fetchContactCompanies();
+      contactCompanyIndex = null;
+    } catch (e) {
+      // supabase/contact_companies.sql not applied yet: the links stay on the contact records.
+      contactCompanyRows = null;
+      console.error('[supabase] tabla contact_companies no disponible; empresas del contacto en el propio registro.', e);
     }
     try {
       activityRows = await fetchActivities();

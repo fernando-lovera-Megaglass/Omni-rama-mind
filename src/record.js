@@ -66,7 +66,8 @@ const CONFIG = {
     ],
     highlights: (r) => [['Fecha de creación', formatDate(r.created)], ['Etapa del ciclo de vida', r.lifecycle], ['Última actividad', formatDate(r.lastActivity)], ['Ingresos anuales', formatMoney(r.revenue)]],
     assoc: (r) => [
-      ['Contactos', allContacts().filter((c) => Number(c.companyId) === Number(r.id)), 'contacts'],
+      // Contacts whose primary company this is, plus the ones associated to it as a secondary company.
+      ['Contactos', allContacts().filter((c) => Number(c.companyId) === Number(r.id) || (Array.isArray(c.assoc_companies) && c.assoc_companies.map(Number).includes(Number(r.id)))), 'contacts'],
       ['Negocios', allDeals().filter((d) => Number(d.companyId) === Number(r.id)), 'deals'],
       ['Tickets', allTickets().filter((t) => Number(t.companyId) === Number(r.id) || allContacts().some((c) => Number(c.id) === Number(t.contactId) && Number(c.companyId) === Number(r.id))), 'tickets'],
     ],

@@ -1,11 +1,26 @@
 import { boot } from './page.js';
 import { mountList, tag, link, avatarName, ownerHtml } from './list.js';
-import { allContacts, allDeals, STATUSES, LIFECYCLES, SOURCES, OWNERS, formatDate, formatShortDate, TODAY, lifecycleTag } from './data.js';
+import { allContacts, allCompanies, allDeals, STATUSES, LIFECYCLES, SOURCES, OWNERS, formatDate, formatShortDate, TODAY, lifecycleTag, contactCompanyLinks } from './data.js';
 import { mountCreateContact } from './create-contact.js';
+import { segments, addSegment } from './segments-data.js';
+import { SEGMENT_ASSOC } from './filter-editor.js';
 
 boot({ root: '../', active: 'crm', sub: 'Contactos', title: 'Contactos' });
 
 const days = (iso) => (TODAY - new Date(iso)) / 86400000;
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const initialsOf = (name) => String(name).split(' ').filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase();
+// All the companies of a contact (primary first) with their records.
+const companiesOf = (r) => contactCompanyLinks(r).map((l) => ({ ...l, company: allCompanies().find((c) => Number(c.id) === l.companyId) })).filter((l) => l.company);
+// The account's static segment behind the "50 TOP Glaziers" view (created empty, ready to be filled).
+const ensureSegment = (name) => segments().find((s) => s.name === name && s.object === 'contacts') || addSegment({ name, object: 'contacts', type: 'static', memberIds: [], size: 0, description: 'Lista estática: añade aquí los 50 glaziers principales.' });
+// Saved views the account uses (Megaglass), opened as tabs the first time; "+" adds new ones from the current filters.
+const SEED_VIEWS = [
+  { key: 'worked', name: 'Contactos trabajados', advanced: () => [{ key: 'num_notes', op: 'gte', value: '1' }] },
+  { key: 'top50', name: '50 TOP Glaziers', advanced: () => { const seg = ensureSegment('50 TOP Glaziers'); return [{ key: 'membership', assoc: SEGMENT_ASSOC, op: 'anyof', value: String(seg.id), label: seg.name }]; } },
+  { key: 'florida', name: 'Glaziers Florida', advanced: () => [{ key: 'state', op: 'in', value: 'Florida' }] },
+  { key: 'arizona', name: 'Glaziers Arizona', advanced: () => [{ key: 'state', op: 'in', value: 'Arizona' }] },
+];
 
 let createPanel = null; // the original's "Crear contacto" slide-over (mounted after the list)
 const list = mountList({
@@ -55,6 +70,7 @@ const list = mountList({
   searchPlaceholder: 'Buscar nombre, teléfono, correo...',
   searchKeys: ['name', 'email', 'phone', 'company', 'city'],
   rows: allContacts,
+  seedViews: SEED_VIEWS,
   views: [
     { key: 'all', label: 'Todos los contactos' },
     { key: 'mine', label: 'Mis contactos', filter: (r) => r.owner === 'Fernando L.' },
@@ -73,7 +89,20 @@ const list = mountList({
     { key: 'email', label: 'Correo' },
     { key: 'phone', label: 'Número de teléfono' },
     { key: 'owner', label: 'Propietario del contacto', render: (r) => ownerHtml(r.owner) },
-    { key: 'assoc_company', label: 'Contacto → Empresas', editable: false, text: (r) => r.company || '', sortValue: (r) => r.company || '', render: (r) => (r.company ? `<span class="name"><span class="avatar avatar--sm avatar--soft">${r.company.split(' ').filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase()}</span>${link(`../companies/record/?id=${r.companyId || ''}`, r.company)}</span>` : '<span class="muted">--</span>') },
+    // The primary company and, when the contact belongs to more, "N registros" (click to see them all).
+    {
+      key: 'assoc_company',
+      label: 'Contacto → Empresas',
+      editable: false,
+      text: (r) => { const all = companiesOf(r); return all.length > 1 ? `${all[0].company.name} (${all.length} registros)` : all[0] ? all[0].company.name : ''; },
+      sortValue: (r) => r.company || '',
+      render: (r) => {
+        const all = companiesOf(r);
+        if (!all.length) return '<span class="muted">--</span>';
+        const p = all[0];
+        return `<span class="name"><span class="avatar avatar--sm avatar--soft">${initialsOf(p.company.name)}</span>${link(`../companies/record/?id=${p.company.id}`, p.company.name)}</span>${all.length > 1 ? `<button class="assoc-more" type="button" data-assoc-more="${r.id}" aria-haspopup="dialog" title="Ver las ${all.length} empresas asociadas">${all.length} registros</button>` : ''}`;
+      },
+    },
     { key: 'company', label: 'Empresa principal', default: false },
     { key: 'status', label: 'Estado del lead', text: (r) => STATUSES[r.status]?.[0] || r.status, render: (r) => tag(...(STATUSES[r.status] || [r.status, 'tag--none'])) },
     { key: 'lifecycle', label: 'Etapa del ciclo de vida', default: false, text: (r) => r.lifecycle || '', render: (r) => lifecycleTag(r.lifecycle) },
@@ -105,5 +134,32 @@ const list = mountList({
   }),
 });
 createPanel = mountCreateContact({ list });
+
+// "N registros" in the companies column opens a small card with every company of the contact.
+const closeAssocPop = () => document.querySelectorAll('.assoc-pop').forEach((p) => p.remove());
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-assoc-more]');
+  if (!btn) { if (!e.target.closest('.assoc-pop')) closeAssocPop(); return; }
+  e.preventDefault();
+  const wasOpen = document.querySelector(`.assoc-pop[data-for="${btn.dataset.assocMore}"]`);
+  closeAssocPop();
+  if (wasOpen) return;
+  const r = allContacts().find((c) => Number(c.id) === Number(btn.dataset.assocMore));
+  if (!r) return;
+  const all = companiesOf(r);
+  const pop = document.createElement('div');
+  pop.className = 'assoc-pop';
+  pop.dataset.for = String(r.id);
+  pop.setAttribute('role', 'dialog');
+  pop.setAttribute('aria-label', `Empresas de ${r.name}`);
+  pop.innerHTML = `<h4 class="assoc-pop__title">Empresas (${all.length})</h4><ul>${all
+    .map((l) => `<li><span class="avatar avatar--xs avatar--soft" aria-hidden="true">${esc(initialsOf(l.company.name))}</span><a href="../companies/record/?id=${l.company.id}">${esc(l.company.name)}</a>${l.isPrimary ? '<span class="tag tag--done">Principal</span>' : l.label && l.label !== 'Sin etiqueta' ? `<span class="tag tag--none">${esc(l.label)}</span>` : ''}</li>`)
+    .join('')}</ul>`;
+  const rect = btn.getBoundingClientRect();
+  pop.style.top = `${rect.bottom + 4}px`;
+  pop.style.left = `${Math.max(8, rect.left)}px`;
+  document.body.appendChild(pop);
+});
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeAssocPop(); });
 
 export { SOURCES, list, createPanel };

@@ -2,12 +2,12 @@
 // column editor (full property catalog), advanced filters, CSV export/import, create drawer.
 import { wireMenus, closeMenus, toast, linkHtml, wireLinkTooltips } from './shell.js';
 import { addRecord, deleteRecords, restoreAll, getPrefs, setPrefs, getViewStore, setViewStore, matches, strip, toCsv, download, formatDate, formatMoney, formatShortDate, relativeTime, setField, TODAY, ALL, OWNERS, TASK_TYPES } from './data.js';
-import { segments as allSegments, addSegment, addStaticMembers } from './segments-data.js';
+import { segments as allSegments, addSegment, addStaticMembers, segmentMembers } from './segments-data.js';
 import { defaultTabs, deletedViews, saveDeletedViews } from './std-views.js';
 import { propertyGroups, propertyMap } from './properties.js';
 import { associationsFor, associationLabelOptions, assocPropertyGroups, assocValueOptions, assocConditionMatches, assocKindGroup, SINGULAR } from './assoc-filters.js';
 import { opsFor, kindGroup, evalCondition, conditionValues } from './filter-ops.js';
-import { createFilterEditor, newCondition } from './filter-editor.js';
+import { createFilterEditor, newCondition, SEGMENT_ASSOC } from './filter-editor.js';
 import { countWithConditions } from './filter-query.js';
 import { supabase as dbClient } from './supabaseClient.js';
 
@@ -681,7 +681,13 @@ export function mountList(cfg) {
     const dateMs = group === 'date' && c && c.sortValue ? c.sortValue(r) : NaN;
     return evalCondition(cond, conditionValues(r[cond.key], text, group, dateMs));
   }
-  const conditionMatches = (cond, r) => (cond.assoc ? assocConditionMatches(cfg.type, cond, r) : ownConditionMatches(cond, r));
+  // "Afiliación a segmentos": the record is (or is not) a member of any of the chosen segments.
+  const segmentMatches = (cond, r) => {
+    const ids = (Array.isArray(cond.value) ? cond.value : String(cond.value || '').split(/[;,]/)).map((v) => String(v).trim()).filter(Boolean);
+    const inAny = ids.some((sid) => { const seg = allSegments().find((s) => String(s.id) === sid); return Boolean(seg) && segmentMembers(seg).some((m) => Number(m.id) === Number(r.id)); });
+    return ['noneof', 'nin', 'not'].includes(cond.op) ? !inAny : inAny;
+  };
+  const conditionMatches = (cond, r) => (cond.assoc === SEGMENT_ASSOC ? segmentMatches(cond, r) : cond.assoc ? assocConditionMatches(cfg.type, cond, r) : ownConditionMatches(cond, r));
   function applyAdvanced(list) {
     const grps = groupedConditions();
     const assoc = assocSection();
@@ -813,6 +819,24 @@ export function mountList(cfg) {
   if (!store.open.length) {
     const defaults = defaultTabs(cfg.type).filter((id) => viewById(id));
     store.open = defaults.length ? defaults : standardViews().slice(0, 4).map((v) => v.id);
+  }
+  // Saved views the account starts with (cfg.seedViews: the person's real ones). Each is added to the
+  // store and opened as a tab once; renaming, closing or deleting it afterwards sticks.
+  if (cfg.seedViews && cfg.seedViews.length) {
+    const seeded = new Set(store.seeded || []);
+    let changed = false;
+    cfg.seedViews.forEach((s) => {
+      const id = `seed:${s.key}`;
+      if (seeded.has(id)) return;
+      if (!store.custom.some((v) => v.id === id)) {
+        const conds = (s.advanced ? s.advanced() : []).map((c) => ({ value2: '', group: 0, assoc: '', label: '', ...c }));
+        store.custom.push({ id, name: s.name, share: 'all', owner: ME, base: cfg.views[0].key, filters: {}, advanced: cleanAdvanced(conds), sort: cfg.defaultSort || { key: 'created', dir: -1 }, updated: Date.now(), seed: true });
+      }
+      if (!store.open.includes(id)) store.open.push(id);
+      seeded.add(id);
+      changed = true;
+    });
+    if (changed) { store.seeded = [...seeded]; setViewStore(cfg.type, store); }
   }
   if (!store.active || !store.open.includes(store.active)) store.active = store.open[0];
   {

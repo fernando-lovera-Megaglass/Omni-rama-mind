@@ -127,7 +127,7 @@ if (total() !== expectBilling) fail('an unused label should match nothing in gro
 click(document.querySelector('[data-action="view-saveas"]'));
 $('view-form').querySelector('[name="name"]').value = 'Florida y teléfono';
 submit($('view-form'));
-const saved = JSON.parse(mem['crm:contacts:views']).custom[0].advanced;
+const saved = JSON.parse(mem['crm:contacts:views']).custom.filter((v) => !v.seed)[0].advanced;
 log('saved conditions:', saved.map((c) => `${c.assoc || 'own'}:${c.key}:${c.op}:${Array.isArray(c.value) ? c.value.join('+') : c.value}@g${c.group}${c.label ? `[${c.label}]` : ''}`).join(' | '));
 if (!saved.some((c) => c.assoc === 'companies' && c.group === 0 && c.label === 'Facturación') || !saved.some((c) => c.group === 1)) fail('saved view lost groups or associations');
 log('dirty after save:', !$('view-dirty').hidden);

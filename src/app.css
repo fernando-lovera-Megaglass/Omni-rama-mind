@@ -4835,6 +4835,66 @@ td.cell--hl .cell__pen {
   color: var(--c-link);
 }
 
+/* Contacts list: "N registros" next to the primary company, and the card listing every company */
+.assoc-more {
+  margin-left: var(--sp-8);
+  padding: 1px 8px;
+  border: 1px solid var(--c-border);
+  border-radius: 12px;
+  background: var(--c-white);
+  color: var(--c-link);
+  font: inherit;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.assoc-more:hover {
+  background: #eaf0f6;
+}
+
+.assoc-pop {
+  position: fixed;
+  z-index: 60;
+  min-width: 260px;
+  max-width: 360px;
+  padding: var(--sp-10) var(--sp-16);
+  background: var(--c-white);
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-md);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+}
+
+.assoc-pop__title {
+  margin: 0 0 var(--sp-8);
+  font-size: var(--fs-sm);
+}
+
+.assoc-pop ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+}
+
+.assoc-pop li {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  font-size: var(--fs-sm);
+}
+
+.assoc-pop li a {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* "Crear negocio" slide-over: amount with its currency, association sections, line items */
 .slideover__panel--wide {
   width: 520px;
