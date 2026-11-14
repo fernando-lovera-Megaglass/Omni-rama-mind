@@ -62,7 +62,11 @@ if (!link('linkedin_company_page')) fail('linkedin page should be a link');
 const { propertyList } = await import(resolve(here, '../src/properties.js'));
 for (const t of ['tickets', 'tasks', 'deals']) log(`${t} link-type properties in the catalog:`, propertyList(t).filter((p) => ['url', 'email', 'phone'].includes(p.kind)).map((p) => p.key).join(', ') || 'none');
 mem['crm:customprops:tickets'] = JSON.stringify([{ key: 'portal_url', label: 'URL del portal', kind: 'url', group: 'Información del ticket' }, { key: 'reporter_email', label: 'Correo de quien reporta', kind: 'email', group: 'Información del ticket' }]);
+// custom properties only show real values (no sample decoration), so the tickets get theirs by hand
+mem['crm:tickets:overrides'] = JSON.stringify(Object.fromEntries(Array.from({ length: 84 }, (_, i) => [i + 1, { portal_url: `https://portal.ejemplo.es/tickets/${i + 1}`, reporter_email: `reporta${i + 1}@ejemplo.com` }])));
 mem['crm:tickets:prefs'] = JSON.stringify({ columns: ['name', 'status', 'portal_url', 'reporter_email'] });
+// custom properties carry real values only (no sample decoration), so give the tickets some
+mem['crm:tickets:overrides'] = JSON.stringify(Object.fromEntries(Array.from({ length: 84 }, (_, i) => [i + 1, { portal_url: `https://portal.ejemplo.com/tickets/${i + 1}`, reporter_email: `reporte${i + 1}@ejemplo.com` }])));
 boot('http://localhost/tickets/', LIST);
 await import(resolve(here, '../src/tickets.js'));
 log('tickets custom URL:', describe(link('portal_url')), '| custom e-mail:', describe(link('reporter_email')));

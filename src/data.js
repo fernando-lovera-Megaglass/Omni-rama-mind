@@ -2,7 +2,7 @@
 // When VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are set, records live in
 // Supabase and all edits go to the database. Without them, edits, additions
 // and deletions are kept in localStorage so the demo remembers them.
-import { propertyList } from './properties.js';
+import { propertyList, loadCustomProperties, setCustomPropertyWriter, localCustomProperties, clearLocalCustomProperties, customPropToDb, CUSTOM_OBJECT_NAME, SEED_CONTACT_PROPERTIES } from './properties.js';
 import { supabase, DB_MODE, createAnonProbe } from './supabaseClient.js';
 import { requireSession, signOut, siteRoot } from './auth.js';
 
@@ -704,6 +704,7 @@ const PROP_CACHE = {};
 function augment(type, r) {
   const props = PROP_CACHE[type] || (PROP_CACHE[type] = propertyList(type));
   for (const p of props) {
+    if (p.custom) continue; // custom properties (the account's own) only ever show real values
     if (r[p.key] === undefined || r[p.key] === null) r[p.key] = sampleValue(p, r, type);
   }
   return r;
@@ -1266,6 +1267,68 @@ async function fetchSegments() {
   return all.map(segmentFromDb);
 }
 
+// ---------- custom properties (Configuración › Propiedades) in the custom_properties table ----------
+// Read before the records, so the catalog (and the fields of every list, record and form) already has them.
+const CUSTOM_MIGRATED_KEY = 'crm:customprops:migrated';
+async function fetchCustomProperties() {
+  const { data, error } = await supabase.from('custom_properties').select('*').order('created_at');
+  if (error) throw error;
+  return data || [];
+}
+// Saves one object's whole list: upserts what is there and removes what was deleted in Configuración.
+async function writeCustomProperties(type, list) {
+  const objeto = CUSTOM_OBJECT_NAME[type];
+  if (!objeto) return;
+  const rows = list.map((p) => customPropToDb(type, p));
+  if (rows.length) {
+    const { error } = await supabase.from('custom_properties').upsert(rows, { onConflict: 'objeto,name' });
+    if (error) { console.error('[supabase] upsert custom_properties', error); return; }
+  }
+  let q = supabase.from('custom_properties').delete().eq('objeto', objeto);
+  if (rows.length) q = q.not('name', 'in', `(${rows.map((r) => `"${String(r.name).replace(/"/g, '')}"`).join(',')})`);
+  const { error: delErr } = await q;
+  if (delErr) console.error('[supabase] delete custom_properties', delErr);
+}
+// One-time move of the properties that were kept in localStorage into the table (then they leave localStorage).
+async function migrateLocalCustomProperties(existing) {
+  if (localStorage.getItem(CUSTOM_MIGRATED_KEY) === '1') return 0;
+  const have = new Set(existing.map((r) => `${r.objeto}:${r.name}`));
+  const rows = [];
+  const types = [];
+  for (const type of Object.keys(CUSTOM_OBJECT_NAME)) {
+    const local = localCustomProperties(type);
+    if (!local.length) continue;
+    types.push(type);
+    local.forEach((p) => { const row = customPropToDb(type, p); if (p.key && !have.has(`${row.objeto}:${row.name}`)) rows.push(row); });
+  }
+  if (rows.length) {
+    const { error } = await supabase.from('custom_properties').insert(rows);
+    if (error) { console.error('[supabase] migración de propiedades personalizadas', error); return 0; }
+    console.info(`[supabase] ${rows.length} propiedades personalizadas migradas desde localStorage.`);
+  }
+  types.forEach(clearLocalCustomProperties);
+  localStorage.setItem(CUSTOM_MIGRATED_KEY, '1');
+  return rows.length;
+}
+// The account's real contact properties are part of the catalog: if the table misses any (an older
+// custom-properties.sql, or rows deleted by hand) they are inserted again, never overwritten.
+async function ensureSeedProperties(rows) {
+  const have = new Set(rows.filter((r) => r.objeto === 'contact').map((r) => r.name));
+  const missing = SEED_CONTACT_PROPERTIES.filter((s) => !have.has(s.key)).map((s) => customPropToDb('contacts', s));
+  if (!missing.length) return 0;
+  const { error } = await supabase.from('custom_properties').upsert(missing, { onConflict: 'objeto,name', ignoreDuplicates: true });
+  if (error) { console.error('[supabase] siembra de propiedades personalizadas', error); return 0; }
+  return missing.length;
+}
+async function initCustomProperties() {
+  let rows = await fetchCustomProperties();
+  const moved = await migrateLocalCustomProperties(rows);
+  const seeded = await ensureSeedProperties(rows);
+  if (moved || seeded) rows = await fetchCustomProperties();
+  loadCustomProperties(rows);
+  setCustomPropertyWriter((type, list) => { dbWrite(() => writeCustomProperties(type, list)); });
+}
+
 // ---------- Supabase bootstrap ----------
 async function fetchTable(type) {
   const all = [];
@@ -1381,6 +1444,12 @@ async function initFromSupabase() {
   // Route protection: without a session the browser goes to the login page and nothing else loads.
   const session = await requireSession();
   try {
+    try {
+      await initCustomProperties();
+    } catch (e) {
+      // supabase/custom-properties.sql not applied yet: custom properties stay in localStorage.
+      console.error('[supabase] tabla custom_properties no disponible; propiedades personalizadas en localStorage.', e);
+    }
     for (const type of Object.keys(BUILDERS)) {
       dbRows[type] = await fetchTable(type);
     }

@@ -42,7 +42,8 @@ if (!panel().classList.contains('is-open') || location.pathname !== '/contacts/'
 // 2) fields in order, required marks, owner default
 const names = [...$('cc-form').querySelectorAll('[name]')].map((e) => e.name);
 log('fields:', names.join(', '));
-if (names.join(',') !== 'email,first,last,jobTitle,owner,state,country,phone,mobilephone,hs_buying_role') fail('field order');
+// …followed by the custom properties marked "Mostrar en el formulario de creación" (the account's real ones)
+if (names.join(',') !== 'email,first,last,jobTitle,owner,state,country,phone,mobilephone,hs_buying_role,asesor_de_ventas,nombre_del_proyecto,cell_phone') fail('field order');
 const labelOf = (n) => $('cc-form').elements[n].closest('label').querySelector('span').textContent.trim();
 log('labels:', ['email', 'first', 'last', 'owner', 'state', 'country', 'hs_buying_role'].map(labelOf).join(' | '), '| email type:', $('cc-form').elements.email.type);
 if (labelOf('first') !== 'Nombre *' || labelOf('last') !== 'Apellidos *' || $('cc-form').elements.email.type !== 'email') fail('required marks / e-mail type');

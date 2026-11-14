@@ -3,6 +3,7 @@
 // Apellidos are filled, duplicate detection while typing (Supabase ilike, or the local records), a warning
 // when the e-mail already belongs to a contact, and the insert through data.js (the contacts table).
 import { addRecord, allContacts, OWNERS, TODAY, strip } from './data.js';
+import { formCustomProperties } from './properties.js';
 import { supabase } from './supabaseClient.js';
 import { toast } from './shell.js';
 import { authEnabled, currentUser } from './auth.js';
@@ -77,12 +78,20 @@ export const normalizeContact = (d) => ({
 
 function fieldHtml([name, label, kind, required]) {
   const req = required ? ' <span class="cc-req" aria-hidden="true">*</span>' : '';
-  const lab = `<span>${label}${req}</span>`;
+  const lab = `<span>${esc(label)}${req}</span>`;
   if (kind === 'owner') return `<label class="field">${lab}<select name="${name}">${OWNERS.map((o) => `<option value="${esc(o)}">${esc(o)}</option>`).join('')}</select></label>`;
   if (kind === 'country') return `<label class="field">${lab}<select name="${name}"><option value="">--</option>${COUNTRIES.map((c) => `<option value="${esc(c)}">${esc(c)}</option>`).join('')}</select></label>`;
   if (kind === 'role') return `<label class="field">${lab}<select name="${name}"><option value="">--</option>${BUYING_ROLES.map((r) => `<option value="${esc(r)}">${esc(r)}</option>`).join('')}</select></label>`;
   return `<label class="field">${lab}<input name="${name}" type="${kind}" ${required ? 'required aria-required="true"' : ''} autocomplete="off" /></label>`;
 }
+// Custom properties flagged "visible" in Configuración › Propiedades are asked for after the standard fields.
+const INPUT_TYPE = { number: 'number', currency: 'number', date: 'date', datetime: 'datetime-local', email: 'email', phone: 'tel', url: 'url' };
+function customFieldHtml(p) {
+  const lab = `<span>${esc(p.label)}</span>`;
+  if (p.kind === 'enum' || p.kind === 'bool') return `<label class="field" data-custom="${esc(p.key)}">${lab}<select name="${esc(p.key)}"><option value="">--</option>${(p.options || (p.kind === 'bool' ? ['Sí', 'No'] : [])).map((o) => `<option value="${esc(o)}">${esc(o)}</option>`).join('')}</select></label>`;
+  return `<label class="field" data-custom="${esc(p.key)}">${lab}<input name="${esc(p.key)}" type="${INPUT_TYPE[p.kind] || 'text'}" ${p.kind === 'number' || p.kind === 'currency' ? 'step="any"' : ''} autocomplete="off" /></label>`;
+}
+export const customFieldsHtml = (type) => formCustomProperties(type).map(customFieldHtml).join('');
 
 export function mountCreateContact({ root = document.getElementById('list-root') || document.body, list = null, onCreated = null, debounceMs = 300, recordHref = (id) => `./record/?id=${id}` } = {}) {
   const el = document.createElement('div');
@@ -95,6 +104,7 @@ export function mountCreateContact({ root = document.getElementById('list-root')
       <header class="slideover__head"><h2 id="cc-title">Crear contacto</h2><button class="slideover__close" type="button" data-cc="cancel" aria-label="Cerrar">×</button></header>
       <form class="slideover__body" id="cc-form" novalidate>
         ${FIELDS.map(fieldHtml).join('')}
+        ${customFieldsHtml('contacts')}
         <section class="cc-dups" id="cc-dups" aria-live="polite"><p class="cc-dups__hint muted">${HINT}</p></section>
       </form>
       <footer class="slideover__foot">

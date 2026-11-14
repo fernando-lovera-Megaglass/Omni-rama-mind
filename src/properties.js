@@ -1,6 +1,7 @@
 // Property catalog: every property that can be added as a table column, grouped
 // the way the column editor shows them. Each item: [key, label, type, options].
 // Types: text, number, currency, percent, date, datetime, enum, bool, user, email, phone, url, id.
+import { SEED_CONTACT_PROPERTIES, SEED_GROUP } from './custom-properties.js';
 
 const OWNER_OPTS = ['Fernando L.', 'Sofía R.', 'Sin asignar'];
 const YESNO = ['Sí', 'No'];
@@ -524,18 +525,58 @@ export const PROPERTIES = {
   ],
 };
 
-// Custom properties created from Configuración › Propiedades live in localStorage and join the catalog.
+// Custom properties (Configuración › Propiedades, inline ones from imports, the real Megaglass ones) join
+// the catalog. With Supabase they live in the custom_properties table (supabase/custom-properties.sql):
+// data.js reads them at start-up into this module and registers the writer that saves changes back.
+// Without the table (local mode) they stay in localStorage, as before.
 const CUSTOM_KEY = (type) => `crm:customprops:${type}`;
-export function customProperties(type) {
+export { SEED_CONTACT_PROPERTIES, SEED_GROUP };
+// Objects the table knows (its check constraint); tasks keep their custom properties in localStorage.
+export const CUSTOM_OBJECT_NAME = { contacts: 'contact', companies: 'company', deals: 'deal', tickets: 'ticket' };
+const TYPE_OF_OBJECT = Object.fromEntries(Object.entries(CUSTOM_OBJECT_NAME).map(([t, o]) => [o, t]));
+const DEFAULT_GROUP = 'Propiedades personalizadas';
+let remote = null; // { type: [props] } once the table has been read
+let writer = null; // (type, list) => Promise — persists a whole object's list
+export const customPropertiesLive = () => remote !== null;
+// A table row ↔ the catalog's property shape ({ key, label, kind, options, group, desc, visible, archived });
+// `visible` is the table's in_form (asked for in the create form).
+export function customPropFromDb(r) {
+  const options = Array.isArray(r.options) && r.options.length ? r.options : r.options && Array.isArray(r.options.values) ? r.options.values : undefined;
+  return { key: r.name, label: r.label || r.name, kind: r.type || 'text', options, group: r.group_name || DEFAULT_GROUP, desc: r.description || '', visible: Boolean(r.in_form ?? r.visible), archived: Boolean(r.archived), custom: true };
+}
+export function customPropToDb(type, p) {
+  return { objeto: CUSTOM_OBJECT_NAME[type], name: p.key, label: p.label || p.key, type: p.kind || 'text', options: (p.kind === 'enum' || p.kind === 'bool') && Array.isArray(p.options) ? p.options : [], group_name: p.group || DEFAULT_GROUP, description: p.desc || '', in_form: Boolean(p.visible), archived: Boolean(p.archived) };
+}
+export function loadCustomProperties(rows) {
+  remote = Object.fromEntries(Object.keys(CUSTOM_OBJECT_NAME).map((t) => [t, []]));
+  (rows || []).forEach((r) => { const t = TYPE_OF_OBJECT[r.objeto]; if (t) remote[t].push(customPropFromDb(r)); });
+}
+export function setCustomPropertyWriter(fn) { writer = fn; }
+// What is still in localStorage (the one-time migration to the table reads this, then clears it).
+export function localCustomProperties(type) {
   try {
     return JSON.parse(localStorage.getItem(CUSTOM_KEY(type))) || [];
   } catch {
     return [];
   }
 }
+export function clearLocalCustomProperties(type) { localStorage.removeItem(CUSTOM_KEY(type)); }
+// Without the table, the account's real contact properties still exist (they are part of the catalog).
+const withSeed = (type, list) => (type === 'contacts' ? [...list, ...SEED_CONTACT_PROPERTIES.filter((s) => !list.some((p) => p && p.key === s.key)).map((s) => ({ ...s }))] : list);
+export function customProperties(type) {
+  if (remote && CUSTOM_OBJECT_NAME[type]) return (remote[type] || []).map((p) => ({ ...p }));
+  return withSeed(type, localCustomProperties(type).filter((p) => p && p.key));
+}
 export function saveCustomProperties(type, list) {
+  if (remote && CUSTOM_OBJECT_NAME[type]) {
+    remote[type] = list.map((p) => ({ ...p }));
+    if (writer) writer(type, remote[type].map((p) => ({ ...p })));
+    return;
+  }
   localStorage.setItem(CUSTOM_KEY(type), JSON.stringify(list));
 }
+// Custom properties flagged for the create form (Crear contacto…), not archived.
+export const formCustomProperties = (type) => customProperties(type).filter((p) => p.visible && !p.archived);
 export function propertyGroups(type) {
   const base = PROPERTIES[type] || [];
   const custom = customProperties(type).filter((p) => !p.archived);
@@ -578,7 +619,8 @@ export function isSystemProperty(type, key) {
 }
 
 export function propertyList(type) {
-  return propertyGroups(type).flatMap((grp) => grp.items.map(([key, label, kind, options]) => ({ key, label, kind, options, group: grp.title, system: isSystemProperty(type, key) })));
+  const customKeys = new Set(customProperties(type).map((p) => p.key));
+  return propertyGroups(type).flatMap((grp) => grp.items.map(([key, label, kind, options]) => ({ key, label, kind, options, group: grp.title, system: isSystemProperty(type, key), custom: customKeys.has(key) })));
 }
 
 export function propertyMap(type) {

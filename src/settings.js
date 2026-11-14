@@ -1348,6 +1348,7 @@ function propertyForm(type, existing) {
       <label class="field"><span>Tipo de campo</span><select name="kind" id="prop-kind">${PROP_KINDS.map(([k, l]) => `<option value="${k}" ${existing && existing.kind === k ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
       <label class="field" id="prop-options-field" ${existing && existing.kind === 'enum' ? '' : 'hidden'}><span>Opciones (una por línea)</span><textarea name="options" rows="4">${esc(existing && existing.options ? existing.options.join('\n') : '')}</textarea></label>
       <label class="field"><span>Descripción</span><input name="desc" value="${esc(existing ? existing.desc || '' : '')}" /></label>
+      <label class="ocheck ocheck--sm"><input type="checkbox" name="visible" ${existing && existing.visible ? 'checked' : ''} /><span><strong>Mostrar en el formulario de creación</strong><small>La propiedad se pide también al crear un registro desde el panel «Crear».</small></span></label>
     </form>`;
 }
 function saveProperty(type, existingKey) {
@@ -1355,7 +1356,8 @@ function saveProperty(type, existingKey) {
   if (!d.label.trim()) return;
   const list = customProperties(type);
   const key = existingKey || `custom_${slug(d.label)}_${Date.now().toString(36)}`;
-  const prop = { key, label: d.label.trim(), group: d.group, kind: d.kind === 'textarea' ? 'text' : d.kind, options: d.kind === 'enum' ? d.options.split('\n').map((s) => s.trim()).filter(Boolean) : d.kind === 'bool' ? ['Sí', 'No'] : undefined, desc: d.desc };
+  const previous = list.find((p) => p.key === key);
+  const prop = { key, label: d.label.trim(), group: d.group, kind: d.kind === 'textarea' ? 'text' : d.kind, options: d.kind === 'enum' ? d.options.split('\n').map((s) => s.trim()).filter(Boolean) : d.kind === 'bool' ? ['Sí', 'No'] : undefined, desc: d.desc, visible: d.visible === 'on', archived: Boolean(previous && previous.archived) };
   const i = list.findIndex((p) => p.key === key);
   if (i >= 0) list[i] = prop; else list.push(prop);
   saveCustomProperties(type, list);
