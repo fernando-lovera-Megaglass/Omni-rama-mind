@@ -1199,6 +1199,40 @@ export function addHistoryEntry(recordType, recordId, key, from, to, label) {
   addActivity({ type: 'prop', recordType, recordId, text, who: 'Tú', when: Date.now(), extra: { key, from, to } });
 }
 
+// ---------- interface settings per user or global (user_settings table) ----------
+// Things like the properties shown on a record's "Acerca de" card. Read at start-up for the signed-in user
+// (its rows win over the global ones, user_id = zero uuid); saved with setSetting. Without the table (or in
+// local mode) the pages keep their localStorage copy.
+const GLOBAL_USER = '00000000-0000-0000-0000-000000000000';
+let settingsMap = null; // key → { value, scope } once the table has been read
+let settingsUserId = GLOBAL_USER;
+export const settingsLive = () => settingsMap !== null;
+async function fetchUserSettings(uid) {
+  const { data, error } = await supabase.from('user_settings').select('*').in('user_id', [...new Set([GLOBAL_USER, uid])]).order('updated_at');
+  if (error) throw error;
+  const map = new Map();
+  (data || []).forEach((r) => { if (r.user_id === GLOBAL_USER) map.set(r.key, { value: r.value, scope: 'global' }); });
+  (data || []).forEach((r) => { if (r.user_id !== GLOBAL_USER) map.set(r.key, { value: r.value, scope: 'user' }); });
+  return map;
+}
+export function getSetting(key) {
+  const hit = settingsMap && settingsMap.get(key);
+  return hit ? hit.value : null;
+}
+export const settingScope = (key) => ((settingsMap && settingsMap.get(key)) || {}).scope || null;
+// scope: 'user' (default when signed in) or 'global' (the whole account).
+export function setSetting(key, value, { scope } = {}) {
+  if (!settingsMap) return false;
+  const useGlobal = scope === 'global' || settingsUserId === GLOBAL_USER;
+  settingsMap.set(key, { value, scope: useGlobal ? 'global' : 'user' });
+  const row = { user_id: useGlobal ? GLOBAL_USER : settingsUserId, key, value, updated_at: new Date().toISOString() };
+  dbWrite(async () => {
+    const { error } = await supabase.from('user_settings').upsert(row, { onConflict: 'user_id,key' });
+    if (error) console.error('[supabase] user_settings upsert', error);
+  });
+  return true;
+}
+
 // ---------- deal line items ("Elementos de pedido" of the Crear negocio panel) ----------
 // Persisted in deal_line_items (supabase/deal_line_items.sql); in local mode in localStorage. There is no
 // products table, so a line is name + quantity + unit price in the deal's currency.
@@ -1557,6 +1591,14 @@ async function initFromSupabase() {
     }
     for (const type of Object.keys(BUILDERS)) {
       nextId[type] = dbRows[type].reduce((m, r) => Math.max(m, Number(r.id) || 0), 0) + 1;
+    }
+    try {
+      settingsUserId = (session && session.user && session.user.id) || GLOBAL_USER;
+      settingsMap = await fetchUserSettings(settingsUserId);
+    } catch (e) {
+      // supabase/user_settings.sql not applied yet: interface settings stay in localStorage.
+      settingsMap = null;
+      console.error('[supabase] tabla user_settings no disponible; ajustes de la interfaz en localStorage.', e);
     }
     try {
       contactCompanyRows = await fetchContactCompanies();

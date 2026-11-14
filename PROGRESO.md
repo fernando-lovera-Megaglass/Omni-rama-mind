@@ -1,5 +1,13 @@
 # Progreso — Omni CRM
 
+## 2026-11-13 (sesión 5) · Ficha de contacto con edición inline, «Ver todas las propiedades» y Personalizar en Supabase
+
+**Construido** (`src/record.js`, vale para todas las fichas)
+- **Edición inline** en la tarjeta «Acerca de» / «Información clave»: al pasar el ratón aparece el lápiz; al pulsarlo el valor se convierte en input de texto / número / correo / teléfono / URL, desplegable (enumeraciones, propietario, Sí/No) o selector de fecha según el tipo de la propiedad; **Enter** (Ctrl/Cmd+Enter en texto largo) o **clic fuera** guardan (`setField` → UPDATE/PATCH en Supabase, entrada en el historial), **Escape** cancela; un campo sin cambios no escribe nada; solo hay un campo abierto a la vez (al abrir otro, el anterior se guarda si cambió).
+- Al final de la tarjeta, **«Ver todas las propiedades»** (también desde el menú ⋮): panel lateral con buscador, el indicador **«N de M propiedades con valor»** (y «n de m con valor» por grupo), todos los grupos del catálogo incluidas las personalizadas («Información de Megaglass») y cada valor editable inline con el mismo mecanismo; los contadores se actualizan al guardar; Escape cierra el editor y después el panel.
+- **Personalizar**: el diálogo de propiedades (elegir, buscar, ordenar, nombre de la tarjeta) guarda ahora en Supabase a través de la tabla nueva **`user_settings`** (migración `supabase/user_settings.sql`, aplicada: `user_id` + `key` únicos, `value` jsonb; el uuid cero es «global»): **por usuario** por defecto y **para toda la cuenta** con la casilla «Aplicar a todos los usuarios de la cuenta»; al leer, el ajuste del usuario gana sobre el global; localStorage queda como copia. `src/data.js`: `getSetting` / `setSetting` / `settingScope` / `settingsLive`, cargados al arrancar para el usuario de la sesión.
+- Pruebas: `scripts/smoke-record-inline.mjs` (lápiz por tipo, guardar con clic fuera y Enter, Escape, sin escritura si no cambia, desplegable, un editor a la vez, panel con contador y grupo personalizado, búsqueda, edición en el panel con contadores, editor numérico, cierre con Escape/⋮/X, Personalizar con orden y casilla de ámbito) + suite completa en verde; `npm run build` OK; rebuild_check «would pass, 90 %».
+
 ## 2026-11-13 (sesión 5) · Vistas guardadas reales de contactos y contactos con varias empresas
 
 **Construido**

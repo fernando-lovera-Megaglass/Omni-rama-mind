@@ -10,7 +10,7 @@ import {
   STATUSES, LIFECYCLES, SOURCES, OWNERS, TICKET_STATUSES, PRIORITIES, TASK_TYPES, TASK_STATUSES,
   ticketStatusesFor, ticketStatusLabel, firstOpenTicketStatus, ticketPipelines, stagesFor, allDealStages, dealStageLabel, dealStageProb, isClosedStage,
   formatDate, formatMoney, initials, colorFor, labelOf, toCsv, download, TODAY, assocLabels, CURRENCY_DEFS, CURRENCY_CODES,
-  activitiesFor, addActivity, historyFor, addHistoryEntry,
+  activitiesFor, addActivity, historyFor, addHistoryEntry, getSetting, setSetting, settingsLive, settingScope,
 } from './data.js';
 import { propertyGroups, propertyMap } from './properties.js';
 const PROPERTIES = new Proxy({}, { get: (_, t) => propertyGroups(t) });
@@ -193,9 +193,20 @@ mount.innerHTML = `
           </span>
         </div>
         <dl class="props" id="rec-props"></dl>
-        <p class="props__custom"><button class="link-btn" type="button" data-act="customize-props">Personalizar</button></p>
+        <p class="props__custom"><button class="link-btn" type="button" data-act="all-props-panel">Ver todas las propiedades</button><button class="link-btn" type="button" data-act="customize-props">Personalizar</button></p>
       </div>
     </section>
+    <div class="slideover" id="allprops-panel" aria-hidden="true">
+      <div class="slideover__scrim" data-act="all-props-close"></div>
+      <aside class="slideover__panel slideover__panel--wide" role="dialog" aria-modal="true" aria-labelledby="allprops-title">
+        <header class="slideover__head"><h2 id="allprops-title">Todas las propiedades</h2><button class="slideover__close" type="button" data-act="all-props-close" aria-label="Cerrar">×</button></header>
+        <div class="slideover__body allprops">
+          <div class="search allprops__search"><span class="ico ico--search" aria-hidden="true"></span><input type="search" id="allprops-q" placeholder="Buscar propiedades" aria-label="Buscar propiedades" autocomplete="off" /></div>
+          <p class="allprops__count" id="allprops-count" aria-live="polite"></p>
+          <div id="allprops-groups"></div>
+        </div>
+      </aside>
+    </div>
 
     <section class="record__middle">
       <button class="side-toggle tip" type="button" id="side-toggle" aria-pressed="false" aria-label="Contraer barra lateral">
@@ -445,8 +456,9 @@ function propValue(p, v) {
 }
 
 // ---------- which properties the "Acerca de" card shows (customisable via the gear) ----------
+// Saved in Supabase (user_settings: for this user, or for the whole account) with a localStorage copy.
 const CARD_KEY = `crm:${type}:cardprops`;
-const loadCard = () => loadJson(CARD_KEY, null);
+const loadCard = () => (settingsLive() ? getSetting(CARD_KEY) : null) || loadJson(CARD_KEY, null);
 // System-filled properties (counters, dates, analytics, scores…) are shown but never editable on the card.
 const systemProp = (key) => Boolean(props[key] && props[key].system);
 function fieldFor(key) {
@@ -480,7 +492,7 @@ function cardTitle() {
 let cardDraft = null;
 function openCardEditor() {
   const saved = loadCard();
-  cardDraft = { title: cardTitle(), keys: (saved && saved.keys) || defaultCardKeys(), q: '' };
+  cardDraft = { title: cardTitle(), keys: (saved && saved.keys) || defaultCardKeys(), q: '', global: settingScope(CARD_KEY) === 'global' };
   renderCardEditor();
 }
 function renderCardEditor() {
@@ -516,6 +528,7 @@ function renderCardEditor() {
         <label class="field"><span>Nombre de la tarjeta</span><input id="card-title" type="text" value="${esc(cardDraft.title)}" maxlength="40" /></label>
         <h3 class="cardprops__h">Propiedades seleccionadas (${cardDraft.keys.length})</h3>
         <ul class="coled__selected cardprops__selected" id="card-selected">${right}</ul>
+        <label class="ocheck ocheck--sm cardprops__scope"><input type="checkbox" id="card-global" ${cardDraft.global ? 'checked' : ''} /><span><strong>Aplicar a todos los usuarios de la cuenta</strong><small>${settingsLive() ? 'Se guarda en Supabase: solo para ti, o para toda la cuenta si marcas esta casilla.' : 'Sin conexión con Supabase se guarda en este navegador.'}</small></span></label>
       </div>
     </div>`,
     `<button class="btn btn--primary" type="button" data-confirm="card-save">Guardar</button><button class="btn btn--ghost" type="button" data-confirm="card-reset">Restablecer</button><button class="btn btn--ghost" type="button" data-close>Cancelar</button>`,
@@ -536,6 +549,48 @@ function renderProps() {
       </div>`;
     })
     .join('');
+}
+
+// "Ver todas las propiedades": a slide-over with every property of the catalog (custom ones included), its
+// value, inline editing, a search box and how many have a value.
+const hasValue = (k) => { const v = rec[k]; return !(v === undefined || v === null || v === '' || (Array.isArray(v) && !v.length)); };
+const allPropsOpen = () => Boolean($('allprops-panel') && $('allprops-panel').classList.contains('is-open'));
+function openAllProps() {
+  const panel = $('allprops-panel');
+  panel.classList.add('is-open');
+  panel.setAttribute('aria-hidden', 'false');
+  document.body.classList.add('has-slideover');
+  renderAllPropsPanel();
+  setTimeout(() => $('allprops-q').focus(), 50);
+}
+function closeAllProps() {
+  const panel = $('allprops-panel');
+  if (!panel) return;
+  panel.classList.remove('is-open');
+  panel.setAttribute('aria-hidden', 'true');
+  document.body.classList.remove('has-slideover');
+}
+function renderAllPropsPanel() {
+  if (!allPropsOpen()) return;
+  const q = $('allprops-q').value.trim().toLowerCase();
+  const groups = PROPERTIES[type] || [];
+  const all = groups.flatMap((g) => g.items);
+  const withValue = all.filter(([k]) => hasValue(k)).length;
+  $('allprops-count').innerHTML = `<strong>${withValue}</strong> de ${all.length} propiedades con valor`;
+  $('allprops-groups').innerHTML = groups
+    .map((grp) => {
+      const items = grp.items.filter(([k, l]) => !q || l.toLowerCase().includes(q) || k.toLowerCase().includes(q));
+      if (!items.length) return '';
+      const n = grp.items.filter(([k]) => hasValue(k)).length;
+      return `<section class="propgrp allprops__group" data-group="${esc(grp.title)}"><h4>${esc(grp.title)} <span class="allprops__n">${n} de ${grp.items.length} con valor</span></h4><dl class="props">${items
+        .map(([k, l]) => {
+          const f = fieldFor(k);
+          const ro = !f || f[2] === 'ro' || f[2] === 'date-ro' || f[2] === 'calc';
+          return `<div class="props__row" data-key="${esc(k)}"><dt>${esc(l)}</dt><dd class="props__value">${f ? displayValue(f, rec) : propValue(props[k], rec[k])}${ro ? '' : `<button class="props__edit" type="button" data-edit-key="${esc(k)}" aria-label="Editar ${esc(l)}">✎</button>`}</dd></div>`;
+        })
+        .join('')}</dl></section>`;
+    })
+    .join('') || '<p class="muted">Ninguna propiedad coincide con la búsqueda.</p>';
 }
 
 function renderAllProps(query = '') {
@@ -1299,11 +1354,32 @@ function renderAll() {
   renderHeader();
   renderProps();
   renderAllProps($('adv-search').value);
+  renderAllPropsPanel();
   renderAi();
   renderTimeline();
   wireMenus(mount);
 }
 
+// Reads the inline editor's value in the record's own type and saves it when it changed; otherwise it just
+// closes the editor (clicking away from an untouched field must not write anything).
+function commitEdit(form) {
+  if (!form || !form.isConnected) return;
+  const key = form.dataset.key;
+  const el = form.querySelector('[data-edit]');
+  if (!el) return;
+  let value = el.value;
+  if (el.type === 'number') value = value === '' ? '' : Number(value) || 0;
+  if (el.type === 'date') value = value ? new Date(`${value}T12:00:00`).toISOString() : '';
+  const before = rec[key] ?? '';
+  const same = el.type === 'date' ? dateInput(before) === dateInput(value) : String(before) === String(value);
+  if (same) { cancelEdit(form); return; }
+  save(key, value);
+}
+function cancelEdit(form) {
+  if (!form || !form.isConnected) return;
+  const inPanel = Boolean(form.closest('#allprops-panel'));
+  if (inPanel) renderAllPropsPanel(); else renderProps();
+}
 function save(key, value, label) {
   const from = rec[key];
   setField(type, rec.id, key, value);
@@ -1327,8 +1403,11 @@ function runAction(act) {
       break;
     }
     case 'all-props':
-      document.querySelector('[data-tab="advanced"]').click();
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+    case 'all-props-panel':
+      openAllProps();
+      break;
+    case 'all-props-close':
+      closeAllProps();
       break;
     case 'prop-history': {
       const h = loadHistory();
@@ -1484,12 +1563,16 @@ $('rec-modal').addEventListener('click', (e) => {
     location.href = cfg.listHref;
   } else if (what === 'card-save') {
     cardDraft.title = $('card-title').value.trim() || 'Acerca de este objeto';
-    saveJson(CARD_KEY, { title: cardDraft.title, keys: cardDraft.keys });
+    const global = Boolean($('card-global') && $('card-global').checked);
+    const card = { title: cardDraft.title, keys: cardDraft.keys };
+    saveJson(CARD_KEY, card);
+    const remote = setSetting(CARD_KEY, card, { scope: global ? 'global' : 'user' });
     closeModal();
     renderProps();
-    toast('Tarjeta actualizada');
+    toast(remote ? (global ? 'Tarjeta actualizada para toda la cuenta' : 'Tarjeta actualizada (solo para ti)') : 'Tarjeta actualizada');
   } else if (what === 'card-reset') {
     localStorage.removeItem(CARD_KEY);
+    setSetting(CARD_KEY, null, { scope: settingScope(CARD_KEY) === 'global' ? 'global' : 'user' });
     closeModal();
     renderProps();
     toast('Tarjeta restablecida');
@@ -1707,15 +1790,24 @@ if (!rec) {
     }
     const btn = e.target.closest('[data-edit-key]');
     if (btn) {
+      // Inline editing (card or "Todas las propiedades"): the value becomes an input / dropdown / date picker
+      // for its type; Enter or clicking elsewhere saves, Escape cancels. One row at a time.
       const key = btn.dataset.editKey;
-      const f = currentFields().find((x) => x[0] === key);
-      const row = btn.closest('.props__row');
-      row.querySelector('dd').innerHTML = `<form class="props__form" data-key="${key}">${editor(f, rec)}<span class="props__btns"><button class="btn btn--primary btn--sm" type="submit">Guardar</button><button class="btn btn--ghost btn--sm" type="button" data-cancel>Cancelar</button></span></form>`;
-      row.querySelector('[data-edit]').focus();
+      const f = currentFields().find((x) => x[0] === key) || fieldFor(key);
+      if (!f) return;
+      const inPanel = Boolean(btn.closest('#allprops-panel'));
+      // Another field still open keeps its change (saved if it changed), then the rows are re-drawn.
+      mount.querySelectorAll('.props__form').forEach((open) => commitEdit(open));
+      const row = mount.querySelector(`${inPanel ? '#allprops-panel' : '#rec-props'} .props__row[data-key="${key}"]`) || btn.closest('.props__row');
+      if (!row) return;
+      row.querySelector('dd').innerHTML = `<form class="props__form" data-key="${esc(key)}" data-original="${esc(JSON.stringify(rec[key] ?? ''))}">${editor(f, rec)}<span class="props__btns"><button class="btn btn--primary btn--sm" type="submit">Guardar</button><button class="btn btn--ghost btn--sm" type="button" data-cancel>Cancelar</button></span></form>`;
+      const input = row.querySelector('[data-edit]');
+      input.focus();
+      if (input.select && input.type === 'text') input.select();
       return;
     }
     if (e.target.closest('[data-cancel]')) {
-      renderProps();
+      cancelEdit(e.target.closest('.props__form'));
       return;
     }
     const st = e.target.closest('[data-stage], [data-status]');
@@ -1803,12 +1895,7 @@ if (!rec) {
     const form = e.target.closest('.props__form');
     if (form) {
       e.preventDefault();
-      const key = form.dataset.key;
-      const el = form.querySelector('[data-edit]');
-      let value = el.value;
-      if (el.type === 'number') value = Number(value) || 0;
-      if (el.type === 'date') value = value ? new Date(value).toISOString() : '';
-      save(key, value);
+      commitEdit(form);
       return;
     }
     if (e.target.id === 'note-form') {
@@ -1825,6 +1912,27 @@ if (!rec) {
       e.preventDefault();
       save('description', e.target.querySelector('textarea').value.trim(), 'Descripción');
     }
+  });
+
+  // Escape cancels the inline edit (and, with nothing being edited, closes "Todas las propiedades");
+  // Ctrl/Cmd+Enter saves a multi-line field.
+  mount.addEventListener('keydown', (e) => {
+    const form = e.target.closest('.props__form');
+    if (!form) return;
+    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); cancelEdit(form); }
+    else if (e.key === 'Enter' && e.target.tagName === 'TEXTAREA' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); commitEdit(form); }
+  });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && allPropsOpen() && !mount.querySelector('.props__form')) closeAllProps(); });
+  // Clicking (or tabbing) outside the field saves it, as in the original.
+  mount.addEventListener('focusout', (e) => {
+    const form = e.target.closest('.props__form');
+    if (!form) return;
+    if (e.relatedTarget && form.contains(e.relatedTarget)) return;
+    setTimeout(() => {
+      if (!form.isConnected) return;
+      if (document.activeElement && form.contains(document.activeElement)) return;
+      commitEdit(form);
+    }, 0);
   });
 
   mount.addEventListener('change', (e) => {
@@ -1873,6 +1981,8 @@ if (!rec) {
       renderTimeline();
     } else if (e.target.id === 'adv-search') {
       renderAllProps(e.target.value);
+    } else if (e.target.id === 'allprops-q') {
+      renderAllPropsPanel();
     }
   });
 }

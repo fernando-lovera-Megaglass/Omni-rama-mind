@@ -4835,6 +4835,48 @@ td.cell--hl .cell__pen {
   color: var(--c-link);
 }
 
+/* Record page: "Ver todas las propiedades" slide-over (search, counter, groups with inline editing) */
+.props__custom .link-btn + .link-btn {
+  margin-left: var(--sp-16);
+}
+
+.allprops__search {
+  margin-bottom: var(--sp-10);
+}
+
+.allprops__search input {
+  width: 100%;
+}
+
+.allprops__count {
+  margin: 0 0 var(--sp-8);
+  font-size: var(--fs-sm);
+  color: var(--c-muted);
+}
+
+.allprops .propgrp h4 {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-8);
+  margin: var(--sp-16) 0 var(--sp-4);
+}
+
+.allprops__n {
+  font-size: var(--fs-xs);
+  font-weight: 400;
+  text-transform: none;
+  color: var(--c-muted);
+}
+
+.allprops .props__row {
+  position: relative;
+}
+
+.cardprops__scope {
+  margin-top: var(--sp-16);
+}
+
 /* Contacts list: "N registros" next to the primary company, and the card listing every company */
 .assoc-more {
   margin-left: var(--sp-8);
