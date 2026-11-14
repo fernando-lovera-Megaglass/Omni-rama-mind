@@ -3,6 +3,7 @@
 // Supabase and all edits go to the database. Without them, edits, additions
 // and deletions are kept in localStorage so the demo remembers them.
 import { propertyList, loadCustomProperties, setCustomPropertyWriter, localCustomProperties, clearLocalCustomProperties, customPropToDb, CUSTOM_OBJECT_NAME, SEED_BY_TYPE } from './properties.js';
+import { REAL_DEAL_PIPELINES, LEGACY_STAGE_MAP, DEFAULT_PIPELINE_NAME } from './pipelines-seed.js';
 import { supabase, DB_MODE, createAnonProbe } from './supabaseClient.js';
 import { requireSession, signOut, siteRoot } from './auth.js';
 
@@ -70,30 +71,14 @@ export function lifecycleTag(label) {
 const LIFECYCLE_MIX = [1, 1, 0, 1, 4, 1, 5, 1, 1, 0, 1, 4, 1, 2, 1, 5, 1, 3, 1, 6, 0, 1, 1, 7];
 const lifecycleFor = (i) => LIFECYCLES[LIFECYCLE_MIX[(i * 7) % LIFECYCLE_MIX.length]];
 export const SOURCES = ['Búsqueda orgánica', 'Referencias', 'Redes sociales', 'Tráfico directo', 'Correo'];
-// Real stages of the default pipeline (FUERZA DE VENTAS) with the close probability saved per stage:
-// [key, label, probability %]. They are the account's stage catalogue; Configuración › Objetos edits them.
-export const DEAL_STAGES = [
-  ['oferta', 'OFERTA A+W', 10],
-  ['cotizacion', 'Proyecto en Cotización', 30],
-  ['ganado_cliente', 'Proyecto Ganado por el cliente', 40],
-  ['evalua', 'Evalua', 80],
-  ['won', 'Ganado', 100],
-  ['lost', 'Perdido', 0],
-  ['deleted', 'Eliminado', 0],
-];
-// Stages the other pipelines were created with (kept so their deals stay where they are).
-export const LEGACY_STAGES = [
-  ['appointment', 'Cita programada', 20],
-  ['qualified', 'Calificado para comprar', 40],
-  ['presentation', 'Presentación programada', 60],
-  ['decision', 'Decisión pendiente', 80],
-  ['contract', 'Contrato enviado', 90],
-  ['won', 'Cerrado ganado', 100],
-  ['lost', 'Cerrado perdido', 0],
-];
-// Where a FUERZA DE VENTAS deal that still carries a legacy key belongs (supabase/fuerza-ventas-stages.sql
-// applies the same mapping to the database; the app also applies it when reading, so nothing gets lost).
-export const LEGACY_TO_REAL = { appointment: 'oferta', qualified: 'cotizacion', presentation: 'ganado_cliente', decision: 'evalua', contract: 'evalua' };
+// Stage catalogue = the stages of the default pipeline (FUERZA DE VENTAS): [key, label, probability %].
+// The pipelines themselves come from src/pipelines-seed.js and, with Supabase, from the pipelines /
+// pipeline_stages tables; the catalogue follows the default pipeline whenever it is read or saved.
+export const DEAL_STAGES = REAL_DEAL_PIPELINES[0].stages.map((s) => [...s]);
+export { LEGACY_STAGE_MAP, DEFAULT_PIPELINE_NAME, REAL_DEAL_PIPELINES };
+// Where a deal that still carries one of the sample keys belongs (the database rows were updated by
+// supabase/pipelines.sql; the app also applies it when reading, so nothing gets lost).
+export const LEGACY_TO_REAL = LEGACY_STAGE_MAP[DEFAULT_PIPELINE_NAME];
 export const CLOSED_STAGES = ['won', 'lost', 'deleted'];
 export const isClosedStage = (key) => CLOSED_STAGES.includes(key);
 export const isOpenDeal = (r) => !isClosedStage(r.stage);
@@ -116,50 +101,29 @@ export function applyPipelineOverrides() {
   }
 }
 applyPipelineOverrides();
-// Deal pipelines: the account's own list, editable in Configuración › Objetos › Negocios › Pipelines.
+// Deal pipelines: the account's real ones (src/pipelines-seed.js), editable in Configuración › Objetos ›
+// Negocios › Pipelines. With Supabase they live in the pipelines / pipeline_stages tables (read at start-up,
+// written on every change); without the tables they stay in localStorage. A definition is
+// { id, name, desc, labels, stages: [[key, label, prob, desc?]], rules?, required?, automation?, logic?, labelList?, access? }.
 export const DEAL_PIPELINES_KEY = 'crm:pipelines:deals';
-// Every pipeline has its own stages; all of them include the seven base stages so any deal fits.
-const EXTRA_STAGES = {
-  visit: ['visit', 'Visita técnica', 30],
-  measure: ['measure', 'Medición en obra', 50],
-  quote: ['quote', 'Cotización enviada', 55],
-  negotiation: ['negotiation', 'Negociación', 70],
-  production: ['production', 'En fabricación', 85],
-  install: ['install', 'Instalación programada', 95],
-};
-const baseStages = () => DEAL_STAGES.map((s) => [...s]);
-// The other pipelines keep the legacy base stages plus their own extras.
-function withExtras(keys) {
-  const stages = LEGACY_STAGES.map((s) => [...s]);
-  const i = stages.findIndex((s) => s[0] === 'won');
-  stages.splice(i, 0, ...keys.map((k) => [...EXTRA_STAGES[k]]));
-  return stages;
-}
-export const DEFAULT_PIPELINE_NAME = 'FUERZA DE VENTAS';
-export const DEFAULT_DEAL_PIPELINES = [
-  { id: 102418, name: DEFAULT_PIPELINE_NAME, desc: '', labels: 2, stages: baseStages() },
-  { id: 740211, name: 'SACA SUMINISTRO', desc: '', labels: 1, stages: withExtras(['quote', 'negotiation']) },
-  { id: 203877, name: 'SACA Instalaciones', desc: '', labels: 0, stages: withExtras(['visit', 'measure', 'quote', 'production', 'install']) },
-  { id: 121930, name: 'Proyectos Nacionales Desarrolladores', desc: '', labels: 0, stages: withExtras(['quote']) },
-  { id: 740562, name: 'Ventas Extranjero', desc: '', labels: 2, stages: withExtras(['quote', 'negotiation']) },
-  { id: 740988, name: 'JFC Cargo Destino', desc: '', labels: 0, stages: withExtras([]) },
-  { id: 741320, name: 'Acristala obras', desc: '', labels: 0, stages: withExtras(['visit', 'measure']) },
-  { id: 929114, name: 'Acristala Proyectos', desc: '', labels: 0, stages: withExtras([]) },
-];
 const clonePipe = (p) => ({ ...p, stages: p.stages.map((s) => [...s]) });
+export const DEFAULT_DEAL_PIPELINES = REAL_DEAL_PIPELINES.map(clonePipe);
 export function newPipelineDef(name, stages) {
   return { id: 100000 + (Math.abs(Array.from(name).reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7)) % 900000), name, desc: '', labels: 0, stages: (stages || DEAL_STAGES).map((s) => [...s]) };
 }
-// A pipeline definition saved before FUERZA DE VENTAS adopted its real stages is upgraded once: the stages
+// A saved definition of a real pipeline whose stages still use the sample keys is upgraded once: the stages
 // become the real ones and the per-stage settings (rules, automations, logic) follow the key mapping.
-const remapStageKeys = (obj) => (obj && typeof obj === 'object' ? Object.fromEntries(Object.entries(obj).map(([k, v]) => [LEGACY_TO_REAL[k] || k, v])) : obj);
+const remapStageKeys = (obj, map) => (obj && typeof obj === 'object' ? Object.fromEntries(Object.entries(obj).map(([k, v]) => [map[k] || k, v])) : obj);
 function upgradePipelineDef(p) {
-  if (!p || p.name !== DEFAULT_PIPELINE_NAME || !Array.isArray(p.stages) || !p.stages.some((s) => LEGACY_TO_REAL[s[0]])) return p;
-  const out = { ...p, stages: baseStages() };
-  ['required', 'automation', 'logic'].forEach((k) => { if (p[k]) out[k] = remapStageKeys(p[k]); });
+  const real = p && REAL_DEAL_PIPELINES.find((x) => x.name === p.name);
+  const map = (p && LEGACY_STAGE_MAP[p.name]) || {};
+  if (!real || !Array.isArray(p.stages) || !p.stages.some((s) => map[s[0]] && !real.stages.some((r) => r[0] === s[0]))) return p;
+  const out = { ...p, stages: real.stages.map((s) => [...s]) };
+  ['required', 'automation', 'logic'].forEach((k) => { if (p[k]) out[k] = remapStageKeys(p[k], map); });
   return out;
 }
-export function dealPipelineDefs() {
+// What localStorage holds (upgraded), or null when nothing was ever saved there.
+function localSavedPipelineDefs() {
   try {
     const saved = JSON.parse(localStorage.getItem(DEAL_PIPELINES_KEY));
     if (Array.isArray(saved) && saved.length) {
@@ -172,7 +136,95 @@ export function dealPipelineDefs() {
   } catch {
     /* ignore */
   }
-  return DEFAULT_DEAL_PIPELINES.map(clonePipe);
+  return null;
+}
+let pipelineDefsRemote = null; // the deal pipelines once the tables have been read
+export const pipelinesLive = () => pipelineDefsRemote !== null;
+export function dealPipelineDefs() {
+  if (pipelineDefsRemote) return pipelineDefsRemote.map(clonePipe);
+  return localSavedPipelineDefs() || DEFAULT_DEAL_PIPELINES.map(clonePipe);
+}
+// The stage catalogue mirrors the default pipeline's stages.
+function syncDealStagesFromDefault() {
+  const first = dealPipelineDefs()[0];
+  if (!first || !first.stages.length) return;
+  DEAL_STAGES.length = 0;
+  first.stages.forEach((s) => DEAL_STAGES.push([s[0], s[1], Number(s[2]) || 0]));
+}
+// ---- pipelines / pipeline_stages tables ----
+// pipelines: { id, objeto, nombre, orden, descripcion, extra } · pipeline_stages: { id, pipeline_id, clave, nombre, probabilidad, orden, descripcion }
+export function pipelineDefsFromRows(pipes, stages, objeto = 'deal') {
+  return (pipes || [])
+    .filter((p) => p.objeto === objeto)
+    .sort((a, b) => (a.orden - b.orden) || (a.id - b.id))
+    .map((p) => {
+      const extra = p.extra && typeof p.extra === 'object' ? p.extra : {};
+      const { publicId, ...rest } = extra;
+      const st = (stages || []).filter((s) => Number(s.pipeline_id) === Number(p.id)).sort((a, b) => (a.orden - b.orden) || (a.id - b.id))
+        .map((s) => (s.descripcion ? [s.clave, s.nombre, Number(s.probabilidad) || 0, s.descripcion] : [s.clave, s.nombre, Number(s.probabilidad) || 0]));
+      return { ...rest, id: publicId || p.id, dbId: p.id, name: p.nombre, desc: p.descripcion || '', labels: rest.labels || 0, stages: st };
+    });
+}
+export function pipelineRowsFromDefs(defs, objeto = 'deal') {
+  return defs.map((p, i) => {
+    const { id, dbId, name, desc, stages, ...rest } = p;
+    return { pipeline: { objeto, nombre: name, orden: i, descripcion: desc || '', extra: { ...rest, publicId: id } }, stages: stages.map((s, j) => ({ clave: s[0], nombre: s[1], probabilidad: Number(s[2]) || 0, orden: j, descripcion: s[3] || '' })) };
+  });
+}
+async function fetchPipelineTables() {
+  const { data: pipes, error } = await supabase.from('pipelines').select('*').order('orden');
+  if (error) throw error;
+  const { data: stages, error: e2 } = await supabase.from('pipeline_stages').select('*').order('orden');
+  if (e2) throw e2;
+  return { pipes: pipes || [], stages: stages || [] };
+}
+// Saves every pipeline of the object: upsert by (objeto, nombre), drop the ones removed, replace the stages.
+async function writePipelines(defs, objeto = 'deal') {
+  const rows = pipelineRowsFromDefs(defs, objeto);
+  const { data: saved, error } = await supabase.from('pipelines').upsert(rows.map((r) => r.pipeline), { onConflict: 'objeto,nombre' }).select('id,nombre');
+  if (error) { console.error('[supabase] pipelines upsert', error); return; }
+  const idOf = new Map((saved || []).map((r) => [r.nombre, r.id]));
+  const keep = rows.map((r) => r.pipeline.nombre);
+  let del = supabase.from('pipelines').delete().eq('objeto', objeto);
+  if (keep.length) del = del.not('nombre', 'in', `(${keep.map((n) => `"${String(n).replace(/"/g, '')}"`).join(',')})`);
+  const { error: delErr } = await del;
+  if (delErr) console.error('[supabase] pipelines delete', delErr);
+  for (const r of rows) {
+    const pid = idOf.get(r.pipeline.nombre);
+    if (!pid) continue;
+    const { error: e1 } = await supabase.from('pipeline_stages').delete().eq('pipeline_id', pid);
+    if (e1) { console.error('[supabase] pipeline_stages delete', e1); continue; }
+    if (r.stages.length) {
+      const { error: e2 } = await supabase.from('pipeline_stages').insert(r.stages.map((s) => ({ ...s, pipeline_id: pid })));
+      if (e2) console.error('[supabase] pipeline_stages insert', e2);
+    }
+  }
+  if (pipelineDefsRemote) pipelineDefsRemote.forEach((p) => { if (idOf.has(p.name)) p.dbId = idOf.get(p.name); });
+}
+const PIPELINES_MIGRATED_KEY = 'crm:pipelines:migrated';
+// Reads the tables; the first time, moves the definitions kept in localStorage and adds any real pipeline
+// the tables still miss (an empty table gets all of them).
+async function initPipelines() {
+  const { pipes, stages } = await fetchPipelineTables();
+  let defs = pipelineDefsFromRows(pipes, stages, 'deal');
+  let changed = false;
+  if (localStorage.getItem(PIPELINES_MIGRATED_KEY) !== '1') {
+    const local = localSavedPipelineDefs();
+    if (local) {
+      local.forEach((p) => { if (!defs.some((d) => d.name === p.name)) { defs.push(clonePipe(p)); changed = true; } });
+      console.info(`[supabase] pipelines de negocios migrados desde localStorage: ${local.length} leídos.`);
+    }
+  }
+  REAL_DEAL_PIPELINES.forEach((p) => { if (!defs.some((d) => d.name === p.name)) { defs.push(clonePipe(p)); changed = true; } });
+  if (changed) {
+    await writePipelines(defs, 'deal');
+    const again = await fetchPipelineTables();
+    defs = pipelineDefsFromRows(again.pipes, again.stages, 'deal');
+  }
+  pipelineDefsRemote = defs;
+  localStorage.setItem(PIPELINES_MIGRATED_KEY, '1');
+  localStorage.removeItem(DEAL_PIPELINES_KEY);
+  syncDealStagesFromDefault();
 }
 // Every stage across the pipelines, the default pipeline's first (dropdowns that span all pipelines).
 export function allDealStages() {
@@ -187,13 +239,25 @@ export function dealStageDef(pipeline, key) {
 }
 export const dealStageLabel = (pipeline, key) => (dealStageDef(pipeline, key) || [key, key || '—'])[1];
 export const dealStageProb = (pipeline, key) => Number((dealStageDef(pipeline, key) || [0, 0, 0])[2]) || 0;
-// A FUERZA DE VENTAS deal read with a legacy stage key lands on the real stage it maps to.
+// A deal read with one of the sample stage keys lands on the real stage of its pipeline.
 export function normalizeDealStage(r) {
-  if ((r.pipeline || DEFAULT_PIPELINE_NAME) !== DEFAULT_PIPELINE_NAME || !LEGACY_TO_REAL[r.stage]) return r;
-  return { ...r, stage: LEGACY_TO_REAL[r.stage] };
+  const name = r.pipeline || DEFAULT_PIPELINE_NAME;
+  const map = LEGACY_STAGE_MAP[name];
+  if (!map || !r.stage || !map[r.stage]) return r;
+  if (stagesFor(name).some((s) => s[0] === r.stage)) return r; // the key is real in this pipeline
+  return { ...r, stage: map[r.stage] };
 }
 export function saveDealPipelineDefs(list) {
-  localStorage.setItem(DEAL_PIPELINES_KEY, JSON.stringify(list));
+  const defs = list.map(clonePipe);
+  if (pipelineDefsRemote) {
+    pipelineDefsRemote = defs;
+    syncDealStagesFromDefault();
+    bump();
+    dbWrite(() => writePipelines(defs, 'deal'));
+    return;
+  }
+  localStorage.setItem(DEAL_PIPELINES_KEY, JSON.stringify(defs));
+  syncDealStagesFromDefault();
 }
 export function dealPipelines() {
   return dealPipelineDefs().map((p) => p.name);
@@ -1592,6 +1656,13 @@ async function initFromSupabase() {
     } catch (e) {
       // supabase/custom-properties.sql not applied yet: custom properties stay in localStorage.
       console.error('[supabase] tabla custom_properties no disponible; propiedades personalizadas en localStorage.', e);
+    }
+    try {
+      await initPipelines();
+    } catch (e) {
+      // supabase/pipelines.sql not applied yet: the pipelines stay in localStorage / the built-in ones.
+      pipelineDefsRemote = null;
+      console.error('[supabase] tablas pipelines no disponibles; pipelines en localStorage.', e);
     }
     for (const type of Object.keys(BUILDERS)) {
       dbRows[type] = await fetchTable(type);

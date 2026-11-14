@@ -37,11 +37,11 @@ const text = (el) => (el ? el.textContent.replace(/\s+/g, ' ').trim() : '');
 // 1) Real stages with their probabilities; the saved legacy definition is upgraded, keeping its settings.
 const defs = data.dealPipelineDefs();
 log('FUERZA DE VENTAS stages:', defs[0].stages.map((s) => `${s[1]} ${s[2]}%`).join(' | '));
-const expected = 'OFERTA A+W 10%|Proyecto en Cotización 30%|Proyecto Ganado por el cliente 40%|Evalua 80%|Ganado 100%|Perdido 0%|Eliminado 0%';
+const expected = 'OFERTA A+W 10%|Proyecto en Cotización por parte del cliente 30%|Proyecto Ganado por el cliente 40%|Evalua 80%|Ganado 100%|Perdido 0%|Eliminado 0%';
 if (defs[0].stages.map((s) => `${s[1]} ${s[2]}%`).join('|') !== expected) fail('FUERZA DE VENTAS should have the real stages and probabilities');
 log('upgraded settings:', JSON.stringify(defs[0].required), JSON.stringify(defs[0].automation), '| persisted:', JSON.parse(mem['crm:pipelines:deals'])[0].stages[0][0]);
 if (!defs[0].required.cotizacion || !defs[0].automation.evalua || JSON.parse(mem['crm:pipelines:deals'])[0].stages[0][0] !== 'oferta') fail('the legacy definition should be upgraded and saved');
-if (defs[1].stages[0][0] !== 'appointment') fail('other pipelines keep their stages');
+if (defs[1].stages[0][0] !== 'oferta_aw') fail('other pipelines keep their stages');
 // A FUERZA DE VENTAS deal that still carries a legacy key is read on the real stage it maps to.
 data.addRecord('deals', { name: 'Negocio con clave antigua', pipeline: 'FUERZA DE VENTAS', stage: 'decision', amount: 2500000, deal_currency_code: data.homeCurrency(), owner: 'Laura M.', closeDate: data.TODAY.toISOString(), lastActivity: data.TODAY.toISOString(), important: true });
 const migrated = data.allDeals().find((d) => d.name === 'Negocio con clave antigua');
@@ -126,7 +126,7 @@ if (movedCard.querySelector('.kcard__days')) fail('a freshly moved deal has no s
 // 6) Another pipeline keeps its own stages in the board.
 click(document.querySelector('[data-pipeline="SACA SUMINISTRO"]'));
 log('SACA columns:', cols().map((c) => text(c.querySelector('.kcol__head h2'))).join(' | '), '| selector:', text($('pipeline-label')));
-if (cols().length !== 9 || cols()[0].dataset.group !== 'appointment' || text($('pipeline-label')) !== 'SACA SUMINISTRO') fail('other pipelines show their own stages');
+if (cols().length !== 9 || cols()[0].dataset.group !== 'oferta_aw' || text($('pipeline-label')) !== 'SACA SUMINISTRO') fail('other pipelines show their own stages');
 click(document.querySelector('[data-pipeline=""]'));
 log('back to default:', text($('pipeline-label')), '| columns:', cols().length);
 if (text($('pipeline-label')) !== 'FUERZA DE VENTAS' || cols().length !== 7) fail('"all pipelines" falls back to the default pipeline on the board');

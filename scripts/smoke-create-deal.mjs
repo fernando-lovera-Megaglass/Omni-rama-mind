@@ -59,7 +59,7 @@ if (label('name') !== 'Nombre del negocio *' || label('description') !== 'Descri
 // the stage list follows the pipeline
 type('pipeline', 'SACA SUMINISTRO');
 log('SACA stages:', [...f.stage.options].map((o) => o.textContent).slice(0, 3).join(' | '), '… | selected:', f.stage.value);
-if (f.stage.value !== 'appointment' || f.stage.options.length !== 9) fail('stage list should follow the pipeline');
+if (f.stage.value !== 'oferta_aw' || f.stage.options.length !== 9) fail('stage list should follow the pipeline');
 type('pipeline', 'FUERZA DE VENTAS');
 if (f.stage.value !== 'oferta' || f.stage.options.length !== 7) fail('back to the real stages');
 type('deal_currency_code', 'USD');

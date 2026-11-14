@@ -169,7 +169,8 @@ function card(title, body, wide = false, note = '') {
 }
 
 // ---------- the numbers behind each dashboard ----------
-const dealClosed = (d) => isClosedStage(d.stage);
+// Win rate counts won against lost; deals in "Eliminado" are closed but not part of the rate.
+const dealClosed = (d) => d.stage === 'won' || d.stage === 'lost';
 const taskDoneAt = (t) => t.completedAt || t.due;
 const ticketClosedAt = (t) => t.lastActivity || t.created;
 
