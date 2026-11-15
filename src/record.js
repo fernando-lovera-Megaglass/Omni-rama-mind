@@ -19,6 +19,7 @@ wireLinkTooltips();
 import { openCompose, editSignature } from './compose.js';
 import { renderTokens, contextFromRecord } from './tokens.js';
 import { attachSnippetAutocomplete } from './snippet-autocomplete.js';
+import { openEnrollDialog } from './sequence-enroll.js';
 import { ownerHtml } from './list.js';
 import { loadLayout, cardCatalog } from './layout-defaults.js';
 import { mountQueueBar, dueText, dueClass, completeTask } from './task-queue.js';
@@ -1323,12 +1324,9 @@ function runMore(kind, sub) {
     case 'paylink': docForm('Crear enlace de pago', 'Enlace de pago'); break;
     case 'contract': docForm('Crear contrato', 'Contrato'); break;
     case 'sequence':
-      openModal(
-        'Inscribir en una secuencia',
-        `<label class="field"><span>Secuencia</span><select id="seq-name">${['Prospección instaladores (5 pasos)', 'Reactivación de clientes', 'Seguimiento post-cotización'].map((s) => `<option>${s}</option>`).join('')}</select></label>
-         <label class="field"><span>Empezar</span><select id="seq-when"><option>Ahora</option><option>Mañana a las 9:00</option><option>El próximo lunes</option></select></label>`,
-        `<button class="btn btn--primary" type="button" data-confirm="sequence">Inscribir</button><button class="btn btn--ghost" type="button" data-close>Cancelar</button>`,
-      );
+      // Ventas › Secuencias: pick the sequence, fill its placeholders, preview the steps with this contact's data.
+      if (type !== 'contacts') { toast('Las secuencias se inscriben desde la ficha de un contacto.'); break; }
+      openEnrollDialog({ contact: rec, onEnrolled: () => renderTimeline() });
       break;
     case 'linkedin':
       if (sub === 'Ver perfil de LinkedIn') window.open(`https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent(name)}`, '_blank', 'noopener');
@@ -1657,10 +1655,6 @@ $('rec-modal').addEventListener('click', (e) => {
     addEvent({ type: 'stage', when: Date.now(), who: 'Tú', text: `${label} ${num} creada por ${formatMoney(amount)}: ${$('doc-desc').value.trim()}. Vence el ${formatDate($('doc-due').value)}.` });
     closeModal();
     toast(`${label} ${num} creada`);
-  } else if (what === 'sequence') {
-    addEvent({ type: 'email', when: Date.now(), who: 'Tú', text: `Inscrito en la secuencia "${$('seq-name').value}" (${$('seq-when').value.toLowerCase()}).` });
-    closeModal();
-    toast('Inscrito en la secuencia');
   } else if (what === 'logact') {
     const kind = b.dataset.kind;
     const schedule = b.dataset.schedule === '1';

@@ -25,6 +25,8 @@ const pages = {
   'marketing-email': 'marketing/email/index.html',
   templates: 'templates/index.html',
   snippets: 'snippets/index.html',
+  sequences: 'sequences/index.html',
+  'sequences-create': 'sequences/create/index.html',
 };
 
 export default defineConfig({

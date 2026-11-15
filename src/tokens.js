@@ -133,9 +133,16 @@ export function renderTokens(text, ctx) {
 }
 export const hasTokens = (text) => { MARKER_RE.lastIndex = 0; return MARKER_RE.test(String(text || '')); };
 export const tokenMarker = (token, def = '') => `{{${token}${def ? `|${def}` : ''}}}`;
+// «Contacto: Nombre» — the short chip label used by sequences.
+export function chipLabelShort(token) {
+  const [o, s] = String(token).split('.');
+  const obj = objectDef(o);
+  const p = findProperty(o, s);
+  return obj && p ? `${obj[1]}: ${p.label}` : token;
+}
 // The chip shown inside a rich-text editor (not editable; carries the token and its default).
-export const chipHtml = (token, def = '') => `<span class="tok" contenteditable="false" data-token="${esc(token)}"${def ? ` data-default="${esc(def)}"` : ''} title="${esc(tokenMarker(token, def))}">${esc(chipLabel(token))}</span>`;
-export const markersToChips = (text) => String(text || '').replace(MARKER_RE, (m, o, s, def) => chipHtml(`${o}.${s}`, String(def || '').trim()));
+export const chipHtml = (token, def = '', { short = false } = {}) => `<span class="tok" contenteditable="false" data-token="${esc(token)}"${def ? ` data-default="${esc(def)}"` : ''} title="${esc(tokenMarker(token, def))}">${esc(short ? chipLabelShort(token) : chipLabel(token))}</span>`;
+export const markersToChips = (text, opts = {}) => String(text || '').replace(MARKER_RE, (m, o, s, def) => chipHtml(`${o}.${s}`, String(def || '').trim(), opts));
 export function chipsToMarkers(html) {
   if (!html || !html.includes('class="tok"')) return String(html || '');
   const div = document.createElement('div');

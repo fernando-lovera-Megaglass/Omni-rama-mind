@@ -52,7 +52,7 @@ const NAV = [
     ['Pronóstico', '#'],
     ['Programador de reuniones', '#'],
     ['Plantillas', 'templates/'],
-    ['Secuencias', '#'],
+    ['Secuencias', 'sequences/'],
   ]],
   ['service', 'Servicio', 'tickets/', [
     ['Tickets', 'tickets/'],
@@ -63,7 +63,7 @@ const NAV = [
   ]],
   ['automation', 'Automatizaciones', '#', [
     ['Workflows', '#'],
-    ['Secuencias', '#'],
+    ['Secuencias', 'sequences/'],
     ['Chatflows', '#'],
   ]],
   ['reports', 'Informes', 'reports/', [
