@@ -7,6 +7,8 @@ import { ready as templatesReady, templates as savedTemplates, resolveTokens } f
 import { openTokenPicker, chipHtml, chipsToMarkers, renderTokens, contextFromRecord, insertAtCaret } from './tokens.js';
 import { snippets as savedSnippets } from './snippets-data.js';
 import { attachSnippetAutocomplete } from './snippet-autocomplete.js';
+import { ready as sequencesReady, sequences as savedSequences, activeEnrollment } from './sequences-data.js';
+import { openEnrollDialog } from './sequence-enroll.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
 const SIG_KEY = 'crm:signature';
@@ -28,7 +30,12 @@ const DEFAULT_SIG = {
 // "Plantillas" lists the saved message templates (CRM › Plantillas de mensaje); a late load refreshes the panel.
 const rootPath = () => document.body.dataset.root || '';
 const tplPanelHtml = () => `${savedTemplates().length ? savedTemplates().map((t) => `<button class="menu__item" type="button" data-tpl="${esc(t.id)}">${esc(t.name)}${t.shared ? '' : ' <span class="muted">· Privada</span>'}</button>`).join('') : '<div class="menu__note">Todavía no hay plantillas guardadas</div>'}<div class="menu__sep"></div><a class="menu__item" href="${rootPath()}templates/">Administrar plantillas</a>`;
-const SEQUENCES = ['Prospección instaladores (5 pasos)', 'Reactivación de clientes', 'Seguimiento post-cotización'];
+// "Secuencias" lists the real sequences (Ventas › Secuencias); choosing one opens the enrolment dialog.
+const seqPanelHtml = () => {
+  const list = savedSequences().filter((s) => s.steps.length);
+  const cid = ctx && ctx.contactId;
+  return `${list.length > 5 ? '<div class="compose__seqsearch"><input type="search" placeholder="Buscar secuencias" aria-label="Buscar secuencias" data-seq-search autocomplete="off" /></div>' : ''}<div class="compose__seqlist">${list.length ? list.map((s) => `<button class="menu__item" type="button" data-seq="${esc(s.id)}" data-name="${esc(s.name.toLowerCase())}">${esc(s.name)} <span class="muted">· ${s.steps.length} pasos${cid && activeEnrollment(cid, s.id) ? ' · ya inscrito' : ''}</span></button>`).join('') : '<div class="menu__note">Todavía no hay secuencias</div>'}</div><div class="menu__sep"></div><a class="menu__item" href="${rootPath()}sequences/">Administrar secuencias</a>`;
+};
 const DOCUMENTS = ['Catálogo Megaglass 2026.pdf', 'Ficha técnica vidrio templado.pdf', 'Guía de instalación.pdf'];
 const MEETINGS = ['Llamada de 15 minutos', 'Visita técnica (60 min)', 'Presentación de propuesta (30 min)'];
 const QUOTES = ['Crear cotización nueva', 'Cotización #1042 — Fachada Cristales Norte', 'Cotización #1039 — Mamparas Hogar Luz'];
@@ -86,6 +93,14 @@ function mount() {
   document.body.appendChild(el);
 }
 
+// The search box inside the Secuencias menu (shown when there are many): filters the list, keeps the menu open.
+function wireSeqSearch() {
+  const ss = el && el.querySelector('[data-seq-search]');
+  if (!ss || ss.dataset.wired) return;
+  ss.dataset.wired = '1';
+  ss.addEventListener('click', (e) => e.stopPropagation());
+  ss.addEventListener('input', () => { const q = ss.value.trim().toLowerCase(); el.querySelectorAll('#cmp-seq-panel [data-seq]').forEach((b) => { b.hidden = Boolean(q) && !b.dataset.name.includes(q); }); });
+}
 // The contact the composer was opened for (its record when known, otherwise what the caller passed).
 function tokenContact() {
   const known = ctx.contactId ? allContacts().find((c) => String(c.id) === String(ctx.contactId)) : null;
@@ -119,7 +134,7 @@ function render() {
     <div class="compose__body">
       <nav class="compose__tabs">
         <div class="menu"><button type="button" aria-haspopup="true">Plantillas</button><div class="menu__panel" id="cmp-tpl-panel">${tplPanelHtml()}</div></div>
-        <div class="menu"><button type="button" aria-haspopup="true">Secuencias</button><div class="menu__panel">${SEQUENCES.map((s) => `<button class="menu__item" type="button" data-seq="${esc(s)}">${s}</button>`).join('')}</div></div>
+        <div class="menu"><button type="button" aria-haspopup="true">Secuencias</button><div class="menu__panel" id="cmp-seq-panel">${seqPanelHtml()}</div></div>
         <div class="menu"><button type="button" aria-haspopup="true">Documentos</button><div class="menu__panel">${DOCUMENTS.map((d) => `<button class="menu__item" type="button" data-doc="${esc(d)}">${d}</button>`).join('')}</div></div>
         <div class="menu"><button type="button" aria-haspopup="true">Reuniones <span class="caret"></span></button><div class="menu__panel">${MEETINGS.map((m) => `<button class="menu__item" type="button" data-meet="${esc(m)}">${m}</button>`).join('')}</div></div>
         <div class="menu"><button type="button" aria-haspopup="true">Cotizaciones <span class="caret"></span></button><div class="menu__panel">${QUOTES.map((q) => `<button class="menu__item" type="button" data-quote="${esc(q)}">${q}</button>`).join('')}</div></div>
@@ -218,6 +233,7 @@ function render() {
       </footer>
     </div>`;
   wireMenus(el);
+  wireSeqSearch();
   const text = el.querySelector('#cmp-text');
   if (text && !collapsed) {
     text.addEventListener('input', () => {
@@ -335,7 +351,7 @@ function wire() {
       return;
     }
     const seq = t.closest('[data-seq]');
-    if (seq) { closeMenus(); toast(`${ctx.to} inscrito en la secuencia "${seq.dataset.seq}"`); ctx.onSent?.({ type: 'email', when: Date.now(), who: 'Tú', text: `Inscrito en la secuencia "${seq.dataset.seq}".` }); close(); return; }
+    if (seq) { closeMenus(); syncFields(); openEnrollDialog({ contact: tokenContact(), sequenceId: seq.dataset.seq }); return; }
     const doc = t.closest('[data-doc]');
     if (doc) { closeMenus(); insertHtml(`<p>📄 <a href="#">${esc(doc.dataset.doc)}</a></p>`); return; }
     const meet = t.closest('[data-meet]');
@@ -473,6 +489,7 @@ export function openCompose(options) {
   el.hidden = false;
   render();
   templatesReady.then(() => { const p = el && el.querySelector('#cmp-tpl-panel'); if (p) p.innerHTML = tplPanelHtml(); });
+  sequencesReady.then(() => { const p = el && el.querySelector('#cmp-seq-panel'); if (p && ctx) { p.innerHTML = seqPanelHtml(); wireSeqSearch(); } });
   const subj = el.querySelector('#cmp-subject');
   if (subj) subj.focus();
 }

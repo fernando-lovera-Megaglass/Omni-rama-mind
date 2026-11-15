@@ -1,5 +1,13 @@
 # Progreso — Omni CRM
 
+## 2026-11-15 (sesión 5) · Compositor de correo › pestaña «Secuencias» conectada al módulo real
+
+**Construido**
+- La pestaña **Secuencias** del compositor (`src/compose.js`) ya no usa una lista fija: lista las secuencias reales de `sequences-data.js` (con «· N pasos», «· ya inscrito» cuando el contacto está activo en ella, buscador si hay más de cinco y enlace «Administrar secuencias»).
+- Al elegir una, se abre encima del compositor el **diálogo de inscripción** de `src/sequence-enroll.js` con la secuencia preseleccionada: pasos con los tokens resueltos para ese contacto, marcadores de posición a completar, **fecha y hora de inicio** (si es futura, el primer paso queda programado en vez de enviado) e «Inscribir como». Al confirmar se crea la inscripción, la tarea del primer paso si es manual y la entrada «Inscrito en la secuencia» en la cronología (la ficha se refresca con el evento `crm:enrolled`); el compositor sigue abierto.
+- Si el contacto **ya está inscrito** en esa secuencia, el diálogo lo avisa (desde cuándo y en qué paso) y ofrece **Reinscribir** (cancela la inscripción actual y crea una nueva); hasta marcarlo, Inscribir queda deshabilitado.
+- Pruebas: `scripts/smoke-compose.mjs` (la pestaña lista secuencias reales, elegir una abre el diálogo preseleccionado con vista previa resuelta, confirmar crea inscripción y cronología, aviso de reinscripción) y `smoke-sequences.mjs` (reinscripción con aviso, fecha/hora de inicio).
+
 ## 2026-11-15 (sesión 5) · Módulo «Secuencias» (Ventas › Secuencias)
 
 **Construido**

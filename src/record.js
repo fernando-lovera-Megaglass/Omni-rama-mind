@@ -1974,6 +1974,8 @@ if (!rec) {
   mount.addEventListener('focusin', (e) => { if (e.target.matches && e.target.matches('#note-form textarea')) wireNoteBox(e.target); });
   const noteBox = mount.querySelector('#note-form textarea');
   if (noteBox) wireNoteBox(noteBox);
+  // An enrolment made from the e-mail composer's Secuencias tab also lands in this timeline.
+  document.addEventListener('crm:enrolled', () => renderTimeline());
 
   mount.addEventListener('submit', (e) => {
     const form = e.target.closest('.props__form');

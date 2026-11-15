@@ -305,8 +305,10 @@ export function enroll({ sequenceId, contact, placeholders = {}, enrolledBy = ME
   if (!seq || !contact || !seq.steps.length) return null;
   const first = seq.steps[0];
   const when = new Date(now);
+  // A start later than now schedules the first step instead of running it right away.
+  const future = when.getTime() > Date.now() + 60000;
   const company = contact.companyId ? allCompanies().find((x) => Number(x.id) === Number(contact.companyId)) : allCompanies().find((x) => x.name && x.name === contact.company);
-  const e = { id: uuid(), sequenceId, contactId: contact.id, contactName: contact.name || `${contact.first || ''} ${contact.last || ''}`.trim(), companyId: company ? company.id : null, companyName: company ? company.name : contact.company || '', enrolledBy, status: 'active', currentStep: 1, nextStepAt: when.toISOString(), placeholders: { ...placeholders }, stats: { sent: isAuto(first) ? 1 : 0, opens: 0, clicks: 0, replied: 0, meeting: 0, bounced: 0, unsubscribed: 0 }, enrolledAt: when.toISOString(), updatedAt: when.toISOString() };
+  const e = { id: uuid(), sequenceId, contactId: contact.id, contactName: contact.name || `${contact.first || ''} ${contact.last || ''}`.trim(), companyId: company ? company.id : null, companyName: company ? company.name : contact.company || '', enrolledBy, status: 'active', currentStep: 1, nextStepAt: when.toISOString(), placeholders: { ...placeholders }, stats: { sent: isAuto(first) && !future ? 1 : 0, opens: 0, clicks: 0, replied: 0, meeting: 0, bounced: 0, unsubscribed: 0 }, enrolledAt: when.toISOString(), updatedAt: new Date().toISOString() };
   enrollRows.unshift(e);
   persistEnr(e);
   const label = STEP_TYPES[first.type].label;
@@ -315,10 +317,13 @@ export function enroll({ sequenceId, contact, placeholders = {}, enrolledBy = ME
     task = addRecord('tasks', { name: fillPlaceholders(first.title || `${label} · ${seq.name}`, placeholders).replace(/{{[^}]+}}/g, contact.first || contact.name || ''), type: first.type === 'call' ? 'Llamada' : first.type === 'manual_email' ? 'Correo' : 'Tarea', status: 'todo', priority: 'medium', owner: enrolledBy, contactId: contact.id, contact: e.contactName, due: when.toISOString(), lastActivity: when.toISOString() });
   }
   const timeStr = `${String(when.getHours()).padStart(2, '0')}:${String(when.getMinutes()).padStart(2, '0')}`;
-  const detail = isAuto(first) ? `Paso 1: correo automatizado «${fillPlaceholders(first.subject, placeholders).replace(/{{[^}]+}}/g, '…')}» enviado hoy a las ${timeStr}.` : `Paso 1: ${label.toLowerCase()} creada para hoy (${formatDate(when)}).`;
-  addActivity({ type: 'system', when: when.getTime(), who: enrolledBy, text: `Inscrito en la secuencia «${seq.name}» por ${enrolledBy}. ${detail}`, recordType: 'contacts', recordId: contact.id, extra: { sequenceId, enrollmentId: e.id, subject: `Secuencia: ${seq.name}` } });
-  return { enrollment: out(e), sequence: out(seq), firstStep: clone(first), task };
+  const subject = fillPlaceholders(first.subject, placeholders).replace(/{{[^}]+}}/g, '…');
+  const detail = isAuto(first) ? (future ? `Paso 1: correo automatizado «${subject}» programado para el ${formatDate(when)} a las ${timeStr}.` : `Paso 1: correo automatizado «${subject}» enviado hoy a las ${timeStr}.`) : `Paso 1: ${label.toLowerCase()} creada para el ${formatDate(when)}.`;
+  addActivity({ type: 'system', when: Math.min(when.getTime(), Date.now()), who: enrolledBy, text: `Inscrito en la secuencia «${seq.name}» por ${enrolledBy}. ${detail}`, recordType: 'contacts', recordId: contact.id, extra: { sequenceId, enrollmentId: e.id, subject: `Secuencia: ${seq.name}` } });
+  return { enrollment: out(e), sequence: out(seq), firstStep: clone(first), task, scheduled: future };
 }
+// The contact's enrolment still running in that sequence (active or paused), if any.
+export const activeEnrollment = (contactId, sequenceId) => { const e = enrollRows.find((x) => String(x.contactId) === String(contactId) && x.sequenceId === sequenceId && (x.status === 'active' || x.status === 'paused')); return e ? out(e) : null; };
 export function unenroll(enrollmentId) {
   const e = enrollRows.find((x) => x.id === enrollmentId);
   if (!e) return null;

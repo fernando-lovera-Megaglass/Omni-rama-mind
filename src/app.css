@@ -15521,6 +15521,56 @@ body.has-slideover {
   line-height: 1.5;
 }
 
+/* Above the floating e-mail composer (z-index 160) when opened from its Secuencias tab. */
+.bmodal--top {
+  z-index: 180;
+}
+
+.enr__row--start {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 2fr);
+  align-items: end;
+}
+
+.enr__starthint {
+  margin: 0 0 var(--sp-8);
+  font-size: var(--fs-xs);
+}
+
+.enr__warn {
+  padding: var(--sp-10) 12px;
+  border: 1px solid #f5c26b;
+  border-radius: var(--r-md);
+  background: #fff4e6;
+  color: #7a3e10;
+  font-size: var(--fs-sm);
+}
+
+.enr__warn .snp__check {
+  margin: var(--sp-8) 0 0;
+}
+
+.compose__seqsearch {
+  padding: var(--sp-4) var(--sp-10) var(--sp-8);
+}
+
+.compose__seqsearch input {
+  width: 100%;
+  height: 32px;
+  padding: 0 var(--sp-8);
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-sm);
+  font: inherit;
+}
+
+.compose__seqlist {
+  max-height: 280px;
+  overflow: auto;
+}
+
+.compose__seqlist [data-seq][hidden] {
+  display: none;
+}
+
 @media (max-width: 1000px) {
   .seqan__cards,
   .seqan__cards--4,

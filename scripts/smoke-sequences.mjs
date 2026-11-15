@@ -194,6 +194,8 @@ document.execCommand = () => true;
 await import(resolve(here, '../src/record.js'));
 const contact = data.allContacts().find((c) => String(c.id) === '3');
 const firstName = contact.first || contact.name.split(' ')[0];
+// The seed may have enrolled this contact already: cancel it so the plain enrolment path is exercised first.
+S.enrollmentsOfContact(3).filter((e) => e.status === 'active' || e.status === 'paused').forEach((e) => S.unenroll(e.id));
 const tasksBefore = data.allTasks().length;
 const enrBefore = S.enrollmentsOfContact(3).length;
 if (!q('[data-more="sequence"]') || !text(q('[data-more="sequence"]')).includes('Inscribir en una secuencia')) fail('Más menu item');
@@ -217,10 +219,23 @@ if (data.allTasks().length !== tasksBefore + 1) fail('first manual step must cre
 const tl = text($('rec-timeline').firstElementChild);
 if (!tl.includes('Inscrito en la secuencia') || !tl.includes(target.name)) fail(`timeline: ${tl.slice(0, 160)}`);
 if (!S.scheduled().some((e) => e.id === enr[0].id)) fail('first step must be scheduled');
+// Already enrolled: warning + "Reinscribir" (cancels the running enrolment), start date/time
 click(q('[data-more="sequence"]'));
 await wait(20);
-if (!qa('#enr-seq option').find((o) => o.value === target.id).disabled) fail('already enrolled sequence must be disabled');
-log(`enrol: ${contact.name} in «${target.name}» — preview resolved, placeholder, task + timeline + scheduled`);
+change($('enr-seq'), target.id);
+if (!$('enr-warn') || !text($('enr-warn')).includes('ya está inscrito en esta secuencia') || !$('enr-reenroll') || !$('enr-confirm').disabled) fail('already-enrolled warning');
+if (!text(qa('#enr-seq option').find((o) => o.value === target.id)).includes('ya inscrito')) fail('option should say "ya inscrito"');
+input(q('[data-ph="NEXT STEPS"]'), 'reenviar la propuesta');
+if (!$('enr-confirm').disabled) fail('confirm must stay disabled until Reinscribir is checked');
+$('enr-reenroll').checked = true;
+change($('enr-reenroll'));
+if ($('enr-confirm').disabled) fail('Reinscribir must enable confirm');
+if (!$('enr-date') || !$('enr-time') || !/^\d{4}-\d{2}-\d{2}$/.test($('enr-date').value)) fail('start date/time fields');
+const previousId = enr[0].id;
+click($('enr-confirm'));
+const after = S.enrollmentsOfContact(3);
+if (after.length !== enrBefore + 2 || after[0].id === previousId || after[0].status !== 'active' || S.enrollmentsOfContact(3).find((e) => e.id === previousId).status !== 'unenrolled') fail('re-enrol must cancel the previous enrolment and create a new one');
+log(`enrol: ${contact.name} in «${target.name}» — preview resolved, placeholder, task + timeline + scheduled; re-enrol with warning`);
 
 console.log('[secuencias] OK');
 process.exit(0);
