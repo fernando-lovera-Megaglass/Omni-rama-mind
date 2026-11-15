@@ -60,7 +60,7 @@ function renderWarning(seq) {
   const box = $('enr-warn');
   const active = seq ? activeEnrollment(dlg.contact.id, seq.id) : null;
   if (!active) { box.innerHTML = ''; return; }
-  box.innerHTML = `<div class="enr__warn" role="alert"><strong>${esc(dlg.contact.first || dlg.contact.name || 'Este contacto')} ya está inscrito en esta secuencia</strong> (${active.status === 'paused' ? 'en pausa' : 'activa'} desde el ${esc(formatDate(new Date(active.enrolledAt)))}, paso ${active.currentStep} de ${seq.steps.length}).<label class="snp__check"><input type="checkbox" id="enr-reenroll" ${dlg.reenroll ? 'checked' : ''} /> Reinscribir: cancelar la inscripción actual y empezar de nuevo</label></div>`;
+  box.innerHTML = `<div class="enr__warn" role="alert"><strong>${esc(dlg.contact.first || dlg.contact.name || 'Este contacto')} ya tiene una inscripción ${active.status === 'paused' ? 'en pausa' : 'activa'} en esta secuencia</strong> (desde el ${esc(formatDate(new Date(active.enrolledAt)))}, paso ${active.currentStep} de ${seq.steps.length}).<label class="snp__check"><input type="checkbox" id="enr-reenroll" ${dlg.reenroll ? 'checked' : ''} /> Reinscribir: cancelar la inscripción actual y empezar de nuevo</label></div>`;
 }
 function renderPreview() {
   const box = $('enr-preview');

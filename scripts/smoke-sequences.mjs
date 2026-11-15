@@ -223,7 +223,7 @@ if (!S.scheduled().some((e) => e.id === enr[0].id)) fail('first step must be sch
 click(q('[data-more="sequence"]'));
 await wait(20);
 change($('enr-seq'), target.id);
-if (!$('enr-warn') || !text($('enr-warn')).includes('ya está inscrito en esta secuencia') || !$('enr-reenroll') || !$('enr-confirm').disabled) fail('already-enrolled warning');
+if (!$('enr-warn') || !text($('enr-warn')).includes('ya tiene una inscripción activa en esta secuencia') || !$('enr-reenroll') || !$('enr-confirm').disabled) fail('already-enrolled warning');
 if (!text(qa('#enr-seq option').find((o) => o.value === target.id)).includes('ya inscrito')) fail('option should say "ya inscrito"');
 input(q('[data-ph="NEXT STEPS"]'), 'reenviar la propuesta');
 if (!$('enr-confirm').disabled) fail('confirm must stay disabled until Reinscribir is checked');

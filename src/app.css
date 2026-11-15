@@ -15521,9 +15521,23 @@ body.has-slideover {
   line-height: 1.5;
 }
 
-/* Above the floating e-mail composer (z-index 160) when opened from its Secuencias tab. */
+/* Above the floating e-mail composer (z-index 160) when opened from its Secuencias tab; fits the viewport. */
 .bmodal--top {
   z-index: 180;
+}
+
+.bmodal--top .bmodal__panel {
+  top: 4vh;
+  max-height: 92vh;
+}
+
+.bmodal--top .bmodal__body {
+  flex: 1;
+  overflow: auto;
+}
+
+.bmodal--top .enr__preview {
+  max-height: none;
 }
 
 .enr__row--start {

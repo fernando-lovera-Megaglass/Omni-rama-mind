@@ -75,7 +75,7 @@ check(tl.includes('Inscrito en la secuencia') && tl.includes(target.name), `time
 log('enrolled from composer:', target.name, '| timeline:', tl.slice(0, 80));
 click(document.querySelector(`#cmp-seq-panel [data-seq="${target.id}"]`));
 await new Promise((r) => setTimeout(r, 20));
-check($('enr-warn') && $('enr-warn').textContent.includes('ya está inscrito') && Boolean($('enr-reenroll')) && $('enr-confirm').disabled, 'already-enrolled warning with Reinscribir');
+check($('enr-warn') && $('enr-warn').textContent.includes('ya tiene una inscripción activa') && Boolean($('enr-reenroll')) && $('enr-confirm').disabled, 'already-enrolled warning with Reinscribir');
 log('already enrolled → warning + reinscribir offered');
 click(document.querySelector('#enr-modal [data-bm="close"]'));
 click(document.querySelector('[data-cm="collapse"]'));
