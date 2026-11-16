@@ -15609,7 +15609,8 @@ body.has-slideover {
 }
 
 /* ---------- Ajustes › General › Correo: connected accounts ---------- */
-.cem .table-wrap {
+.cem .table-wrap,
+.cem__table.stable {
   overflow: visible;
 }
 
