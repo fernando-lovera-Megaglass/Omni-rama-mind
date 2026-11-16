@@ -287,11 +287,9 @@ const autoBox = document.querySelector('[data-pipe-auto="task"]');
 autoBox.checked = true;
 autoBox.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
 log('automation stored:', JSON.stringify(JSON.parse(mem['crm:pipelines:deals'])[0].automation), '| cards:', document.querySelectorAll('.pauto').length);
+// «Etiquetas de Negocio» of a pipeline: the real deal tags that apply to it (smoke-deal-tags.mjs covers them).
 click(document.querySelector('[data-pipe-sub="labels"]'));
-const plf = document.querySelector('form[data-save="pipelabel"]');
-plf.querySelector('[name="label"]').value = 'Distribuidor';
-plf.dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true }));
-log('pipeline labels:', JSON.parse(mem['crm:pipelines:deals'])[0].labelList.join(','));
+log('pipeline deal tags:', [...document.querySelectorAll('#dtags.dtags--pipe .dtag')].map((c) => c.textContent.trim()).join(','), '| create button:', Boolean(document.querySelector('#dtags [data-dt="new"]')));
 const psel = document.querySelector('[data-pipe-select]');
 psel.value = '1';
 psel.dispatchEvent(new dom.window.Event('change', { bubbles: true }));

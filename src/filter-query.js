@@ -30,6 +30,7 @@ export function dateRange(op, value, value2) {
     case 'between': { const a = day(value); const b = day(value2); return a && b ? [a, new Date(b.getTime() + DAY)] : null; }
     case 'lastdays': { const n = Number(value); return Number.isFinite(n) ? [new Date(t0.getTime() - n * DAY), null] : null; }
     case 'olderdays': { const n = Number(value); return Number.isFinite(n) ? [null, new Date(t0.getTime() - n * DAY)] : null; }
+    case 'nextdays': { const n = Number(value); return Number.isFinite(n) ? [t0, new Date(t0.getTime() + (n + 1) * DAY)] : null; }
     case 'today': return [t0, new Date(t0.getTime() + DAY)];
     case 'yesterday': return [new Date(t0.getTime() - DAY), t0];
     case 'thisweek': return [monday, new Date(monday.getTime() + 7 * DAY)];

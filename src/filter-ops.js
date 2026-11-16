@@ -13,7 +13,7 @@ export const OP_SETS = {
     ['between', 'está entre'], ['nbetween', 'no está entre'], ['filled', 'es conocido'], ['empty', 'es desconocido'],
   ],
   date: [
-    ['on', 'es igual a'], ['before', 'es anterior a'], ['after', 'es posterior a'], ['between', 'está entre'], ['lastdays', 'es de hace menos de (días)'], ['olderdays', 'es de hace más de (días)'],
+    ['on', 'es igual a'], ['before', 'es anterior a'], ['after', 'es posterior a'], ['between', 'está entre'], ['lastdays', 'es de hace menos de (días)'], ['olderdays', 'es de hace más de (días)'], ['nextdays', 'es en menos de (días) a partir de ahora'],
     ['today', 'es hoy'], ['yesterday', 'es ayer'], ['thisweek', 'es esta semana'], ['lastweek', 'es la semana pasada'], ['thismonth', 'es este mes'], ['lastmonth', 'es el mes pasado'],
     ['thisquarter', 'es este trimestre'], ['thisyear', 'es este año'], ['lastyear', 'es el año pasado'], ['filled', 'es conocido'], ['empty', 'es desconocido'],
   ],
@@ -23,7 +23,7 @@ export const OP_SETS = {
 export const NO_VALUE_OPS = new Set(['filled', 'empty', 'today', 'yesterday', 'thisweek', 'lastweek', 'thismonth', 'lastmonth', 'thisquarter', 'thisyear', 'lastyear']);
 export const TWO_VALUE_OPS = new Set(['between', 'nbetween']);
 export const MULTI_OPS = new Set(['in', 'nin', 'anyof', 'noneof']);
-export const DAYS_OPS = new Set(['lastdays', 'olderdays']);
+export const DAYS_OPS = new Set(['lastdays', 'olderdays', 'nextdays']);
 
 // Which operator family a property kind belongs to.
 export function kindGroup(kind) {
@@ -111,6 +111,7 @@ export function evalCondition(cond, v) {
     case 'after': return isNum(date) && date >= parseDay(cond.value) + DAY;
     case 'lastdays': return isNum(date) && date >= T0 - n1 * DAY;
     case 'olderdays': return isNum(date) && date < T0 - n1 * DAY;
+    case 'nextdays': return isNum(date) && date >= T0 && date < T0 + (n1 + 1) * DAY; // from today until N days from now
     case 'today': return inRange(date, T0, T0 + DAY);
     case 'yesterday': return inRange(date, T0 - DAY, T0);
     case 'thisweek': return inRange(date, weekStart(T0), weekStart(T0) + 7 * DAY);

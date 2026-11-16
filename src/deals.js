@@ -4,6 +4,7 @@ import { ownerHtml, ownerAvatarHtml } from './owner.js';
 import { allDeals, allCompanies, allTasks, DEAL_STAGES, PRIORITIES, OWNERS, formatDate, formatMoney, formatMoneyShort, labelOf, classOf, TODAY, dealPipelines, dealPipelineDefs, stagesFor, allDealStages, isClosedStage, addRecord, setField, activitiesFor, CURRENCY_DEFS, CURRENCY_CODES, homeCurrency, toHomeCurrency } from './data.js';
 import { toast } from './shell.js';
 import { mountCreateDeal } from './create-deal.js';
+import { dealTagChips, tagsForDeal, ready as dealTagsReady } from './deal-tags.js';
 
 boot({ root: '../', active: 'crm', sub: 'Negocios', title: 'Negocios' });
 
@@ -80,7 +81,8 @@ function dealCard(r, ctx) {
   const when = r.lastActivity || r.created;
   const last = activitiesFor('deals', r.id).find((a) => a.type !== 'prop' && a.type !== 'stage');
   const icon = ACT_ICON[(last && last.type) || r.lastActivityType] || '✉';
-  const tags = `${isImportant(r) ? '<span class="kcard__tag">Importante</span>' : ''}${inStage > 30 ? `<span class="kcard__days" title="${inStage} días en esta etapa" aria-label="${inStage} días en esta etapa">${inStage}</span>` : ''}`;
+  // The deal tags (Ajustes › Objetos › Negocios › Pipelines › Etiquetas de Negocio) the deal earns right now.
+  const tags = `${dealTagChips(r)}${isImportant(r) ? '<span class="kcard__tag">Importante</span>' : ''}${inStage > 30 ? `<span class="kcard__days" title="${inStage} días en esta etapa" aria-label="${inStage} días en esta etapa">${inStage}</span>` : ''}`;
   const taskTitle = pending.length ? `${pending.length} tarea${pending.length === 1 ? '' : 's'} pendiente${pending.length === 1 ? '' : 's'}` : 'Sin tareas pendientes';
   return `
               <article class="kcard kcard--deal" draggable="true" data-id="${r.id}">
@@ -234,6 +236,7 @@ const list = mountList({
     { key: 'type', label: 'Tipo de negocio', default: false },
     { key: 'probability', label: 'Probabilidad', default: false, text: (r) => `${probOf(r)} %`, sortValue: probOf },
     { key: 'created', label: 'Fecha de creación', default: false, text: (r) => formatDate(r.created), sortValue: (r) => new Date(r.created).getTime() },
+    { key: 'deal_tags', label: 'Etiquetas de negocio', default: false, editable: false, serverSort: false, text: (r) => tagsForDeal(r).map((t) => t.name).join(', '), render: (r) => dealTagChips(r) || '<span class="muted">—</span>' },
   ],
   createFields: [
     { name: 'name', label: 'Nombre del negocio', required: true },
@@ -265,5 +268,7 @@ const list = mountList({
   },
 });
 createPanel = mountCreateDeal({ list });
+// The deal tags may arrive from Supabase after the first paint: redraw the cards / the column with their chips.
+dealTagsReady.then(() => list.render());
 
 export { list, createPanel };

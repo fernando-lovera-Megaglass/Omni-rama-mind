@@ -13,6 +13,8 @@ import { getSignature, setSignature, emailTemplates } from './compose.js';
 import { paneHtml as connectedEmailsPane, mountConnectedEmails } from './connected-emails-ui.js';
 import { paneChannels as paneIbChannels, paneInboxes as paneIbInboxes, paneAvailability as paneIbAvailability, paneSpam as paneIbSpam, mountInboxSettings } from './inbox-settings-ui.js';
 import { ready as inboxSettingsReady } from './inbox-settings.js';
+import { dealTagsPaneHtml, pipelineTagsHtml, mountDealTags } from './deal-tags-ui.js';
+import { tagsForPipeline, ready as dealTagsReady } from './deal-tags.js';
 import { ready as emailsReady } from './connected-emails.js';
 
 boot({ root: '../', active: 'none', sub: '', title: 'Configuración' });
@@ -166,6 +168,7 @@ function tabCorreo() {
 }
 emailsReady.then(() => { if (state.section === 'prefs-general' && state.generalTab === 'correo') render(); });
 inboxSettingsReady.then(() => { if (state.section.startsWith('ib-')) render(); });
+dealTagsReady.then(() => { if (state.section === 'data-objects' && state.objectsObject === 'deals' && state.objectsTab === 'pipelines') render(); });
 function tabLlamadas() {
   const s = setting('general-llamadas', { provider: 'Llamadas integradas', number: '+52 712 690 1001', record: true, voicemail: false });
   return `<h3 class="gh">Llamadas</h3><p class="muted">Desde qué número llamas y cómo se registran las llamadas.</p>
@@ -628,10 +631,9 @@ const ticketPipelineHasBoth = (stages) => stages.some((s) => s[2] !== 'closed') 
 // ---------- Deal pipelines: overview table, labels, per-pipeline stage editor ----------
 Object.assign(state, { pipeTab: 'overview', pipeEdit: null, pipeQuery: '' });
 const STAGE_COLORS = [['none', 'Texto (sin color)'], ['dot', '<span class="pdot" aria-hidden="true"></span> Texto con punto de color'], ['badge', '<span class="pbadge">Texto en insignia de color</span>']];
-function labelsHtml() {
-  const labels = assocLabels();
-  return `<h3>Etiquetas de Negocio</h3><p class="muted">Describen la relación de un negocio con sus contactos y empresas (por ejemplo, "Responsable de la decisión").</p><ul class="chips-list">${labels.map((l, i) => `<li><span class="chip">${esc(l)} ${i > 1 ? `<button class="chip__x" type="button" data-label-rm="${i}" aria-label="Quitar">×</button>` : ''}</span></li>`).join('')}</ul><form class="sform sform--inline" data-save="label"><input class="cellpop__input cellpop__input--sm" name="label" placeholder="Nueva etiqueta" required /><button class="btn btn--primary" type="submit">Añadir</button></form>`;
-}
+// «Etiquetas de Negocio»: the real deal tags (colour/emoji + filters, applied automatically to the deals);
+// the association labels live in Objetos › Configuración › «Etiquetas de asociación».
+const labelsHtml = () => dealTagsPaneHtml();
 function dealPipelinesHtml() {
   const defs = dealPipelineDefs();
   const deals = ALL.deals();
@@ -653,7 +655,7 @@ function dealPipelinesHtml() {
         <div class="menu"><button class="btn btn--primary" type="button" aria-haspopup="true" aria-expanded="false">Crear pipeline <span class="caret"></span></button><div class="menu__panel menu__panel--right"><button class="menu__item" type="button" data-act="new-pipeline">Crear desde cero</button><button class="menu__item" type="button" data-act="clone-pipeline">Clonar</button></div></div></div>
     </div>
     <table class="mini-table stable ptable"><thead><tr><th></th><th>Pipeline <span class="muted">⇅</span></th><th>Descripción del pipeline</th><th class="num">Propiedades calculadas de etapa <span class="info">ⓘ</span></th><th class="num">Etiquetas de negocios</th><th class="num">Reglas del pipeline <span class="info">ⓘ</span></th><th class="num">Número de etapas</th><th class="num">Negocios</th><th class="num">ID interno</th><th class="num">Acciones</th></tr></thead><tbody data-dnd="pipes">
-      ${rows.length ? rows.map(({ p, i }) => { const acc = p.access || { mode: 'all' }; return `<tr data-row="${i}"><td class="phandle" title="Arrastra para cambiar el orden" aria-hidden="true">⋮⋮</td><td><button class="olink" type="button" data-pipe-edit="${i}">${esc(p.name)}</button>${i === 0 ? ' <span class="tag tag--new">Predeterminado</span>' : ''}${acc.mode === 'private' ? ' <span class="tag tag--none" title="Privado para ti">🔒 Privado</span>' : acc.mode === 'teams' || acc.mode === 'select' ? ` <span class="tag tag--none" title="Acceso restringido a ${esc([...(acc.teams || []), ...(acc.users || [])].join(', '))}">🔒 ${(acc.teams || []).length + (acc.users || []).length}</span>` : ''}</td><td class="pdesccell"><span class="muted">${p.desc ? esc(p.desc) : '--'}</span><button class="icon-btn icon-btn--round icon-btn--sm rowact" type="button" data-pipe-desc="${i}" aria-label="Editar descripción">✎</button></td><td class="num">${p.stages.length * 4}</td><td class="num">${labelsOf(p).length}</td><td class="num">${rulesCount(p)}</td><td class="num">${p.stages.length}</td><td class="num">${inPipe(p)}</td><td class="num muted pidcell">${p.id}<button class="icon-btn icon-btn--sm rowact" type="button" data-copy="${p.id}" aria-label="Copiar ID">⧉</button></td><td class="num"><div class="menu"><button class="icon-btn icon-btn--sm" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Acciones del pipeline">⋮</button><div class="menu__panel menu__panel--right"><button class="menu__item" type="button" data-pipe-access="${i}">Gestionar acceso</button><button class="menu__item" type="button" data-pipe-clone="${i}">Clonar</button><button class="menu__item menu__item--danger" type="button" data-pipe-rm="${i}" ${defs.length < 2 ? 'disabled' : ''}>Eliminar</button></div></div></td></tr>`; }).join('') : '<tr><td colspan="10" class="muted">No hay pipelines que coincidan con la búsqueda.</td></tr>'}
+      ${rows.length ? rows.map(({ p, i }) => { const acc = p.access || { mode: 'all' }; return `<tr data-row="${i}"><td class="phandle" title="Arrastra para cambiar el orden" aria-hidden="true">⋮⋮</td><td><button class="olink" type="button" data-pipe-edit="${i}">${esc(p.name)}</button>${i === 0 ? ' <span class="tag tag--new">Predeterminado</span>' : ''}${acc.mode === 'private' ? ' <span class="tag tag--none" title="Privado para ti">🔒 Privado</span>' : acc.mode === 'teams' || acc.mode === 'select' ? ` <span class="tag tag--none" title="Acceso restringido a ${esc([...(acc.teams || []), ...(acc.users || [])].join(', '))}">🔒 ${(acc.teams || []).length + (acc.users || []).length}</span>` : ''}</td><td class="pdesccell"><span class="muted">${p.desc ? esc(p.desc) : '--'}</span><button class="icon-btn icon-btn--round icon-btn--sm rowact" type="button" data-pipe-desc="${i}" aria-label="Editar descripción">✎</button></td><td class="num">${p.stages.length * 4}</td><td class="num">${tagsForPipeline(p.id).length}</td><td class="num">${rulesCount(p)}</td><td class="num">${p.stages.length}</td><td class="num">${inPipe(p)}</td><td class="num muted pidcell">${p.id}<button class="icon-btn icon-btn--sm rowact" type="button" data-copy="${p.id}" aria-label="Copiar ID">⧉</button></td><td class="num"><div class="menu"><button class="icon-btn icon-btn--sm" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Acciones del pipeline">⋮</button><div class="menu__panel menu__panel--right"><button class="menu__item" type="button" data-pipe-access="${i}">Gestionar acceso</button><button class="menu__item" type="button" data-pipe-clone="${i}">Clonar</button><button class="menu__item menu__item--danger" type="button" data-pipe-rm="${i}" ${defs.length < 2 ? 'disabled' : ''}>Eliminar</button></div></div></td></tr>`; }).join('') : '<tr><td colspan="10" class="muted">No hay pipelines que coincidan con la búsqueda.</td></tr>'}
     </tbody></table>`;
 }
 // Rules a pipeline can enforce on its deals (checked by the deals board when a card is dragged).
@@ -732,7 +734,6 @@ function openLogic(k, lifecycle = false, objectType = 'contacts') {
   const saved = p.logic && p.logic[k];
   state.logicEdit = { stage: k, lifecycle, objectType, draft: JSON.parse(JSON.stringify(saved || defaultLogic(p, k))), preview: k, adding: null, addingProp: false };
 }
-const labelsOf = (p) => (Array.isArray(p.labelList) ? p.labelList : assocLabels().slice(2, 2 + (p.labels || 0)));
 const PROBS = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
 function pipelineEditorHtml(defs, deals) {
   const p = defs[state.pipeEdit];
@@ -767,10 +768,7 @@ function pipelineEditorHtml(defs, deals) {
     body = `<h3>Automatizar</h3><p class="muted">Elige qué ocurre cuando un negocio entra en cada etapa de este pipeline. Se ejecuta al mover la tarjeta en el tablero o al cambiar la etapa.</p>
       <div class="pautos">${p.stages.map(([k, l]) => { const s = a[k] || {}; const n = Object.values(s).filter(Boolean).length; return `<div class="pauto"><div class="pauto__head"><strong>Cuando un negocio entra en «${esc(l)}»</strong><span class="muted">${n ? `${n} acción${n > 1 ? 'es' : ''}` : 'Sin acciones'}</span></div>${PIPE_AUTOS.map(([ak, al]) => `<label class="ocheck ocheck--sm"><input type="checkbox" data-pipe-auto="${ak}" data-stage="${k}" ${s[ak] ? 'checked' : ''} /><span>${al}</span></label>`).join('')}</div>`; }).join('')}</div>`;
   } else {
-    const labels = labelsOf(p);
-    body = `<h3>Etiquetas de Negocio</h3><p class="muted">Etiquetas disponibles para los negocios de «${esc(p.name)}». Se añaden a las etiquetas generales de la cuenta.</p>
-      <ul class="chips-list">${labels.length ? labels.map((l, i) => `<li><span class="chip">${esc(l)} <button class="chip__x" type="button" data-pipelabel-rm="${i}" aria-label="Quitar">×</button></span></li>`).join('') : '<li class="muted">Este pipeline aún no tiene etiquetas propias.</li>'}</ul>
-      <form class="sform sform--inline" data-save="pipelabel"><input class="cellpop__input cellpop__input--sm" name="label" placeholder="Nueva etiqueta" required /><button class="btn btn--primary" type="submit">Añadir</button></form>`;
+    body = pipelineTagsHtml(p);
   }
   return `<h2>Administrar ${esc(p.name)}</h2>
     <div class="pmanage">
@@ -1329,6 +1327,8 @@ function render() {
   if (cem) mountConnectedEmails(cem);
   const ibs = document.getElementById('ibs');
   if (ibs) mountInboxSettings(ibs);
+  const dtags = document.getElementById('dtags');
+  if (dtags) mountDealTags(dtags, { rerender: render });
   if (state.section === 'data-properties') {
     const q = document.getElementById('props-q');
     if (q && state.propsQuery) { q.focus(); q.setSelectionRange(q.value.length, q.value.length); }
@@ -1428,11 +1428,6 @@ root.addEventListener('submit', (e) => {
     render();
   }
   else if (what === 'copy') { const log = load('crm:copies', []); log.unshift({ when: formatDate(new Date()), res: d.res, to: d.to }); save('crm:copies', log); render(); toast(`"${d.res}" copiado a ${d.to}`); }
-  else if (what === 'pipelabel') {
-    const defs = dealPipelineDefs(); const p = defs[state.pipeEdit]; const list = labelsOf(p).slice(); const v = d.label.trim();
-    if (v && !list.includes(v)) list.push(v);
-    p.labelList = list; persistPipelines(defs, 'Etiqueta añadida'); render();
-  }
   else if (what === 'lifecycle') {
     const def = collectLifecycle(lifecycleDef());
     const names = def.stages.map((s) => s[1].toLowerCase());
@@ -1609,8 +1604,6 @@ root.addEventListener('click', (e) => {
   }
   const psub = e.target.closest('[data-pipe-sub]');
   if (psub) { const defs = dealPipelineDefs(); collectPipeline(defs[state.pipeEdit]); saveDealPipelineDefs(defs); state.pipeSub = psub.dataset.pipeSub; render(); return; }
-  const plrm = e.target.closest('[data-pipelabel-rm]');
-  if (plrm) { const defs = dealPipelineDefs(); const p = defs[state.pipeEdit]; const list = labelsOf(p).slice(); list.splice(Number(plrm.dataset.pipelabelRm), 1); p.labelList = list; persistPipelines(defs, 'Etiqueta quitada'); render(); return; }
   const pcolor = e.target.closest('[data-stage-color]');
   if (pcolor) { const s = objSetting('deals'); s.stageColor = pcolor.dataset.stageColor; save('crm:settings:obj-deals', s); render(); toast('Colores del pipeline guardados'); return; }
   const tpedit = e.target.closest('[data-tpipe-edit]');
