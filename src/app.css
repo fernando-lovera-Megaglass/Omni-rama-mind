@@ -15609,9 +15609,17 @@ body.has-slideover {
 }
 
 /* ---------- Ajustes › General › Correo: connected accounts ---------- */
+.cem .table-wrap {
+  overflow: visible;
+}
+
 .cem__table th,
 .cem__table td {
   vertical-align: middle;
+}
+
+.cem__menu .menu__panel {
+  z-index: 30;
 }
 
 .cem__mail {
