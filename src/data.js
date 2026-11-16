@@ -1817,68 +1817,72 @@ async function initFromSupabase() {
   // Route protection: without a session the browser goes to the login page and nothing else loads.
   const session = await requireSession();
   try {
-    try {
-      await initCustomProperties();
-    } catch (e) {
-      // supabase/custom-properties.sql not applied yet: custom properties stay in localStorage.
-      console.error('[supabase] tabla custom_properties no disponible; propiedades personalizadas en localStorage.', e);
-    }
-    try {
-      await initPipelines();
-    } catch (e) {
-      // supabase/pipelines.sql not applied yet: the pipelines stay in localStorage / the built-in ones.
-      pipelineDefsRemote = null;
-      console.error('[supabase] tablas pipelines no disponibles; pipelines en localStorage.', e);
-    }
-    for (const type of Object.keys(BUILDERS)) {
-      dbRows[type] = await fetchTable(type);
-    }
+    // Parallel bootstrap: every independent fetch fires in a single wave, and
+    // each keeps its own fallback so a missing migration only disables its
+    // feature. A failure in a main table still rejects Promise.all and flips
+    // the app to demo mode, exactly as the sequential version did.
+    settingsUserId = (session && session.user && session.user.id) || GLOBAL_USER;
+    await Promise.all([
+      initCustomProperties().catch((e) => {
+        // supabase/custom-properties.sql not applied yet: custom properties stay in localStorage.
+        console.error('[supabase] tabla custom_properties no disponible; propiedades personalizadas en localStorage.', e);
+      }),
+      initPipelines().catch((e) => {
+        // supabase/pipelines.sql not applied yet: the pipelines stay in localStorage / the built-in ones.
+        pipelineDefsRemote = null;
+        console.error('[supabase] tablas pipelines no disponibles; pipelines en localStorage.', e);
+      }),
+      ...Object.keys(BUILDERS).map((type) => fetchTable(type).then((rows) => { dbRows[type] = rows; })),
+      fetchUserSettings(settingsUserId).then(
+        (map) => { settingsMap = map; },
+        (e) => {
+          // supabase/user_settings.sql not applied yet: interface settings stay in localStorage.
+          settingsMap = null;
+          console.error('[supabase] tabla user_settings no disponible; ajustes de la interfaz en localStorage.', e);
+        },
+      ),
+      fetchContactCompanies().then(
+        (rows) => { contactCompanyRows = rows; contactCompanyIndex = null; },
+        (e) => {
+          // supabase/contact_companies.sql not applied yet: the links stay on the contact records.
+          contactCompanyRows = null;
+          console.error('[supabase] tabla contact_companies no disponible; empresas del contacto en el propio registro.', e);
+        },
+      ),
+      fetchActivities().then(
+        (rows) => { activityRows = rows; },
+        (e) => {
+          // La migración supabase/activities.sql aún no se ha ejecutado: la
+          // cronología sigue en localStorage hasta que exista la tabla.
+          activitiesLive = false;
+          console.error('[supabase] tabla activities no disponible; cronología en localStorage.', e);
+        },
+      ),
+      fetchSegments().then(
+        (rows) => {
+          segmentRows = rows;
+          nextSegmentId = segmentRows.reduce((m, s) => Math.max(m, Number(s.id) || 0), 0) + 1;
+        },
+        (e) => {
+          // La migración supabase/segments.sql aún no se ha ejecutado: los segmentos siguen en localStorage.
+          segmentsLive = false;
+          console.error('[supabase] tabla segments no disponible; segmentos en localStorage.', e);
+        },
+      ),
+    ]);
     if (session && !dbRows.contacts.length && !dbRows.companies.length && (await anonSeesRows('contacts'))) {
       showRlsNotice(session);
       await new Promise(() => {});
     }
     if (!dbRows.contacts.length && !dbRows.companies.length) {
       await seedAll();
-      for (const type of Object.keys(BUILDERS)) {
-        dbRows[type] = await fetchTable(type);
-      }
+      const refetched = await Promise.all(Object.keys(BUILDERS).map((type) => fetchTable(type)));
+      Object.keys(BUILDERS).forEach((type, i) => { dbRows[type] = refetched[i]; });
     }
     for (const type of Object.keys(BUILDERS)) {
       nextId[type] = dbRows[type].reduce((m, r) => Math.max(m, Number(r.id) || 0), 0) + 1;
     }
-    try {
-      settingsUserId = (session && session.user && session.user.id) || GLOBAL_USER;
-      settingsMap = await fetchUserSettings(settingsUserId);
-    } catch (e) {
-      // supabase/user_settings.sql not applied yet: interface settings stay in localStorage.
-      settingsMap = null;
-      console.error('[supabase] tabla user_settings no disponible; ajustes de la interfaz en localStorage.', e);
-    }
-    try {
-      contactCompanyRows = await fetchContactCompanies();
-      contactCompanyIndex = null;
-    } catch (e) {
-      // supabase/contact_companies.sql not applied yet: the links stay on the contact records.
-      contactCompanyRows = null;
-      console.error('[supabase] tabla contact_companies no disponible; empresas del contacto en el propio registro.', e);
-    }
-    try {
-      activityRows = await fetchActivities();
-    } catch (e) {
-      // La migración supabase/activities.sql aún no se ha ejecutado: la
-      // cronología sigue en localStorage hasta que exista la tabla.
-      activitiesLive = false;
-      console.error('[supabase] tabla activities no disponible; cronología en localStorage.', e);
-    }
     if (activitiesLive) await migrateLocalActivities();
-    try {
-      segmentRows = await fetchSegments();
-      nextSegmentId = segmentRows.reduce((m, s) => Math.max(m, Number(s.id) || 0), 0) + 1;
-    } catch (e) {
-      // La migración supabase/segments.sql aún no se ha ejecutado: los segmentos siguen en localStorage.
-      segmentsLive = false;
-      console.error('[supabase] tabla segments no disponible; segmentos en localStorage.', e);
-    }
   } catch (e) {
     console.error('[supabase] no se pudieron cargar los datos; se usa el modo demo con localStorage.', e);
     dbLive = false;
