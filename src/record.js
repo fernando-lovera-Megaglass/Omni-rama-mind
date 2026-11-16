@@ -20,6 +20,7 @@ import { openCompose, editSignature } from './compose.js';
 import { renderTokens, contextFromRecord } from './tokens.js';
 import { attachSnippetAutocomplete } from './snippet-autocomplete.js';
 import { openEnrollDialog } from './sequence-enroll.js';
+import { workflows, enrollRecord as enrollWorkflow } from './workflows-data.js';
 import { ownerHtml } from './list.js';
 import { loadLayout, cardCatalog } from './layout-defaults.js';
 import { mountQueueBar, dueText, dueClass, completeTask } from './task-queue.js';
@@ -1388,14 +1389,19 @@ function runMore(kind, sub) {
       toast('Ticket creado');
       break;
     }
-    case 'workflow':
+    case 'workflow': {
+      // Automatización › Workflows: the real workflows of this object; the actions run on this record.
+      const list = workflows().filter((w) => w.objectType === type && w.actions.length);
       openModal(
         'Inscribir en un workflow',
-        `<label class="field"><span>Workflow</span><select id="wf-name">${['Bienvenida a nuevos leads', 'Nutrición post-cotización', 'Reactivación 90 días', 'Encuesta de satisfacción'].map((s) => `<option>${s}</option>`).join('')}</select></label>
-         <p class="muted">El registro empezará en el primer paso del workflow elegido.</p>`,
-        `<button class="btn btn--primary" type="button" data-confirm="workflow">Inscribir</button><button class="btn btn--ghost" type="button" data-close>Cancelar</button>`,
+        list.length
+          ? `<label class="field"><span>Workflow</span><select id="wf-name">${list.map((w) => `<option value="${esc(w.id)}">${esc(w.name)} (${w.actions.length} ${w.actions.length === 1 ? 'acción' : 'acciones'}${w.status === 'published' ? '' : ' · sin publicar'})</option>`).join('')}</select></label>
+           <p class="muted">Las acciones del workflow se ejecutan ahora sobre este registro y quedan en la cronología.</p>`
+          : `<p class="muted">No hay workflows para ${cfg.singular}s todavía. Créalos en Automatización › Workflows.</p>`,
+        `${list.length ? '<button class="btn btn--primary" type="button" data-confirm="workflow">Inscribir</button>' : ''}<button class="btn btn--ghost" type="button" data-close>Cancelar</button>`,
       );
       break;
+    }
     case 'list':
       openModal(
         'Agregar a lista',
@@ -1705,9 +1711,11 @@ $('rec-modal').addEventListener('click', (e) => {
     closeModal();
     toast(schedule ? 'Reunión programada' : 'Actividad registrada');
   } else if (what === 'workflow') {
-    addEvent({ type: 'stage', when: Date.now(), who: 'Tú', text: `Inscrito en el workflow "${$('wf-name').value}".` });
+    const r = enrollWorkflow($('wf-name').value, type, rec);
     closeModal();
-    toast('Inscrito en el workflow');
+    if (!r) { toast('No se pudo inscribir el registro en el workflow.'); return; }
+    renderTimeline();
+    toast(`Inscrito en el workflow · ${r.steps.length} ${r.steps.length === 1 ? 'acción ejecutada' : 'acciones ejecutadas'}`);
   } else if (what === 'list') {
     addEvent({ type: 'stage', when: Date.now(), who: 'Tú', text: `Agregado a la lista "${$('list-name').value}".` });
     closeModal();

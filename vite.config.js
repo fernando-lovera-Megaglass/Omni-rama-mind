@@ -27,6 +27,8 @@ const pages = {
   snippets: 'snippets/index.html',
   sequences: 'sequences/index.html',
   'sequences-create': 'sequences/create/index.html',
+  automation: 'automation/index.html',
+  'automation-editor': 'automation/editor/index.html',
 };
 
 export default defineConfig({

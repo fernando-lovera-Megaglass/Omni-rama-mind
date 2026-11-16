@@ -2,6 +2,24 @@
 // `root` is the relative path back to the site root ('../' or '../../').
 
 import { authEnabled, currentUser, signOut, onAuthChange, siteRoot, goTo, userLabel, userInitial } from './auth.js';
+import { notifications, unreadCount, markAllRead } from './notifications.js';
+
+// The bell: real notifications (workflows, sequences…) with the unread count.
+const escN = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const ago = (t) => { const m = Math.round((Date.now() - t) / 60000); if (m < 1) return 'ahora'; if (m < 60) return `hace ${m} min`; const h = Math.round(m / 60); if (h < 24) return `hace ${h} h`; return `hace ${Math.round(h / 24)} d`; };
+function notifPanelHtml(root) {
+  const list = notifications().slice(0, 12);
+  return `<div class="menu__title">Notificaciones <span class="muted">${unreadCount() ? `· ${unreadCount()} sin leer` : ''}</span></div>${list.length ? list.map((n) => `<a class="menu__note notif${n.read ? '' : ' notif--unread'}" href="${root}${escN(n.href || '')}"><strong>${escN(n.title)}</strong>${n.text ? `<span class="notif__text">${escN(n.text)}</span>` : ''}<span class="notif__when">${ago(n.when)}</span></a>`).join('') : '<div class="menu__note muted">No tienes notificaciones.</div>'}<div class="menu__sep"></div><button class="menu__item" type="button" data-notif="read-all">Marcar todas como leídas</button>`;
+}
+export function refreshBell(root = '') {
+  const btn = document.getElementById('notif-btn');
+  const panel = document.getElementById('notif-panel');
+  if (!btn || !panel) return;
+  const n = unreadCount();
+  const count = btn.querySelector('.count');
+  if (count) { count.textContent = String(n); count.hidden = n === 0; }
+  panel.innerHTML = notifPanelHtml(root || btn.dataset.root || '');
+}
 
 // Main navigation: [icon, label, landing page, flyout entries]. Entries with '#'
 // are sections of the real product that this version does not include yet.
@@ -61,8 +79,8 @@ const NAV = [
     ['Portal del cliente', '#'],
     ['Base de conocimientos', '#'],
   ]],
-  ['automation', 'Automatizaciones', '#', [
-    ['Workflows', '#'],
+  ['automation', 'Automatizaciones', 'automation/', [
+    ['Workflows', 'automation/'],
     ['Secuencias', 'sequences/'],
     ['Chatflows', '#'],
   ]],
@@ -194,13 +212,8 @@ export function mountShell({ root, active, sub }) {
       <button class="topbar__icon" type="button" aria-label="Llamadas"><span class="ico ico--phone"></span></button>
       <button class="topbar__icon" type="button" aria-label="Marketplace"><span class="ico ico--marketplace"></span></button>
       <div class="menu">
-        <button class="topbar__icon" type="button" aria-label="Notificaciones" aria-haspopup="true"><span class="ico ico--bell"></span><span class="count">85</span></button>
-        <div class="menu__panel menu__panel--right menu__panel--wide">
-          <div class="menu__title">Notificaciones</div>
-          <div class="menu__note"><strong>Sofía R.</strong> te asignó el ticket "Retraso en instalación".</div>
-          <div class="menu__note"><strong>Nuevo contacto</strong> creado desde el formulario web.</div>
-          <div class="menu__note"><strong>Negocio</strong> "Fachada de vidrio Obras" pasó a Contrato enviado.</div>
-        </div>
+        <button class="topbar__icon" type="button" id="notif-btn" data-root="${root}" aria-label="Notificaciones" aria-haspopup="true"><span class="ico ico--bell"></span><span class="count" ${unreadCount() ? '' : 'hidden'}>${unreadCount()}</span></button>
+        <div class="menu__panel menu__panel--right menu__panel--wide" id="notif-panel">${notifPanelHtml(root)}</div>
       </div>
       <div class="menu">
         <button class="topbar__icon" type="button" aria-label="Ayuda" aria-haspopup="true"><span class="ico ico--help"></span></button>
@@ -233,6 +246,13 @@ export function mountShell({ root, active, sub }) {
   if (scrim) scrim.addEventListener('click', () => sidenav.classList.remove('is-open'));
 
   wireMenus();
+  // The bell re-renders when a module pushes a notification; "Marcar todas como leídas" clears the count.
+  const bellPanel = document.getElementById('notif-panel');
+  if (bellPanel && !bellPanel.dataset.wired) {
+    bellPanel.dataset.wired = '1';
+    bellPanel.addEventListener('click', (e) => { if (e.target.closest('[data-notif="read-all"]')) { e.stopPropagation(); markAllRead(); refreshBell(root); } });
+    document.addEventListener('crm:notifications', () => refreshBell(root));
+  }
   wireGlobalSearch(root);
   wireAccount(root);
 }
