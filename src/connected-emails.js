@@ -57,17 +57,24 @@ const fromDb = (r) => ({ id: r.id, userId: r.user_id, email: r.email, provider: 
 const toDb = (a) => ({ id: a.id, user_id: a.userId, email: a.email, provider: a.provider, status: a.status, inbox_automation: Boolean(a.inboxAutomation), signature_id: a.signatureId || 'default', alias: a.alias || '', imap_host: a.imapHost || null, imap_port: a.imapPort || null, smtp_host: a.smtpHost || null, smtp_port: a.smtpPort || null, username: a.username || null, created_at: a.createdAt, updated_at: a.updatedAt });
 const seed = () => [{ id: 'd8000000-0000-4000-8000-000000000001', userId: user, email: user, provider: 'gsuite', status: 'active', inboxAutomation: true, signatureId: 'default', alias: '', imapHost: null, imapPort: null, smtpHost: null, smtpPort: null, username: null, createdAt: new Date(Date.now() - 45 * 86400000).toISOString(), updatedAt: new Date(Date.now() - 45 * 86400000).toISOString() }];
 const saveLocal = () => localStorage.setItem(LS(), JSON.stringify(rows));
+// The demo account is seeded only once EVER: once the user deletes it, it must not come back.
+const SEEDED_KEY = 'email:demo-seeded';
+const wasSeeded = () => Boolean(getSetting(SEEDED_KEY)) || (() => { try { return localStorage.getItem('crm:email:demo-seeded') === '1'; } catch { return false; } })();
+const markSeeded = () => { setSetting(SEEDED_KEY, true); try { localStorage.setItem('crm:email:demo-seeded', '1'); } catch { /* sin espacio */ } };
 function loadLocal() {
   try { const r = JSON.parse(localStorage.getItem(LS())); if (Array.isArray(r)) { rows = r; return; } } catch { /* seed */ }
+  if (wasSeeded()) { rows = []; return; }
   rows = seed();
+  markSeeded();
   saveLocal();
 }
 async function loadLive() {
   const { data, error } = await supabase.from('connected_emails').select('*').eq('user_id', user).order('created_at');
   if (error) throw error;
   rows = (data || []).map(fromDb);
-  if (!rows.length && user === DEFAULT_USER) {
+  if (!rows.length && user === DEFAULT_USER && !wasSeeded()) {
     rows = seed();
+    markSeeded();
     const { error: e2 } = await supabase.from('connected_emails').insert(rows.map(toDb));
     if (e2) console.error('[supabase] semilla de cuentas de correo', e2);
   }
