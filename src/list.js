@@ -1,7 +1,8 @@
 // Generic object list: views, filter menus, search, sort, paging, selection,
 // column editor (full property catalog), advanced filters, CSV export/import, create drawer.
 import { wireMenus, closeMenus, toast, linkHtml, wireLinkTooltips } from './shell.js';
-import { addRecord, deleteRecords, restoreAll, restoreRecords, trashedRecords, mergeRecords, softDeletes, getPrefs, setPrefs, getViewStore, setViewStore, matches, strip, toCsv, download, formatDate, formatMoney, formatShortDate, relativeTime, setField, TODAY, ALL, OWNERS, TASK_TYPES } from './data.js';
+import { addRecord, deleteRecords, restoreAll, restoreRecords, trashedRecords, mergeRecords, softDeletes, getPrefs, setPrefs, getViewStore, setViewStore, matches, strip, toCsv, download, formatDate, formatMoney, formatShortDate, relativeTime, setField, TODAY, ALL, OWNERS, TASK_TYPES, ensureAll, ensureTrash, ensureAllActivities, isLazy, setPageRows } from './data.js';
+import { serverListEnabled, fetchPage, listClient } from './server-list.js';
 import { findDuplicateGroups, suggestedKeep, formatFixes } from './duplicates.js';
 import { segments as allSegments, addSegment, addStaticMembers, segmentMembers } from './segments-data.js';
 import { defaultTabs, deletedViews, saveDeletedViews } from './std-views.js';
@@ -99,6 +100,58 @@ export function mountList(cfg) {
   };
   let pipelineQuery = '';
   const layoutHistory = [];
+
+  // ---------- server-side paging (Supabase) ----------
+  // On the record lists the table is not downloaded: each render asks for the visible page (range + exact
+  // count) with the view, quick filters, advanced conditions, search and sort as PostgREST filters. The page
+  // becomes the working set (setPageRows), so selection, inline edits and bulk actions keep working. Whatever
+  // the database can't express — or the board, the nested hierarchy, exports, duplicates — loads everything
+  // once (ensureFull) and the list goes on in memory as before.
+  const remote = { sig: '', total: 0, seq: 0, timer: null, lastQ: '' };
+  let fullLoading = null;
+  const serverMode = () => serverListEnabled(cfg.type) && state.mode !== 'board' && !(state.nested && cfg.hierarchy);
+  function remoteSpec() {
+    const sortCol = col(state.sort.key);
+    return {
+      page: state.page, size: state.size, sort: state.sort, sortKey: sortCol && sortCol.sortKey, sortable: !(sortCol && sortCol.serverSort === false),
+      q: state.q, searchKeys: cfg.searchKeys, view: cfg.views.find((v) => v.key === state.base) || null,
+      pipeline: cfg.pipeline ? { key: cfg.pipeline.key, value: state.pipeline } : null,
+      filters: cfg.filters.map((f) => ({ filter: f, value: state.filters[f.key] })), advanced: state.advanced, kindOf: ownKind,
+    };
+  }
+  function ensureFull() {
+    if (!isLazy(cfg.type)) return Promise.resolve(false);
+    if (!fullLoading) {
+      root.classList.add('is-loading');
+      fullLoading = Promise.all([ensureAll(cfg.type), ensureAllActivities()])
+        .then(() => { root.classList.remove('is-loading'); render(); return true; })
+        .catch((e) => { console.error('[lista] carga completa', e); root.classList.remove('is-loading'); fullLoading = null; return false; });
+    }
+    return fullLoading;
+  }
+  function ensureRemote() {
+    const spec = remoteSpec();
+    const sig = JSON.stringify({ page: spec.page, size: spec.size, sort: spec.sort, q: spec.q, view: spec.view && spec.view.key, pipeline: spec.pipeline && spec.pipeline.value, filters: spec.filters.map((f) => [f.filter.key, f.value || '']), advanced: spec.advanced });
+    if (remote.sig === sig) return;
+    clearTimeout(remote.timer);
+    const delay = spec.q !== remote.lastQ ? 200 : 0;
+    remote.lastQ = spec.q;
+    root.classList.add('is-loading');
+    remote.timer = setTimeout(() => {
+      const seq = (remote.seq += 1);
+      fetchPage(listClient(), cfg.type, spec)
+        .then((res) => {
+          if (seq !== remote.seq) return;
+          if (!res.exact) { ensureFull(); return; }
+          remote.sig = sig;
+          remote.total = res.total;
+          setPageRows(cfg.type, res.rows);
+          root.classList.remove('is-loading');
+          render();
+        })
+        .catch((e) => { console.error('[lista] página', e); root.classList.remove('is-loading'); ensureFull(); });
+    }, delay);
+  }
   function setFrozenCount(n) {
     state.frozenCount = Math.max(0, Math.min(Number(n) || 0, state.columns.length));
     state.frozen = state.frozenCount > 0;
@@ -713,6 +766,7 @@ export function mountList(cfg) {
   }
 
   function filtered() {
+    if (serverMode()) return cfg.rows(); // the page the database returned, already filtered and sorted
     let list = cfg.rows();
     const view = cfg.views.find((v) => v.key === state.base);
     if (view && view.filter) list = list.filter(view.filter);
@@ -1159,11 +1213,14 @@ export function mountList(cfg) {
     wireMenus(headRow);
     $('undo-btn').disabled = layoutHistory.length === 0;
 
+    const serving = serverMode();
+    if (serving) ensureRemote();
     const list = filtered();
-    const pages = Math.max(1, Math.ceil(list.length / state.size));
+    const total = serving ? remote.total : list.length;
+    const pages = Math.max(1, Math.ceil(total / state.size));
     if (state.page > pages) state.page = pages;
     const start = (state.page - 1) * state.size;
-    const slice = list.slice(start, start + state.size);
+    const slice = serving ? list : list.slice(start, start + state.size);
     const hlStats = highlightStats(list, cols);
     const hlOf = (c, r) => hlCell(c, r, hlStats);
 
@@ -1186,8 +1243,8 @@ export function mountList(cfg) {
         </tr>`,
       )
       .join('');
-    $('empty').hidden = list.length > 0 || state.mode === 'board';
-    $('total-pill').textContent = `${list.length} ${plural}`;
+    $('empty').hidden = list.length > 0 || state.mode === 'board' || (serving && !remote.sig);
+    $('total-pill').textContent = `${total} ${plural}`;
     fitColumns();
     renderBoard(list);
 
@@ -1262,6 +1319,7 @@ export function mountList(cfg) {
     if (!pill) return;
     delete pill.dataset.dbCount;
     pill.title = '';
+    if (serverMode()) return; // the pill already carries the database's exact count
     const conds = state.advanced.filter((c) => c.key);
     if (!dbClient || !conds.length || Object.values(state.filters).some(Boolean) || state.q || (cfg.pipeline && state.pipeline) || state.base !== cfg.views[0].key) return;
     const seq = (countSeq += 1);
@@ -1433,6 +1491,7 @@ export function mountList(cfg) {
   let pendingCreate = null;
   function setMode(mode) {
     state.mode = mode;
+    if (mode === 'board') ensureFull(); // the board needs every record of the pipeline
     setPrefs(cfg.type, { mode });
     render();
   }
@@ -2717,6 +2776,7 @@ export function mountList(cfg) {
     const key = b.dataset.sort;
     if (state.sort.key === key) state.sort.dir *= -1;
     else state.sort = { key, dir: 1 };
+    state.page = 1; // a new order starts from the first page
     render();
   });
   headRow.addEventListener('change', (e) => {
@@ -2759,6 +2819,7 @@ export function mountList(cfg) {
     const key = b.dataset.sort;
     if (state.sort.key === key) state.sort.dir *= -1;
     else state.sort = { key, dir: 1 };
+    state.page = 1;
     closeMenus();
     render();
   });
@@ -2794,16 +2855,19 @@ export function mountList(cfg) {
       a = 'bulk-edit';
     }
     if (a === 'create') createEntry();
-    else if (a === 'dupes') openDupes();
-    else if (a === 'trash') openTrash();
-    else if (a === 'fix-format') fixFormat();
+    else if (a === 'dupes') ensureFull().then(openDupes);
+    else if (a === 'trash') ensureTrash(cfg.type).catch((e) => console.error('[lista] papelera', e)).then(openTrash);
+    else if (a === 'fix-format') ensureFull().then(fixFormat);
     else if (a === 'columns') openColumnEditor();
     else if (a === 'advanced') { renderAdvRows(); openDrawer('adv-drawer'); }
     else if (a === 'import') { location.href = `../data/?from=${cfg.type}`; } // imports live in Gestión de datos › Integración de datos, as in the original
     else if (a === 'export' || a === 'bulk-export') {
-      const list = filtered().filter((r) => a === 'export' || state.selected.has(Number(r.id)));
-      download(`${cfg.type}-${TODAY.toISOString().slice(0, 10)}.csv`, toCsv(list, visibleColumns()));
-      toast(`${list.length} registro(s) exportados a CSV`);
+      // Exports cover the whole view: with server-side paging the full table is loaded first.
+      (a === 'export' ? ensureFull() : Promise.resolve(false)).then(() => {
+        const list = filtered().filter((r) => a === 'export' || state.selected.has(Number(r.id)));
+        download(`${cfg.type}-${TODAY.toISOString().slice(0, 10)}.csv`, toCsv(list, visibleColumns()));
+        toast(`${list.length} registro(s) exportados a CSV`);
+      });
     } else if (a === 'delete') {
       const n = state.selected.size;
       bulkDialog({
@@ -2935,6 +2999,7 @@ export function mountList(cfg) {
       toast(state.zebra ? 'Vista en zebra activada' : 'Vista en zebra desactivada');
     } else if (a === 'toggle-nested') {
       state.nested = !state.nested;
+      if (state.nested) ensureFull(); // parents and children can sit on different pages
       setPrefs(cfg.type, { nested: state.nested });
       render();
       toast(state.nested ? 'Las secundarias se muestran bajo su matriz' : 'Lista plana');

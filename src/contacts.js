@@ -73,18 +73,19 @@ const list = mountList({
   searchKeys: ['name', 'email', 'phone', 'company', 'city'],
   rows: allContacts,
   seedViews: SEED_VIEWS,
+  // `where` = the same view/filter as a Supabase (PostgREST) clause, for the server-side pages (src/server-list.js).
   views: [
     { key: 'all', label: 'Todos los contactos' },
-    { key: 'mine', label: 'Mis contactos', filter: (r) => r.owner === 'Fernando L.' },
-    { key: 'unassigned', label: 'Contactos sin asignar', filter: (r) => r.owner === 'Sin asignar' },
-    { key: 'recent', label: 'Creados este mes', filter: (r) => days(r.created) <= 30 },
+    { key: 'mine', label: 'Mis contactos', filter: (r) => r.owner === 'Fernando L.', where: (q, h) => q.eq(h.col('owner'), 'Fernando L.') },
+    { key: 'unassigned', label: 'Contactos sin asignar', filter: (r) => r.owner === 'Sin asignar', where: (q, h) => q.eq(h.col('owner'), 'Sin asignar') },
+    { key: 'recent', label: 'Creados este mes', filter: (r) => days(r.created) <= 30, where: (q, h) => q.gte(h.col('created'), h.daysAgo(30)) },
   ],
   filters: [
-    { key: 'owner', label: 'Propietario del contacto', options: OWNERS.map((o) => [o, o]), test: (r, v) => r.owner === v },
-    { key: 'created', label: 'Fecha de creación', options: [['30', 'Últimos 30 días'], ['90', 'Últimos 90 días'], ['365', 'Este año']], test: (r, v) => days(r.created) <= Number(v) },
-    { key: 'activity', label: 'Última actividad', options: [['7', 'Últimos 7 días'], ['30', 'Últimos 30 días']], test: (r, v) => days(r.lastActivity) <= Number(v) },
-    { key: 'status', label: 'Estado del lead', options: Object.entries(STATUSES).map(([k, [l]]) => [k, l]), test: (r, v) => r.status === v },
-    { key: 'lifecycle', label: 'Etapa del ciclo de vida', options: LIFECYCLES.map((l) => [l, l]), test: (r, v) => r.lifecycle === v },
+    { key: 'owner', label: 'Propietario del contacto', options: OWNERS.map((o) => [o, o]), test: (r, v) => r.owner === v, where: (q, v, h) => q.eq(h.col('owner'), v) },
+    { key: 'created', label: 'Fecha de creación', options: [['30', 'Últimos 30 días'], ['90', 'Últimos 90 días'], ['365', 'Este año']], test: (r, v) => days(r.created) <= Number(v), where: (q, v, h) => q.gte(h.col('created'), h.daysAgo(v)) },
+    { key: 'activity', label: 'Última actividad', options: [['7', 'Últimos 7 días'], ['30', 'Últimos 30 días']], test: (r, v) => days(r.lastActivity) <= Number(v), where: (q, v, h) => q.gte(h.col('lastActivity'), h.daysAgo(v)) },
+    { key: 'status', label: 'Estado del lead', options: Object.entries(STATUSES).map(([k, [l]]) => [k, l]), test: (r, v) => r.status === v, where: (q, v, h) => q.eq(h.col('status'), v) },
+    { key: 'lifecycle', label: 'Etapa del ciclo de vida', options: LIFECYCLES.map((l) => [l, l]), test: (r, v) => r.lifecycle === v, where: (q, v, h) => q.eq(h.col('lifecycle'), v) },
   ],
   columns: [
     { key: 'name', label: 'Nombre', render: (r) => avatarName(r.id, r.name, `./record/?id=${r.id}`) },
@@ -98,6 +99,7 @@ const list = mountList({
       editable: false,
       text: (r) => { const all = companiesOf(r); return all.length > 1 ? `${all[0].company.name} (${all.length} registros)` : all[0] ? all[0].company.name : ''; },
       sortValue: (r) => r.company || '',
+      sortKey: 'company',
       render: (r) => {
         const all = companiesOf(r);
         if (!all.length) return '<span class="muted">--</span>';

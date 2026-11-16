@@ -6,6 +6,8 @@ boot({ root: '../', active: 'crm', sub: 'Tickets', title: 'Tickets' });
 
 const days = (iso) => (TODAY - new Date(iso)) / 86400000;
 const contactName = (id) => (allContacts().find((c) => Number(c.id) === Number(id)) || {}).name || '';
+// Status keys of every pipeline that are open (or closed), for the server-side views.
+const statusKeys = (kind) => allTicketStatuses().filter((s) => s[2] === kind).map((s) => s[0]);
 // Statuses belong to each pipeline (the original's "estados", open or closed); lists that show every
 // pipeline use the union of them.
 const statusOptions = () => allTicketStatuses().map(([k, l]) => [k, l]);
@@ -66,26 +68,27 @@ mountList({
   searchPlaceholder: 'Buscar nombre del ticket, contacto...',
   searchKeys: ['name', 'owner', 'source', 'description', 'company'],
   rows: () => allTickets().map((t) => ({ ...t, contact: t.contact || contactName(t.contactId) })),
+  // `where` = the same view/filter as a Supabase (PostgREST) clause, for the server-side pages (src/server-list.js).
   views: [
     { key: 'all', label: 'Todos los tickets' },
-    { key: 'open', label: 'Tickets abiertos', filter: (r) => isTicketOpen(r) },
-    { key: 'closed', label: 'Tickets cerrados', filter: (r) => !isTicketOpen(r) },
-    { key: 'mine', label: 'Mis tickets', filter: (r) => r.owner === 'Fernando L.' },
-    { key: 'high', label: 'Prioridad alta', filter: (r) => r.priority === 'high' },
+    { key: 'open', label: 'Tickets abiertos', filter: (r) => isTicketOpen(r), where: (q, h) => q.in(h.col('status'), statusKeys('open')) },
+    { key: 'closed', label: 'Tickets cerrados', filter: (r) => !isTicketOpen(r), where: (q, h) => q.in(h.col('status'), statusKeys('closed')) },
+    { key: 'mine', label: 'Mis tickets', filter: (r) => r.owner === 'Fernando L.', where: (q, h) => q.eq(h.col('owner'), 'Fernando L.') },
+    { key: 'high', label: 'Prioridad alta', filter: (r) => r.priority === 'high', where: (q, h) => q.eq(h.col('priority'), 'high') },
   ],
   filters: [
-    { key: 'owner', label: 'Propietario del ticket', options: OWNERS.map((o) => [o, o]), test: (r, v) => r.owner === v },
-    { key: 'status', label: 'Estado del ticket', options: statusOptions(), test: (r, v) => r.status === v },
-    { key: 'priority', label: 'Prioridad', options: PRIORITIES.map(([k, l]) => [k, l]), test: (r, v) => r.priority === v },
-    { key: 'created', label: 'Fecha de creación', options: [['7', 'Últimos 7 días'], ['30', 'Últimos 30 días']], test: (r, v) => days(r.created) <= Number(v) },
-    { key: 'source', label: 'Fuente', options: ['Correo', 'Formulario', 'Chat', 'Teléfono'].map((x) => [x, x]), test: (r, v) => r.source === v },
+    { key: 'owner', label: 'Propietario del ticket', options: OWNERS.map((o) => [o, o]), test: (r, v) => r.owner === v, where: (q, v, h) => q.eq(h.col('owner'), v) },
+    { key: 'status', label: 'Estado del ticket', options: statusOptions(), test: (r, v) => r.status === v, where: (q, v, h) => q.eq(h.col('status'), v) },
+    { key: 'priority', label: 'Prioridad', options: PRIORITIES.map(([k, l]) => [k, l]), test: (r, v) => r.priority === v, where: (q, v, h) => q.eq(h.col('priority'), v) },
+    { key: 'created', label: 'Fecha de creación', options: [['7', 'Últimos 7 días'], ['30', 'Últimos 30 días']], test: (r, v) => days(r.created) <= Number(v), where: (q, v, h) => q.gte(h.col('created'), h.daysAgo(v)) },
+    { key: 'source', label: 'Fuente', options: ['Correo', 'Formulario', 'Chat', 'Teléfono'].map((x) => [x, x]), test: (r, v) => r.source === v, where: (q, v, h) => q.eq(h.col('source'), v) },
   ],
   columns: [
     { key: 'name', label: 'Nombre del ticket', render: (r) => link(`./record/?id=${r.id}`, r.name) },
     { key: 'pipeline', label: 'Pipeline', render: (r) => (r.pipeline ? tag(r.pipeline, 'tag--none') : '<span class="muted">—</span>') },
     { key: 'status', label: 'Estado del ticket', text: (r) => ticketStatusLabel(r.pipeline, r.status), render: (r) => tag(ticketStatusLabel(r.pipeline, r.status), ticketStatusClass(r.pipeline, r.status)) },
     { key: 'priority', label: 'Prioridad', text: (r) => labelOf(PRIORITIES, r.priority), render: (r) => tag(labelOf(PRIORITIES, r.priority), classOf(PRIORITIES, r.priority)) },
-    { key: 'contact', label: 'Contacto asociado', render: (r) => (r.contact ? link(`../contacts/record/?id=${r.contactId}`, r.contact) : '<span class="muted">—</span>') },
+    { key: 'contact', label: 'Contacto asociado', serverSort: false, render: (r) => (r.contact ? link(`../contacts/record/?id=${r.contactId}`, r.contact) : '<span class="muted">—</span>') },
     { key: 'company', label: 'Empresa asociada', default: false, render: (r) => (r.companyId ? link(`../companies/record/?id=${r.companyId}`, r.company || 'Empresa') : '<span class="muted">—</span>') },
     { key: 'owner', label: 'Propietario del ticket', render: (r) => ownerHtml(r.owner) },
     { key: 'source', label: 'Fuente' },

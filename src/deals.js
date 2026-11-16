@@ -25,6 +25,8 @@ const stageCell = (r) => {
 const probOfStage = (pipeline, key) => Number((stagesOf(pipeline).find((s) => s[0] === key) || allDealStages().find((s) => s[0] === key) || [0, 0, 0])[2]) || 0;
 const probOf = (r) => probOfStage(r.pipeline, r.stage);
 const isOpen = (r) => !isClosedStage(r.stage);
+// The same "open deal" test as a PostgREST clause: the stage is none of the closed ones.
+const openWhere = (q, h) => q.not(h.col('stage'), 'in', `(${allDealStages().map(([k]) => k).filter((k) => isClosedStage(k)).map((k) => `"${String(k).replace(/"/g, '\\"')}"`).join(',')})`);
 const sum = (rows, f) => rows.reduce((s, r) => s + f(r), 0);
 const months = (d) => `${(d / 30).toLocaleString('es-ES', { maximumFractionDigits: 1 })} meses`;
 // Each deal shows its amount in its own currency; totals add everything up in the company currency.
@@ -197,26 +199,27 @@ const list = mountList({
   readOnly: ['probability'],
   previewFields: ['amount', 'stage', 'pipeline', 'closeDate', 'owner', 'company', 'priority', 'type', 'hs_next_step', 'created'],
   // Standard views (labels shared with Configuración › Administrar vistas through std-views.js).
+  // `where` = the same view/filter as a Supabase (PostgREST) clause, for the server-side pages (src/server-list.js).
   views: [
     { key: 'all', label: 'Todos negocios' },
-    { key: 'mine', label: 'Mis negocios', filter: (r) => r.owner === 'Fernando L.' },
-    { key: 'won-month', label: 'Mis negocios ganados este mes', filter: (r) => r.owner === 'Fernando L.' && r.stage === 'won' && Math.abs(days(r.closeDate)) <= 30 },
-    { key: 'assigned', label: 'Mis negocios recientemente asignados', filter: (r) => r.owner === 'Fernando L.' && days(r.created) <= 14 },
-    { key: 'collab', label: 'Negocios en los que estoy colaborando', filter: (r) => r.owner !== 'Fernando L.' && r.priority === 'high' && isOpen(r) },
-    { key: 'new-month', label: 'Nuevos negocios este mes', filter: (r) => days(r.created) <= 30 },
-    { key: 'forecast', label: 'Previsión', filter: (r) => isOpen(r) && -days(r.closeDate) >= 0 && -days(r.closeDate) <= 90 },
-    { key: 'followups', label: 'Seguimientos sugeridos', filter: (r) => isOpen(r) && days(r.lastActivity) > 14 },
-    { key: 'open', label: 'Negocios abiertos', filter: isOpen },
-    { key: 'won', label: 'Ganados', filter: (r) => r.stage === 'won' },
-    { key: 'month', label: 'Cierre este mes', filter: (r) => Math.abs(days(r.closeDate)) <= 30 },
+    { key: 'mine', label: 'Mis negocios', filter: (r) => r.owner === 'Fernando L.', where: (q, h) => q.eq(h.col('owner'), 'Fernando L.') },
+    { key: 'won-month', label: 'Mis negocios ganados este mes', filter: (r) => r.owner === 'Fernando L.' && r.stage === 'won' && Math.abs(days(r.closeDate)) <= 30, where: (q, h) => q.eq(h.col('owner'), 'Fernando L.').eq(h.col('stage'), 'won').gte(h.col('closeDate'), h.daysAgo(30)).lte(h.col('closeDate'), h.daysAhead(30)) },
+    { key: 'assigned', label: 'Mis negocios recientemente asignados', filter: (r) => r.owner === 'Fernando L.' && days(r.created) <= 14, where: (q, h) => q.eq(h.col('owner'), 'Fernando L.').gte(h.col('created'), h.daysAgo(14)) },
+    { key: 'collab', label: 'Negocios en los que estoy colaborando', filter: (r) => r.owner !== 'Fernando L.' && r.priority === 'high' && isOpen(r), where: (q, h) => openWhere(q.neq(h.col('owner'), 'Fernando L.').eq(h.col('priority'), 'high'), h) },
+    { key: 'new-month', label: 'Nuevos negocios este mes', filter: (r) => days(r.created) <= 30, where: (q, h) => q.gte(h.col('created'), h.daysAgo(30)) },
+    { key: 'forecast', label: 'Previsión', filter: (r) => isOpen(r) && -days(r.closeDate) >= 0 && -days(r.closeDate) <= 90, where: (q, h) => openWhere(q.gte(h.col('closeDate'), h.daysAgo(0)).lte(h.col('closeDate'), h.daysAhead(90)), h) },
+    { key: 'followups', label: 'Seguimientos sugeridos', filter: (r) => isOpen(r) && days(r.lastActivity) > 14, where: (q, h) => openWhere(q.lt(h.col('lastActivity'), h.daysAgo(14)), h) },
+    { key: 'open', label: 'Negocios abiertos', filter: isOpen, where: (q, h) => openWhere(q, h) },
+    { key: 'won', label: 'Ganados', filter: (r) => r.stage === 'won', where: (q, h) => q.eq(h.col('stage'), 'won') },
+    { key: 'month', label: 'Cierre este mes', filter: (r) => Math.abs(days(r.closeDate)) <= 30, where: (q, h) => q.gte(h.col('closeDate'), h.daysAgo(30)).lte(h.col('closeDate'), h.daysAhead(30)) },
   ],
   filters: [
-    { key: 'owner', label: 'Propietario del negocio', options: OWNERS.map((o) => [o, o]), test: (r, v) => r.owner === v },
-    { key: 'created', label: 'Fecha de creación', options: [['30', 'Últimos 30 días'], ['90', 'Últimos 90 días'], ['365', 'Este año']], test: (r, v) => days(r.created) <= Number(v) },
-    { key: 'activity', label: 'Última actividad', options: [['7', 'Últimos 7 días'], ['30', 'Últimos 30 días']], test: (r, v) => days(r.lastActivity) <= Number(v) },
-    { key: 'close', label: 'Fecha de cierre', options: [['30', 'Próximos 30 días'], ['90', 'Próximos 90 días']], test: (r, v) => -days(r.closeDate) <= Number(v) && -days(r.closeDate) >= 0 },
-    { key: 'stage', label: 'Etapa del negocio', options: allDealStages().map(([k, l]) => [k, l]), test: (r, v) => r.stage === v },
-    { key: 'priority', label: 'Prioridad', options: PRIORITIES.map(([k, l]) => [k, l]), test: (r, v) => r.priority === v },
+    { key: 'owner', label: 'Propietario del negocio', options: OWNERS.map((o) => [o, o]), test: (r, v) => r.owner === v, where: (q, v, h) => q.eq(h.col('owner'), v) },
+    { key: 'created', label: 'Fecha de creación', options: [['30', 'Últimos 30 días'], ['90', 'Últimos 90 días'], ['365', 'Este año']], test: (r, v) => days(r.created) <= Number(v), where: (q, v, h) => q.gte(h.col('created'), h.daysAgo(v)) },
+    { key: 'activity', label: 'Última actividad', options: [['7', 'Últimos 7 días'], ['30', 'Últimos 30 días']], test: (r, v) => days(r.lastActivity) <= Number(v), where: (q, v, h) => q.gte(h.col('lastActivity'), h.daysAgo(v)) },
+    { key: 'close', label: 'Fecha de cierre', options: [['30', 'Próximos 30 días'], ['90', 'Próximos 90 días']], test: (r, v) => -days(r.closeDate) <= Number(v) && -days(r.closeDate) >= 0, where: (q, v, h) => q.gte(h.col('closeDate'), h.daysAgo(0)).lte(h.col('closeDate'), h.daysAhead(v)) },
+    { key: 'stage', label: 'Etapa del negocio', options: allDealStages().map(([k, l]) => [k, l]), test: (r, v) => r.stage === v, where: (q, v, h) => q.eq(h.col('stage'), v) },
+    { key: 'priority', label: 'Prioridad', options: PRIORITIES.map(([k, l]) => [k, l]), test: (r, v) => r.priority === v, where: (q, v, h) => q.eq(h.col('priority'), v) },
   ],
   defaultWidths: { name: 300, stage: 250, pipeline: 220, amount: 170, closeDate: 220, owner: 220, company: 220 },
   columns: [

@@ -1,5 +1,15 @@
 # Progreso — Omni CRM
 
+## 2026-11-16 (sesión 5) · Paginación en el servidor en las listas de registros
+
+**Construido**
+- **Listas de Contactos, Empresas, Negocios y Tickets** piden a Supabase solo la página visible: en esas cuatro páginas `src/data.js` ya no descarga la tabla propia al arrancar (solo su conteo y el id más alto) y el motor de listas (`src/list.js`) pide cada página con `range()` y `count: 'exact'` a través de `src/server-list.js`. La página recibida pasa a ser el conjunto de trabajo (`setPageRows`), así que la selección múltiple, la edición inline, el menú Acciones y las acciones masivas siguen funcionando sobre esas filas.
+- **Filtros en la consulta**: buscador (`ilike` OR sobre las claves de búsqueda), vistas estándar y filtros rápidos (cada uno declara su cláusula `where` PostgREST: `eq`, `gte`, `in`, `not in`…), condiciones de las vistas guardadas y del panel «Todos los filtros» (`applyConditions`, con `extra->>campo` para las propiedades del JSONB) y el orden por columna (`order`, con `sortKey` para columnas calculadas). Lo que la base de datos no puede expresar (asociaciones, varios grupos OR, columnas calculadas, tablero, jerarquía anidada, exportar, duplicados, corregir formato) carga la tabla completa una sola vez (`ensureAll`) y la lista sigue en memoria como antes.
+- **Papelera** excluida en el servidor (`deleted_at is null` en cada consulta y en la carga completa); los eliminados se cargan solo al abrir «Restaurar registros eliminados» (`ensureTrash`).
+- **Cronología de la ficha**: `ensureActivitiesFor(record_type, record_id)` carga solo los eventos del registro; las páginas de lista y de ficha ya no descargan toda la tabla `activities` (el resto de páginas conserva la carga completa).
+- El modo localStorage queda intacto como respaldo; con el cliente inyectado (`setListClient`) el motor funciona en modo servidor también en las pruebas.
+- Pruebas: `scripts/smoke-server-pagination.mjs` (5.000 contactos en un cliente simulado: una sola consulta al abrir con `range(0,24)` y `deleted_at is null`, ~10 KB por página, nueva consulta al cambiar de página en < 500 ms, orden/búsqueda/filtros rápidos/vistas/condiciones guardadas aplicados en la consulta, selección). Comprobado en vivo: la página de Contactos transfiere una página de la tabla `contacts` en lugar de toda la tabla.
+
 ## 2026-11-15 (sesión 5) · Módulo «Workflows» (Automatización › Workflows)
 
 **Construido**

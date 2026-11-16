@@ -16829,6 +16829,12 @@ body.has-slideover {
   display: none;
 }
 
+/* Server-side lists: while the next page is on its way the current rows dim a little. */
+#list-root.is-loading #rows {
+  opacity: 0.55;
+  transition: opacity 0.15s;
+}
+
 @media (max-width: 1000px) {
   .wfe__work {
     grid-template-columns: 1fr;

@@ -10,7 +10,7 @@ import {
   STATUSES, LIFECYCLES, SOURCES, OWNERS, TICKET_STATUSES, PRIORITIES, TASK_TYPES, TASK_STATUSES,
   ticketStatusesFor, ticketStatusLabel, firstOpenTicketStatus, ticketPipelines, stagesFor, allDealStages, dealStageLabel, dealStageProb, isClosedStage,
   formatDate, formatMoney, initials, colorFor, labelOf, toCsv, download, TODAY, assocLabels, CURRENCY_DEFS, CURRENCY_CODES, relativeTimeFine,
-  activitiesFor, addActivity, historyFor, addHistoryEntry, getSetting, setSetting, settingsLive, settingScope, lineItemsFor, fetchLineItems, lineItemsTotal,
+  activitiesFor, ensureActivitiesFor, addActivity, historyFor, addHistoryEntry, getSetting, setSetting, settingsLive, settingScope, lineItemsFor, fetchLineItems, lineItemsTotal,
   parentCompanyOf, childCompaniesOf, isCompanyDescendant,
 } from './data.js';
 import { propertyGroups, propertyMap } from './properties.js';
@@ -124,6 +124,8 @@ const cfg = CONFIG[type];
 boot({ root, active: 'crm', sub: cfg.sub, title: cfg.label });
 
 const id = new URLSearchParams(location.search).get('id');
+// The timeline loads only this record's activities (record_type + record_id), not the whole table.
+await ensureActivitiesFor(type, id);
 let rec = findRecord(type, id);
 // A ticket's status choices are the statuses of its own pipeline.
 if (type === 'tickets' && rec) { const f = cfg.fields.find((x) => x[0] === 'status'); if (f) f[3] = opt(ticketStatusesFor(rec.pipeline).map(([k, l]) => [k, l])); }

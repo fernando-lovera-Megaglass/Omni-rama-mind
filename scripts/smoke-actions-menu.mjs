@@ -55,6 +55,7 @@ document.createElement = (tag) => { const el = origCreate(tag); if (tag === 'a')
 click(document.querySelector('.menu__item[data-filter="owner"][data-value]:not([data-value=""])'));
 const filteredN = total();
 click(document.querySelector('#actions-menu [data-action="export"]'));
+await wait(5); // the action opens after the (possible) full load of the table
 log('export:', downloaded, '| toast:', text($('toast')), '| filtered rows:', filteredN);
 if (!downloaded || !/contacts-.*\.csv$/.test(downloaded) || !text($('toast')).startsWith(`${filteredN} registro`)) fail('Exportar should download the filtered view');
 document.createElement = origCreate;
@@ -70,6 +71,7 @@ const grp = groups.find((g) => g.records.some((r) => r.id === base.id));
 log('duplicate groups:', groups.length, '| group of the base contact:', grp && grp.records.map((r) => r.id).join(','), '| keys:', grp && grp.keys.join('+'));
 if (!grp || grp.records.length < 3 || !grp.records.some((r) => r.id === dupA.id) || !grp.records.some((r) => r.id === dupB.id) || !grp.keys.includes('email') || !grp.keys.includes('name')) fail('e-mail and name duplicates should form one group');
 click(document.querySelector('#actions-menu [data-action="dupes"]'));
+await wait(5); // the action opens after the (possible) full load of the table
 log('drawer:', text($('actions-title')), '| open:', drawer().classList.contains('is-open'), '| groups shown:', drawer().querySelectorAll('[data-dupe-group]').length, '| suggested keep:', drawer().querySelector('[data-dupe-group] input:checked')?.value);
 if (!drawer().classList.contains('is-open') || !drawer().querySelectorAll('[data-dupe-group]').length) fail('the duplicates view should list the groups');
 const section = [...drawer().querySelectorAll('[data-dupe-group]')].find((s) => s.querySelector(`tr[data-id="${base.id}"]`));
@@ -90,6 +92,7 @@ if (!note || !/fusionados/.test(note.text)) fail('the merge should be logged');
 // 4) Restaurar registros eliminados: the merged ones are in the trash; restore one
 click(drawer().querySelector('[data-close]'));
 click(document.querySelector('#actions-menu [data-action="trash"]'));
+await wait(5); // the action opens after the (possible) full load of the table
 const trashRows = [...drawer().querySelectorAll('.trash__table tr[data-id]')].map((tr) => Number(tr.dataset.id));
 log('trash:', text($('actions-title')), '| rows:', trashRows.join(','), '| has dates:', [...drawer().querySelectorAll('.trash__table tr[data-id] td:nth-child(4)')].every((td) => text(td) !== '--'));
 if (!trashRows.includes(dupA.id) || !trashRows.includes(dupB.id)) fail('merged records should be in the trash');
@@ -126,6 +129,7 @@ C.list.state.selected.clear();
 C.list.render();
 pick(messy.id);
 click(document.querySelector('#actions-menu [data-action="fix-format"]'));
+await wait(5); // the action opens after the (possible) full load of the table
 log('format dialog:', text($('bulk-modal-title')), '|', text($('bulk-form')).slice(0, 120));
 if (!/Corregir problemas de formato/.test(text($('bulk-modal-title'))) || !/3 nombres/.test(text($('bulk-form'))) || !/2 teléfonos/.test(text($('bulk-form')))) fail('the dialog should count the fixes');
 $('bulk-form').dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true }));

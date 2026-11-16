@@ -558,6 +558,16 @@ function fromDb(type, row) {
   }
   return { ...out, ...(row.extra || {}) };
 }
+// A database row as the app uses it (camelCase keys, `extra` unpacked, sample decoration) — for the
+// server-side lists that receive one page at a time.
+export const rowFromDb = (type, row) => augment(type, fromDb(type, row));
+// Server-side lists: the page just received becomes the type's working set, so inline edits, selection,
+// bulk actions and the trash keep working on those rows exactly as they do on the full dataset.
+export function setPageRows(type, rows) {
+  if (dbLive) dbRows[type] = rows;
+  baseCache[type] = rows;
+  bump();
+}
 // Writes are applied to the in-memory cache immediately (the UI stays
 // synchronous) and then sent to Supabase in order, in the background.
 let writeQueue = Promise.resolve();
@@ -1698,13 +1708,24 @@ async function initCustomProperties() {
 }
 
 // ---------- Supabase bootstrap ----------
+// Soft-deleted rows stay in the database: the lists never download them (the trash loads on demand, ensureTrash).
+const trashLoaded = new Set();
+export async function ensureTrash(type) {
+  if (!dbLive || !SOFT_DELETE.has(type) || trashLoaded.has(type)) return false;
+  const { data, error } = await supabase.from(type).select('*').not('deleted_at', 'is', null).order('deleted_at', { ascending: false }).limit(500);
+  if (error) throw error;
+  const known = new Set((trashRows[type] || []).map((r) => Number(r.id)));
+  trashRows[type] = [...(trashRows[type] || []), ...(data || []).filter((r) => !known.has(Number(r.id))).map((r) => augment(type, fromDb(type, r)))];
+  trashLoaded.add(type);
+  return true;
+}
 async function fetchTable(type) {
   const all = [];
   const PAGE = 1000;
   for (let from = 0; ; from += PAGE) {
-    const { data, error } = await supabase
-      .from(type)
-      .select('*')
+    let q = supabase.from(type).select('*');
+    if (SOFT_DELETE.has(type)) q = q.is('deleted_at', null);
+    const { data, error } = await q
       .order('id')
       .range(from, from + PAGE - 1);
     if (error) throw error;
@@ -1742,6 +1763,62 @@ async function seedAll() {
   }
 }
 
+// Which pages load light: the four record lists download their own table one page at a time (src/server-list.js)
+// and, like the record pages, only the activities they show; every other page keeps the full bootstrap.
+const PATH = typeof location !== 'undefined' ? location.pathname : '';
+const LIST_PAGE = /\/(contacts|companies|deals|tickets)\/(index\.html)?$/;
+const lazyTypes = new Set(DB_MODE && LIST_PAGE.test(PATH) ? [PATH.match(LIST_PAGE)[1]] : []);
+const LIGHT_ACTIVITIES = lazyTypes.size > 0 || /\/record\//.test(PATH);
+const lazyCounts = {};
+const ensurePromises = {};
+export const isLazy = (type) => dbLive && lazyTypes.has(type);
+export const lazyCount = (type) => lazyCounts[type] || 0;
+// Row count and highest id of a lazy table (for the pager and for new ids) without downloading it.
+async function fetchLazyMeta(type) {
+  const { data, count, error } = await supabase.from(type).select('id', { count: 'exact' }).is('deleted_at', null).order('id', { ascending: false }).limit(1);
+  if (error) throw error;
+  lazyCounts[type] = Number(count) || 0;
+  nextId[type] = ((data && data[0] && Number(data[0].id)) || 0) + 1;
+  dbRows[type] = [];
+}
+// Downloads the whole table of a lazy type (board view, exports, duplicates, nested hierarchy, filters the
+// database can't express); from then on the list works in memory as before.
+export function ensureAll(type) {
+  if (!isLazy(type)) return Promise.resolve(false);
+  if (!ensurePromises[type]) {
+    ensurePromises[type] = fetchTable(type).then((rows) => {
+      dbRows[type] = rows;
+      nextId[type] = Math.max(nextId[type] || 1, rows.reduce((m, r) => Math.max(m, Number(r.id) || 0), 0) + 1);
+      lazyTypes.delete(type);
+      delete baseCache[type];
+      bump();
+      return true;
+    }).catch((e) => { delete ensurePromises[type]; throw e; });
+  }
+  return ensurePromises[type];
+}
+// Activities of specific records (a record page's timeline, the board's cards), merged into the cache.
+const loadedActivityKeys = new Set();
+let allActivitiesLoaded = !LIGHT_ACTIVITIES;
+export async function ensureActivitiesFor(recordType, recordIds) {
+  if (!dbLive || !activitiesLive || allActivitiesLoaded) return allActivitiesLoaded;
+  const ids = (Array.isArray(recordIds) ? recordIds : [recordIds]).map(Number).filter((n) => Number.isFinite(n) && !loadedActivityKeys.has(`${recordType}:${n}`));
+  for (let i = 0; i < ids.length; i += 200) {
+    const chunk = ids.slice(i, i + 200);
+    const { data, error } = await supabase.from('activities').select('*').eq('record_type', recordType).in('record_id', chunk).order('id');
+    if (error) { console.error('[supabase] activities', error); return false; }
+    const known = new Set(activityRows.map((a) => a.id));
+    (data || []).map(activityFromDb).forEach((a) => { if (!known.has(a.id)) activityRows.push(a); });
+    chunk.forEach((n) => loadedActivityKeys.add(`${recordType}:${n}`));
+  }
+  return true;
+}
+export async function ensureAllActivities() {
+  if (!dbLive || !activitiesLive || allActivitiesLoaded) return allActivitiesLoaded;
+  activityRows = await fetchActivities();
+  allActivitiesLoaded = true;
+  return true;
+}
 async function fetchActivities() {
   const all = [];
   const PAGE = 1000;
@@ -1832,7 +1909,7 @@ async function initFromSupabase() {
         pipelineDefsRemote = null;
         console.error('[supabase] tablas pipelines no disponibles; pipelines en localStorage.', e);
       }),
-      ...Object.keys(BUILDERS).map((type) => fetchTable(type).then((rows) => { dbRows[type] = rows; })),
+      ...Object.keys(BUILDERS).map((type) => (lazyTypes.has(type) ? fetchLazyMeta(type) : fetchTable(type).then((rows) => { dbRows[type] = rows; }))),
       fetchUserSettings(settingsUserId).then(
         (map) => { settingsMap = map; },
         (e) => {
@@ -1849,7 +1926,7 @@ async function initFromSupabase() {
           console.error('[supabase] tabla contact_companies no disponible; empresas del contacto en el propio registro.', e);
         },
       ),
-      fetchActivities().then(
+      (LIGHT_ACTIVITIES ? Promise.resolve([]) : fetchActivities()).then(
         (rows) => { activityRows = rows; },
         (e) => {
           // La migración supabase/activities.sql aún no se ha ejecutado: la
@@ -1870,17 +1947,19 @@ async function initFromSupabase() {
         },
       ),
     ]);
-    if (session && !dbRows.contacts.length && !dbRows.companies.length && (await anonSeesRows('contacts'))) {
+    const known = (type) => dbRows[type].length + (lazyCounts[type] || 0);
+    if (session && !known('contacts') && !known('companies') && (await anonSeesRows('contacts'))) {
       showRlsNotice(session);
       await new Promise(() => {});
     }
-    if (!dbRows.contacts.length && !dbRows.companies.length) {
+    if (!known('contacts') && !known('companies')) {
       await seedAll();
       const refetched = await Promise.all(Object.keys(BUILDERS).map((type) => fetchTable(type)));
       Object.keys(BUILDERS).forEach((type, i) => { dbRows[type] = refetched[i]; });
+      lazyTypes.clear();
     }
     for (const type of Object.keys(BUILDERS)) {
-      nextId[type] = dbRows[type].reduce((m, r) => Math.max(m, Number(r.id) || 0), 0) + 1;
+      nextId[type] = Math.max(nextId[type] || 0, dbRows[type].reduce((m, r) => Math.max(m, Number(r.id) || 0), 0) + 1);
     }
     if (activitiesLive) await migrateLocalActivities();
   } catch (e) {
