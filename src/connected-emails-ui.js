@@ -4,6 +4,7 @@
 // provider cards → simulated OAuth consent or the generic IMAP/SMTP form with advanced options.
 import { toast, wireMenus, closeMenus } from './shell.js';
 import { ready, accounts, accountById, activeAccounts, connect, disable, reconnect, remove, setAutomation, setAccountSignature, aliases, addAlias, removeAlias, unsubscribeLink, setUnsubscribeLink, signatures, signatureOptions, signatureById, saveSignature, deleteSignature, detectProvider, defaultImap, verifyImap, isEmail, PROVIDERS, STATUS_LABELS, userEmail } from './connected-emails.js';
+import { gmailConfigured, configNotice, startConnect, consumeCallbackParams, refreshStatus, gmailAccounts, ready as gmailReady, disconnect as gmailDisconnect, setStatus as gmailSetStatus } from './gmail.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const $ = (id) => document.getElementById(id);
@@ -14,19 +15,25 @@ export const INTRO = 'Conecta tus cuentas individuales de correo electrónico de
 function rowsHtml() {
   const list = accounts();
   if (!list.length) return '<tr><td colspan="6"><div class="tpls__empty">Todavía no has conectado ninguna cuenta de correo.</div></td></tr>';
+  // A real Google account (OAuth, src/gmail.js) shows its badge, its real state (gmail.users.getProfile) and
+  // its own actions: Comprobar estado / Desactivar / Desconectar (revokes the token in Google).
   return list.map((a) => `
-    <tr data-account="${esc(a.id)}">
+    <tr data-account="${esc(a.id)}"${a.real ? ' data-real="1"' : ''}>
       <td><div class="cem__mail">${logo(a.provider)}<span><strong>${esc(a.email)}</strong>${a.alias ? `<small class="muted">alias: ${esc(a.alias)}</small>` : ''}</span></div></td>
-      <td>Tipo de bandeja de entrada: ${esc((PROVIDERS[a.provider] || PROVIDERS.imap).inbox)}</td>
-      <td><span class="cem__status cem__status--${esc(a.status)}"><span class="cem__dot" aria-hidden="true"></span>${esc(STATUS_LABELS[a.status] || a.status)}</span></td>
+      <td>Tipo de bandeja de entrada: ${esc((PROVIDERS[a.provider] || PROVIDERS.imap).inbox)}${a.real ? '<span class="cem__badge">Conectada con Google</span>' : ''}</td>
+      <td><span class="cem__status cem__status--${esc(a.status)}"${a.lastError ? ` title="${esc(a.lastError)}"` : ''}><span class="cem__dot" aria-hidden="true"></span>${esc(STATUS_LABELS[a.status] || a.status)}</span>${a.real && a.status === 'error' && a.lastError ? `<small class="muted cem__err">${esc(a.lastError)}</small>` : ''}</td>
       <td><label class="switchwrap"><input type="checkbox" class="switch" data-cem-auto="${esc(a.id)}" ${a.inboxAutomation ? 'checked' : ''} ${a.status === 'active' ? '' : 'disabled'} aria-label="Automatización de la bandeja de entrada" /><span>${a.inboxAutomation ? 'Activada' : 'Desactivada'}</span></label></td>
       <td><select class="cem__sig" data-cem-sig="${esc(a.id)}" aria-label="Firma predeterminada">${signatureOptions().map(([id, n]) => `<option value="${esc(id)}" ${a.signatureId === id ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select></td>
       <td><div class="menu cem__menu"><button class="link-btn" type="button" aria-haspopup="true">Acciones <span class="caret"></span></button><div class="menu__panel menu__panel--right">
-        <button class="menu__item" type="button" data-cem="reconnect" data-id="${esc(a.id)}">Reconectar</button>
+        ${a.real ? `<button class="menu__item" type="button" data-cem="gmail-status" data-id="${esc(a.id)}">Comprobar estado</button>
+        <button class="menu__item" type="button" data-cem="edit-sig" data-id="${esc(a.id)}">Editar firma</button>
+        ${a.status === 'disabled' ? `<button class="menu__item" type="button" data-cem="gmail-enable" data-id="${esc(a.id)}">Activar</button>` : `<button class="menu__item" type="button" data-cem="gmail-disable" data-id="${esc(a.id)}">Desactivar</button>`}
+        <div class="menu__sep"></div>
+        <button class="menu__item menu__item--danger" type="button" data-cem="gmail-disconnect" data-id="${esc(a.id)}">Desconectar</button>` : `<button class="menu__item" type="button" data-cem="reconnect" data-id="${esc(a.id)}">Reconectar</button>
         <button class="menu__item" type="button" data-cem="edit-sig" data-id="${esc(a.id)}">Editar firma</button>
         ${a.status === 'disabled' ? `<button class="menu__item" type="button" data-cem="reconnect" data-id="${esc(a.id)}">Activar</button>` : `<button class="menu__item" type="button" data-cem="disable" data-id="${esc(a.id)}">Desactivar</button>`}
         <div class="menu__sep"></div>
-        <button class="menu__item menu__item--danger" type="button" data-cem="remove" data-id="${esc(a.id)}">Eliminar</button>
+        <button class="menu__item menu__item--danger" type="button" data-cem="remove" data-id="${esc(a.id)}">Eliminar</button>`}
       </div></div></td>
     </tr>`).join('');
 }
@@ -72,14 +79,32 @@ export function mountConnectedEmails(container) {
       else if (a === 'edit-signature') openSignatureManager({ signatureId: id, onChange: rerender });
       else if (a === 'delete-signature') { deleteSignature(id); rerender(); toast('Firma eliminada'); } else if (a === 'add-alias') openModal('Agregar alias de correo', '<p class="muted">Los correos enviados desde el alias fuera de Omni se asociarán a tu usuario.</p><label class="field"><span>Dirección de correo</span><input id="cem-alias" type="email" placeholder="nombre@empresa.com" /></label><div class="snp__error" id="cem-alias-err" hidden></div>', '<button class="btn btn--primary" type="button" data-cemm="save-alias">Agregar</button><button class="btn btn--secondary" type="button" data-bm="close">Cancelar</button>', { onAction: (act) => { if (act === 'save-alias') { const v = $('cem-alias').value; if (!isEmail(v)) { const err = $('cem-alias-err'); err.textContent = 'Escribe una dirección de correo válida.'; err.hidden = false; return; } addAlias(v); closeModal(); rerender(); toast(`Alias ${v.trim().toLowerCase()} agregado`); } } });
       else if (a === 'remove-alias') { removeAlias(b.dataset.email); rerender(); toast('Alias quitado'); }
+      else if (a === 'gmail-status') { toast('Comprobando la cuenta con Google…'); refreshStatus().then((list) => { rerender(); const acc = list.find((x) => x.id === id); toast(acc && acc.status === 'active' ? `Cuenta ${acc.email} activa en Google` : `Error de conexión: ${(acc && acc.lastError) || 'sin detalles'}`); }).catch((e2) => toast(`No se pudo comprobar la cuenta: ${e2.message}`)); }
+      else if (a === 'gmail-disable' || a === 'gmail-enable') { gmailSetStatus(id, a === 'gmail-disable' ? 'disable' : 'enable').then((acc) => { rerender(); toast(a === 'gmail-disable' ? `Cuenta ${acc ? acc.email : ''} desactivada` : acc && acc.status === 'active' ? `Cuenta ${acc.email} activada` : `No se pudo activar: ${(acc && acc.lastError) || 'error'}`); }).catch((e2) => toast(`No se pudo cambiar la cuenta: ${e2.message}`)); }
+      else if (a === 'gmail-disconnect') { const acc = accountById(id); openModal('Desconectar cuenta de Google', `<p>¿Seguro que quieres desconectar <strong>${esc(acc ? acc.email : '')}</strong>? Omni revocará el acceso en Google y borrará los tokens y los correos sincronizados de esta cuenta.</p>`, `<button class="btn btn--primary tpls__danger" type="button" data-cemm="confirm-disconnect" data-id="${esc(id)}">Desconectar</button><button class="btn btn--secondary" type="button" data-bm="close">Cancelar</button>`, { onAction: (act) => { if (act === 'confirm-disconnect') { closeModal(); gmailDisconnect(id).then(() => { rerender(); toast('Cuenta de Google desconectada'); }).catch((e2) => toast(`No se pudo desconectar: ${e2.message}`)); } } }); }
     });
+    // The real accounts change from the OAuth module (status check, disconnect): keep the table in sync.
+    document.addEventListener('crm:gmail', () => { if (container.isConnected) rerender(); });
     container.addEventListener('change', (e) => {
       const t = e.target;
       if (t.dataset.cemAuto) { setAutomation(t.dataset.cemAuto, t.checked); const lbl = t.nextElementSibling; if (lbl) lbl.textContent = t.checked ? 'Activada' : 'Desactivada'; toast(t.checked ? 'Automatización de la bandeja de entrada activada' : 'Automatización de la bandeja de entrada desactivada'); } else if (t.dataset.cemSig) { setAccountSignature(t.dataset.cemSig, t.value); toast('Firma predeterminada actualizada'); } else if (t.id === 'cem-unsub') { setUnsubscribeLink(t.checked); toast(t.checked ? 'Se incluirá el enlace de cancelación de suscripción' : 'No se incluirá el enlace de cancelación de suscripción'); }
     });
   }
   wireMenus(container);
+  // Back from Google's consent screen: the result travels in ?gmail=connected|error (consumed once).
+  if (!callbackHandled) {
+    callbackHandled = true;
+    const cb = consumeCallbackParams();
+    if (cb) toast(cb.status === 'connected' ? `Cuenta ${cb.email} conectada con Google` : `Google no completó la conexión: ${cb.reason || 'error'}`);
+  }
+  // The real state of the Google accounts (gmail.users.getProfile through the Edge Function), once per page load.
+  gmailReady.then(() => {
+    if (!container.isConnected) return;
+    if (gmailAccounts().length && !statusChecked) { statusChecked = true; refreshStatus().then(() => { if (container.isConnected) rerender(); }).catch((e) => console.warn('[gmail] no se pudo comprobar el estado:', e.message)); }
+  });
 }
+let callbackHandled = false;
+let statusChecked = false;
 
 // ---------- generic modal ----------
 let modalAction = null;
@@ -193,6 +218,7 @@ function renderWizard() {
     m.innerHTML = panel('Selecciona tu proveedor de correo', `<p class="muted">Cuenta: <strong>${esc(wiz.email)}</strong></p>${providerCards()}`, '<button class="btn btn--secondary" type="button" data-w="to-email">Atrás</button>', { wide: true, back: 'to-email' });
   } else if (s === 'consent') {
     const p = PROVIDERS[wiz.provider];
+    if (p.hosted === 'Google') { renderGoogleConsent(m, p, err); return; }
     m.innerHTML = panel(`Iniciar sesión con ${esc(p.hosted)}`, `<div class="oauth oauth--${esc(wiz.provider)}"><div class="oauth__head">${logo(wiz.provider)}<span>${esc(p.hosted)}</span></div><p class="oauth__account">${esc(wiz.email)}</p><h4>Omni CRM quiere acceder a tu cuenta de ${esc(p.hosted)}</h4><p class="muted">Esto permitirá a Omni CRM:</p><ul class="oauth__perms"><li>Leer, redactar y enviar correos</li><li>Ver la información básica de tu perfil</li></ul><p class="muted oauth__fine">Puedes revocar el acceso cuando quieras desde la configuración de tu cuenta de ${esc(p.hosted)}. Esta pantalla es una simulación: no se envían credenciales.</p></div>`, '<button class="btn btn--primary" type="button" data-w="allow">Permitir</button><button class="btn btn--secondary" type="button" data-w="to-provider">Cancelar</button>', { back: 'to-provider' });
   } else if (s === 'generic') {
     m.innerHTML = panel('Conecta tu bandeja de entrada con Omni CRM', `<p class="cw__sub">Bandeja de entrada genérica</p><div class="cw__detect">${logo('imap')}<div><p><strong>${esc(wiz.email)}</strong></p><button class="link-btn" type="button" data-w="to-email">Conectar una cuenta diferente</button></div></div><p class="muted cw__privacy">Omni podrá localizar conversaciones relevantes en tu bandeja de entrada para registrarlas en el CRM, enviar correos en tu nombre y sugerir seguimientos. Nunca leerá correos sin relación con tus contactos ni compartirá tus credenciales; se almacenan cifradas y puedes desconectar la cuenta cuando quieras.</p>`, '<button class="btn btn--primary" type="button" data-w="to-imap">Continuar</button><button class="btn btn--secondary" type="button" data-w="to-provider">Atrás</button>', { back: 'to-provider' });
@@ -213,6 +239,17 @@ function renderWizard() {
     m.innerHTML = panel('Conecta tu bandeja de entrada con Omni CRM', '<div class="cw__verifying"><span class="cw__spinner" aria-hidden="true"></span><p>Verificando credenciales...</p><p class="muted">Comprobamos el acceso IMAP y SMTP con los datos indicados.</p></div>');
   }
 }
+// Google: the real OAuth flow when the credentials exist (VITE_GOOGLE_CLIENT_ID + Supabase); otherwise a clear
+// notice of what is missing, with the simulated account still available for the demo.
+function renderGoogleConsent(m, p, err) {
+  const perms = '<ul class="oauth__perms"><li>Leer, redactar y enviar correos</li><li>Ver la información básica de tu perfil</li></ul>';
+  const head = `<div class="oauth__head">${logo(wiz.provider)}<span>Google</span></div><p class="oauth__account">${esc(wiz.email)}</p>`;
+  if (gmailConfigured()) {
+    m.innerHTML = panel('Iniciar sesión con Google', `<div class="oauth oauth--${esc(wiz.provider)}">${head}<h4>Omni CRM quiere acceder a tu cuenta de Google</h4><p class="muted">Te llevaremos a Google para autorizar a Omni; al terminar volverás a esta página con la cuenta conectada. Esto permitirá a Omni CRM:</p>${perms}<p class="muted oauth__fine">Permisos solicitados: gmail.send, gmail.readonly y userinfo.email. Puedes revocar el acceso cuando quieras desde la configuración de tu cuenta de Google.</p>${err}</div>`, '<button class="btn btn--primary" type="button" data-w="google-oauth">Continuar con Google</button><button class="btn btn--secondary" type="button" data-w="to-provider">Cancelar</button>', { back: 'to-provider' });
+    return;
+  }
+  m.innerHTML = panel('Iniciar sesión con Google', `<div class="oauth oauth--${esc(wiz.provider)}">${head}<div class="cw__notice" role="alert" id="w-google-missing"><strong>Falta configurar las credenciales de Google.</strong><p>${esc(configNotice())}</p></div><h4>Omni CRM quiere acceder a tu cuenta de Google</h4>${perms}<p class="muted oauth__fine">Mientras tanto puedes conectar una cuenta simulada para probar el CRM: no se envían credenciales ni correos reales.</p></div>`, '<button class="btn btn--primary" type="button" disabled title="Configura VITE_GOOGLE_CLIENT_ID y GOOGLE_CLIENT_SECRET (docs/gmail-setup.md)">Continuar con Google</button><button class="btn btn--secondary" type="button" data-w="allow">Usar cuenta simulada (demo)</button><button class="link-btn" type="button" data-w="to-provider">Cancelar</button>', { back: 'to-provider' });
+}
 async function detect() {
   const v = String(wiz.email || '').trim();
   if (!isEmail(v)) { wiz.error = 'Escribe una dirección de correo válida.'; renderWizard(); return; }
@@ -231,7 +268,7 @@ async function onWizardClick(e) {
   const a = b.dataset.w;
   if (a === 'close') { closeWizard(); return; }
   if (a === 'to-intro') { wiz.step = 'intro'; wiz.error = ''; renderWizard(); } else if (a === 'to-email') { wiz.step = 'email'; wiz.error = ''; renderWizard(); } else if (a === 'detect') detect();
-  else if (a === 'to-provider') { wiz.step = 'provider'; wiz.error = ''; renderWizard(); } else if (a === 'help') { const h = $('w-help'); if (h) h.hidden = !h.hidden; } else if (a === 'use') { wiz.provider = b.dataset.provider; wiz.error = ''; if (PROVIDERS[wiz.provider].oauth) { wiz.step = 'consent'; } else { wiz.step = 'generic'; } renderWizard(); } else if (a === 'allow') { const acc = connect({ email: wiz.email, provider: wiz.provider, inboxAutomation: wiz.automation }); if (acc) finish(acc); } else if (a === 'to-generic') { wiz.step = 'generic'; wiz.error = ''; renderWizard(); } else if (a === 'to-imap') { wiz.step = 'imap'; wiz.error = ''; renderWizard(); $('w-imap-pass').focus(); } else if (a === 'toggle-adv') { wiz.adv = !wiz.adv; const adv = $('w-adv'); if (adv) { adv.hidden = !wiz.adv; b.setAttribute('aria-expanded', String(wiz.adv)); b.textContent = `Opciones avanzadas ${wiz.adv ? '⌄' : '›'}`; } } else if (a === 'imap-connect') {
+  else if (a === 'to-provider') { wiz.step = 'provider'; wiz.error = ''; renderWizard(); } else if (a === 'help') { const h = $('w-help'); if (h) h.hidden = !h.hidden; } else if (a === 'use') { wiz.provider = b.dataset.provider; wiz.error = ''; if (PROVIDERS[wiz.provider].oauth) { wiz.step = 'consent'; } else { wiz.step = 'generic'; } renderWizard(); } else if (a === 'google-oauth') { b.disabled = true; b.textContent = 'Abriendo Google…'; try { await startConnect({ returnTo: location.href, email: wiz.email }); } catch (e2) { if (wiz) { wiz.error = e2.message; renderWizard(); } } } else if (a === 'allow') { const acc = connect({ email: wiz.email, provider: wiz.provider, inboxAutomation: wiz.automation }); if (acc) finish(acc); } else if (a === 'to-generic') { wiz.step = 'generic'; wiz.error = ''; renderWizard(); } else if (a === 'to-imap') { wiz.step = 'imap'; wiz.error = ''; renderWizard(); $('w-imap-pass').focus(); } else if (a === 'toggle-adv') { wiz.adv = !wiz.adv; const adv = $('w-adv'); if (adv) { adv.hidden = !wiz.adv; b.setAttribute('aria-expanded', String(wiz.adv)); b.textContent = `Opciones avanzadas ${wiz.adv ? '⌄' : '›'}`; } } else if (a === 'imap-connect') {
     const form = { email: $('w-imap-email').value.trim().toLowerCase(), password: $('w-imap-pass').value, username: $('w-user').value.trim() || null, imapHost: $('w-imap-host').value.trim(), imapPort: Number($('w-imap-port').value), smtpHost: $('w-smtp-host').value.trim(), smtpPort: Number($('w-smtp-port').value), sameCredentials: $('w-same').checked, trustAny: $('w-trust').checked };
     if (!isEmail(form.email)) { wiz.error = 'Escribe una dirección de correo válida.'; renderWizard(); return; }
     if (!form.password) { wiz.error = 'Escribe la contraseña de la cuenta.'; renderWizard(); $('w-imap-pass').focus(); return; }

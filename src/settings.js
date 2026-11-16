@@ -89,6 +89,8 @@ function setSection(id) {
   if (p) state.open.add(p.id);
 }
 setSection((location.hash || '#prefs-general').slice(1));
+// Back from Google's consent screen (?gmail=connected|error): land on General › Correo, where the result shows.
+if (/[?&]gmail=/.test(location.search)) { state.section = 'prefs-general'; state.generalTab = 'correo'; }
 
 // ---------- stores ----------
 const profile = () => ({ first: 'Fernando', last: 'Lovera Colin', email: 'fernando-lovera@megaglass.us', lang: 'Español', region: 'México y Centroamérica', currency: 'MXN', dial: '+52', phone: '72-25-103617', ...load('crm:profile', {}) });

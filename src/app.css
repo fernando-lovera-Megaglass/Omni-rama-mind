@@ -16897,6 +16897,50 @@ body.has-slideover {
   display: none;
 }
 
+/* ---------- Gmail real: configuration notice, account badges, inbox sync ---------- */
+.cw__notice {
+  margin: var(--sp-10) 0;
+  padding: var(--sp-10) 12px;
+  border: 1px solid #f5c26b;
+  border-radius: var(--r-md);
+  background: #fff8e6;
+  font-size: var(--fs-sm);
+  text-align: left;
+}
+
+.cw__notice p {
+  margin: var(--sp-4) 0 0;
+}
+
+.cem__badge {
+  display: inline-block;
+  margin-left: var(--sp-4);
+  padding: 0 var(--sp-8);
+  border-radius: var(--r-pill);
+  background: #e5f5f8;
+  color: #0091ae;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.cem__err {
+  display: block;
+  max-width: 260px;
+  margin-top: var(--sp-4);
+  white-space: normal;
+}
+
+.inbox__listhead .inbox__headbtns {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+}
+
+.inbox__sync[hidden] {
+  display: none;
+}
+
 /* ---------- Ajustes › Herramientas › Bandeja de entrada ---------- */
 .ibs h3 {
   margin: var(--sp-16) 0 var(--sp-8);

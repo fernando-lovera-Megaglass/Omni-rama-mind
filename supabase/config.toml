@@ -1,0 +1,19 @@
+# Supabase CLI configuration for the Edge Functions of Omni CRM (supabase/functions/*).
+# `supabase functions deploy` reads the per-function settings below.
+project_id = "xysgvxnieigpaxtmxiui"
+
+# Google redirects the browser here after the consent screen: no Supabase JWT travels with that request.
+[functions.gmail-oauth-callback]
+verify_jwt = false
+
+[functions.gmail-auth-url]
+verify_jwt = true
+
+[functions.gmail-send]
+verify_jwt = true
+
+[functions.gmail-sync]
+verify_jwt = true
+
+[functions.gmail-account]
+verify_jwt = true

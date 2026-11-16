@@ -5,6 +5,8 @@ import { toast, setNavBadge } from './shell.js';
 import { ownerHtml } from './owner.js';
 import { allCompanies, allContacts, relativeTimeFine, formatDate, initials, colorFor } from './data.js';
 import { ready, conversations, conversationById, messagesOf, sendMessage, createConversation, markRead, assignConversation, setConversationStatus, unreadCount, CHANNELS, STATUS_LABELS, ASSIGNEES, ME } from './conversations-data.js';
+import { ready as gmailReady, hasGmail, sendMail } from './gmail.js';
+import { syncInbox, gmailThreadFor } from './gmail-inbox.js';
 
 boot({ root: '../', active: 'crm', sub: 'Bandeja de entrada', title: 'Bandeja de entrada' });
 await ready;
@@ -24,7 +26,7 @@ root.innerHTML = `
     <aside class="inbox__list" aria-label="Conversaciones">
       <div class="inbox__listhead">
         <h1>Bandeja de entrada</h1>
-        <button class="btn btn--primary btn--sm inbox__new" type="button" data-inbox="new" aria-label="Nueva conversación" title="Nueva conversación">+</button>
+        <div class="inbox__headbtns"><button class="btn btn--secondary btn--sm inbox__sync" type="button" data-inbox="sync" hidden title="Traer los últimos correos de tu cuenta de Gmail">Sincronizar Gmail</button><button class="btn btn--primary btn--sm inbox__new" type="button" data-inbox="new" aria-label="Nueva conversación" title="Nueva conversación">+</button></div>
       </div>
       <div class="inbox__tabs" role="tablist" aria-label="Asignación">
         <button class="inbox__tab is-active" type="button" role="tab" data-who="all">Todos</button>
@@ -57,6 +59,25 @@ root.innerHTML = `
     </div>
   </div>`;
 
+// «Sincronizar Gmail» appears once a real Google account is connected (src/gmail.js): it brings the latest INBOX
+// messages, turns them into conversations and logs them on the matching contacts.
+gmailReady.then(() => { const b = root.querySelector('.inbox__sync'); if (b && hasGmail()) b.hidden = false; });
+async function syncGmail(btn) {
+  if (btn.disabled) return;
+  const label = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Sincronizando…';
+  try {
+    const r = await syncInbox();
+    toast(r.imported ? `${r.imported} correo${r.imported === 1 ? '' : 's'} nuevo${r.imported === 1 ? '' : 's'} de Gmail` : 'No hay correos nuevos en Gmail');
+    renderAll();
+  } catch (e) {
+    toast(`No se pudo sincronizar Gmail: ${e.message}`);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = label;
+  }
+}
 function visible() {
   const q = state.q.trim().toLowerCase();
   return conversations().filter((c) => {
@@ -167,6 +188,7 @@ root.addEventListener('click', (e) => {
   if (act) {
     const a = act.dataset.inbox;
     if (a === 'new') { openNew(); return; }
+    if (a === 'sync') { syncGmail(act); return; }
     const c = state.selected ? conversationById(state.selected) : null;
     if (!c) return;
     if (a === 'toggle-status') {
@@ -200,6 +222,9 @@ root.addEventListener('submit', (e) => {
     if (!body || !state.selected) return;
     const m = sendMessage(state.selected, { body, direction: 'out', author: ME });
     if (!m) return;
+    // A conversation imported from Gmail answers in the same Gmail thread, from the connected account.
+    const th = gmailThreadFor(state.selected);
+    if (th && th.fromEmail) sendMail({ accountId: th.accountId, to: th.fromEmail, subject: /^re:/i.test(th.subject) ? th.subject : `Re: ${th.subject}`, html: `<p>${esc(body).replace(/\n/g, '<br>')}</p>`, text: body, threadId: th.threadId, inReplyTo: th.rfcMessageId, references: th.rfcMessageId }).then(() => toast('Respuesta enviada por Gmail')).catch((e2) => toast(`No se pudo enviar por Gmail: ${e2.message}`));
     toast('Mensaje enviado');
     renderAll();
     const ta = $('inbox-reply') && $('inbox-reply').elements.body;

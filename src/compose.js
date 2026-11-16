@@ -11,6 +11,7 @@ import { ready as sequencesReady, sequences as savedSequences, activeEnrollment 
 import { openEnrollDialog } from './sequence-enroll.js';
 import { ready as emailsReady, activeAccounts, signatureById, PROVIDERS } from './connected-emails.js';
 import { openConnectWizard } from './connected-emails-ui.js';
+import { sendMail } from './gmail.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
 const SIG_KEY = 'crm:signature';
@@ -292,7 +293,30 @@ function send(whenLabel) {
     return;
   }
   const sender = currentSender();
-  ctx.onSent?.({ type: 'email', when: Date.now(), who: sender[0], text: `${whenLabel ? `Correo programado (${whenLabel})` : 'Correo enviado'} a ${recipients}: "${subject}" · enviado desde ${sender[1]}.`, extra: { from: sender[1], subject } });
+  const account = sender[2];
+  // A real Google account sends through the Gmail API (scheduled sends stay simulated: Gmail has no scheduling).
+  if (account && account.real && !whenLabel) { sendViaGmail(account, sender, subject, recipients); return; }
+  logSent(sender, whenLabel, subject, recipients, {});
+  finishSend(sender, whenLabel, recipients);
+}
+function logSent(sender, whenLabel, subject, recipients, extra) {
+  ctx.onSent?.({ type: 'email', when: Date.now(), who: sender[0], text: `${whenLabel ? `Correo programado (${whenLabel})` : 'Correo enviado'} a ${recipients}: "${subject}" · enviado desde ${sender[1]}${extra.via === 'gmail' ? ' por Gmail' : ''}.`, extra: { from: sender[1], subject, ...extra } });
+}
+const splitAddresses = (s) => String(s || '').split(/[,;]/).map((x) => x.trim()).filter(Boolean);
+async function sendViaGmail(account, sender, subject, recipients) {
+  const btn = el.querySelector('[data-cm="send"]');
+  if (btn) { btn.disabled = true; btn.textContent = 'Enviando…'; }
+  try {
+    const r = await sendMail({ accountId: account.id, to: ctx.recipients.map((x) => x.email).filter(Boolean), cc: splitAddresses(ctx.cc), bcc: splitAddresses(ctx.bcc), subject, html: `${ctx.body || ''}${signatureFor(account, loadSig())}`, fromName: sender[0] });
+    if (!ctx) return;
+    logSent(sender, '', subject, recipients, { via: 'gmail', gmailId: r.id || '', threadId: r.threadId || '' });
+    finishSend(sender, '', recipients, 'Gmail');
+  } catch (e) {
+    toast(`No se pudo enviar por Gmail: ${e.message}`);
+    if (btn) { btn.disabled = false; btn.textContent = 'Enviar'; }
+  }
+}
+function finishSend(sender, whenLabel, recipients, via = '') {
   if (el.querySelector('#cmp-follow')?.checked) {
     const days = ctx.followDays || 2;
     const due = businessDaysFrom(days);
@@ -309,7 +333,7 @@ function send(whenLabel) {
     });
     ctx.onSent?.({ type: 'task', when: Date.now(), who: sender[0], text: `Tarea de seguimiento creada para el ${formatDate(due)}.` });
   }
-  toast(whenLabel ? `Correo programado para ${whenLabel}` : `Correo enviado a ${recipients}`);
+  toast(whenLabel ? `Correo programado para ${whenLabel}` : `Correo enviado a ${recipients}${via ? ` por ${via}` : ''}`);
   close();
 }
 

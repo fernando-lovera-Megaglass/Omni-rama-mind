@@ -117,7 +117,9 @@ input($('w-email'), 'pedro@megaglass.us');
 click(q('[data-w="detect"]'));
 if (!text(q('.cw__detect')).includes('alojado por Google') || !text(q('.cw__detect')).includes('registros MX de megaglass.us') || text(q('[data-w="use"][data-provider="gsuite"]')) !== 'Conectarse con Google Workspace') fail(`mx detection: ${text(q('.cw__detect'))}`);
 click(q('[data-w="use"][data-provider="gsuite"]'));
-if (!q('.oauth') || !text(q('.oauth__account')).includes('pedro@megaglass.us') || !text(q('.oauth__perms')).includes('Leer, redactar y enviar correos') || text(q('[data-w="allow"]')) !== 'Permitir' || text(q('.cw .bmodal__foot [data-w="to-provider"]')) !== 'Cancelar') fail('consent screen');
+// Google without VITE_GOOGLE_CLIENT_ID (the tests run without credentials): the notice, the disabled real
+// button and the simulated account for the demo (the real OAuth flow is covered by smoke-gmail.mjs).
+if (!q('.oauth') || !text(q('.oauth__account')).includes('pedro@megaglass.us') || !text(q('.oauth__perms')).includes('Leer, redactar y enviar correos') || !q('#w-google-missing') || text(q('[data-w="allow"]')) !== 'Usar cuenta simulada (demo)' || text(q('.cw .bmodal__foot [data-w="to-provider"]')) !== 'Cancelar') fail('consent screen');
 click(q('[data-w="allow"]'));
 if (wizard().classList.contains('is-open') || rows().length !== 3 || !text(rows()[2]).includes('pedro@megaglass.us') || !text(rows()[2]).includes('G Suite')) fail('google account connected');
 // Outlook detection + manual exchange path

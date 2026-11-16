@@ -138,10 +138,11 @@ export function sendMessage(id, { body, direction = 'out', author = ME, when } =
   logOnContact(c, m);
   return m;
 }
-export function createConversation({ contactId, channel = 'email', subject, body, direction = 'out', author = ME, assignedTo } = {}) {
+export function createConversation({ contactId, channel = 'email', subject, body, direction = 'out', author = ME, assignedTo, when } = {}) {
   const text = String(body || '').trim();
   if (!subject || !String(subject).trim() || !text) return null;
-  const now = new Date().toISOString();
+  // `when` lets an imported message (e.g. a Gmail e-mail) keep its real date.
+  const now = when ? new Date(when).toISOString() : new Date().toISOString();
   // Incoming conversations are handed out by turns to the users marked available (Ajustes › Bandeja de entrada).
   const c = { id: uuid(), subject: String(subject).trim(), channel: CHANNELS[channel] ? channel : 'email', status: 'open', assignedTo: assignedTo !== undefined ? assignedTo : direction === 'out' ? author : nextAvailableAssignee(), contactId: contactId ? Number(contactId) : null, lastMessageAt: now, readAt: direction === 'out' ? now : null, createdAt: now };
   rows.unshift(c);

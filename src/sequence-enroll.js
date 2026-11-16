@@ -8,6 +8,7 @@ import { ready, sequences, sequenceById, STEP_TYPES, stepDay, isAuto, isEmail, p
 import { OWNERS, formatDate } from './data.js';
 import { renderTokens, contextFromRecord, plainText } from './tokens.js';
 import { activeAccounts } from './connected-emails.js';
+import { sendMail } from './gmail.js';
 
 // The sequence's e-mails go out from the user's first connected account (Ajustes › General › Correo).
 const senderEmail = () => (activeAccounts()[0] || {}).email || '';
@@ -112,6 +113,14 @@ function onClick(e) {
   if (active) unenroll(active.id);
   const result = enroll({ sequenceId: dlg.sequenceId, contact: dlg.contact, placeholders: dlg.placeholders, enrolledBy: dlg.by, now: startDate(), from: senderEmail() });
   if (!result) { toast('No se pudo inscribir al contacto.'); return; }
+  // With a real Google account as sender, the first automated e-mail (when it runs right away) goes out through Gmail.
+  const sender = activeAccounts()[0];
+  if (sender && sender.real && result.firstStep && isAuto(result.firstStep) && !result.scheduled && dlg.contact.email) {
+    const tctx = contextFromRecord('contacts', dlg.contact, { owner: dlg.by });
+    sendMail({ accountId: sender.id, to: dlg.contact.email, subject: renderTokens(fillPlaceholders(result.firstStep.subject || '', dlg.placeholders), tctx), html: renderTokens(fillPlaceholders(result.firstStep.body || '', dlg.placeholders), tctx) })
+      .then(() => toast(`Paso 1 enviado por Gmail a ${dlg.contact.email}`))
+      .catch((e2) => toast(`No se pudo enviar el paso 1 por Gmail: ${e2.message}`));
+  }
   const cb = dlg.onEnrolled;
   close();
   toast(`${result.enrollment.contactName} inscrito en «${result.sequence.name}»${result.task ? ' · tarea creada' : ''}`);

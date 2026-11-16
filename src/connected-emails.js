@@ -5,6 +5,7 @@
 import { dbIsLive, getSetting, setSetting, settingsLive } from './data.js';
 import { supabase } from './supabaseClient.js';
 import { currentUser } from './auth.js';
+import { gmailAccounts, ready as gmailReady } from './gmail.js';
 
 export const DEFAULT_USER = 'fernando-lovera@megaglass.us';
 export const PROVIDERS = {
@@ -76,6 +77,7 @@ export const ready = (async () => {
   if (live) {
     try { await loadLive(); } catch (e) { live = false; console.error('[supabase] tabla connected_emails no disponible; cuentas en localStorage.', e); loadLocal(); }
   } else loadLocal();
+  try { await gmailReady; } catch { /* no real Google accounts */ }
 })();
 export const connectedEmailsLive = () => live;
 export const userEmail = () => user;
@@ -83,10 +85,14 @@ const persist = (a) => { if (live) enqueue(async () => { const { error } = await
 
 // ---------- reads ----------
 const out = (a) => ({ ...a });
-export const accounts = () => rows.map(out).sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
-export const accountById = (id) => { const a = rows.find((x) => x.id === id); return a ? out(a) : null; };
+// The real Google accounts (src/gmail.js, OAuth) sit next to the simulated ones with `real: true`; their inbox
+// automation switch and default signature live in the preferences (the tokens never reach the browser).
+const realRows = () => gmailAccounts().map((g) => ({ id: g.id, userId: user, email: g.email, provider: 'gmail', status: g.status, real: true, lastError: g.lastError || '', lastCheckedAt: g.lastCheckedAt, lastSyncedAt: g.lastSyncedAt, inboxAutomation: readPref(`gmail:auto:${g.id}`, true) !== false, signatureId: readPref(`gmail:sig:${g.id}`, 'default') || 'default', alias: '', imapHost: null, imapPort: null, smtpHost: null, smtpPort: null, username: null, createdAt: g.createdAt, updatedAt: g.lastCheckedAt || g.createdAt }));
+export const isRealAccount = (id) => gmailAccounts().some((g) => g.id === id);
+export const accounts = () => [...realRows(), ...rows.map(out)].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+export const accountById = (id) => accounts().find((x) => x.id === id) || null;
 export const activeAccounts = () => accounts().filter((a) => a.status === 'active');
-export const accountByEmail = (email) => { const a = rows.find((x) => x.email.toLowerCase() === String(email || '').toLowerCase()); return a ? out(a) : null; };
+export const accountByEmail = (email) => accounts().find((x) => x.email.toLowerCase() === String(email || '').toLowerCase()) || null;
 
 // ---------- writes ----------
 export function connect({ email, provider = 'imap', inboxAutomation = true, imapHost = null, imapPort = null, smtpHost = null, smtpPort = null, username = null } = {}) {
@@ -110,8 +116,8 @@ export function reconnect(id) {
   patch(id, { status: 'active' });
   return { ok: true, account: out(a) };
 }
-export const setAutomation = (id, on) => patch(id, { inboxAutomation: Boolean(on) });
-export const setAccountSignature = (id, signatureId) => patch(id, { signatureId: signatureId || 'default' });
+export const setAutomation = (id, on) => { if (isRealAccount(id)) { writePref(`gmail:auto:${id}`, Boolean(on)); return accountById(id); } return patch(id, { inboxAutomation: Boolean(on) }); };
+export const setAccountSignature = (id, signatureId) => { if (isRealAccount(id)) { writePref(`gmail:sig:${id}`, signatureId || 'default'); return accountById(id); } return patch(id, { signatureId: signatureId || 'default' }); };
 export const setAccountAlias = (id, alias) => patch(id, { alias: String(alias || '').trim() });
 export function remove(id) {
   const i = rows.findIndex((x) => x.id === id);
