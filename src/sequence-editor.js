@@ -4,7 +4,7 @@
 // "Completado" node. Saved to sequences / sequence_steps.
 import { toast, wireMenus, closeMenus } from './shell.js';
 import { ready, PREBUILT, DYNAMIC, prebuiltByKey, STEP_TYPES, EXCLUSION_CRITERIA, stats, stepDay, isAuto, isEmail, replyIndex, createSequence, updateSequence, sequenceById, folders, createFolder } from './sequences-data.js';
-import { openTokenPicker, chipHtml, markersToChips, chipsToMarkers } from './tokens.js';
+import { openTokenPicker, chipHtml, markersToChips, chipsToMarkers, insertAtCaret, trackCaret } from './tokens.js';
 
 await ready;
 const root = document.getElementById('seqed-root');
@@ -60,6 +60,7 @@ function render() {
       </div>
     </div>`;
   wireMenus(root);
+  root.querySelectorAll('[data-body]').forEach(trackCaret); // chips land where the caret was
 }
 function startHtml() {
   return `
@@ -132,7 +133,7 @@ function refreshMetrics() {
   m.querySelector('[data-metric="auto"]').textContent = `${s.automatedPct} %`;
   m.querySelector('[data-metric="exclusion"]').textContent = s.exclusion;
 }
-function renderFlow() { $('seqed-flow').innerHTML = flowHtml(); refreshMetrics(); wireMenus(root); }
+function renderFlow() { $('seqed-flow').innerHTML = flowHtml(); refreshMetrics(); wireMenus(root); root.querySelectorAll('[data-body]').forEach(trackCaret); }
 function renderBar() { $('seqed-title').textContent = state.name; const d = $('seqed-desc'); d.textContent = state.description; d.hidden = !state.description; }
 const stepOf = (id) => state.steps.find((x) => x.id === id);
 const syncBody = (el) => { const st = stepOf(el.dataset.body); if (st) { st.body = fromEditor(el.innerHTML); state.dirty = true; } };
@@ -211,7 +212,7 @@ root.addEventListener('click', (e) => {
   const ok = e.target.closest('[data-delay-ok]');
   if (ok) { const inp = root.querySelector(`[data-delay-input="${ok.dataset.delayOk}"]`); const st = stepOf(ok.dataset.delayOk); if (st && inp) { st.delayDays = Math.max(0, Math.min(60, Number(inp.value) || 0)); state.dirty = true; } state.editingDelay = null; renderFlow(); return; }
   const tok = e.target.closest('[data-ins-token]');
-  if (tok) { const body = root.querySelector(`[data-body="${tok.dataset.insToken}"]`); openTokenPicker({ anchor: tok, onPick: ({ token, defaultValue }) => { body.focus(); body.insertAdjacentHTML('beforeend', `${chipHtml(token, defaultValue, { short: true })} `); syncBody(body); } }); return; }
+  if (tok) { const body = root.querySelector(`[data-body="${tok.dataset.insToken}"]`); openTokenPicker({ anchor: tok, onPick: ({ token, defaultValue }) => { insertAtCaret(body, `${chipHtml(token, defaultValue, { short: true })} `); syncBody(body); } }); return; }
   const ph = e.target.closest('[data-ins-ph]');
   if (ph) { const name = (window.prompt('Nombre del marcador de posición (el remitente lo completa al inscribir)', 'X CONTENT') || '').trim().toUpperCase(); if (name) { const body = root.querySelector(`[data-body="${ph.dataset.insPh}"]`); body.insertAdjacentHTML('beforeend', `${phChip(name)} `); syncBody(body); } }
 });

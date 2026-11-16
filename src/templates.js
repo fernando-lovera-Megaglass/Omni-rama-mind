@@ -7,7 +7,7 @@ import { toast, wireMenus, closeMenus } from './shell.js';
 import { allContacts, relativeTimeFine, formatDate } from './data.js';
 import { ready, templates, templateById, folders, owners, createTemplate, updateTemplate, cloneTemplate, deleteTemplates, moveTemplates, setShared, createFolder, stats, bodyText, templatesCsv, LIBRARY, ME } from './templates-data.js';
 import { getSignature, editSignature, signatureHtmlOf } from './compose.js';
-import { openTokenPicker, chipHtml, markersToChips, chipsToMarkers, renderTokens, contextFromRecord, plainText } from './tokens.js';
+import { openTokenPicker, chipHtml, markersToChips, chipsToMarkers, renderTokens, contextFromRecord, plainText, insertAtCaret, insertIntoField, trackCaret } from './tokens.js';
 import { ready as snippetsReady, snippets } from './snippets-data.js';
 import { attachSnippetAutocomplete } from './snippet-autocomplete.js';
 
@@ -134,6 +134,8 @@ function modal(title, body, foot, { size = '' } = {}) {
     m.addEventListener('click', onModalClick);
     m.addEventListener('input', onModalInput);
     m.addEventListener('change', onModalInput);
+    // Which field "Insertar" targets: the subject or the body, whichever was focused last.
+    m.addEventListener('focusin', (e) => { if (!editor) return; if (e.target.id === 'tpe-subject') editor.target = 'subject'; else if (e.target.id === 'tpe-body' || (e.target.closest && e.target.closest('#tpe-body'))) editor.target = 'body'; });
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && m.classList.contains('is-open')) closeModal(); });
   }
   m.innerHTML = `<div class="bmodal__scrim" data-bm="close"></div><div class="bmodal__panel${size ? ` bmodal__panel--${size}` : ''}" role="dialog" aria-modal="true" aria-labelledby="tpl-modal-title"><div class="bmodal__head"><h3 id="tpl-modal-title">${esc(title)}</h3><button class="bmodal__close" type="button" data-bm="close" aria-label="Cerrar">×</button></div><div class="bmodal__body" id="tpl-modal-body">${body}</div><div class="bmodal__foot" id="tpl-modal-foot">${foot}</div></div>`;
@@ -154,7 +156,8 @@ const folderOptions = (value) => `<option value="">Sin carpeta</option>${folders
 
 // ---------- editor ----------
 // "Insertar": the two-step token picker (object → property + default value) or a saved snippet.
-const insertMenu = (target) => `<div class="menu tpe__insert"><button class="btn btn--secondary btn--sm" type="button" aria-haspopup="true">Insertar <span class="caret"></span></button><div class="menu__panel"><button class="menu__item" type="button" data-ins="token" data-target="${target}">Token de personalización</button><button class="menu__item" type="button" data-ins="snippet" data-target="${target}">Fragmento</button></div></div>`;
+// One "Insertar" in the toolbar: the token or snippet goes to the field that last had the caret (subject or body).
+const insertMenu = () => `<div class="menu tpe__insert"><button class="btn btn--secondary btn--sm" type="button" aria-haspopup="true" title="Inserta en el campo donde está el cursor">Insertar <span class="caret"></span></button><div class="menu__panel"><button class="menu__item" type="button" data-ins="token">Token de personalización</button><button class="menu__item" type="button" data-ins="snippet">Fragmento</button></div></div>`;
 function openEditor(id, preset = {}) {
   const t = id ? templateById(id) : null;
   if (id && !t) { toast('Esa plantilla ya no existe.'); return; }
@@ -172,7 +175,7 @@ function openEditor(id, preset = {}) {
         <section class="tpe__pane" aria-label="Redactar plantilla">
           <h4>Redactar plantilla de correo electrónico <button class="link-btn tpe__show" type="button" data-te="toggle-preview" ${editor.preview ? 'hidden' : ''}>Mostrar vista previa</button></h4>
           <label class="tpe__field"><span>Nombre de la plantilla</span><input id="tpe-name" value="${esc(editor.name)}" placeholder="P. ej. Seguimiento de propuesta" /></label>
-          <div class="tpe__field"><span>Asunto</span><div class="tpe__subject"><input id="tpe-subject" value="${esc(editor.subject)}" placeholder="Asunto del correo" />${insertMenu('subject')}</div></div>
+          <div class="tpe__field"><span>Asunto</span><div class="tpe__subject"><input id="tpe-subject" value="${esc(editor.subject)}" placeholder="Asunto del correo" /></div></div>
           <div class="tpe__toolbar" role="toolbar" aria-label="Formato">
             <button type="button" data-fmt="bold" title="Negrita"><b>N</b></button>
             <button type="button" data-fmt="italic" title="Cursiva"><i>C</i></button>
@@ -189,7 +192,7 @@ function openEditor(id, preset = {}) {
             </div></div>
             <button type="button" data-te="link" title="Insertar enlace">🔗</button>
             <button type="button" data-te="image" title="Insertar imagen">🖼</button>
-            ${insertMenu('body')}
+            ${insertMenu()}
             <button class="tpe__ai" type="button" data-te="ai">✦ Generar con IA</button>
           </div>
           <div class="tpe__body" id="tpe-body" contenteditable="true" data-placeholder="Escribe el cuerpo del correo…">${markersToChips(editor.body)}</div>
@@ -207,6 +210,9 @@ function openEditor(id, preset = {}) {
     </div>`, `<button class="btn btn--primary" type="button" id="tpe-save" data-te="save" disabled>Guardar plantilla</button>${cancelBtn}`, { size: 'xl' });
   // "#atajo" inside the body inserts a snippet keeping its tokens as chips (they resolve per contact later).
   attachSnippetAutocomplete($('tpe-body'), { resolve: false });
+  // Remember where the caret is in each field, so "Insertar" places the chip exactly there.
+  trackCaret($('tpe-body'));
+  trackCaret($('tpe-subject'));
   renderPreview();
   syncSave();
   const name = $('tpe-name');
@@ -227,36 +233,21 @@ function renderPreview() {
   box.innerHTML = `<div class="tpe__mail"><div class="tpe__mailhead"><div><span class="muted">Para:</span> ${esc(c.name)}${c.email ? ` &lt;${esc(c.email)}&gt;` : ''}</div><div><span class="muted">De:</span> ${esc(s.name)} &lt;${esc(s.email)}&gt;</div><div><span class="muted">Asunto:</span> <strong>${esc(renderTokens(editor.subject, ctx) || '(sin asunto)')}</strong></div></div><div class="tpe__mailbody">${renderTokens(chipsToMarkers(editor.body), ctx)}${signatureHtmlOf()}</div></div>`;
 }
 const exec = (cmd, arg) => { if (typeof document.execCommand !== 'function') return false; try { return document.execCommand(cmd, false, arg); } catch { return false; } };
+// Both insert at the remembered caret of the field (src/tokens.js); with no caret known, at the end.
 function insertIntoBody(html) {
   const body = $('tpe-body');
   if (!body) return;
-  body.focus();
-  let done = false;
-  try {
-    const sel = window.getSelection();
-    if (sel && sel.rangeCount && body.contains(sel.anchorNode)) {
-      const r = sel.getRangeAt(0);
-      r.deleteContents();
-      const frag = r.createContextualFragment(html);
-      const last = frag.lastChild;
-      r.insertNode(frag);
-      if (last) { r.setStartAfter(last); r.collapse(true); sel.removeAllRanges(); sel.addRange(r); }
-      done = true;
-    }
-  } catch { done = false; }
-  if (!done) body.insertAdjacentHTML('beforeend', html);
+  insertAtCaret(body, html);
   editor.body = body.innerHTML;
+  editor.target = 'body';
   syncSave();
 }
 function insertIntoSubject(text) {
   const inp = $('tpe-subject');
   if (!inp) return;
-  const s = inp.selectionStart ?? inp.value.length;
-  const e = inp.selectionEnd ?? s;
-  inp.value = `${inp.value.slice(0, s)}${text}${inp.value.slice(e)}`;
+  insertIntoField(inp, text);
   editor.subject = inp.value;
-  inp.focus();
-  try { inp.setSelectionRange(s + text.length, s + text.length); } catch { /* jsdom */ }
+  editor.target = 'subject';
 }
 function saveEditor() {
   if (!editor) return;
@@ -316,7 +307,7 @@ function onModalClick(e) {
   if (close) { e.preventDefault(); closeModal(); return; }
   const ins = e.target.closest('[data-ins]');
   if (ins) {
-    const target = ins.dataset.target;
+    const target = editor.target === 'subject' ? 'subject' : 'body'; // the field that last had the caret
     const anchor = ins.closest('.menu');
     closeMenus();
     if (ins.dataset.ins === 'token') openTokenPicker({ anchor, onPick: ({ token, defaultValue, marker }) => { if (target === 'subject') insertIntoSubject(marker); else insertIntoBody(`${chipHtml(token, defaultValue)} `); } });

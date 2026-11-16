@@ -1,5 +1,12 @@
 # Progreso — Omni CRM
 
+## 2026-11-16 (sesión 5) · Editor de plantillas: un solo «Insertar» y fichas en la posición del cursor
+
+**Corregido**
+- **Un único botón «Insertar»** en la barra de herramientas del editor de plantillas (`src/templates.js`); desapareció el duplicado junto al Asunto. El botón inserta en el campo donde está el cursor: el editor recuerda el último campo enfocado (Asunto o cuerpo) y la ficha o el fragmento van a ese campo.
+- **Inserción en la posición del cursor** (`src/tokens.js`): `trackCaret(el)` guarda la selección del área enriquecida en cada keyup / mouseup / click / input / blur (y `selectionStart/End` en los campos de texto); `insertAtCaret` restaura ese rango y usa `range.insertNode()` para colocar la pastilla exactamente donde estaba el cursor, e `insertIntoField` hace lo propio con `{{...}}` en el Asunto. Sin cursor conocido se inserta al final, nunca al inicio. El mismo mecanismo lo usan el editor de Fragmentos («Personalizar»), el compositor de correo (Insertar, documentos, enlaces, fragmentos) y los correos del editor de secuencias.
+- Pruebas: `smoke-templates.mjs` comprueba que solo hay un «Insertar» en la barra, que con «Hola mundo» y el cursor tras «Hola» la pastilla queda entre las dos palabras, y que en el Asunto con el cursor en medio el marcador se inserta ahí.
+
 ## 2026-11-16 (sesión 5) · Paginación en el servidor en las listas de registros
 
 **Construido**

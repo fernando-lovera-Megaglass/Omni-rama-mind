@@ -32,6 +32,7 @@ const rows = () => [...document.querySelectorAll('#tpl-rows tr[data-id]')];
 const names = () => rows().map((r) => text(r.querySelector('.tpls__name')));
 const modalOpen = () => $('tpl-modal') && $('tpl-modal').classList.contains('is-open');
 const q = (sel) => document.querySelector(sel);
+const qa = (sel) => [...document.querySelectorAll(sel)];
 
 const data = await import(resolve(here, '../src/data.js'));
 const T = await import(resolve(here, '../src/templates-data.js'));
@@ -63,9 +64,12 @@ if (!q('[data-fmt="bold"]') || !q('[data-fmt="italic"]') || !q('[data-fmt="under
 if (!text(q('.tpe__sig')).includes('Se incluirá la firma predeterminada')) fail('signature note missing');
 input($('tpe-name'), 'Prueba automática');
 if (!$('tpe-save').disabled) fail('Save must stay disabled without body');
-// Insertar → Token de personalización: object → searchable property list (standard + custom) → default value → chip
-const pickToken = (target, object, slug, def = '') => {
-  click(q(`[data-ins="token"][data-target="${target}"]`));
+// One "Insertar" in the toolbar → Token de personalización: object → searchable property list (standard +
+// custom) → default value → chip, placed where the caret was in the field that had the focus (subject or body)
+const focusField = (el) => el.dispatchEvent(new window.FocusEvent('focusin', { bubbles: true }));
+const caretInBody = (node, offset) => { const r = document.createRange(); r.setStart(node, offset); r.collapse(true); const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r); $('tpe-body').dispatchEvent(new window.Event('keyup', { bubbles: true })); };
+const pickToken = (object, slug, def = '') => {
+  click(q('#tpl-modal [data-ins="token"]'));
   if (!q('.tokpick')) fail('token picker did not open');
   click(q(`.tokpick [data-pick-object="${object}"]`));
   input(q('.tokpick__search'), slug);
@@ -77,19 +81,34 @@ const pickToken = (target, object, slug, def = '') => {
   click(q('.tokpick [data-pick="insert"]'));
   if (q('.tokpick')) fail('picker should close after inserting');
 };
-click(q('[data-ins="token"][data-target="body"]'));
+if (qa('#tpl-modal [data-ins="token"]').length !== 1 || qa('#tpl-modal .tpe__insert').length !== 1 || q('#tpl-modal .tpe__subject .tpe__insert') || !q('#tpl-modal .tpe__toolbar .tpe__insert')) fail('there must be exactly one Insertar button, in the toolbar');
+click(q('#tpl-modal [data-ins="token"]'));
 if ([...document.querySelectorAll('.tokpick [data-pick-object]')].map((b) => b.dataset.pickObject).join() !== 'contacto,empresa,propietario,negocio,ticket') fail('picker objects');
 click(q('.tokpick [data-pick-object="contacto"]'));
 if (![...document.querySelectorAll('.tokpick [data-pick-prop]')].some((b) => b.querySelector('.tokpick__custom'))) fail('custom contact properties missing in the picker');
 click(q('.tokpick [data-pick="close"]'));
-pickToken('body', 'contacto', 'nombre', 'amigo');
-const chip = q('#tpe-body .tok[data-token="contacto.nombre"]');
+// Body: "Hola mundo" with the caret right after "Hola" → the chip lands between the two words
+$('tpe-body').innerHTML = '<p>Hola mundo</p>';
+$('tpe-body').dispatchEvent(new window.Event('input', { bubbles: true }));
+focusField($('tpe-body'));
+caretInBody($('tpe-body').querySelector('p').firstChild, 4);
+pickToken('contacto', 'nombre', 'amigo');
+const para = $('tpe-body').querySelector('p');
+const chip = para && para.querySelector('.tok[data-token="contacto.nombre"]');
 if (!chip || chip.dataset.default !== 'amigo' || chip.getAttribute('contenteditable') !== 'false' || text(chip) !== 'Nombre del contacto') fail('token chip not inserted into body');
+if (para.firstChild.nodeType !== 3 || para.firstChild.textContent !== 'Hola' || chip.previousSibling !== para.firstChild || para.textContent.replace(/\s+/g, ' ') !== 'HolaNombre del contacto mundo') fail(`chip must sit at the caret, between "Hola" and " mundo": ${para.innerHTML}`);
 if ($('tpe-save').disabled) fail('Save must enable with name + body');
-input($('tpe-subject'), 'Hola ');
-pickToken('subject', 'contacto', 'empresa');
-if ($('tpe-subject').value !== 'Hola {{contacto.empresa}}') fail(`subject token: ${$('tpe-subject').value}`);
-click(q('[data-ins="snippet"][data-target="body"]'));
+// Subject: caret in the middle of "Hola mundo" → the marker goes there, not at the start or the end
+input($('tpe-subject'), 'Hola mundo');
+focusField($('tpe-subject'));
+$('tpe-subject').setSelectionRange(4, 4);
+$('tpe-subject').dispatchEvent(new window.Event('keyup', { bubbles: true }));
+pickToken('contacto', 'empresa');
+if ($('tpe-subject').value !== 'Hola{{contacto.empresa}} mundo') fail(`subject token at the caret: ${$('tpe-subject').value}`);
+// Back to the body with no live selection: the snippet goes after the last remembered caret (never at the start)
+window.getSelection().removeAllRanges();
+focusField($('tpe-body'));
+click(q('#tpl-modal [data-ins="snippet"]'));
 if (!q('.tokpick [data-pick-snippet]')) fail('snippet list missing in the picker');
 input(q('.tokpick__search'), 'horario');
 click(q('.tokpick [data-pick-snippet]'));

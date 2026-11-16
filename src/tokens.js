@@ -156,23 +156,74 @@ export function plainText(html) {
   return t.value.replace(/\n{3,}/g, '\n\n').trim();
 }
 // Inserts HTML at the caret of a contenteditable (at the end when the caret is elsewhere).
+// Where the caret was in each editor. Clicking a toolbar button or a menu item moves the focus (and, in some
+// browsers, collapses the selection to the start of the editor), so the last known position is remembered on
+// keyup / mouseup / click / input / blur and restored when a chip, snippet or link is inserted.
+const savedCaret = new WeakMap();
+const isField = (el) => el && (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT');
+export function trackCaret(el) {
+  if (!el || el.dataset.caretTracked) return;
+  el.dataset.caretTracked = '1';
+  if (isField(el)) {
+    const save = () => { if (el.selectionStart != null) savedCaret.set(el, { start: el.selectionStart, end: el.selectionEnd }); };
+    ['keyup', 'mouseup', 'click', 'select', 'input', 'focus', 'blur'].forEach((ev) => el.addEventListener(ev, save));
+    return;
+  }
+  const save = () => {
+    const sel = el.ownerDocument.defaultView.getSelection();
+    if (!sel || !sel.rangeCount) return;
+    const r = sel.getRangeAt(0);
+    if (el.contains(r.startContainer)) savedCaret.set(el, r.cloneRange());
+  };
+  ['keyup', 'mouseup', 'click', 'input', 'focusin'].forEach((ev) => el.addEventListener(ev, save));
+  el.addEventListener('blur', save);
+}
+// The range to insert at: the live selection while the editor is focused, otherwise the last remembered caret;
+// with no known caret, the end of the content (never its start).
+function targetRange(el) {
+  const doc = el.ownerDocument;
+  const sel = doc.defaultView.getSelection();
+  if (doc.activeElement === el && sel && sel.rangeCount && el.contains(sel.getRangeAt(0).startContainer)) return sel.getRangeAt(0);
+  const saved = savedCaret.get(el);
+  if (saved && saved.startContainer && el.contains(saved.startContainer)) return saved.cloneRange();
+  const r = doc.createRange();
+  r.selectNodeContents(el);
+  r.collapse(false);
+  return r;
+}
+// Inserts HTML at the caret of a contenteditable (at the end when no caret is known) and leaves the caret after it.
 export function insertAtCaret(el, html) {
-  const win = el.ownerDocument.defaultView;
-  el.focus();
+  const doc = el.ownerDocument;
+  const sel = doc.defaultView.getSelection();
   try {
-    const sel = win.getSelection();
-    if (sel && sel.rangeCount && el.contains(sel.getRangeAt(0).startContainer)) {
-      const r = sel.getRangeAt(0);
-      r.deleteContents();
-      const frag = r.createContextualFragment(html);
-      const last = frag.lastChild;
-      r.insertNode(frag);
-      if (last) { r.setStartAfter(last); r.collapse(true); sel.removeAllRanges(); sel.addRange(r); }
-      return true;
-    }
+    const r = targetRange(el);
+    el.focus();
+    r.deleteContents();
+    const frag = r.createContextualFragment(html);
+    const last = frag.lastChild;
+    r.insertNode(frag);
+    if (last) { r.setStartAfter(last); r.collapse(true); }
+    if (sel) { sel.removeAllRanges(); sel.addRange(r); }
+    savedCaret.set(el, r.cloneRange());
+    return true;
   } catch { /* fall through */ }
   el.insertAdjacentHTML('beforeend', html);
   return false;
+}
+// Inserts text in an input / textarea at its caret (the remembered one when the field is not focused; the end
+// when nothing is known) and fires `input` so the host picks the new value up.
+export function insertIntoField(el, text) {
+  const doc = el.ownerDocument;
+  const saved = savedCaret.get(el);
+  const live = doc.activeElement === el && el.selectionStart != null;
+  const start = live ? el.selectionStart : saved && saved.start != null ? saved.start : el.value.length;
+  const end = live ? el.selectionEnd : saved && saved.end != null ? saved.end : start;
+  el.value = `${el.value.slice(0, start)}${text}${el.value.slice(end)}`;
+  const pos = start + text.length;
+  try { el.focus(); el.setSelectionRange(pos, pos); } catch { /* jsdom */ }
+  savedCaret.set(el, { start: pos, end: pos });
+  el.dispatchEvent(new (doc.defaultView.Event)('input', { bubbles: true }));
+  return pos;
 }
 
 // ---------- picker ----------

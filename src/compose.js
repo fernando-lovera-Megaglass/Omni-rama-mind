@@ -4,7 +4,7 @@
 import { toast, wireMenus, closeMenus } from './shell.js';
 import { addRecord, formatDate, TODAY, allContacts } from './data.js';
 import { ready as templatesReady, templates as savedTemplates, resolveTokens } from './templates-data.js';
-import { openTokenPicker, chipHtml, chipsToMarkers, renderTokens, contextFromRecord, insertAtCaret } from './tokens.js';
+import { openTokenPicker, chipHtml, chipsToMarkers, renderTokens, contextFromRecord, insertAtCaret, trackCaret } from './tokens.js';
 import { snippets as savedSnippets } from './snippets-data.js';
 import { attachSnippetAutocomplete } from './snippet-autocomplete.js';
 import { ready as sequencesReady, sequences as savedSequences, activeEnrollment } from './sequences-data.js';
@@ -250,12 +250,14 @@ function render() {
     });
     // "#atajo" inserts a snippet with this contact's data in place of its tokens.
     attachSnippetAutocomplete(text, { context: composeContext });
+    trackCaret(text); // tokens, snippets, links and documents land where the caret was
+    const subj = el.querySelector('#cmp-subject');
+    if (subj) trackCaret(subj);
   }
 }
 
 function insertHtml(html) {
   const text = el.querySelector('#cmp-text');
-  text.focus();
   const plain = text.textContent.trim();
   if (plain === '/') text.innerHTML = '';
   insertAtCaret(text, html);

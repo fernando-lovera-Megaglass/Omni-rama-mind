@@ -5,7 +5,7 @@ import { boot } from './page.js';
 import { toast, wireMenus, closeMenus } from './shell.js';
 import { relativeTimeFine, formatDate } from './data.js';
 import { ready, snippets, snippetById, folders, owners, createSnippet, updateSnippet, cloneSnippet, deleteSnippets, moveSnippets, createFolder, validateShortcut, bodyText, ME } from './snippets-data.js';
-import { openTokenPicker, chipHtml, markersToChips, chipsToMarkers, insertAtCaret } from './tokens.js';
+import { openTokenPicker, chipHtml, markersToChips, chipsToMarkers, insertAtCaret, trackCaret } from './tokens.js';
 
 boot({ root: '../', active: 'crm', sub: 'Fragmentos', title: 'Fragmentos' });
 await ready;
@@ -179,6 +179,7 @@ function openEditor(id, preset = {}) {
         <div class="snp__error" id="snp-error" role="alert" hidden></div>
       </div>
     </div>`, `<button class="btn btn--primary" type="button" id="snp-save" data-se="save" disabled>Guardar fragmento</button>${cancelBtn}`, { size: 'wide' });
+  trackCaret($('snp-body')); // "Personalizar" inserts the chip where the caret was
   syncSave();
   const name = $('snp-name');
   if (name) name.focus();
