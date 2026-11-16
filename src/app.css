@@ -3630,12 +3630,36 @@ h1 {
   border-color: var(--c-link);
 }
 
+/* The «+» add-column header stays pinned to the right edge of the table while it scrolls sideways:
+   above the other header cells (and their resize handles), below the frozen columns so it never covers them. */
+.table-wrap .table th.table__add {
+  position: sticky;
+  right: 0;
+  z-index: 3;
+  background: var(--c-head);
+}
+
+/* While it floats over the columns it gets a left edge and a soft shadow; at the far right only the edge stays. */
+.table-wrap.is-overflowing .table th.table__add {
+  box-shadow: -1px 0 0 var(--c-border), -6px 0 10px -4px rgba(0, 0, 0, 0.16);
+}
+
+.table-wrap.is-overflowing.is-scrolled-end .table th.table__add {
+  box-shadow: -1px 0 0 var(--c-border);
+}
+
+/* The frozen header cells inherit their background from the row, so the row carries the header colour
+   (otherwise the columns scrolling underneath would show through them). */
+.table--frozen thead tr {
+  background: var(--c-head);
+}
+
 /* Frozen first column: only active when the table really scrolls sideways. */
 .is-overflowing .table--frozen th.table__check,
 .is-overflowing .table--frozen td.table__check {
   position: sticky;
   left: 0;
-  z-index: 2;
+  z-index: 4;
   background: inherit;
 }
 
@@ -3644,7 +3668,7 @@ h1 {
 .is-overflowing .table--frozen tbody td.fz {
   position: sticky !important;
   left: var(--fzl, 48px);
-  z-index: 2;
+  z-index: 4;
   background: inherit;
 }
 

@@ -1,5 +1,12 @@
 # Progreso — Omni CRM
 
+## 2026-11-16 (sesión 5) · Listas: el botón «+» de añadir columna queda fijo al borde derecho
+
+**Corregido**
+- **Encabezado «+» anclado** (`src/app.css`): `th.table__add` ahora es `position: sticky; right: 0` dentro de `.table-wrap`, con el fondo del encabezado y `z-index: 3` (por encima de las demás celdas del encabezado y de sus tiradores de redimensionado, por debajo de las columnas inmovilizadas, que pasan a `z-index: 4`). Mientras la tabla se desplaza horizontalmente el botón se queda pegado al borde derecho con un borde y una sombra suave a la izquierda; al llegar al final (`is-scrolled-end`, `src/list.js`) solo conserva el borde. Las celdas `td.table__add` del cuerpo siguen en el flujo normal, así que el ancho de la tabla y el scroll no cambian.
+- De paso, la fila del encabezado con columnas inmovilizadas lleva el fondo del encabezado: las celdas fijas (casilla y primera columna) heredaban un fondo transparente y dejaban ver el texto de las columnas que pasaban por debajo.
+- Pruebas: `scripts/smoke-add-column-sticky.mjs` carga `src/app.css` en jsdom y comprueba que el «+» existe (último `th`, botón «Añadir columna»), que su estilo computado es `position: sticky` / `right: 0` con fondo sólido, que apila por encima de los encabezados normales y por debajo de las columnas inmovilizadas (con y sin inmovilizar), que el ancho de la tabla sigue contando los 44 px, que las clases de scroll se alternan y que el botón abre el editor de columnas. Comprobado en Chrome: el borde derecho del «+» coincide con el del contenedor en cualquier posición de scroll y el botón recibe el puntero.
+
 ## 2026-11-16 (sesión 5) · Bandeja de entrada: menú sin duplicado y Ajustes › Herramientas › Bandeja de entrada
 
 **Corregido**

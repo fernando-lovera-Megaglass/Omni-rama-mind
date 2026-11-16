@@ -2062,6 +2062,8 @@ export function mountList(cfg) {
   // Shadow on the frozen column once the table is scrolled sideways, so it reads as "fixed" and not as cut off.
   wrap.addEventListener('scroll', () => {
     wrap.classList.toggle('is-scrolled', wrap.scrollLeft > 0);
+    // At the far right the pinned «+» header sits in its natural place, so it drops its floating shadow.
+    wrap.classList.toggle('is-scrolled-end', wrap.scrollLeft + wrap.clientWidth >= wrap.scrollWidth - 1);
     closeMenus();
   });
   // The header's ⋮ panel would be clipped by the scrolling table, so it is pinned to the viewport
