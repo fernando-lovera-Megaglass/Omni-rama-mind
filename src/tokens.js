@@ -248,7 +248,7 @@ export function openTokenPicker({ anchor, mode = 'token', onPick, snippets = [],
   document.body.appendChild(el);
   if (anchor && typeof anchor.getBoundingClientRect === 'function') {
     const r = anchor.getBoundingClientRect();
-    const width = 340;
+    const width = 400; // keep in sync with .tokpick in app.css
     const vw = window.innerWidth || 1200;
     const vh = window.innerHeight || 800;
     el.style.left = `${Math.max(8, Math.min(r.left, vw - width - 8))}px`;
@@ -269,12 +269,12 @@ export function openTokenPicker({ anchor, mode = 'token', onPick, snippets = [],
       return;
     }
     if (state.step === 'snippet') {
-      el.innerHTML = `<div class="tokpick__head"><strong>Fragmento</strong><button class="tokpick__close" type="button" data-pick="close" aria-label="Cerrar">×</button></div><input class="tokpick__search" type="search" placeholder="Buscar fragmentos" aria-label="Buscar fragmentos" /><div class="tokpick__list">${listHtml()}</div>`;
+      el.innerHTML = `<div class="tokpick__head"><strong>Fragmento</strong><button class="tokpick__close" type="button" data-pick="close" aria-label="Cerrar">×</button></div><div class="tokpick__searchwrap"><input class="tokpick__search" type="search" placeholder="Buscar fragmentos" aria-label="Buscar fragmentos" /></div><div class="tokpick__list">${listHtml()}</div>`;
       el.querySelector('.tokpick__search').focus();
       return;
     }
     const obj = objectDef(state.object);
-    el.innerHTML = `<div class="tokpick__head"><button class="tokpick__back" type="button" data-pick="back" aria-label="Volver">‹</button><strong>${esc(obj[1])}</strong><button class="tokpick__close" type="button" data-pick="close" aria-label="Cerrar">×</button></div><input class="tokpick__search" type="search" placeholder="Buscar propiedades de ${esc(obj[1].toLowerCase())}" aria-label="Buscar propiedades" /><div class="tokpick__list">${listHtml()}</div><div class="tokpick__foot" ${state.selected ? '' : 'hidden'}><label><span>Valor predeterminado</span><input class="tokpick__default" type="text" placeholder="Si el registro no tiene dato" value="${esc(state.def)}" /></label><button class="btn btn--primary btn--sm" type="button" data-pick="insert">Insertar</button></div>`;
+    el.innerHTML = `<div class="tokpick__head"><button class="tokpick__back" type="button" data-pick="back" aria-label="Volver">‹</button><strong>${esc(obj[1])}</strong><button class="tokpick__close" type="button" data-pick="close" aria-label="Cerrar">×</button></div><div class="tokpick__searchwrap"><input class="tokpick__search" type="search" placeholder="Buscar propiedades de ${esc(obj[1].toLowerCase())}" aria-label="Buscar propiedades" /></div><div class="tokpick__list">${listHtml()}</div><div class="tokpick__foot" ${state.selected ? '' : 'hidden'}><label><span>Valor predeterminado</span><input class="tokpick__default" type="text" placeholder="Si el registro no tiene dato" value="${esc(state.def)}" /></label><button class="btn btn--primary btn--sm" type="button" data-pick="insert">Insertar</button></div>`;
     el.querySelector('.tokpick__search').focus();
   };
   el.addEventListener('input', (e) => {

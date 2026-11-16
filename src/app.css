@@ -14429,7 +14429,8 @@ body.has-slideover {
 .tokpick {
   position: fixed;
   z-index: 260;
-  width: 340px;
+  width: 400px;
+  max-width: calc(100vw - 16px);
   max-height: 420px;
   display: flex;
   flex-direction: column;
@@ -14467,13 +14468,36 @@ body.has-slideover {
   font-size: var(--fs-xs);
 }
 
+/* The search field fills the popover and looks like any other form field of the app (.field input). */
+.tokpick__searchwrap {
+  padding: var(--sp-8) 12px;
+}
+
 .tokpick__search {
-  margin: var(--sp-8) 12px;
-  height: 34px;
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  height: 40px;
+  margin: 0;
   padding: 0 var(--sp-10);
   border: 1px solid var(--c-border);
   border-radius: var(--r-sm);
-  font: inherit;
+  font-family: inherit;
+  font-size: var(--fs-sm);
+  font-weight: 400;
+  color: var(--c-text);
+  background: var(--c-white);
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.tokpick__search:focus {
+  outline: none;
+  border-color: var(--c-link);
+}
+
+.tokpick__search::-webkit-search-cancel-button {
+  -webkit-appearance: none;
 }
 
 .tokpick__list {

@@ -1,5 +1,12 @@
 # Progreso — Omni CRM
 
+## 2026-11-16 (sesión 5) · Selector de tokens: campo de búsqueda a tamaño normal y popover más ancho
+
+**Corregido**
+- **Campo «Buscar propiedades de …» / «Buscar fragmentos»** del selector de tokens (`src/tokens.js` + `src/app.css`): va dentro de un contenedor `.tokpick__searchwrap` con el relleno del popover y ocupa todo el ancho (`width: 100%`), con la altura (40 px), el relleno, el radio y la fuente de los campos normales de la app (`.field input` / los campos del editor de plantillas), sin la apariencia nativa de `type="search"`, y borde azul al enfocar.
+- **Popover más ancho**: `.tokpick` pasa de 340 a 400 px (con `max-width: calc(100vw - 16px)` en pantallas estrechas) y el cálculo de posición junto al botón «Insertar» usa el mismo ancho, así que sigue pegado al ancla y dentro de la ventana. Como es el mismo componente, aplica a plantillas, fragmentos («Personalizar»), editor de secuencias, compositor de correo y editor de workflows. El editor de correo de marketing no usa este selector.
+- Pruebas: `scripts/smoke-token-picker.mjs` carga `src/app.css` en jsdom, abre el selector desde el editor de plantillas y comprueba que el campo existe en los dos modos, que su estilo computado es `display: block; width: 100%; height: 40px` con el mismo relleno, fuente y radio que el campo «Nombre» de la plantilla, que el popover mide 400 px y queda posicionado dentro de la ventana, y que la búsqueda sigue filtrando. Comprobado en Chrome: popover de 400 px bajo el botón «Insertar», campo de 374×40 px (todo el ancho interior) con la misma fuente, relleno y radio que el campo de nombre.
+
 ## 2026-11-16 (sesión 5) · Listas: el botón «+» de añadir columna queda fijo al borde derecho
 
 **Corregido**
