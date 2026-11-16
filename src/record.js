@@ -23,6 +23,7 @@ import { openEnrollDialog } from './sequence-enroll.js';
 import { workflows, enrollRecord as enrollWorkflow } from './workflows-data.js';
 import { ownerHtml } from './owner.js';
 import { enhanceOwnerSelects } from './owner-select.js';
+import { enhancePhoneInputs, focusPhoneInput, displayPhone, phoneHref } from './phone.js';
 import { loadLayout, cardCatalog } from './layout-defaults.js';
 import { mountQueueBar, dueText, dueClass, completeTask } from './task-queue.js';
 
@@ -628,8 +629,8 @@ function renderHeader() {
   const copyBtn = (v) => `<button class="copy" type="button" data-copy="${esc(v)}" aria-label="Copiar ${esc(v)}" title="Copiar">⧉</button>`;
   $('rec-mail').innerHTML = mail ? `<a href="${mail.includes('@') ? `mailto:${esc(mail)}` : `https://${esc(mail.replace(/^https?:\/\//, ''))}`}" ${mail.includes('@') ? '' : 'target="_blank" rel="noopener"'}>${esc(mail)}</a> ${copyBtn(mail)} <span class="ext">↗</span>` : '';
   // Phone with its own copy button (the original's company header shows domain and phone side by side).
-  const phone = rec.phone || rec.mobilephone || '';
-  if ($('rec-phone')) $('rec-phone').innerHTML = phone ? `<a href="tel:${esc(String(phone).replace(/\s+/g, ''))}">${esc(phone)}</a> ${copyBtn(phone)}` : '';
+  const phone = displayPhone(rec.phone || rec.mobilephone || '');
+  if ($('rec-phone')) $('rec-phone').innerHTML = phone ? `<a href="${esc(phoneHref(phone))}">${esc(phone)}</a> ${copyBtn(phone)}` : '';
   $('follow-item').textContent = isFollowing() ? 'Dejar de seguir' : 'Seguir';
   if ($('rec-highlights')) $('rec-highlights').innerHTML = cfg.highlights(rec).map(([k, v]) => `<div class="highlight"><span class="highlight__label">${k}</span><span class="highlight__value">${esc(v)}</span></div>`).join('');
 
@@ -1883,8 +1884,9 @@ if (!rec) {
       if (!row) return;
       row.querySelector('dd').innerHTML = `<form class="props__form" data-key="${esc(key)}" data-original="${esc(JSON.stringify(rec[key] ?? ''))}">${editor(f, rec)}<span class="props__btns"><button class="btn btn--primary btn--sm" type="submit">Guardar</button><button class="btn btn--ghost btn--sm" type="button" data-cancel>Cancelar</button></span></form>`;
       enhanceOwnerSelects(row);
+      enhancePhoneInputs(row);
       const input = row.querySelector('[data-edit]');
-      (row.querySelector('.osel__btn') || input).focus();
+      if (!focusPhoneInput(row)) (row.querySelector('.osel__btn') || input).focus();
       if (input.select && input.type === 'text') input.select();
       return;
     }

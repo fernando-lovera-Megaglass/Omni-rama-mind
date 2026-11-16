@@ -8,6 +8,7 @@ import { supabase } from './supabaseClient.js';
 import { toast } from './shell.js';
 import { authEnabled, currentUser } from './auth.js';
 import { enhanceOwnerSelects, refreshOwnerSelects } from './owner-select.js';
+import { enhancePhoneInputs, refreshPhoneInputs } from './phone.js';
 
 export const BUYING_ROLES = ['Persona que toma la decisión', 'Influenciador', 'Usuario final', 'Otro'];
 export const COUNTRIES = ['España', 'México', 'Estados Unidos', 'Colombia', 'Portugal', 'Argentina', 'Chile', 'Perú'];
@@ -116,6 +117,7 @@ export function mountCreateContact({ root = document.getElementById('list-root')
     </aside>`;
   root.appendChild(el);
   enhanceOwnerSelects(el);
+  enhancePhoneInputs(el);
   const form = el.querySelector('#cc-form');
   const dups = el.querySelector('#cc-dups');
   const createBtn = el.querySelector('#cc-create');
@@ -168,6 +170,7 @@ export function mountCreateContact({ root = document.getElementById('list-root')
     reset();
     Object.entries(prefill || {}).forEach(([k, v]) => { if (form.elements[k] && v !== undefined && v !== null) form.elements[k].value = v; });
     refreshOwnerSelects(form);
+    refreshPhoneInputs(form);
     update();
     state.open = true;
     el.classList.add('is-open');

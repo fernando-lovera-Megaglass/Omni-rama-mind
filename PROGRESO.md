@@ -1,5 +1,13 @@
 # Progreso — Omni CRM
 
+## 2026-11-16 (sesión 5) · Editor de teléfono unificado
+
+**Corregido**
+- **Componente `src/phone.js`**: el editor de teléfono de las listas (selector de país con bandera y prefijo, número, Extensión, «Eliminar formato de número») sale de `src/list.js` y se vuelve reutilizable: `enhancePhoneInputs(ámbito)` envuelve cada `<input type="tel">` en el `.phonebox`, formatea los dígitos mientras se escribe según el país (+34 612 345 678, +1 (305) 555-0100, +52 55 1234 5678), valida (7–15 dígitos), añade la extensión («, ext. 12») y el modo sin formato; el input nativo sigue oculto como fuente de verdad con el valor normalizado con prefijo internacional (así llega a Supabase), dispara `input`/`change` y marca `setCustomValidity` cuando el número no es válido. `displayPhone`, `phoneHref`, `parsePhone`, `formatPhone` y `normalizePhone` unifican el formato.
+- **Aplicado en**: el panel «Acerca de» de la ficha (contacto y empresa, incluidos móvil, alternativo y cualquier propiedad de tipo teléfono), la edición en línea de las listas (misma caja, ids `cp-phone`/`cp-ext` conservados), los paneles de creación de contacto y empresa (campos teléfono y móvil, y las propiedades personalizadas de tipo teléfono).
+- **Visualización consistente**: `linkHtml('phone')` muestra siempre el número formateado con su prefijo y enlaza `tel:+prefijo+dígitos`; lo usan las listas (también el texto de exportación y la vista previa), la ficha (panel y cabecera con el botón de copiar), las tarjetas y la Bandeja de entrada.
+- Pruebas: `scripts/smoke-phone.mjs` (formato y href, ficha: selector de país con banderas, formato al escribir, error con 2 dígitos, cambio de país, extensión, guardado como `+1 (305) 555-0100, ext. 12`, modo sin formato y cabecera; panel de creación: `FormData` recibe `+52 55 1234 5678`; lista: celdas formateadas con `tel:` y editor en línea que guarda con prefijo).
+
 ## 2026-11-16 (sesión 5) · Desplegables de propietario con avatar
 
 **Corregido**

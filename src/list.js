@@ -3,6 +3,7 @@
 import { wireMenus, closeMenus, toast, linkHtml, wireLinkTooltips } from './shell.js';
 import { ownerHtml } from './owner.js';
 import { enhanceOwnerSelects, refreshOwnerSelects } from './owner-select.js';
+import { enhancePhoneInputs, displayPhone } from './phone.js';
 import { addRecord, deleteRecords, restoreAll, restoreRecords, trashedRecords, mergeRecords, softDeletes, getPrefs, setPrefs, getViewStore, setViewStore, matches, strip, toCsv, download, formatDate, formatMoney, formatShortDate, relativeTime, setField, TODAY, ALL, OWNERS, TASK_TYPES, ensureAll, ensureTrash, ensureAllActivities, isLazy, setPageRows } from './data.js';
 import { serverListEnabled, fetchPage, listClient } from './server-list.js';
 import { findDuplicateGroups, suggestedKeep, formatFixes } from './duplicates.js';
@@ -211,6 +212,7 @@ export function mountList(cfg) {
       if (p.kind === 'currency') return formatMoney(v, key === 'amount' ? r.deal_currency_code : undefined);
       if (p.kind === 'percent') return `${v} %`;
       if (p.kind === 'date' || p.kind === 'datetime') return formatDate(v);
+      if (p.kind === 'phone') return displayPhone(v);
       return String(v);
     };
     const sortValue = (r) => {
@@ -1880,24 +1882,7 @@ export function mountList(cfg) {
     if (key === 'description' || key === 'message') return { kind: 'textarea' };
     return { kind: 'text' };
   }
-  const COUNTRIES = [['+34', 'ES', '🇪🇸'], ['+1', 'US', '🇺🇸'], ['+52', 'MX', '🇲🇽'], ['+54', 'AR', '🇦🇷'], ['+57', 'CO', '🇨🇴'], ['+56', 'CL', '🇨🇱'], ['+51', 'PE', '🇵🇪'], ['+351', 'PT', '🇵🇹'], ['+44', 'GB', '🇬🇧'], ['+49', 'DE', '🇩🇪'], ['+33', 'FR', '🇫🇷']];
-  function parsePhone(v) {
-    const s = String(v || '');
-    const ext = (s.match(/ext\.?\s*(\d+)/i) || [])[1] || '';
-    const main = s.replace(/,?\s*ext\.?\s*\d+/i, '');
-    const dialMatch = main.match(/^\s*\+(\d{1,3})/);
-    let dial = dialMatch ? `+${dialMatch[1]}` : '';
-    if (dial && !COUNTRIES.some((c) => c[0] === dial)) {
-      const found = COUNTRIES.find((c) => dial.startsWith(c[0]));
-      dial = found ? found[0] : dial;
-    }
-    const digits = (dial ? main.slice(main.indexOf(dial) + dial.length) : main).replace(/\D/g, '');
-    return { dial: dial || '+34', digits, ext };
-  }
-  function formatPhone(dial, digits, ext) {
-    const groups = digits.length === 9 ? digits.replace(/(\d{3})(\d{3})(\d{3})/, '$1 $2 $3') : digits.length === 10 ? digits.replace(/(\d{3})(\d{3})(\d{4})/, '($1) $2-$3') : digits;
-    return `${dial} ${groups}${ext ? `, ext. ${ext}` : ''}`.trim();
-  }
+  // The phone editor (country, number formatted as typed, extension, raw mode) is the shared one in src/phone.js.
   let cell = null; // { id, key, td }
   const pop = $('cellpop');
   function placePopover(td) {
@@ -1928,21 +1913,7 @@ export function mountList(cfg) {
     const v = r[key] ?? '';
     let body = '';
     if (ek.kind === 'phone') {
-      const ph = parsePhone(v);
-      body = `
-        <div class="phonebox" id="phonebox">
-          <div class="phonebox__row">
-            <div class="menu phonebox__cc">
-              <button class="phonebox__ccbtn" type="button" aria-haspopup="true" id="cc-btn"><span id="cc-flag">${(COUNTRIES.find((x) => x[0] === ph.dial) || COUNTRIES[0])[2]}</span> <span class="caret"></span></button>
-              <div class="menu__panel" id="cc-menu">${COUNTRIES.map(([d, c2, f]) => `<button class="menu__item" type="button" data-cc="${d}">${f} ${c2} (${d})</button>`).join('')}</div>
-            </div>
-            <input class="phonebox__num" id="cp-phone" type="tel" value="${esc(ph.digits)}" placeholder="Número" aria-label="Número" />
-            <input class="phonebox__ext" id="cp-ext" type="text" value="${esc(ph.ext)}" placeholder="Extensión" aria-label="Extensión" />
-          </div>
-          <p class="phonebox__err" id="cp-err" hidden>Este número de teléfono no es válido o tiene un formato incorrecto.</p>
-        </div>
-        <input type="hidden" id="cp-dial" value="${esc(ph.dial)}" />
-        <button class="link-btn cellpop__raw" type="button" data-cp="raw" id="cp-raw">Eliminar formato de número <span class="info" title="Guarda el número tal cual lo escribes, sin prefijo ni formato.">ⓘ</span></button>`;
+      body = `<input class="cellpop__input" id="cp-value" type="tel" data-phone-prefix="cp" value="${esc(v)}" />`;
     } else if (ek.kind === 'select') {
       const userKind = key === 'owner' || (props[key] && props[key].kind === 'user');
       body = `<select class="cellpop__input" id="cp-value"${userKind ? ' data-owner-select' : ''}><option value="">--</option>${ek.options.map(([val, l]) => `<option value="${esc(val)}" ${String(val) === String(v) ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>`;
@@ -1961,6 +1932,7 @@ export function mountList(cfg) {
     }
     $('cellpop-body').innerHTML = body;
     enhanceOwnerSelects(pop);
+    enhancePhoneInputs(pop);
     $('cellpop-save').disabled = true;
     cell.initial = currentValue();
     placePopover(td);
@@ -1974,12 +1946,6 @@ export function mountList(cfg) {
   }
   function currentValue() {
     if (!cell) return '';
-    if (cell.kind === 'phone') {
-      const digits = ($('cp-phone').value || '').replace(/\D/g, '');
-      const ext = ($('cp-ext').value || '').trim();
-      if (cell.raw) return `${$('cp-phone').value.trim()}${ext ? `, ext. ${ext}` : ''}`;
-      return digits ? formatPhone($('cp-dial').value, digits, ext) : '';
-    }
     const el = $('cp-value');
     if (!el) return '';
     if (el.type === 'number') return el.value === '' ? '' : Number(el.value);
@@ -1990,11 +1956,7 @@ export function mountList(cfg) {
     if (!cell) return false;
     let ok = true;
     if (cell.kind === 'phone') {
-      const digits = ($('cp-phone').value || '').replace(/\D/g, '');
-      ok = cell.raw ? true : digits.length === 0 || (digits.length >= 7 && digits.length <= 15 && !/^0+$/.test(digits));
-      $('cp-err').hidden = ok;
-      $('cc-btn').classList.toggle('is-invalid', !ok);
-      $('cc-flag').textContent = ok ? (COUNTRIES.find((x) => x[0] === $('cp-dial').value) || COUNTRIES[0])[2] : '⚠';
+      ok = ($('cp-value').dataset.valid || '1') !== '0'; // the shared phone editor validates and shows its own error
     } else if (cell.kind === 'email') {
       const val = $('cp-value').value.trim();
       ok = val === '' || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val);
@@ -2032,23 +1994,10 @@ export function mountList(cfg) {
     toast(`"${label}" actualizado`);
   }
   pop.addEventListener('click', (e) => {
-    const cc = e.target.closest('[data-cc]');
-    if (cc) {
-      $('cp-dial').value = cc.dataset.cc;
-      closeMenus();
-      validate();
-      return;
-    }
     const b = e.target.closest('[data-cp]');
     if (!b) return;
     if (b.dataset.cp === 'close') closeCellEditor();
     else if (b.dataset.cp === 'save') saveCell();
-    else if (b.dataset.cp === 'raw') {
-      cell.raw = !cell.raw;
-      $('phonebox').classList.toggle('is-raw', cell.raw);
-      $('cp-raw').firstChild.textContent = cell.raw ? 'Aplicar formato de número ' : 'Eliminar formato de número ';
-      validate();
-    }
   });
   pop.addEventListener('input', validate);
   pop.addEventListener('change', validate);

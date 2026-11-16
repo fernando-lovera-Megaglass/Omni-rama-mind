@@ -3,6 +3,7 @@
 
 import { authEnabled, currentUser, signOut, onAuthChange, siteRoot, goTo, userLabel, userInitial } from './auth.js';
 import { notifications, unreadCount, markAllRead } from './notifications.js';
+import { displayPhone, phoneHref } from './phone.js';
 
 // The bell: real notifications (workflows, sequences…) with the unread count.
 const escN = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -353,9 +354,11 @@ export function linkHref(kind, value) {
   return /^[a-z][a-z0-9+.-]*:/i.test(v) ? v : `https://${v}`;
 }
 export function linkHtml(kind, value) {
-  const v = String(value ?? '').trim();
-  if (!v) return '<span class="muted">—</span>';
-  const href = linkHref(kind, v);
+  const raw = String(value ?? '').trim();
+  if (!raw) return '<span class="muted">—</span>';
+  // Phones read the same everywhere: international prefix + grouped digits (src/phone.js).
+  const v = kind === 'phone' ? displayPhone(raw) : raw;
+  const href = kind === 'phone' ? phoneHref(raw) : linkHref(kind, v);
   const external = kind !== 'phone';
   return `<a class="cell-link${external ? '' : ' cell-link--plain'}" href="${escText(href)}" ${external ? 'target="_blank" rel="noopener"' : ''} data-full="${escText(kind === 'phone' ? v : href)}"><span class="cell-link__text">${escText(v)}</span>${external ? '<span class="ico ico--ext" aria-hidden="true"></span>' : ''}</a>`;
 }

@@ -7476,6 +7476,69 @@ textarea.cellpop__input {
   display: none;
 }
 
+/* The shared phone editor (src/phone.js): the native input stays hidden behind the parts. */
+.phonebox {
+  position: relative;
+}
+
+.phonebox__native {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.phonebox__dial {
+  font-size: var(--fs-sm);
+  color: var(--c-text);
+}
+
+.phonebox__menu {
+  max-height: 280px;
+  overflow: auto;
+}
+
+.phonebox__raw {
+  margin-top: var(--sp-10);
+  font-weight: 600;
+}
+
+/* Compact variants: the record's inline editor and the create forms. */
+.props__form .phonebox,
+.field .phonebox {
+  padding: var(--sp-8);
+}
+
+.props__form .phonebox__ccbtn,
+.props__form .phonebox__num,
+.props__form .phonebox__ext {
+  height: 36px;
+  padding: 0 var(--sp-8);
+  font-size: var(--fs-sm);
+}
+
+.field .phonebox__ccbtn,
+.field .phonebox__num,
+.field .phonebox__ext {
+  height: 40px;
+  padding: 0 var(--sp-10);
+  font-size: var(--fs-sm);
+}
+
+.props__form .phonebox__ext,
+.field .phonebox__ext {
+  width: 110px;
+}
+
+.props__form .phonebox__raw,
+.field .phonebox__raw {
+  margin-top: var(--sp-8);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+}
+
 .phonebox.is-raw .phonebox__num {
   border-radius: var(--r-sm) 0 0 var(--r-sm);
 }

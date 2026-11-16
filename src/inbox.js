@@ -1,7 +1,7 @@
 // Bandeja de entrada: the original's conversations inbox in three columns — the list with its filters on the
 // left, the thread (chat bubbles + reply box) in the middle, the contact card and the actions on the right.
 import { boot } from './page.js';
-import { toast, setNavBadge } from './shell.js';
+import { toast, setNavBadge, linkHtml } from './shell.js';
 import { ownerHtml } from './owner.js';
 import { enhanceOwnerSelects } from './owner-select.js';
 import { allCompanies, allContacts, relativeTimeFine, formatDate, initials, colorFor } from './data.js';
@@ -146,7 +146,7 @@ function renderSide() {
         <dl class="props inbox__props">
           <div class="props__row"><dt>Correo</dt><dd>${contact.email ? `<a href="mailto:${esc(contact.email)}">${esc(contact.email)}</a>` : '<span class="muted">--</span>'}</dd></div>
           <div class="props__row"><dt>Empresa</dt><dd>${company ? `<a href="../companies/record/?id=${company.id}">${esc(company.name)}</a>` : contact.company ? esc(contact.company) : '<span class="muted">--</span>'}</dd></div>
-          <div class="props__row"><dt>Teléfono</dt><dd>${contact.phone ? `<a href="tel:${esc(String(contact.phone).replace(/\s+/g, ''))}">${esc(contact.phone)}</a>` : '<span class="muted">--</span>'}</dd></div>
+          <div class="props__row"><dt>Teléfono</dt><dd>${contact.phone ? linkHtml('phone', contact.phone) : '<span class="muted">--</span>'}</dd></div>
         </dl>
         <a class="link-btn" href="../contacts/record/?id=${contact.id}">Ver ficha del contacto ↗</a>` : '<p class="muted">Esta conversación no tiene contacto asociado.</p>'}
     </div>

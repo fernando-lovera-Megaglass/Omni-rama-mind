@@ -9,6 +9,7 @@ import { toast } from './shell.js';
 import { authEnabled, currentUser } from './auth.js';
 import { COUNTRIES, ownerForUser } from './create-contact.js';
 import { enhanceOwnerSelects, refreshOwnerSelects } from './owner-select.js';
+import { enhancePhoneInputs, refreshPhoneInputs } from './phone.js';
 
 export const INDUSTRIES = ['Construcción', 'Arquitectura', 'Reformas', 'Inmobiliaria', 'Decoración', 'Fabricación de vidrio'];
 export const FIELDS = [
@@ -93,6 +94,7 @@ export function mountCreateCompany({ root = document.getElementById('list-root')
     </aside>`;
   root.appendChild(el);
   enhanceOwnerSelects(el);
+  enhancePhoneInputs(el);
   const form = el.querySelector('#cco-form');
   const dups = el.querySelector('#cco-dups');
   const createBtn = el.querySelector('#cco-create');
@@ -137,6 +139,7 @@ export function mountCreateCompany({ root = document.getElementById('list-root')
     reset();
     Object.entries(prefill || {}).forEach(([k, v]) => { if (form.elements[k] && v !== undefined && v !== null) form.elements[k].value = v; });
     refreshOwnerSelects(form);
+    refreshPhoneInputs(form);
     update();
     state.open = true;
     el.classList.add('is-open');

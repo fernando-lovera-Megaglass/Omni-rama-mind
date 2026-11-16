@@ -1,5 +1,6 @@
 import { boot } from './page.js';
 import { mountList, tag, link, avatarName, ownerHtml } from './list.js';
+import { displayPhone } from './phone.js';
 import { allContacts, allCompanies, allDeals, STATUSES, LIFECYCLES, SOURCES, OWNERS, formatDate, formatShortDate, TODAY, lifecycleTag, contactCompanyLinks } from './data.js';
 import { mountCreateContact } from './create-contact.js';
 import { segments, addSegment } from './segments-data.js';
@@ -90,7 +91,7 @@ const list = mountList({
   columns: [
     { key: 'name', label: 'Nombre', render: (r) => avatarName(r.id, r.name, `./record/?id=${r.id}`) },
     { key: 'email', label: 'Correo' },
-    { key: 'phone', label: 'Número de teléfono' },
+    { key: 'phone', label: 'Número de teléfono', text: (r) => displayPhone(r.phone) },
     { key: 'owner', label: 'Propietario del contacto', render: (r) => ownerHtml(r.owner) },
     // The primary company and, when the contact belongs to more, "N registros" (click to see them all).
     {
