@@ -3,6 +3,7 @@
 import { boot } from './page.js';
 import { toast, setNavBadge } from './shell.js';
 import { ownerHtml } from './owner.js';
+import { enhanceOwnerSelects } from './owner-select.js';
 import { allCompanies, allContacts, relativeTimeFine, formatDate, initials, colorFor } from './data.js';
 import { ready, conversations, conversationById, messagesOf, sendMessage, createConversation, markRead, assignConversation, setConversationStatus, unreadCount, CHANNELS, STATUS_LABELS, ASSIGNEES, ME } from './conversations-data.js';
 import { ready as gmailReady, hasGmail, sendMail } from './gmail.js';
@@ -151,12 +152,13 @@ function renderSide() {
     </div>
     <div class="card inbox__card">
       <h3 class="card__title">Acciones</h3>
-      <label class="field"><span>Asignar a</span><select id="inbox-assign"><option value="">Sin asignar</option>${ASSIGNEES.map((o) => `<option value="${esc(o)}" ${c.assignedTo === o ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select></label>
+      <label class="field"><span>Asignar a</span><select id="inbox-assign" data-owner-select><option value="">Sin asignar</option>${ASSIGNEES.map((o) => `<option value="${esc(o)}" ${c.assignedTo === o ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select></label>
       <div class="inbox__actions">
         <button class="btn btn--ghost btn--sm" type="button" data-inbox="toggle-status">${c.status === 'closed' ? 'Reabrir' : 'Marcar como cerrado'}</button>
         <button class="btn btn--ghost btn--sm" type="button" data-inbox="snooze">${c.status === 'snoozed' ? 'Quitar posposición' : 'Posponer'}</button>
       </div>
     </div>`;
+  enhanceOwnerSelects(el);
 }
 function renderAll() { renderList(); renderThread(); renderSide(); refreshBadge(); }
 function select(id) {

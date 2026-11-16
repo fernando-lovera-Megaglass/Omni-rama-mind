@@ -7,6 +7,7 @@ import { formCustomProperties } from './properties.js';
 import { supabase } from './supabaseClient.js';
 import { toast } from './shell.js';
 import { authEnabled, currentUser } from './auth.js';
+import { enhanceOwnerSelects, refreshOwnerSelects } from './owner-select.js';
 
 export const BUYING_ROLES = ['Persona que toma la decisión', 'Influenciador', 'Usuario final', 'Otro'];
 export const COUNTRIES = ['España', 'México', 'Estados Unidos', 'Colombia', 'Portugal', 'Argentina', 'Chile', 'Perú'];
@@ -114,6 +115,7 @@ export function mountCreateContact({ root = document.getElementById('list-root')
       </footer>
     </aside>`;
   root.appendChild(el);
+  enhanceOwnerSelects(el);
   const form = el.querySelector('#cc-form');
   const dups = el.querySelector('#cc-dups');
   const createBtn = el.querySelector('#cc-create');
@@ -159,11 +161,13 @@ export function mountCreateContact({ root = document.getElementById('list-root')
   const setOwner = () => {
     const sel = form.elements.owner;
     sel.value = ownerForUser(null);
-    if (authEnabled()) currentUser().then((u) => { if (u && isOpen()) sel.value = ownerForUser(u); }).catch(() => {});
+    refreshOwnerSelects(form);
+    if (authEnabled()) currentUser().then((u) => { if (u && isOpen()) { sel.value = ownerForUser(u); refreshOwnerSelects(form); } }).catch(() => {});
   };
   function open(prefill) {
     reset();
     Object.entries(prefill || {}).forEach(([k, v]) => { if (form.elements[k] && v !== undefined && v !== null) form.elements[k].value = v; });
+    refreshOwnerSelects(form);
     update();
     state.open = true;
     el.classList.add('is-open');

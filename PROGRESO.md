@@ -1,5 +1,12 @@
 # Progreso — Omni CRM
 
+## 2026-11-16 (sesión 5) · Desplegables de propietario con avatar
+
+**Corregido**
+- **Componente `src/owner-select.js`**: `enhanceOwnerSelects(ámbito)` convierte cada `<select>` de propietario o propiedad de tipo usuario (`data-owner-select` o `name="owner"`) en un menú desplegable: el campo cerrado muestra avatar + nombre (el mismo de `ownerHtml`, «Sin asignar» con el avatar vacío), el panel ofrece un buscador que filtra las opciones al escribir y cada opción lleva su avatar; teclado (Enter elige la primera coincidencia, flechas y Escape). El `<select>` nativo sigue en el DOM, oculto, como fuente de verdad: elegir una opción fija su valor y dispara `input` y `change`, así que los formularios, `FormData`, `form.elements.owner`, la validación y las pruebas existentes siguen funcionando. `refreshOwnerSelects` redibuja el campo cuando el código cambia el valor (prefill, reset, usuario con sesión).
+- **Aplicado en**: el panel «Acerca de» de la ficha de contacto, empresa, negocio, ticket y tarea (editor en línea del propietario y de cualquier propiedad de tipo usuario; el foco se queda dentro del campo para que el guardado al salir no se dispare al elegir), los paneles de creación de contacto, empresa y negocio, el cajón genérico de creación (tickets, tareas), el diálogo «Asignar» de la edición masiva y la tarea masiva, el editor de celda en línea de las listas (la opción «--» se lee como «Sin asignar»), «Asignar a» de la Bandeja de entrada, «Inscribir como» de las secuencias y los destinatarios / propietario / asignado de las acciones del editor de workflows.
+- Pruebas: `scripts/smoke-owner-select.mjs` comprueba en cada sitio que el desplegable renderiza opciones con `.avatar` (iniciales con color, «Sin asignar» con el vacío), que el campo cerrado muestra el avatar, que escribir «lau» filtra a Laura M., que elegir cambia el `<select>` (evento `change`) y que los guardados reales se ejecutan (ficha, asignación masiva, editor de celda, bandeja).
+
 ## 2026-11-16 (sesión 5) · «Etiquetas de Negocio» reales (Ajustes › Objetos › Negocios › Pipelines)
 
 **Construido (solo código local; la migración `supabase/deal_tags.sql` queda escrita sin aplicar)**

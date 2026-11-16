@@ -9,6 +9,7 @@ import { addRecord, setField, addActivity, addLineItems, allContacts, allCompani
 import { toast } from './shell.js';
 import { authEnabled, currentUser } from './auth.js';
 import { ownerForUser } from './create-contact.js';
+import { enhanceOwnerSelects, refreshOwnerSelects } from './owner-select.js';
 
 // Prefix shown in the amount field (the original shows "MX$" for the Mexican peso).
 export const CURRENCY_PREFIX = { MXN: 'MX$', USD: 'US$', EUR: '€', COP: 'COL$', GBP: '£' };
@@ -83,6 +84,7 @@ export function mountCreateDeal({ root = document.getElementById('list-root') ||
       </footer>
     </aside>`;
   root.appendChild(el);
+  enhanceOwnerSelects(el);
   const form = el.querySelector('#cd-form');
   const createBtn = el.querySelector('#cd-create');
   const anotherBtn = el.querySelector('#cd-create-another');
@@ -105,7 +107,8 @@ export function mountCreateDeal({ root = document.getElementById('list-root') ||
   const setOwner = () => {
     const sel = form.elements.owner;
     sel.value = ownerForUser(null);
-    if (authEnabled()) currentUser().then((u) => { if (u && isOpen()) sel.value = ownerForUser(u); }).catch(() => {});
+    refreshOwnerSelects(form);
+    if (authEnabled()) currentUser().then((u) => { if (u && isOpen()) { sel.value = ownerForUser(u); refreshOwnerSelects(form); } }).catch(() => {});
   };
   // ---- associations ----
   const labelOptions = (kind) => (kind === 'contacts' ? labels.filter((l) => l !== 'Principal') : labels);

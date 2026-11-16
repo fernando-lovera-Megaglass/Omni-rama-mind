@@ -16897,6 +16897,140 @@ body.has-slideover {
   display: none;
 }
 
+/* ---------- Owner dropdown (avatar + name per option, searchable) over the native select ---------- */
+.osel {
+  position: relative;
+  width: 100%;
+}
+
+.osel__native {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.osel__btn {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  width: 100%;
+  height: 40px;
+  padding: 0 var(--sp-10);
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-sm);
+  background: var(--c-white);
+  color: var(--c-text);
+  font-family: inherit;
+  font-size: var(--fs-sm);
+  font-weight: 400;
+  text-align: left;
+  cursor: pointer;
+}
+
+.osel__btn .owner {
+  flex: 1;
+  min-width: 0;
+}
+
+.osel__btn .caret {
+  margin-left: auto;
+}
+
+.osel__btn:focus {
+  outline: 2px solid var(--c-link);
+  outline-offset: 1px;
+}
+
+.osel.is-open .osel__btn {
+  border-color: var(--c-link);
+}
+
+.props__form .osel__btn {
+  height: 36px;
+  padding: 0 var(--sp-8);
+  border-color: var(--c-link);
+}
+
+.osel--sm .osel__btn {
+  height: 44px;
+  font-size: 15px;
+}
+
+.osel__panel {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 80;
+  min-width: 240px;
+  background: var(--c-white);
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-sm);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.16);
+}
+
+.osel__panel[hidden] {
+  display: none;
+}
+
+.osel__search {
+  padding: var(--sp-8);
+  border-bottom: 1px solid var(--c-border);
+}
+
+.osel__search input {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  height: 34px;
+  padding: 0 var(--sp-10);
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-sm);
+  font-family: inherit;
+  font-size: var(--fs-sm);
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.osel__list {
+  max-height: 260px;
+  overflow: auto;
+  padding: var(--sp-4) 0;
+}
+
+.osel__opt {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: var(--sp-8) var(--sp-12);
+  border: 0;
+  background: transparent;
+  color: var(--c-text);
+  font-family: inherit;
+  font-size: var(--fs-sm);
+  text-align: left;
+  cursor: pointer;
+}
+
+.osel__opt:hover,
+.osel__opt:focus {
+  background: var(--c-row-hover);
+  outline: none;
+}
+
+.osel__opt.is-selected {
+  background: #e5f5f8;
+  font-weight: 600;
+}
+
+.osel__empty {
+  padding: var(--sp-10) var(--sp-12);
+  font-size: var(--fs-sm);
+}
+
 /* ---------- Etiquetas de Negocio: chips, settings list, side-panel wizard ---------- */
 .dtag {
   display: inline-flex;

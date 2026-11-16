@@ -2,6 +2,7 @@
 // column editor (full property catalog), advanced filters, CSV export/import, create drawer.
 import { wireMenus, closeMenus, toast, linkHtml, wireLinkTooltips } from './shell.js';
 import { ownerHtml } from './owner.js';
+import { enhanceOwnerSelects, refreshOwnerSelects } from './owner-select.js';
 import { addRecord, deleteRecords, restoreAll, restoreRecords, trashedRecords, mergeRecords, softDeletes, getPrefs, setPrefs, getViewStore, setViewStore, matches, strip, toCsv, download, formatDate, formatMoney, formatShortDate, relativeTime, setField, TODAY, ALL, OWNERS, TASK_TYPES, ensureAll, ensureTrash, ensureAllActivities, isLazy, setPageRows } from './data.js';
 import { serverListEnabled, fetchPage, listClient } from './server-list.js';
 import { findDuplicateGroups, suggestedKeep, formatFixes } from './duplicates.js';
@@ -1943,7 +1944,8 @@ export function mountList(cfg) {
         <input type="hidden" id="cp-dial" value="${esc(ph.dial)}" />
         <button class="link-btn cellpop__raw" type="button" data-cp="raw" id="cp-raw">Eliminar formato de número <span class="info" title="Guarda el número tal cual lo escribes, sin prefijo ni formato.">ⓘ</span></button>`;
     } else if (ek.kind === 'select') {
-      body = `<select class="cellpop__input" id="cp-value"><option value="">--</option>${ek.options.map(([val, l]) => `<option value="${esc(val)}" ${String(val) === String(v) ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>`;
+      const userKind = key === 'owner' || (props[key] && props[key].kind === 'user');
+      body = `<select class="cellpop__input" id="cp-value"${userKind ? ' data-owner-select' : ''}><option value="">--</option>${ek.options.map(([val, l]) => `<option value="${esc(val)}" ${String(val) === String(v) ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>`;
     } else if (ek.kind === 'textarea') {
       body = `<textarea class="cellpop__input" id="cp-value" rows="4">${esc(v)}</textarea>`;
     } else if (ek.kind === 'date') {
@@ -1958,11 +1960,12 @@ export function mountList(cfg) {
       body = `<input class="cellpop__input" id="cp-value" type="text" value="${esc(v)}" />`;
     }
     $('cellpop-body').innerHTML = body;
+    enhanceOwnerSelects(pop);
     $('cellpop-save').disabled = true;
     cell.initial = currentValue();
     placePopover(td);
     wireMenus(pop);
-    const first = pop.querySelector('#cp-phone, #cp-value');
+    const first = pop.querySelector('#cp-phone, .osel__btn, #cp-value');
     if (first) {
       first.focus();
       if (first.select) first.select();
@@ -2525,6 +2528,7 @@ export function mountList(cfg) {
     if (!Object.keys(pendingCreate).length) pendingCreate = null;
     const form = $('create-form');
     Object.entries(pendingCreate || {}).forEach(([k, v]) => { const field = form.elements[k]; if (field) field.value = v; });
+    refreshOwnerSelects(form);
     openDrawer('create-drawer');
   }
   // A page may bring its own create panel (contacts: the original's slide-over); the generic drawer otherwise.
@@ -2675,6 +2679,7 @@ export function mountList(cfg) {
     const m = bulkModal();
     m.querySelector('#bulk-modal-title').textContent = title;
     m.querySelector('#bulk-form').innerHTML = body;
+    enhanceOwnerSelects(m.querySelector('#bulk-form'));
     const ok = m.querySelector('#bulk-ok');
     ok.textContent = okLabel;
     ok.className = `btn ${danger ? 'btn--danger' : 'btn--primary'}`;
@@ -2682,7 +2687,7 @@ export function mountList(cfg) {
     bulkOnChange = onChange || null;
     m.classList.add('is-open');
     m.setAttribute('aria-hidden', 'false');
-    setTimeout(() => m.querySelector('#bulk-form input, #bulk-form select')?.focus(), 0);
+    setTimeout(() => [...m.querySelectorAll('#bulk-form input, #bulk-form select, #bulk-form .osel__btn')].find((x) => !x.closest('.osel') || x.classList.contains('osel__btn'))?.focus(), 0);
   }
 
   // ---------- create ----------
@@ -3068,6 +3073,8 @@ export function mountList(cfg) {
   wireMenus();
   wireLinkTooltips();
   render();
+  // The generic create drawer's owner field becomes the avatar dropdown (the native select stays for the form).
+  enhanceOwnerSelects($('create-form'));
   return { render, state, filtered, setMode };
 }
 

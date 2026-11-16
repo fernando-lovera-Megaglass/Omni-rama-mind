@@ -8,6 +8,7 @@ import { supabase } from './supabaseClient.js';
 import { toast } from './shell.js';
 import { authEnabled, currentUser } from './auth.js';
 import { COUNTRIES, ownerForUser } from './create-contact.js';
+import { enhanceOwnerSelects, refreshOwnerSelects } from './owner-select.js';
 
 export const INDUSTRIES = ['Construcción', 'Arquitectura', 'Reformas', 'Inmobiliaria', 'Decoración', 'Fabricación de vidrio'];
 export const FIELDS = [
@@ -91,6 +92,7 @@ export function mountCreateCompany({ root = document.getElementById('list-root')
       </footer>
     </aside>`;
   root.appendChild(el);
+  enhanceOwnerSelects(el);
   const form = el.querySelector('#cco-form');
   const dups = el.querySelector('#cco-dups');
   const createBtn = el.querySelector('#cco-create');
@@ -127,12 +129,14 @@ export function mountCreateCompany({ root = document.getElementById('list-root')
   const setOwner = () => {
     const sel = form.elements.owner;
     sel.value = ownerForUser(null);
-    if (authEnabled()) currentUser().then((u) => { if (u && isOpen()) sel.value = ownerForUser(u); }).catch(() => {});
+    refreshOwnerSelects(form);
+    if (authEnabled()) currentUser().then((u) => { if (u && isOpen()) { sel.value = ownerForUser(u); refreshOwnerSelects(form); } }).catch(() => {});
   };
   const reset = () => { form.reset(); hint(); update(); setOwner(); };
   function open(prefill) {
     reset();
     Object.entries(prefill || {}).forEach(([k, v]) => { if (form.elements[k] && v !== undefined && v !== null) form.elements[k].value = v; });
+    refreshOwnerSelects(form);
     update();
     state.open = true;
     el.classList.add('is-open');

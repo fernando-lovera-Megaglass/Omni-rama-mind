@@ -9,6 +9,7 @@ import { OWNERS, formatDate } from './data.js';
 import { renderTokens, contextFromRecord, plainText } from './tokens.js';
 import { activeAccounts } from './connected-emails.js';
 import { sendMail } from './gmail.js';
+import { enhanceOwnerSelects } from './owner-select.js';
 
 // The sequence's e-mails go out from the user's first connected account (Ajustes › General › Correo).
 const senderEmail = () => (activeAccounts()[0] || {}).email || '';
@@ -41,7 +42,7 @@ export async function openEnrollDialog({ contact, onEnrolled, sequenceId = '' } 
   m.innerHTML = `<div class="bmodal__scrim" data-bm="close"></div><div class="bmodal__panel bmodal__panel--wide" role="dialog" aria-modal="true" aria-labelledby="enr-title"><div class="bmodal__head"><h3 id="enr-title">Inscribir a ${esc(who)} en una secuencia</h3><button class="bmodal__close" type="button" data-bm="close" aria-label="Cerrar">×</button></div><div class="bmodal__body enr">
     <div class="enr__row">
       <label class="field"><span>Secuencia</span><select id="enr-seq"><option value="">Seleccionar una secuencia</option>${list.map((s) => `<option value="${esc(s.id)}" ${s.id === dlg.sequenceId ? 'selected' : ''}>${esc(s.name)} (${s.steps.length} pasos)${activeEnrollment(contact.id, s.id) ? ' · ya inscrito' : ''}</option>`).join('')}</select></label>
-      <label class="field"><span>Inscribir como</span><select id="enr-by">${OWNERS.filter((o) => o !== 'Sin asignar').map((o) => `<option value="${esc(o)}" ${o === ME ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select></label>
+      <label class="field"><span>Inscribir como</span><select id="enr-by" data-owner-select>${OWNERS.filter((o) => o !== 'Sin asignar').map((o) => `<option value="${esc(o)}" ${o === ME ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select></label>
     </div>
     <div class="enr__row enr__row--start">
       <label class="field"><span>Fecha de inicio</span><input type="date" id="enr-date" value="${dlg.date}" /></label>
@@ -52,6 +53,7 @@ export async function openEnrollDialog({ contact, onEnrolled, sequenceId = '' } 
     <div id="enr-ph"></div>
     <div id="enr-preview" class="enr__preview"><p class="muted enr__hint">Elige una secuencia para ver sus pasos con los datos de ${esc(contact.first || contact.name || 'este contacto')}.</p></div>
   </div><div class="bmodal__foot"><button class="btn btn--primary" type="button" id="enr-confirm" data-enr="confirm" disabled>Inscribir</button><button class="btn btn--secondary" type="button" data-bm="close">Cancelar</button></div></div>`;
+  enhanceOwnerSelects(m);
   m.classList.add('is-open');
   m.setAttribute('aria-hidden', 'false');
   if (dlg.sequenceId) renderPreview();

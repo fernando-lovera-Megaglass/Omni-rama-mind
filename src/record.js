@@ -22,6 +22,7 @@ import { attachSnippetAutocomplete } from './snippet-autocomplete.js';
 import { openEnrollDialog } from './sequence-enroll.js';
 import { workflows, enrollRecord as enrollWorkflow } from './workflows-data.js';
 import { ownerHtml } from './owner.js';
+import { enhanceOwnerSelects } from './owner-select.js';
 import { loadLayout, cardCatalog } from './layout-defaults.js';
 import { mountQueueBar, dueText, dueClass, completeTask } from './task-queue.js';
 
@@ -445,7 +446,8 @@ function displayValue(f, r) {
 function editor(f, r) {
   const [key, , kind, options] = f;
   const v = r[key] ?? '';
-  if (kind === 'select') return `<select data-edit="${key}">${options.map((o) => `<option value="${esc(o[0])}" ${String(o[0]) === String(v) ? 'selected' : ''}>${esc(o[1])}</option>`).join('')}</select>`;
+  // Owner / user properties get the avatar dropdown (src/owner-select.js) on top of the native select.
+  if (kind === 'select') return `<select data-edit="${key}"${key === 'owner' || (props[key] && props[key].kind === 'user') ? ' data-owner-select' : ''}>${options.map((o) => `<option value="${esc(o[0])}" ${String(o[0]) === String(v) ? 'selected' : ''}>${esc(o[1])}</option>`).join('')}</select>`;
   if (kind === 'textarea') return `<textarea data-edit="${key}" rows="3">${esc(v)}</textarea>`;
   if (kind === 'date') return `<input data-edit="${key}" type="date" value="${dateInput(v)}" />`;
   return `<input data-edit="${key}" type="${kind || 'text'}" value="${esc(v)}" />`;
@@ -1880,8 +1882,9 @@ if (!rec) {
       const row = mount.querySelector(`${inPanel ? '#allprops-panel' : '#rec-props'} .props__row[data-key="${key}"]`) || btn.closest('.props__row');
       if (!row) return;
       row.querySelector('dd').innerHTML = `<form class="props__form" data-key="${esc(key)}" data-original="${esc(JSON.stringify(rec[key] ?? ''))}">${editor(f, rec)}<span class="props__btns"><button class="btn btn--primary btn--sm" type="submit">Guardar</button><button class="btn btn--ghost btn--sm" type="button" data-cancel>Cancelar</button></span></form>`;
+      enhanceOwnerSelects(row);
       const input = row.querySelector('[data-edit]');
-      input.focus();
+      (row.querySelector('.osel__btn') || input).focus();
       if (input.select && input.type === 'text') input.select();
       return;
     }
