@@ -9,6 +9,8 @@ import { TEAMS, loadLayout, cardCatalog } from './layout-defaults.js';
 import { STD_VIEWS, defaultTabs } from './std-views.js';
 import { getViewStore } from './data.js';
 import { getSignature, setSignature, emailTemplates } from './compose.js';
+import { paneHtml as connectedEmailsPane, mountConnectedEmails } from './connected-emails-ui.js';
+import { ready as emailsReady } from './connected-emails.js';
 
 boot({ root: '../', active: 'none', sub: '', title: 'Configuración' });
 document.body.classList.add('app--settings-page');
@@ -147,14 +149,15 @@ function tabPerfil() {
       <div class="sform__btns gsave"><button class="btn btn--primary" type="submit">Guardar</button><button class="btn btn--ghost" type="reset">Cancelar</button></div>
     </form>`;
 }
+// Connected e-mail accounts, aliases, signatures and the connection wizard live in src/connected-emails-ui.js.
 function tabCorreo() {
-  return `<h3 class="gh">Correo</h3><p class="muted">Cómo se registran y envían tus correos uno a uno.</p>${togglePane('general-correo', '', '', [
+  return `${connectedEmailsPane()}<h3 class="gh">Registro y seguimiento</h3>${togglePane('general-correo', '', '', [
     ['log', 'Registrar correos en el CRM', 'Los correos que envías desde tu bandeja se guardan en la ficha del contacto.', true],
     ['track', 'Seguimiento de aperturas y clics', 'Recibe una notificación cuando abren tus correos.', true],
     ['bcc', 'BCC automático', 'Añade la dirección de registro a los correos enviados desde otras aplicaciones.', false],
-    ['signature_default', 'Incluir mi firma por defecto', 'La firma se añade a cada correo nuevo.', true],
-  ], `<h3>Bandeja de entrada conectada</h3>${cardGrid([['Gmail', 'fernando-lovera@megaglass.us · conectada', toastBtn('Desconectar', 'Bandeja desconectada (demostración).')]])}<p><a class="link-btn" href="#sl-templates">Editar mi firma y plantillas</a></p>`)}`;
+  ])}`;
 }
+emailsReady.then(() => { if (state.section === 'prefs-general' && state.generalTab === 'correo') render(); });
 function tabLlamadas() {
   const s = setting('general-llamadas', { provider: 'Llamadas integradas', number: '+52 712 690 1001', record: true, voicemail: false });
   return `<h3 class="gh">Llamadas</h3><p class="muted">Desde qué número llamas y cómo se registran las llamadas.</p>
@@ -1314,6 +1317,8 @@ function render() {
     ${state.logicEdit && (state.logicEdit.lifecycle || state.pipeEdit !== null) ? logicHtml() : ''}
     <div class="drawer drawer--modal" id="s-modal" aria-hidden="true"><div class="drawer__panel drawer__panel--dialog" role="dialog" aria-labelledby="s-modal-title"><div class="drawer__head drawer__head--light"><h2 id="s-modal-title">—</h2><button class="drawer__close" type="button" data-close aria-label="Cerrar">×</button></div><div class="drawer__body" id="s-modal-body"></div><div class="drawer__foot" id="s-modal-foot"></div></div></div>`;
   wireMenus(root);
+  const cem = document.getElementById('cem');
+  if (cem) mountConnectedEmails(cem);
   if (state.section === 'data-properties') {
     const q = document.getElementById('props-q');
     if (q && state.propsQuery) { q.focus(); q.setSelectionRange(q.value.length, q.value.length); }

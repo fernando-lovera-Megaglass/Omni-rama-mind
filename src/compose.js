@@ -9,14 +9,21 @@ import { snippets as savedSnippets } from './snippets-data.js';
 import { attachSnippetAutocomplete } from './snippet-autocomplete.js';
 import { ready as sequencesReady, sequences as savedSequences, activeEnrollment } from './sequences-data.js';
 import { openEnrollDialog } from './sequence-enroll.js';
+import { ready as emailsReady, activeAccounts, signatureById, PROVIDERS } from './connected-emails.js';
+import { openConnectWizard } from './connected-emails-ui.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
 const SIG_KEY = 'crm:signature';
-const SENDERS = [
-  ['Fernando Lovera Colin', 'fernando-lovera@megaglass.us'],
-  ['Ventas Megaglass', 'ventas@megaglass.us'],
-  ['Soporte Megaglass', 'soporte@megaglass.us'],
-];
+// "De": the user's connected and active e-mail accounts (Ajustes › General › Correo); none → nothing can be sent.
+const senders = () => activeAccounts().map((a) => [loadSig().name, a.email, a]);
+const senderIndex = () => Math.min(ctx && ctx.senderIdx ? ctx.senderIdx : 0, Math.max(0, senders().length - 1));
+const currentSender = () => senders()[senderIndex()] || [loadSig().name, '', null];
+// The account's own signature when it has one, the sender card otherwise.
+function signatureFor(account, sig) {
+  const custom = account && account.signatureId && account.signatureId !== 'default' ? signatureById(account.signatureId) : null;
+  return custom ? `<div class="sig sig--custom">${custom.html}</div>` : signatureHtml(sig);
+}
+const reopenAfterConnect = () => { if (el && !el.hidden && ctx) { syncFields(); render(); } };
 const DEFAULT_SIG = {
   name: 'Fernando Lovera Colin',
   title: 'President',
@@ -110,14 +117,14 @@ function tokenContact() {
 // the "De" sender stands in as the owner when the contact has none.
 function composeContext() {
   const c = tokenContact();
-  const sender = SENDERS[ctx.senderIdx || 0];
+  const sender = currentSender();
   const extra = !c.owner || c.owner === 'Sin asignar' ? { owner: { first: sender[0].split(' ')[0], last: sender[0].split(' ').slice(1).join(' '), name: sender[0], email: sender[1], phone: '', jobTitle: '' } } : {};
   return contextFromRecord('contacts', c, extra);
 }
 
 function render() {
   const sig = loadSig();
-  const sender = SENDERS[ctx.senderIdx || 0];
+  const sender = currentSender();
   const follow = FOLLOW_OPTS.find((o) => o[0] === ctx.followDays) || FOLLOW_OPTS[1];
   const followDate = businessDaysFrom(follow[0]);
   el.className = `compose${collapsed ? ' is-collapsed' : ''}${expanded ? ' is-expanded' : ''}`;
@@ -149,10 +156,10 @@ function render() {
       </div>
       <div class="compose__row">
         <span class="compose__lbl">De</span>
-        <div class="menu compose__from">
+        ${senders().length ? `<div class="menu compose__from">
           <button class="compose__frombtn" type="button" aria-haspopup="true">${esc(sender[0])} (${esc(sender[1])} <span class="caret"></span>)</button>
-          <div class="menu__panel">${SENDERS.map((s, i) => `<button class="menu__item${i === (ctx.senderIdx || 0) ? ' is-current' : ''}" type="button" data-sender="${i}">${esc(s[0])} (${esc(s[1])})</button>`).join('')}</div>
-        </div>
+          <div class="menu__panel">${senders().map((s, i) => `<button class="menu__item${i === senderIndex() ? ' is-current' : ''}" type="button" data-sender="${i}">${esc(s[0])} (${esc(s[1])}) <span class="muted">· ${esc((PROVIDERS[s[2].provider] || PROVIDERS.imap).inbox)}</span></button>`).join('')}<div class="menu__sep"></div><button class="menu__item" type="button" data-cm="connect-email">Conectar otra cuenta de correo</button></div>
+        </div>` : '<span class="compose__nofrom">Sin cuenta de correo conectada · <button class="link-btn" type="button" data-cm="connect-email">Conectar cuenta de correo</button></span>'}
         <span class="compose__ccbtns">
           <button class="link-btn${ctx.showCc ? ' is-on' : ''}" type="button" data-cm="cc">CC</button>
           <button class="link-btn${ctx.showBcc ? ' is-on' : ''}" type="button" data-cm="bcc">Cco</button>
@@ -172,7 +179,7 @@ function render() {
           <button class="menu__item" type="button" data-ai="intro">✦ Presentar Megaglass</button>
           <button class="menu__item" type="button" data-ai="thanks">✦ Agradecer la reunión</button>
         </div>
-        ${signatureHtml(sig)}
+        ${signatureFor(sender[2], sig)}
         ${ctx.attachments.length ? `<div class="compose__files">${ctx.attachments.map((f, i) => `<span class="chip-to">📎 ${esc(f)} <button type="button" data-rmfile="${i}" aria-label="Quitar">×</button></span>`).join('')}</div>` : ''}
       </div>
 
@@ -216,7 +223,7 @@ function render() {
 
       <footer class="compose__foot">
         <span class="splitbtn">
-          <button class="pill pill--send" type="button" data-cm="send">Enviar</button>
+          <button class="pill pill--send" type="button" data-cm="send"${senders().length ? '' : ' title="Conecta tu correo para enviar"'}>Enviar</button>${senders().length ? '' : '<span class="compose__warn" role="status">Conecta tu correo para enviar</span>'}
           <div class="menu"><button class="pill pill--send pill--send-caret" type="button" aria-haspopup="true" aria-label="Más opciones de envío"><span class="caret"></span></button><div class="menu__panel menu__panel--up">
             <button class="menu__item" type="button" data-cm="send-later">Enviar más tarde</button>
             <button class="menu__item" type="button" data-cm="save-draft">Guardar borrador</button>
@@ -269,6 +276,8 @@ function aiText(kind) {
 }
 
 function send(whenLabel) {
+  // Nothing goes out without a connected account: the wizard opens and the draft stays.
+  if (!senders().length) { toast('Conecta tu correo para enviar'); openConnectWizard({ onConnected: reopenAfterConnect }); return; }
   // Personalisation tokens (chips or {{…}} markers) become the contact's real data when the e-mail goes out.
   syncFields();
   const tokenCtx = composeContext();
@@ -280,8 +289,8 @@ function send(whenLabel) {
     toast('Añade al menos un destinatario');
     return;
   }
-  const sender = SENDERS[ctx.senderIdx || 0];
-  ctx.onSent?.({ type: 'email', when: Date.now(), who: sender[0], text: `${whenLabel ? `Correo programado (${whenLabel})` : 'Correo enviado'} a ${recipients}: "${subject}".` });
+  const sender = currentSender();
+  ctx.onSent?.({ type: 'email', when: Date.now(), who: sender[0], text: `${whenLabel ? `Correo programado (${whenLabel})` : 'Correo enviado'} a ${recipients}: "${subject}" · enviado desde ${sender[1]}.`, extra: { from: sender[1], subject } });
   if (el.querySelector('#cmp-follow')?.checked) {
     const days = ctx.followDays || 2;
     const due = businessDaysFrom(days);
@@ -333,6 +342,7 @@ function wire() {
       else if (a === 'video') insertHtml('<p>▶ <a href="#">Vídeo: presentación Megaglass</a></p>');
       else if (a === 'ins-token') openTokenPicker({ anchor: t.closest('.menu'), onPick: ({ token, defaultValue }) => insertHtml(`${chipHtml(token, defaultValue)} `) });
       else if (a === 'ins-snippet') openTokenPicker({ anchor: t.closest('.menu'), mode: 'snippet', snippets: savedSnippets(), onPick: ({ snippet }) => insertHtml(renderTokens(snippet.body, composeContext())) });
+      else if (a === 'connect-email') { closeMenus(); openConnectWizard({ onConnected: reopenAfterConnect }); }
       return;
     }
     const tpl = t.closest('[data-tpl]');
@@ -341,7 +351,7 @@ function wire() {
       closeMenus();
       if (!tp) { toast('Esa plantilla ya no existe.'); return; }
       syncFields();
-      const sender = SENDERS[ctx.senderIdx || 0];
+      const sender = currentSender();
       const who = { name: sender[0], email: sender[1] };
       const contact = tokenContact();
       ctx.subject = resolveTokens(tp.subject, contact, who);
@@ -490,6 +500,7 @@ export function openCompose(options) {
   render();
   templatesReady.then(() => { const p = el && el.querySelector('#cmp-tpl-panel'); if (p) p.innerHTML = tplPanelHtml(); });
   sequencesReady.then(() => { const p = el && el.querySelector('#cmp-seq-panel'); if (p && ctx) { p.innerHTML = seqPanelHtml(); wireSeqSearch(); } });
+  emailsReady.then(() => { if (el && !el.hidden && ctx && !el.querySelector('.compose__from') && senders().length) reopenAfterConnect(); });
   const subj = el.querySelector('#cmp-subject');
   if (subj) subj.focus();
 }

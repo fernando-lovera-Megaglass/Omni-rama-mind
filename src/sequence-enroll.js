@@ -7,6 +7,10 @@ import { toast } from './shell.js';
 import { ready, sequences, sequenceById, STEP_TYPES, stepDay, isAuto, isEmail, placeholdersOf, fillPlaceholders, enroll, unenroll, activeEnrollment, ME } from './sequences-data.js';
 import { OWNERS, formatDate } from './data.js';
 import { renderTokens, contextFromRecord, plainText } from './tokens.js';
+import { activeAccounts } from './connected-emails.js';
+
+// The sequence's e-mails go out from the user's first connected account (Ajustes › General › Correo).
+const senderEmail = () => (activeAccounts()[0] || {}).email || '';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const $ = (id) => document.getElementById(id);
@@ -76,6 +80,7 @@ function renderPreview() {
   const ctx = contextFromRecord('contacts', dlg.contact, { owner: dlg.by });
   const resolve = (text) => renderTokens(fillPlaceholders(text, dlg.placeholders), ctx);
   box.innerHTML = `<h4 class="enr__h">${esc(seq.name)} <span class="muted">· ${seq.steps.length} pasos · ${stepDay(seq.steps, seq.steps.length - 1)} días</span></h4>
+    <p class="muted enr__from" id="enr-from">${senderEmail() ? `Los correos se enviarán desde <strong>${esc(senderEmail())}</strong>.` : 'No hay ninguna cuenta de correo conectada: conéctala en Ajustes › General › Correo para que se envíen los correos.'}</p>
     <ol class="enr__steps">${seq.steps.map((st, i) => { const t = STEP_TYPES[st.type]; return `<li class="enr__step"><div class="enr__stephead"><span class="seqstep__ico" aria-hidden="true">${t.icon}</span><strong>${i + 1}. ${esc(t.label)}</strong><span class="muted">Día ${stepDay(seq.steps, i)}</span>${isAuto(st) ? '<span class="tag tag--open">Automático</span>' : '<span class="seqstep__pause seqstep__pause--sm">Pausa la secuencia</span>'}</div>${isEmail(st) ? `<div class="enr__mail"><div><span class="muted">Asunto:</span> ${esc(resolve(st.subject) || '(sin asunto)')}</div><div class="enr__body">${resolve(st.body)}</div></div>` : `<div class="enr__task">${esc(resolve(st.title) || t.label)}${st.body ? `<div class="muted">${esc(plainText(resolve(st.body)))}</div>` : ''}</div>`}</li>`; }).join('')}</ol>`;
   syncConfirm();
 }
@@ -105,7 +110,7 @@ function onClick(e) {
   const active = activeEnrollment(dlg.contact.id, dlg.sequenceId);
   if (active && !dlg.reenroll) { syncConfirm(); return; }
   if (active) unenroll(active.id);
-  const result = enroll({ sequenceId: dlg.sequenceId, contact: dlg.contact, placeholders: dlg.placeholders, enrolledBy: dlg.by, now: startDate() });
+  const result = enroll({ sequenceId: dlg.sequenceId, contact: dlg.contact, placeholders: dlg.placeholders, enrolledBy: dlg.by, now: startDate(), from: senderEmail() });
   if (!result) { toast('No se pudo inscribir al contacto.'); return; }
   const cb = dlg.onEnrolled;
   close();

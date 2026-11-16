@@ -300,7 +300,7 @@ export function sequencesCsv(list = sequences()) {
 }
 
 // Enrols a contact: the enrolment row, the first step scheduled (a task when it is manual) and the timeline entry.
-export function enroll({ sequenceId, contact, placeholders = {}, enrolledBy = ME, now = new Date() } = {}) {
+export function enroll({ sequenceId, contact, placeholders = {}, enrolledBy = ME, now = new Date(), from = '' } = {}) {
   const seq = rows.find((x) => x.id === sequenceId && !x.deletedAt);
   if (!seq || !contact || !seq.steps.length) return null;
   const first = seq.steps[0];
@@ -319,7 +319,7 @@ export function enroll({ sequenceId, contact, placeholders = {}, enrolledBy = ME
   const timeStr = `${String(when.getHours()).padStart(2, '0')}:${String(when.getMinutes()).padStart(2, '0')}`;
   const subject = fillPlaceholders(first.subject, placeholders).replace(/{{[^}]+}}/g, '…');
   const detail = isAuto(first) ? (future ? `Paso 1: correo automatizado «${subject}» programado para el ${formatDate(when)} a las ${timeStr}.` : `Paso 1: correo automatizado «${subject}» enviado hoy a las ${timeStr}.`) : `Paso 1: ${label.toLowerCase()} creada para el ${formatDate(when)}.`;
-  addActivity({ type: 'system', when: Math.min(when.getTime(), Date.now()), who: enrolledBy, text: `Inscrito en la secuencia «${seq.name}» por ${enrolledBy}. ${detail}`, recordType: 'contacts', recordId: contact.id, extra: { sequenceId, enrollmentId: e.id, subject: `Secuencia: ${seq.name}` } });
+  addActivity({ type: 'system', when: Math.min(when.getTime(), Date.now()), who: enrolledBy, text: `Inscrito en la secuencia «${seq.name}» por ${enrolledBy}. ${detail}${from ? ` Correos enviados desde ${from}.` : ''}`, recordType: 'contacts', recordId: contact.id, extra: { sequenceId, enrollmentId: e.id, subject: `Secuencia: ${seq.name}`, from } });
   return { enrollment: out(e), sequence: out(seq), firstStep: clone(first), task, scheduled: future };
 }
 // The contact's enrolment still running in that sequence (active or paused), if any.
