@@ -3,6 +3,7 @@
 // "Personalizar" tokens, and the "#atajo" shortcut (one word, unique) that inserts it in any text editor.
 import { boot } from './page.js';
 import { toast, wireMenus, closeMenus } from './shell.js';
+import { ownerHtml } from './owner.js';
 import { relativeTimeFine, formatDate } from './data.js';
 import { ready, snippets, snippetById, folders, owners, createSnippet, updateSnippet, cloneSnippet, deleteSnippets, moveSnippets, createFolder, validateShortcut, bodyText, ME } from './snippets-data.js';
 import { openTokenPicker, chipHtml, markersToChips, chipsToMarkers, insertAtCaret, trackCaret } from './tokens.js';
@@ -92,7 +93,7 @@ function renderTable() {
               <div class="menu__sep"></div>
               <button class="menu__item menu__item--danger" type="button" data-act="delete" data-id="${esc(s.id)}">Eliminar</button>
             </div></div></div></td>
-          <td>${esc(s.ownerId || '--')}</td>
+          <td>${ownerHtml(s.ownerId)}</td>
           <td title="${esc(fullDate(s.createdAt))}">${esc(relativeTimeFine(s.createdAt))}</td>
           <td title="${esc(fullDate(s.updatedAt))}">${esc(relativeTimeFine(s.updatedAt))}</td>
         </tr>`).join('') : `<tr><td colspan="5"><div class="tpls__empty">${all.length ? 'Ningún fragmento coincide con los filtros.' : 'Todavía no hay fragmentos. Crea el primero con «Crear fragmento».'}</div></td></tr>`}</tbody>

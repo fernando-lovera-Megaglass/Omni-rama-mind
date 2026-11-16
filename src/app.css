@@ -476,6 +476,26 @@ h1 {
   color: var(--c-muted);
 }
 
+.owner__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Inside a filter chip or a board card line the owner sits inline with the text, a bit tighter. */
+.qchip .owner,
+.kcard__lines .owner,
+.tpe__owner .owner,
+.inbox__threadsub .owner {
+  gap: var(--sp-4);
+  vertical-align: middle;
+}
+
+.inbox__threadsub .owner {
+  color: var(--c-text);
+}
+
 /* ---------- Content ---------- */
 .content {
   flex: 1;
@@ -17077,12 +17097,6 @@ body.has-slideover {
 
 .ibs__dot--available {
   background: #1f9a63;
-}
-
-.ibs__table .name {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--sp-8);
 }
 
 .ibs__autospam {

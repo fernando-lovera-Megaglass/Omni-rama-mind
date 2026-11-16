@@ -3,6 +3,7 @@
 // "Revisar y enviar" flow. Sending is simulated by marketing-data.js.
 import { boot } from './page.js';
 import { toast, wireMenus, closeMenus } from './shell.js';
+import { ownerHtml } from './owner.js';
 import { formatDate, relativeTimeFine, download } from './data.js';
 import { ready, emails, emailById, countsByEstado, folders, createEmail, updateEmail, cloneEmail, archiveEmail, deleteEmail, recipientOptions, recipientsOf, destinatariosFromValue, destinatariosValue, checklist, sendEmail, sendTest, analytics, ESTADOS, TIPOS, ME } from './marketing-data.js';
 import { MODULE_DEFS, MODULE_GROUPS, SECTIONS, TEMPLATES, TEMPLATE_CATEGORIES, newModule, cloneModules, renderEmailHtml, moduleHtml, BRAND } from './marketing-templates.js';
@@ -78,7 +79,7 @@ function renderManage() {
         <td>${e.enviados ? pct(e.tasaApertura) : '<span class="muted">--</span>'}</td>
         <td>${e.enviados ? pct(e.tasaClics) : '<span class="muted">--</span>'}</td>
         <td title="${esc(formatDate(e.updatedAt))}">${esc(relativeTimeFine(e.updatedAt))}</td>
-        <td>${esc(e.updatedBy || e.createdBy || '--')}</td>
+        <td>${ownerHtml(e.updatedBy || e.createdBy)}</td>
         <td>${e.fechaPublicacion ? `${esc(formatDate(e.fechaPublicacion))}${e.estado === 'programado' ? ' <span class="muted">(programado)</span>' : ''}` : '<span class="muted">--</span>'}</td>
         <td class="mk-rowactions"><button class="btn btn--ghost btn--sm" type="button" data-mk="edit">Editar</button><button class="btn btn--ghost btn--sm" type="button" data-mk="clone">Clonar</button>
           <div class="menu"><button class="btn btn--ghost btn--sm" type="button" aria-haspopup="true" aria-expanded="false">Acciones <span class="caret"></span></button><div class="menu__panel menu__panel--right"><button class="menu__item" type="button" data-mk="archive">${e.estado === 'archivado' ? 'Desarchivar' : 'Archivar'}</button><button class="menu__item" type="button" data-mk="export">Exportar</button><button class="menu__item menu__item--danger" type="button" data-mk="delete">Eliminar</button></div></div></td>

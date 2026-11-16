@@ -21,7 +21,7 @@ import { renderTokens, contextFromRecord } from './tokens.js';
 import { attachSnippetAutocomplete } from './snippet-autocomplete.js';
 import { openEnrollDialog } from './sequence-enroll.js';
 import { workflows, enrollRecord as enrollWorkflow } from './workflows-data.js';
-import { ownerHtml } from './list.js';
+import { ownerHtml } from './owner.js';
 import { loadLayout, cardCatalog } from './layout-defaults.js';
 import { mountQueueBar, dueText, dueClass, completeTask } from './task-queue.js';
 
@@ -1536,8 +1536,8 @@ function runAction(act) {
       openModal(
         'Acceso a los registros',
         `<table class="mini-table"><thead><tr><th>Usuario</th><th>Equipo</th><th>Acceso</th></tr></thead><tbody>
-          <tr><td>Fernando L.</td><td>Ventas Norte</td><td>Propietario · Editar</td></tr>
-          <tr><td>Sofía R.</td><td>Ventas Sur</td><td>Ver y editar</td></tr>
+          <tr><td>${ownerHtml('Fernando L.')}</td><td>Ventas Norte</td><td>Propietario · Editar</td></tr>
+          <tr><td>${ownerHtml('Sofía R.')}</td><td>Ventas Sur</td><td>Ver y editar</td></tr>
           <tr><td>Administradores</td><td>—</td><td>Control total</td></tr>
         </tbody></table><p class="muted">El acceso depende de los permisos de cada usuario y de la propiedad del registro.</p>`,
       );

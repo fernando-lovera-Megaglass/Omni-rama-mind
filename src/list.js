@@ -1,6 +1,7 @@
 // Generic object list: views, filter menus, search, sort, paging, selection,
 // column editor (full property catalog), advanced filters, CSV export/import, create drawer.
 import { wireMenus, closeMenus, toast, linkHtml, wireLinkTooltips } from './shell.js';
+import { ownerHtml } from './owner.js';
 import { addRecord, deleteRecords, restoreAll, restoreRecords, trashedRecords, mergeRecords, softDeletes, getPrefs, setPrefs, getViewStore, setViewStore, matches, strip, toCsv, download, formatDate, formatMoney, formatShortDate, relativeTime, setField, TODAY, ALL, OWNERS, TASK_TYPES, ensureAll, ensureTrash, ensureAllActivities, isLazy, setPageRows } from './data.js';
 import { serverListEnabled, fetchPage, listClient } from './server-list.js';
 import { findDuplicateGroups, suggestedKeep, formatFixes } from './duplicates.js';
@@ -1080,7 +1081,7 @@ export function mountList(cfg) {
             (v) => `
         <tr>
           <td><a href="#" data-open-view="${v.id}"><strong>${esc(v.name)}</strong></a>${v.id === state.viewId ? ' <span class="tag tag--new">Actual</span>' : ''}</td>
-          <td>${esc(v.owner)}</td>
+          <td>${v.standard ? esc(v.owner) : ownerHtml(v.owner)}</td>
           <td>${v.standard ? 'Todos' : SHARE_LABEL[v.share] || 'Privada'}</td>
           <td>${v.updated ? formatDate(new Date(v.updated)) : '—'}</td>
           <td class="allviews__actions">
@@ -1293,7 +1294,10 @@ export function mountList(cfg) {
       const key = chip.dataset.filter;
       const f = cfg.filters.find((x) => x.key === key);
       const v = state.filters[key];
-      const label = v ? `${chip.dataset.label}: ${(f.options.find((o) => o[0] === v) || [v, v])[1]}` : chip.dataset.label;
+      // An owner (user) value keeps its avatar inside the chip, like everywhere else.
+      const isUser = key === 'owner' || (props[key] && props[key].kind === 'user');
+      const optLabel = v ? (f.options.find((o) => o[0] === v) || [v, v])[1] : '';
+      const label = v ? `${esc(chip.dataset.label)}: ${isUser ? ownerHtml(v) : esc(optLabel)}` : esc(chip.dataset.label);
       chip.innerHTML = `${label} <span class="caret"></span>`;
       chip.classList.toggle('is-set', Boolean(v));
       // an active chip gets its own × to remove just that filter
@@ -1388,7 +1392,9 @@ export function mountList(cfg) {
     // Card properties chosen in Configuración › Objetos › Personalización del índice replace the default lines.
     let cardKeys = null;
     try { const saved = JSON.parse(localStorage.getItem(`crm:${cfg.type}:boardcard`)); if (Array.isArray(saved) && saved.length) cardKeys = saved; } catch { /* ignore */ }
-    const linesOf = (r) => (cardKeys ? cardKeys.map((k) => { const c = cfg.columns.find((x) => x.key === k); const p = props[k]; const label = (c && c.label) || (p && p.label) || k; const v = c && c.text ? c.text(r) : r[k]; return [label, v === undefined || v === null || v === '' ? '--' : String(v)]; }) : b.lines(r));
+    // Each line is [label, value, kind]; a 'user' kind renders the value as an owner (avatar + name).
+    const linesOf = (r) => (cardKeys ? cardKeys.map((k) => { const c = cfg.columns.find((x) => x.key === k); const p = props[k]; const label = (c && c.label) || (p && p.label) || k; const v = c && c.text ? c.text(r) : r[k]; const isUser = k === 'owner' || (p && p.kind === 'user'); return [label, isUser ? v : v === undefined || v === null || v === '' ? '--' : String(v), isUser ? 'user' : '']; }) : b.lines(r));
+    const lineHtml = ([k, v, kind]) => `<div><span class="kcard__k">${esc(k)}:</span> ${kind === 'user' ? ownerHtml(v) : esc(v)}</div>`;
     const anyCollapsed = groups.some(([v]) => state.boardCollapsed.has(String(v)));
     // The board may cover a subset of the list (deals: one pipeline at a time, as the original).
     const scoped = b.scope ? b.scope(list, state) : list;
@@ -1403,7 +1409,7 @@ export function mountList(cfg) {
                   <a class="kcard__name" href="./record/?id=${r.id}">${esc(r.name)}</a>
                   <span class="kcard__clock" title="Última actividad: ${formatDate(when)}" aria-label="Última actividad ${formatDate(when)}">◷</span>
                 </div>
-                <div class="kcard__lines">${linesOf(r).map(([k, v]) => `<div><span class="kcard__k">${esc(k)}:</span> ${esc(v)}</div>`).join('')}</div>
+                <div class="kcard__lines">${linesOf(r).map(lineHtml).join('')}</div>
                 ${sub && sub.name ? `<div class="kcard__sub"><span class="avatar avatar--xs avatar--soft" aria-hidden="true">${esc(String(sub.name).split(' ').filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase())}</span><a href="${sub.href || '#'}">${esc(sub.name)}</a></div>` : ''}
                 <span class="kcard__pill"><span class="kcard__pill-ico">${ACT_ICON[r.lastActivityType] || '✉'}</span> ${relativeTime(when)} <span class="kcard__pill-sep">|</span> <span class="kcard__info" title="Tiempo desde la última actividad">ⓘ</span></span>
                 <div class="kcard__actions">
@@ -2121,7 +2127,7 @@ export function mountList(cfg) {
           }
           if (c === 'upcoming') { const ts = ALL.tasks ? ALL.tasks().filter((t) => t.status !== 'done' && (cfg.type === 'contacts' ? Number(t.contactId) === Number(r.id) : cfg.type === 'tasks' ? Number(t.id) === Number(r.id) : t.owner === r.owner)).sort((a, b) => new Date(a.due) - new Date(b.due)).slice(0, 3) : []; return `<section class="pvcard"><h3 class="pvcard__title">Próximas actividades <span class="muted">(${ts.length})</span></h3>${ts.length ? `<ul class="pvcard__list">${ts.map((t) => `<li><a href="../tasks/record/?id=${t.id}">${esc(t.name)}</a> <span class="muted">· ${esc(formatDate(t.due))}</span></li>`).join('')}</ul>` : '<p class="muted">No hay actividades programadas.</p>'}</section>`; }
           if (c === 'activity') return `<section class="pvcard"><h3 class="pvcard__title">Actividades recientes</h3><p>${esc(relativeTime(r.lastActivity || r.created))} · ${esc({ email: 'Correo', call: 'Llamada', meeting: 'Reunión', note: 'Nota', task: 'Tarea' }[r.lastActivityType] || 'Actividad')}</p><p class="muted">Creado el ${esc(formatDate(r.created))}</p></section>`;
-          if (c === 'summary') return `<section class="pvcard"><h3 class="pvcard__title">Resumen de registros <span class="ai-badge">✦ AI</span></h3><p class="muted">${esc(r.name)} · propietario ${esc(r.owner || 'sin asignar')} · última actividad ${esc(relativeTime(r.lastActivity || r.created))}.</p></section>`;
+          if (c === 'summary') return `<section class="pvcard"><h3 class="pvcard__title">Resumen de registros <span class="ai-badge">✦ AI</span></h3><p class="muted">${esc(r.name)} · propietario ${ownerHtml(r.owner)} · última actividad ${esc(relativeTime(r.lastActivity || r.created))}.</p></section>`;
           if (c === 'attachments') { let n = 0; try { n = (JSON.parse(localStorage.getItem(`crm:${cfg.type}:files:${r.id}`)) || []).length; } catch { n = 0; } return `<section class="pvcard"><h3 class="pvcard__title">Archivos adjuntos <span class="muted">(${n})</span></h3><p class="muted">${n ? `${n} archivo${n > 1 ? 's' : ''} adjunto${n > 1 ? 's' : ''}.` : 'Sin archivos adjuntos.'}</p></section>`; }
           if (c === 'tasks') { const ts = ALL.tasks ? ALL.tasks().filter((t) => t.status !== 'done' && (cfg.type === 'contacts' ? Number(t.contactId) === Number(r.id) : t.owner === r.owner)).slice(0, 3) : []; return `<section class="pvcard"><h3 class="pvcard__title">Tareas <span class="muted">(${ts.length})</span></h3>${ts.length ? `<ul class="pvcard__list">${ts.map((t) => `<li><a href="../tasks/record/?id=${t.id}">${esc(t.name)}</a></li>`).join('')}</ul>` : '<p class="muted">Sin tareas pendientes.</p>'}</section>`; }
           if (c.startsWith('pcard-') && pvLayout.cards && pvLayout.cards[c]) {
@@ -2619,7 +2625,7 @@ export function mountList(cfg) {
           return `<section class="dupes__group" data-dupe-group="${gi}">
           <div class="dupes__head"><strong>${g.records.length} registros · ${esc(g.keys.map(why).join(' y '))}</strong></div>
           <table class="table dupes__table"><thead><tr><th>Conservar</th><th>Nombre</th><th>${keyCol[0]}</th><th>Teléfono</th><th>Propietario</th><th>Creado</th></tr></thead><tbody>
-            ${g.records.map((r) => `<tr data-id="${r.id}"><td><input type="radio" name="keep-${gi}" value="${r.id}" ${Number(r.id) === Number(keep.id) ? 'checked' : ''} aria-label="Conservar ${esc(r.name)}" /></td><td><a href="./record/?id=${r.id}">${esc(r.name)}</a></td><td>${esc(keyCol[1](r))}</td><td>${esc(r.phone || '')}</td><td>${esc(r.owner || '')}</td><td>${esc(formatDate(r.created))}</td></tr>`).join('')}
+            ${g.records.map((r) => `<tr data-id="${r.id}"><td><input type="radio" name="keep-${gi}" value="${r.id}" ${Number(r.id) === Number(keep.id) ? 'checked' : ''} aria-label="Conservar ${esc(r.name)}" /></td><td><a href="./record/?id=${r.id}">${esc(r.name)}</a></td><td>${esc(keyCol[1](r))}</td><td>${esc(r.phone || '')}</td><td>${ownerHtml(r.owner)}</td><td>${esc(formatDate(r.created))}</td></tr>`).join('')}
           </tbody></table>
           <div class="dupes__actions"><button class="btn btn--primary btn--sm" type="button" data-dupe-merge="${gi}">Fusionar</button><button class="btn btn--ghost btn--sm" type="button" data-dupe-skip="${gi}">Omitir</button></div>
         </section>`;
@@ -2636,7 +2642,7 @@ export function mountList(cfg) {
     $('actions-body').innerHTML = rows.length
       ? `<p class="muted">Los registros eliminados se guardan en la papelera${softDeletes(cfg.type) ? ' (con su fecha de eliminación en Supabase)' : ''}. Restaura los que necesites.</p>
         <table class="table trash__table"><thead><tr><th>Nombre</th><th>${keyCol[0]}</th><th>Propietario</th><th>Eliminado</th><th></th></tr></thead><tbody>
-          ${rows.map((r) => `<tr data-id="${r.id}"><td>${esc(r.name)}</td><td>${esc(keyCol[1](r))}</td><td>${esc(r.owner || '')}</td><td>${r.deletedAt ? esc(formatDate(r.deletedAt)) : '<span class="muted">--</span>'}</td><td><button class="btn btn--ghost btn--sm" type="button" data-trash-restore="${r.id}">Restaurar</button></td></tr>`).join('')}
+          ${rows.map((r) => `<tr data-id="${r.id}"><td>${esc(r.name)}</td><td>${esc(keyCol[1](r))}</td><td>${ownerHtml(r.owner)}</td><td>${r.deletedAt ? esc(formatDate(r.deletedAt)) : '<span class="muted">--</span>'}</td><td><button class="btn btn--ghost btn--sm" type="button" data-trash-restore="${r.id}">Restaurar</button></td></tr>`).join('')}
         </tbody></table>`
       : '<p class="muted">La papelera está vacía.</p>';
     $('actions-foot').innerHTML = `${rows.length ? '<button class="btn btn--primary" type="button" data-trash-restore-all>Restaurar todos</button>' : ''}<button class="btn btn--ghost" type="button" data-close="actions-drawer">Cerrar</button>`;
@@ -3074,17 +3080,8 @@ function fieldHtml(f) {
 
 export const tag = (label, cls) => `<span class="tag ${cls}">${label}</span>`;
 
-// Owner / user with a photo-style avatar (initials; grey placeholder when unassigned).
-const OWNER_COLORS = ['#006162', '#0091ae', '#6a78d1', '#f2547d', '#00a4bd', '#ff7a59', '#425b76', '#7c98b6'];
-export const ownerHtml = (name, size = 'xs') => {
-  if (!name || name === 'Sin asignar') {
-    return `<span class="owner owner--none"><span class="avatar avatar--${size} avatar--empty" aria-hidden="true">👤</span><span class="muted">Sin asignar</span></span>`;
-  }
-  let h = 0;
-  for (let i = 0; i < name.length; i += 1) h = (h * 31 + name.charCodeAt(i)) >>> 0;
-  const ini = String(name).split(' ').filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase();
-  return `<span class="owner"><span class="avatar avatar--${size}" style="background:${OWNER_COLORS[h % OWNER_COLORS.length]}" aria-hidden="true">${esc(ini)}</span>${esc(name)}</span>`;
-};
+// Owner / user with a photo-style avatar (initials; grey placeholder when unassigned): shared in src/owner.js.
+export { ownerHtml };
 export const link = (href, text) => `<a href="${href}">${esc(text)}</a>`;
 export const avatarName = (id, name, href) =>
   `<span class="name"><span class="avatar" style="background:${['#006162', '#0091ae', '#6a78d1', '#f2547d', '#00a4bd', '#ff7a59', '#425b76'][Number(id) % 7]}">${esc(

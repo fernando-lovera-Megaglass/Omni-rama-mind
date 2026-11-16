@@ -40,7 +40,7 @@ const list = mountList({
       ['Vence', formatDate(r.due)],
       ['Tipo', r.type],
       ['Prioridad', labelOf(PRIORITIES, r.priority)],
-      ['Asignada a', r.owner],
+      ['Asignada a', r.owner, 'user'],
     ],
     sub: (r) => (r.contact ? { name: r.contact, href: `../contacts/record/?id=${r.contactId}` } : null),
   },

@@ -5,6 +5,7 @@
 // here are shared by the list's quick filter and by the bar.
 import { findRecord, setField, formatDate, labelOf, PRIORITIES, TODAY } from './data.js';
 import { toast } from './shell.js';
+import { ownerHtml } from './owner.js';
 
 const KEY = 'crm:taskqueue';
 const DAY = 86400000;
@@ -150,7 +151,7 @@ export function mountQueueBar({ container, root = '../../', onChange } = {}) {
       <div class="tq__pos"><strong>Tarea ${q.index + 1} de ${n}</strong><div class="tq__bar"><span style="width:${pct}%"></span></div><span class="muted">${done} completada${done === 1 ? '' : 's'}${skipped ? ` · ${skipped} omitida${skipped === 1 ? '' : 's'}` : ''}</span></div>
       <div class="tq__task">
         <span class="tq__title"><span class="tq__ico" aria-hidden="true">${TYPE_ICONS[t.type] || '☑'}</span><a href="${root}tasks/record/?id=${t.id}" class="${isDone ? 'is-done' : ''}">${esc(t.name)}</a>${isDone ? '<span class="tag tag--done">Completada</span>' : ''}</span>
-        <span class="tq__meta"><span class="${dueClass(t)}">${esc(dueText(t))}</span><span>${esc(t.type)}</span><span>Prioridad ${esc(labelOf(PRIORITIES, t.priority)).toLowerCase()}</span><span>Asignada a ${esc(t.owner || 'Sin asignar')}</span>${t.contact ? `<span>Contacto: ${here ? esc(t.contact) : `<a href="${root}contacts/record/?id=${t.contactId}">${esc(t.contact)}</a>`}</span>` : ''}<span class="muted">Cola: ${esc(q.label)}</span></span>
+        <span class="tq__meta"><span class="${dueClass(t)}">${esc(dueText(t))}</span><span>${esc(t.type)}</span><span>Prioridad ${esc(labelOf(PRIORITIES, t.priority)).toLowerCase()}</span><span>Asignada a ${ownerHtml(t.owner)}</span>${t.contact ? `<span>Contacto: ${here ? esc(t.contact) : `<a href="${root}contacts/record/?id=${t.contactId}">${esc(t.contact)}</a>`}</span>` : ''}<span class="muted">Cola: ${esc(q.label)}</span></span>
       </div>
       <div class="tq__actions">
         ${here ? '' : `<a class="btn btn--outline btn--sm" href="${targetFor(t, root)}">Ir a la tarea</a>`}

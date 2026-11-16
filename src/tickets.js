@@ -50,7 +50,7 @@ mountList({
     groups: (state) => (state.pipeline ? ticketStatusesFor(state.pipeline) : allTicketStatuses()).map(([k, l, t]) => [k, t === 'closed' ? `${l} ✓` : l]),
     lines: (r) => [
       ['Prioridad', labelOf(PRIORITIES, r.priority)],
-      ['Propietario del ticket', r.owner],
+      ['Propietario del ticket', r.owner, 'user'],
       ['Fuente', r.source],
       ['Creado', formatDate(r.created)],
     ],

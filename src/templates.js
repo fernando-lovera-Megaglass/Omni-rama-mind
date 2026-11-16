@@ -4,6 +4,7 @@
 // preview rendered with a real contact's data.
 import { boot } from './page.js';
 import { toast, wireMenus, closeMenus } from './shell.js';
+import { ownerHtml } from './owner.js';
 import { allContacts, relativeTimeFine, formatDate } from './data.js';
 import { ready, templates, templateById, folders, owners, createTemplate, updateTemplate, cloneTemplate, deleteTemplates, moveTemplates, setShared, createFolder, stats, bodyText, templatesCsv, LIBRARY, ME } from './templates-data.js';
 import { getSignature, editSignature, signatureHtmlOf } from './compose.js';
@@ -101,7 +102,7 @@ function renderTable() {
               <div class="menu__sep"></div>
               <button class="menu__item menu__item--danger" type="button" data-act="delete" data-id="${esc(t.id)}">Eliminar</button>
             </div></div></div></td>
-          <td>${esc(t.ownerId || '--')}</td>
+          <td>${ownerHtml(t.ownerId)}</td>
           <td title="${esc(fullDate(t.createdAt))}">${esc(relativeTimeFine(t.createdAt))}</td>
           <td title="${esc(fullDate(t.updatedAt))}">${esc(relativeTimeFine(t.updatedAt))}</td>
         </tr>`).join('') : `<tr><td colspan="5"><div class="tpls__empty">${all.length ? 'Ninguna plantilla coincide con los filtros.' : 'Todavía no hay plantillas. Crea la primera con «Nueva plantilla».'}</div></td></tr>`}</tbody>
@@ -169,7 +170,7 @@ function openEditor(id, preset = {}) {
       <div class="tpe__bar">
         <select id="tpe-shared" aria-label="Compartir"><option value="1" ${editor.shared ? 'selected' : ''}>Compartido con todos</option><option value="0" ${editor.shared ? '' : 'selected'}>Privado</option></select>
         <select id="tpe-folder" aria-label="Carpeta"><option value="">Seleccionar una carpeta</option>${folders().map((f) => `<option value="${esc(f)}" ${f === editor.folder ? 'selected' : ''}>${esc(f)}</option>`).join('')}</select>
-        <span class="tpe__owner">Propietario: <strong>${esc(editor.ownerId)}</strong></span>
+        <span class="tpe__owner">Propietario: ${ownerHtml(editor.ownerId)}</span>
       </div>
       <div class="tpe__panes${editor.preview ? '' : ' is-solo'}" id="tpe-panes">
         <section class="tpe__pane" aria-label="Redactar plantilla">
@@ -280,7 +281,7 @@ function openDeleteDialog(ids) {
 }
 function openAnalyze() {
   const s = stats();
-  const table = (title, obj) => `<h4>${title}</h4><table class="table tpls__stattable"><thead><tr><th>${title === 'Por propietario' ? 'Propietario' : 'Carpeta'}</th><th>Plantillas</th></tr></thead><tbody>${Object.entries(obj).sort((a, b) => b[1] - a[1]).map(([k, v]) => `<tr><td>${esc(k)}</td><td>${v}</td></tr>`).join('') || '<tr><td colspan="2" class="muted">Sin datos</td></tr>'}</tbody></table>`;
+  const table = (title, obj) => `<h4>${title}</h4><table class="table tpls__stattable"><thead><tr><th>${title === 'Por propietario' ? 'Propietario' : 'Carpeta'}</th><th>Plantillas</th></tr></thead><tbody>${Object.entries(obj).sort((a, b) => b[1] - a[1]).map(([k, v]) => `<tr><td>${title === 'Por propietario' ? ownerHtml(k) : esc(k)}</td><td>${v}</td></tr>`).join('') || '<tr><td colspan="2" class="muted">Sin datos</td></tr>'}</tbody></table>`;
   modal('Analizar plantillas', `<div class="tpls__stats"><div class="tpls__stat"><strong>${s.total}</strong><span class="muted">Plantillas</span></div><div class="tpls__stat"><strong>${s.shared}</strong><span class="muted">Compartidas con todos</span></div><div class="tpls__stat"><strong>${s.privateCount}</strong><span class="muted">Privadas</span></div></div>${table('Por propietario', s.byOwner)}${table('Por carpeta', s.byFolder)}<p class="muted">Las tasas de apertura y respuesta se calcularán a partir de los correos enviados con cada plantilla.</p>`, '<button class="btn btn--secondary" type="button" data-bm="close">Cerrar</button>', { size: 'wide' });
 }
 function openLibrary() {

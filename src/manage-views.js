@@ -2,6 +2,7 @@
 // all saved views of an object, the default tabs new users get, and recently deleted views.
 import { toast, wireMenus, closeMenus } from './shell.js';
 import { getViewStore, setViewStore, formatDate } from './data.js';
+import { ownerHtml } from './owner.js';
 import { STD_VIEWS, TYPE_LABELS, defaultTabs, saveDefaultTabs, deletedViews, saveDeletedViews } from './std-views.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
@@ -68,7 +69,7 @@ function allHtml() {
       <section class="mv__main">
         <div class="mv__toolbar"><div class="search search--sm mv__search"><input type="search" id="mv-qall" placeholder="Buscar vistas" aria-label="Buscar vistas" value="${esc(qAll)}" /><span class="ico ico--search" aria-hidden="true"></span></div><span class="muted">${rows.length} vistas · ${standardViews().length} estándar, ${store().custom.length} personalizadas</span><a class="btn btn--primary" href="../${type}/">Crear vista en la lista ↗</a></div>
         <table class="mini-table stable mvtable"><thead><tr><th>Nombre</th><th>Tipo</th><th>Propietario</th><th>Compartida con</th><th>Pestaña predeterminada</th><th>Última modificación</th><th></th></tr></thead><tbody>
-          ${rows.map((v) => `<tr><td><strong>${esc(v.name)}</strong></td><td>${v.standard ? 'Estándar' : 'Personalizada'}</td><td>${esc(v.owner || 'Omni')}</td><td>${SHARE[v.share] || 'Todos'}</td><td>${selected.includes(v.id) ? '<span class="tag tag--done">Sí</span>' : '<span class="muted">No</span>'}</td><td class="muted">${v.updated ? esc(formatDate(v.updated)) : '--'}</td><td class="num"><div class="menu"><button class="icon-btn icon-btn--round" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Acciones">⋯</button><div class="menu__panel menu__panel--right"><a class="menu__item" href="../${type}/">Abrir en la lista ↗</a>${selected.includes(v.id) ? `<button class="menu__item" type="button" data-untab="${esc(v.id)}" data-goto="defaults">Quitar de las pestañas predeterminadas</button>` : `<button class="menu__item" type="button" data-addtab="${esc(v.id)}">Añadir a las pestañas predeterminadas</button>`}${v.standard ? '' : `<button class="menu__item menu__item--danger" type="button" data-del="${esc(v.id)}">Eliminar</button>`}</div></div></td></tr>`).join('')}
+          ${rows.map((v) => `<tr><td><strong>${esc(v.name)}</strong></td><td>${v.standard ? 'Estándar' : 'Personalizada'}</td><td>${v.standard ? 'Omni' : ownerHtml(v.owner)}</td><td>${SHARE[v.share] || 'Todos'}</td><td>${selected.includes(v.id) ? '<span class="tag tag--done">Sí</span>' : '<span class="muted">No</span>'}</td><td class="muted">${v.updated ? esc(formatDate(v.updated)) : '--'}</td><td class="num"><div class="menu"><button class="icon-btn icon-btn--round" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Acciones">⋯</button><div class="menu__panel menu__panel--right"><a class="menu__item" href="../${type}/">Abrir en la lista ↗</a>${selected.includes(v.id) ? `<button class="menu__item" type="button" data-untab="${esc(v.id)}" data-goto="defaults">Quitar de las pestañas predeterminadas</button>` : `<button class="menu__item" type="button" data-addtab="${esc(v.id)}">Añadir a las pestañas predeterminadas</button>`}${v.standard ? '' : `<button class="menu__item menu__item--danger" type="button" data-del="${esc(v.id)}">Eliminar</button>`}</div></div></td></tr>`).join('')}
         </tbody></table>
       </section>
     </div>`;
@@ -80,7 +81,7 @@ function deletedHtml() {
     <div class="mv mv--single">
       <section class="mv__main">
         <p class="muted">Las vistas eliminadas se conservan aquí 90 días. Puedes restaurarlas o eliminarlas definitivamente.</p>
-        ${list.length ? `<table class="mini-table stable mvtable"><thead><tr><th>Nombre</th><th>Propietario</th><th>Eliminada</th><th></th></tr></thead><tbody>${list.map((v) => `<tr><td><strong>${esc(v.name)}</strong></td><td>${esc(v.owner || 'Omni')}</td><td class="muted">${esc(formatDate(v.deletedAt))}</td><td class="num"><button class="link-btn" type="button" data-restore="${esc(v.id)}">Restaurar</button> <button class="link-btn" type="button" data-purge="${esc(v.id)}">Eliminar definitivamente</button></td></tr>`).join('')}</tbody></table>` : '<p class="pempty">No hay vistas eliminadas recientemente.</p>'}
+        ${list.length ? `<table class="mini-table stable mvtable"><thead><tr><th>Nombre</th><th>Propietario</th><th>Eliminada</th><th></th></tr></thead><tbody>${list.map((v) => `<tr><td><strong>${esc(v.name)}</strong></td><td>${ownerHtml(v.owner)}</td><td class="muted">${esc(formatDate(v.deletedAt))}</td><td class="num"><button class="link-btn" type="button" data-restore="${esc(v.id)}">Restaurar</button> <button class="link-btn" type="button" data-purge="${esc(v.id)}">Eliminar definitivamente</button></td></tr>`).join('')}</tbody></table>` : '<p class="pempty">No hay vistas eliminadas recientemente.</p>'}
       </section>
     </div>`;
 }

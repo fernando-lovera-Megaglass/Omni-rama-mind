@@ -42,7 +42,7 @@ const list = mountList({
     key: 'lifecycle',
     groups: LIFECYCLES.map((l) => [l, l]),
     lines: (r) => [
-      ['Propietario de la empresa', r.owner],
+      ['Propietario de la empresa', r.owner, 'user'],
       ['Número de contactos asociados', String(contactCount(r.id))],
       ['Negocios abiertos', String(openDeals(r.id))],
       ['Último contacto', formatShortDate(r.lastActivity)],

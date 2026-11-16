@@ -1,5 +1,13 @@
 # Progreso — Omni CRM
 
+## 2026-11-16 (sesión 5) · Propietarios siempre con avatar + nombre
+
+**Corregido**
+- **Módulo compartido `src/owner.js`**: `ownerHtml(name, size)` (avatar con iniciales y color derivado del nombre + nombre; «Sin asignar» con el avatar gris) y `ownerAvatarHtml` (solo avatar, para el pie de las tarjetas del tablero). `src/list.js` lo reexporta, así que las importaciones existentes siguen funcionando; el tablero de Negocios deja su paleta propia y usa la misma, de modo que cada persona tiene el mismo color en todas partes.
+- **Auditoría y reemplazo del texto plano** por `ownerHtml`: tabla «Todas las vistas» de las listas (propietario de las vistas personalizadas), resumen IA del panel de vista previa, diálogo de duplicados, papelera («Restaurar registros eliminados»), chips de filtro rápido activos (propietario y propiedades de tipo usuario), líneas de las tarjetas del tablero (Contactos, Empresas, Negocios, Tickets, Tareas), diálogo «Acceso a los registros» de la ficha, cabecera de la conversación en la Bandeja de entrada («asignada a» + avatar, o «Sin asignar»), barra de la cola de tareas («Asignada a»), listas de Plantillas (columna y cabecera del editor, estadísticas «Por propietario»), Fragmentos («Creado por»), Secuencias (propietario e «Inscrito por» en Programadas), Correo de marketing («Actualizado por»), «Mis vistas» (vistas personalizadas y eliminadas), vista previa de objetos en Ajustes, informe «Rendimiento por propietario» y la tabla de Gestión de disponibilidad. Las columnas de propietario de las listas, el panel «Acerca de» de la ficha y la vista previa ya lo usaban (xs en tablas y chips, sm en tarjetas y paneles).
+- CSS: `.owner__name` con elipsis y separación más compacta dentro de chips, tarjetas y cabeceras.
+- Pruebas: `scripts/smoke-owner-avatars.mjs` comprueba `.owner` con `.avatar` (iniciales y color, o el marcador gris con «Sin asignar») en la columna de propietario de Contactos y Tareas, el chip de filtro activo, la papelera, las líneas del tablero, el panel de vista previa (sm), el panel «Acerca de» de la ficha (sm) y su diálogo de acceso, la cabecera de la Bandeja de entrada y la lista de Plantillas. `smoke-templates` y `smoke-inbox` se ajustaron porque el texto de esas celdas ahora incluye las iniciales.
+
 ## 2026-11-16 (sesión 5) · Selector de tokens: campo de búsqueda a tamaño normal y popover más ancho
 
 **Corregido**

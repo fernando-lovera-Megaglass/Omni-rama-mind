@@ -212,7 +212,8 @@ input($('tpl-q'), 'presentación');
 if (rows().length !== 1 || !names()[0].includes('Presentación')) fail('search failed');
 input($('tpl-q'), '');
 change($('tpl-owner'), 'Sofía R.');
-if (rows().length !== 1 || text(rows()[0].children[2]) !== 'Sofía R.') fail('owner filter failed');
+// The owner cell renders avatar + name (src/owner.js), so the name lives in .owner__name.
+if (rows().length !== 1 || text(rows()[0].children[2].querySelector('.owner__name')) !== 'Sofía R.' || !rows()[0].children[2].querySelector('.owner .avatar')) fail('owner filter failed');
 change($('tpl-owner'), '');
 click(q('[data-sort="name"]'));
 const asc = names();

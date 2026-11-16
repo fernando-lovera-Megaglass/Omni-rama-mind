@@ -1,6 +1,7 @@
 import { boot } from './page.js';
-import { mountList, tag, link, ownerHtml } from './list.js';
-import { allDeals, allCompanies, allTasks, DEAL_STAGES, PRIORITIES, OWNERS, formatDate, formatMoney, formatMoneyShort, labelOf, classOf, initials, TODAY, dealPipelines, dealPipelineDefs, stagesFor, allDealStages, isClosedStage, addRecord, setField, activitiesFor, CURRENCY_DEFS, CURRENCY_CODES, homeCurrency, toHomeCurrency } from './data.js';
+import { mountList, tag, link } from './list.js';
+import { ownerHtml, ownerAvatarHtml } from './owner.js';
+import { allDeals, allCompanies, allTasks, DEAL_STAGES, PRIORITIES, OWNERS, formatDate, formatMoney, formatMoneyShort, labelOf, classOf, TODAY, dealPipelines, dealPipelineDefs, stagesFor, allDealStages, isClosedStage, addRecord, setField, activitiesFor, CURRENCY_DEFS, CURRENCY_CODES, homeCurrency, toHomeCurrency } from './data.js';
 import { toast } from './shell.js';
 import { mountCreateDeal } from './create-deal.js';
 
@@ -65,19 +66,15 @@ const isImportant = (r) => r.important === true || ['true', 'sí', 'si', '1'].in
 // Open tasks of the deal (associated to it or to its contact): the card's "próxima actividad".
 const pendingTasks = (r) => allTasks().filter((t) => t.status !== 'done' && (Number(t.dealId) === Number(r.id) || (r.contactId && Number(t.contactId) === Number(r.contactId))));
 const ACT_ICON = { email: '✉', call: '☏', task: '☑', meeting: '▦', note: '✎', message: '💬' };
-const OWNER_COLORS = ['#006162', '#0091ae', '#6a78d1', '#f2547d', '#00a4bd', '#ff7a59', '#425b76'];
-const ownerAvatar = (name) => {
-  if (!name || name === 'Sin asignar') return '<span class="avatar avatar--xs avatar--empty" title="Sin asignar" aria-label="Propietario sin asignar">👤</span>';
-  let h = 0;
-  for (let i = 0; i < name.length; i += 1) h = (h * 31 + name.charCodeAt(i)) >>> 0;
-  return `<span class="avatar avatar--xs" style="background:${OWNER_COLORS[h % OWNER_COLORS.length]}" title="${esc(name)}" aria-label="Propietario: ${esc(name)}">${esc(initials(name))}</span>`;
-};
+// The card's foot shows the owner's avatar (same colour as everywhere else) with the name as tooltip.
+const ownerAvatar = (name) => ownerAvatarHtml(name, 'xs', { titled: true });
 // The board shows one pipeline at a time: the selected one or the default pipeline.
 const boardPipeline = (st) => st.pipeline || defs[0].name;
 
 // Deal card of the board: title, value, dates, owner, "Importante" tag with the days in stage, last activity.
 function dealCard(r, ctx) {
-  const lines = ctx.customised ? ctx.lines(r) : [['Valor', cardMoney(r)], ['Fecha de cierre', formatDate(r.closeDate)], ['Propietario', r.owner || 'Sin asignar'], ['Fecha de creación', formatDate(r.created)]];
+  // Each line is [label, value, kind]; the owner line ('user') renders as avatar + name.
+  const lines = ctx.customised ? ctx.lines(r) : [['Valor', cardMoney(r)], ['Fecha de cierre', formatDate(r.closeDate)], ['Propietario', r.owner, 'user'], ['Fecha de creación', formatDate(r.created)]];
   const inStage = daysInStage(r);
   const pending = pendingTasks(r);
   const when = r.lastActivity || r.created;
@@ -88,7 +85,7 @@ function dealCard(r, ctx) {
   return `
               <article class="kcard kcard--deal" draggable="true" data-id="${r.id}">
                 <a class="kcard__name" href="./record/?id=${r.id}">${esc(r.name)}</a>
-                <div class="kcard__lines">${lines.map(([k, v]) => `<div><span class="kcard__k">${esc(k)}:</span> ${esc(v)}</div>`).join('')}</div>
+                <div class="kcard__lines">${lines.map(([k, v, kind]) => `<div><span class="kcard__k">${esc(k)}:</span> ${kind === 'user' ? ownerHtml(v) : esc(v)}</div>`).join('')}</div>
                 ${tags ? `<div class="kcard__tags">${tags}</div>` : ''}
                 <div class="kcard__meta">
                   ${ownerAvatar(r.owner)}
@@ -184,7 +181,7 @@ const list = mountList({
     lines: (r) => [
       ['Valor', cardMoney(r)],
       ['Fecha de cierre', formatDate(r.closeDate)],
-      ['Propietario', r.owner],
+      ['Propietario', r.owner, 'user'],
       ['Fecha de creación', formatDate(r.created)],
     ],
   },

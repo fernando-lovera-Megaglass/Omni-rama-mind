@@ -3,6 +3,7 @@
 // cards and the performance chart computed from the enrolments), Automatizar and Programado.
 import { boot } from './page.js';
 import { toast, wireMenus, closeMenus } from './shell.js';
+import { ownerHtml } from './owner.js';
 import { relativeTimeFine, formatDate, formatMoney } from './data.js';
 import { ready, sequences, trashedSequences, sequenceById, folders, owners, createFolder, cloneSequence, deleteSequences, restoreSequences, moveSequences, sequencesCsv, sequenceMetrics, bannerDismissed, dismissBanner, analytics, series, filterOptions, FILTER_KEYS, SERIES_METRICS, FREQUENCIES, scheduled, unenroll, ME } from './sequences-data.js';
 
@@ -55,7 +56,7 @@ function renderManage() {
           <div class="menu__sep"></div>
           <button class="menu__item menu__item--danger" type="button" data-act="delete" data-id="${esc(s.id)}">Eliminar</button>
         </div></div></div></td>
-      <td>${m.enrolled}</td><td>${pct(m.replyRate)}</td><td>${pct(m.meetingRate)}</td><td>${esc(s.ownerId || '--')}</td>
+      <td>${m.enrolled}</td><td>${pct(m.replyRate)}</td><td>${pct(m.meetingRate)}</td><td>${ownerHtml(s.ownerId)}</td>
       <td title="${esc(fullDate(s.updatedAt))}">${esc(relativeTimeFine(s.updatedAt))}</td>
     </tr>`; };
   const folderRow = (f) => `<tr class="seqs__folder" data-folder-row="${esc(f)}"><td colspan="7"><button class="seqs__foldertoggle" type="button" data-folder-toggle="${esc(f)}" aria-expanded="${!state.collapsed.has(f)}"><span class="seqs__chev">${state.collapsed.has(f) ? '›' : '⌄'}</span> <span class="seqs__folderico" aria-hidden="true">▰</span> ${esc(f)} <span class="muted">(${(byFolder[f] || []).length})</span></button></td></tr>${state.collapsed.has(f) ? '' : (byFolder[f] || []).map(row).join('')}`;
@@ -131,7 +132,7 @@ function renderScheduled() {
     <section class="tpls__main">
       <div class="tpls__filters"><span class="muted">${plural(list.length, 'paso programado', 'pasos programados')} para las inscripciones activas.</span></div>
       <div class="table-wrap"><table class="table tpls__table seqs__table"><thead><tr><th>Contacto</th><th>Secuencia</th><th>Siguiente paso</th><th>Programado para</th><th>Ejecución</th><th>Inscrito por</th><th></th></tr></thead>
-      <tbody id="seq-sched">${list.length ? list.map((e) => `<tr data-enr="${esc(e.id)}"><td><a class="tpls__name" href="../contacts/record/?id=${esc(e.contactId)}">${esc(e.contactName)}</a>${e.companyName ? `<span class="muted tpls__folderchip">${esc(e.companyName)}</span>` : ''}</td><td>${esc(e.sequenceName)}</td><td>${esc(e.stepLabel)}</td><td title="${esc(fullDate(e.nextStepAt))}">${esc(formatDate(new Date(e.nextStepAt)))}</td><td><span class="tag ${e.auto ? 'tag--open' : 'tag--new'}">${e.auto ? 'Automática' : 'Manual'}</span></td><td>${esc(e.enrolledBy)}</td><td><button class="link-btn" type="button" data-unenroll="${esc(e.id)}">Cancelar inscripción</button></td></tr>`).join('') : '<tr><td colspan="7"><div class="tpls__empty">No hay pasos programados.</div></td></tr>'}</tbody></table></div>
+      <tbody id="seq-sched">${list.length ? list.map((e) => `<tr data-enr="${esc(e.id)}"><td><a class="tpls__name" href="../contacts/record/?id=${esc(e.contactId)}">${esc(e.contactName)}</a>${e.companyName ? `<span class="muted tpls__folderchip">${esc(e.companyName)}</span>` : ''}</td><td>${esc(e.sequenceName)}</td><td>${esc(e.stepLabel)}</td><td title="${esc(fullDate(e.nextStepAt))}">${esc(formatDate(new Date(e.nextStepAt)))}</td><td><span class="tag ${e.auto ? 'tag--open' : 'tag--new'}">${e.auto ? 'Automática' : 'Manual'}</span></td><td>${ownerHtml(e.enrolledBy)}</td><td><button class="link-btn" type="button" data-unenroll="${esc(e.id)}">Cancelar inscripción</button></td></tr>`).join('') : '<tr><td colspan="7"><div class="tpls__empty">No hay pasos programados.</div></td></tr>'}</tbody></table></div>
     </section>`;
 }
 function renderAutomate() {

@@ -2,6 +2,7 @@
 // set when there is no connection): every number is a count or a sum over the selected date range, and
 // the "frente al periodo anterior" deltas compare with the same length of time just before it.
 import { mountShell, wireMenus, closeMenus, toast } from './shell.js';
+import { ownerHtml } from './owner.js';
 import {
   allContacts, allCompanies, allDeals, allTickets, allTasks, allActivities,
   STATUSES, COLORS, OWNERS, DEAL_STAGES, PRIORITIES, TASK_TYPES, TODAY, formatDate, formatMoney, formatMoneyShort, homeCurrency, isTicketOpen, allTicketStatuses, isClosedStage,
@@ -293,7 +294,7 @@ function render() {
       card(`Ingresos cerrados por ${f.bk.unitLabel}`, lineChart(f.revenueSeries, '#0091ae', titles(f.bk), money, bar(f.bk)), true, `${f.won.length} ${f.won.length === 1 ? 'negocio ganado' : 'negocios ganados'} · ${homeCurrency()}`),
       card(`Negocios creados por ${f.bk.unitLabel}`, barChart(f.createdSeries, bar(f.bk), '#006162', titles(f.bk))),
       card('Contactos por estado del lead', donut(f.byStatus), false, 'contactos creados en el periodo'),
-      card('Rendimiento por propietario', tableChart(f.owners.map((o) => [o.owner, fmt(o.contacts), fmt(o.deals), money(o.revenue), o.rate === null ? '—' : `${Math.round(o.rate * 100)} %`]), ['Propietario', 'Contactos nuevos', 'Negocios creados', 'Ingresos cerrados', 'Tasa de cierre'])),
+      card('Rendimiento por propietario', tableChart(f.owners.map((o) => [ownerHtml(o.owner), fmt(o.contacts), fmt(o.deals), money(o.revenue), o.rate === null ? '—' : `${Math.round(o.rate * 100)} %`]), ['Propietario', 'Contactos nuevos', 'Negocios creados', 'Ingresos cerrados', 'Tasa de cierre'])),
       card(`Llamadas registradas por ${f.bk.unitLabel}`, barChart(f.callSeries, bar(f.bk), '#006162', titles(f.bk)), true, `${fmt(f.calls.length)} en el periodo`),
     ];
   } else if (state.dash === 'marketing') {

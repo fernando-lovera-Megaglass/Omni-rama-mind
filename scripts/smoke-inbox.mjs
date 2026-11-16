@@ -91,7 +91,8 @@ log('contact card:', text(side.querySelector('.inbox__contactname')), '|', side.
 if (text(side.querySelector('.inbox__contactname')) !== wa.contact.name || side.querySelector('.inbox__contactname').getAttribute('href') !== `../contacts/record/?id=${wa.contactId}`) fail('contact card');
 change($('inbox-assign'), 'Sofía R.');
 log('assigned:', Conv.conversationById(wa.id).assignedTo, '| header:', text(document.querySelector('.inbox__threadsub')));
-if (Conv.conversationById(wa.id).assignedTo !== 'Sofía R.' || !/asignada a Sofía R\./.test(text(document.querySelector('.inbox__threadsub')))) fail('assign');
+// The assignee shows as an owner (avatar + name), so the text carries the initials before the name.
+if (Conv.conversationById(wa.id).assignedTo !== 'Sofía R.' || !/asignada a .*Sofía R\./.test(text(document.querySelector('.inbox__threadsub'))) || !document.querySelector('.inbox__threadsub .owner .avatar')) fail('assign');
 click(side.querySelector('[data-inbox="toggle-status"]'));
 log('closed:', Conv.conversationById(wa.id).status, '| still selected in open list:', Boolean(document.querySelector(`.inbox__item[data-id="${wa.id}"]`)), '| button:', text($('inbox-side').querySelector('[data-inbox="toggle-status"]')));
 if (Conv.conversationById(wa.id).status !== 'closed' || text($('inbox-side').querySelector('[data-inbox="toggle-status"]')) !== 'Reabrir') fail('close');

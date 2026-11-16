@@ -2,6 +2,7 @@
 // left, the thread (chat bubbles + reply box) in the middle, the contact card and the actions on the right.
 import { boot } from './page.js';
 import { toast, setNavBadge } from './shell.js';
+import { ownerHtml } from './owner.js';
 import { allCompanies, allContacts, relativeTimeFine, formatDate, initials, colorFor } from './data.js';
 import { ready, conversations, conversationById, messagesOf, sendMessage, createConversation, markRead, assignConversation, setConversationStatus, unreadCount, CHANNELS, STATUS_LABELS, ASSIGNEES, ME } from './conversations-data.js';
 
@@ -98,7 +99,7 @@ function renderThread() {
   const msgs = messagesOf(c.id);
   el.innerHTML = `
     <header class="inbox__threadhead">
-      <div class="inbox__threadtitle"><h2>${esc(c.subject)}</h2><div class="muted inbox__threadsub">${c.contact ? `<a href="../contacts/record/?id=${c.contact.id}">${esc(c.contact.name)}</a>` : 'Sin contacto'} · <span class="inbox__chan" style="--chan:${ch.color}">${esc(ch.label)}</span> <span class="tag ${STATUS_CLASS[c.status] || 'tag--none'}">${esc(STATUS_LABELS[c.status] || c.status)}</span>${c.assignedTo ? ` · asignada a <strong>${esc(c.assignedTo)}</strong>` : ' · sin asignar'}</div></div>
+      <div class="inbox__threadtitle"><h2>${esc(c.subject)}</h2><div class="muted inbox__threadsub">${c.contact ? `<a href="../contacts/record/?id=${c.contact.id}">${esc(c.contact.name)}</a>` : 'Sin contacto'} · <span class="inbox__chan" style="--chan:${ch.color}">${esc(ch.label)}</span> <span class="tag ${STATUS_CLASS[c.status] || 'tag--none'}">${esc(STATUS_LABELS[c.status] || c.status)}</span> · ${c.assignedTo ? `asignada a ${ownerHtml(c.assignedTo)}` : ownerHtml('')}</div></div>
     </header>
     <div class="inbox__messages" id="inbox-messages">
       ${msgs.map((m) => `<div class="msg msg--${m.direction}"><div class="msg__bubble">${esc(m.body)}</div><div class="msg__meta">${esc(m.author)} · <span title="${esc(timeOf(m.createdAt))}">${esc(relativeTimeFine(m.createdAt))}</span></div></div>`).join('') || '<p class="muted">Todavía no hay mensajes.</p>'}
