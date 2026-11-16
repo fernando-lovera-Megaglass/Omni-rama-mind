@@ -16120,8 +16120,14 @@ body.has-slideover {
 
 .wfl__desc {
   max-width: 320px;
-  white-space: normal;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: var(--fs-sm);
+}
+
+.wfl__table td:nth-child(5) {
+  max-width: 320px;
 }
 
 .wfl__status {
