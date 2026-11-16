@@ -4,6 +4,7 @@
 // contact's timeline (activity type of the channel).
 import { allContacts, addActivity, dbIsLive, OWNERS } from './data.js';
 import { supabase } from './supabaseClient.js';
+import { nextAvailableAssignee } from './inbox-settings.js';
 
 export const ME = 'Fernando L.';
 export const CHANNELS = {
@@ -141,7 +142,8 @@ export function createConversation({ contactId, channel = 'email', subject, body
   const text = String(body || '').trim();
   if (!subject || !String(subject).trim() || !text) return null;
   const now = new Date().toISOString();
-  const c = { id: uuid(), subject: String(subject).trim(), channel: CHANNELS[channel] ? channel : 'email', status: 'open', assignedTo: assignedTo !== undefined ? assignedTo : direction === 'out' ? author : '', contactId: contactId ? Number(contactId) : null, lastMessageAt: now, readAt: direction === 'out' ? now : null, createdAt: now };
+  // Incoming conversations are handed out by turns to the users marked available (Ajustes › Bandeja de entrada).
+  const c = { id: uuid(), subject: String(subject).trim(), channel: CHANNELS[channel] ? channel : 'email', status: 'open', assignedTo: assignedTo !== undefined ? assignedTo : direction === 'out' ? author : nextAvailableAssignee(), contactId: contactId ? Number(contactId) : null, lastMessageAt: now, readAt: direction === 'out' ? now : null, createdAt: now };
   rows.unshift(c);
   persistConv(c);
   sendMessage(c.id, { body: text, direction, author, when: now });

@@ -1,5 +1,19 @@
 # Progreso — Omni CRM
 
+## 2026-11-16 (sesión 5) · Bandeja de entrada: menú sin duplicado y Ajustes › Herramientas › Bandeja de entrada
+
+**Corregido**
+- **Menú lateral** (`src/shell.js`): «Bandeja de entrada» ya solo aparece en el grupo CRM (con su badge de no leídos); el grupo Servicio deja de listarla, como en el original.
+
+**Construido**
+- **Migración `supabase/inbox_settings.sql`** (aplicada): tabla `inbox_settings` (clave + JSON) con las claves `channels`, `inboxes`, `availability` y `spam`. `src/inbox-settings.js` las carga al arrancar, guarda cada cambio con `upsert` (cola de escritura) y usa localStorage cuando no hay Supabase.
+- **Ajustes › Herramientas › Bandeja de entrada** (`src/inbox-settings-ui.js`, montado desde `src/settings.js`) con 4 subpáginas:
+  - **Canales**: tarjetas con icono y estado en «Canales web y de aplicaciones» (Chat con chats activos, Formulario) y «Canales del equipo» (Correo del equipo con direcciones conectadas, Llamadas, WhatsApp, Facebook Messenger). Cada tarjeta abre su flujo: Chat (nombre + bienvenida), Formulario y Messenger (elegir entre formularios/páginas), Llamadas (país + número → código SMS de 6 dígitos), WhatsApp (número → código QR → confirmación) y Correo del equipo reutiliza el asistente de cuentas de correo conectadas. Cada elemento conectado se puede quitar desde la tarjeta.
+  - **Bandejas de entrada**: selector «Vista actual» con la nota «Solo estás modificando esta vista», menú Acciones (Renombrar, Crear bandeja, Eliminar; la última bandeja no se puede eliminar) y tabs Canales (canales asignados + «Agregar canal» entre los conectados), ANS (texto, «Aplicar en función de» Horario de funcionamiento / Horas calendario, «Fijar límites del ANS» con Tiempo hasta primera respuesta y Tiempo hasta el cierre, cada uno DESACTIVADA/ACTIVADA con horas y minutos al activar), Personalización de la barra lateral (tabla Ver nombre / Asignado a / Última actualización / Acciones + «Crear vista de equipo») y Acceso («Disponible para todos» / «Selecciona usuarios y equipos que pueden editar» con casillas).
+  - **Gestión de disponibilidad**: filtros Usuarios / Estado del usuario / Equipos / Bandejas de entrada, interruptor de asignación automática por turnos y tabla de usuarios con avatar y desplegable Disponible (punto verde) / No disponible. Las conversaciones entrantes nuevas (`createConversation` con `direction: 'in'`) se reparten por turnos solo entre los usuarios disponibles; sin asignación automática quedan sin asignar.
+  - **Lista de permitidos y denegados**: «Elige qué conversaciones entrantes deberían marcarse como spam», lista de permitidos y de denegados con «Agregar correo o dominio» (validación de correo o dominio, una entrada no puede estar en las dos listas), Eliminar por fila y la casilla «Marcar automáticamente como spam». `isSpamSender(email)` resuelve correo o dominio (denegados gana).
+- Pruebas: `scripts/smoke-inbox.mjs` comprueba un único enlace a la bandeja en el menú (en CRM, con badge) y recorre las 4 subpáginas (flujos de los 6 canales, bandeja: canales/ANS/vistas/acceso/crear/renombrar/eliminar, disponibilidad con filtros y reparto por turnos, listas de spam). Comprobado en vivo en Supabase (escritura de las tres claves y limpieza).
+
 ## 2026-11-16 (sesión 5) · Editor de plantillas: un solo «Insertar» y fichas en la posición del cursor
 
 **Corregido**

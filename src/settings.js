@@ -10,6 +10,8 @@ import { STD_VIEWS, defaultTabs } from './std-views.js';
 import { getViewStore } from './data.js';
 import { getSignature, setSignature, emailTemplates } from './compose.js';
 import { paneHtml as connectedEmailsPane, mountConnectedEmails } from './connected-emails-ui.js';
+import { paneChannels as paneIbChannels, paneInboxes as paneIbInboxes, paneAvailability as paneIbAvailability, paneSpam as paneIbSpam, mountInboxSettings } from './inbox-settings-ui.js';
+import { ready as inboxSettingsReady } from './inbox-settings.js';
 import { ready as emailsReady } from './connected-emails.js';
 
 boot({ root: '../', active: 'none', sub: '', title: 'Configuración' });
@@ -60,7 +62,8 @@ const NAV = [
       { id: 'tools-marketing', label: 'Marketing', children: [['mk-email', 'Correo'], ['mk-forms', 'Formularios'], ['mk-ads', 'Anuncios'], ['mk-social', 'Redes sociales']] },
       { id: 'tools-content', label: 'Contenido', children: [['ct-pages', 'Páginas'], ['ct-blog', 'Blog'], ['ct-domains', 'Dominios y URL']] },
       { id: 'tools-sales', label: 'Ventas', children: [['sl-deals', 'Negocios'], ['sl-quotes', 'Cotizaciones'], ['sl-meetings', 'Reuniones'], ['sl-products', 'Productos'], ['sl-templates', 'Plantillas y firma']] },
-      { id: 'tools-service', label: 'Servicio', children: [['sv-tickets', 'Tickets'], ['sv-inbox', 'Bandeja de entrada'], ['sv-surveys', 'Encuestas de feedback'], ['sv-kb', 'Base de conocimientos']] },
+      { id: 'tools-service', label: 'Servicio', children: [['sv-tickets', 'Tickets'], ['sv-surveys', 'Encuestas de feedback'], ['sv-kb', 'Base de conocimientos']] },
+      { id: 'tools-inbox', label: 'Bandeja de entrada', children: [['ib-channels', 'Canales'], ['ib-inboxes', 'Bandejas de entrada'], ['ib-availability', 'Gestión de disponibilidad'], ['ib-spam', 'Lista de permitidos y denegados']] },
       ['tools-calling', 'Llamadas'],
       ['tools-payments', 'Pagos'],
     ],
@@ -79,6 +82,7 @@ function setSection(id) {
     state.objectsTab = m[2] || 'config';
     id = 'data-objects';
   }
+  if (id === 'sv-inbox') id = 'ib-inboxes'; // the old Servicio › Bandeja link lands on the new group
   state.section = flatItems().some((it) => it[0] === id) ? id : 'prefs-general';
   const p = parentOf(state.section);
   if (p) state.open.add(p.id);
@@ -158,6 +162,7 @@ function tabCorreo() {
   ])}`;
 }
 emailsReady.then(() => { if (state.section === 'prefs-general' && state.generalTab === 'correo') render(); });
+inboxSettingsReady.then(() => { if (state.section.startsWith('ib-')) render(); });
 function tabLlamadas() {
   const s = setting('general-llamadas', { provider: 'Llamadas integradas', number: '+52 712 690 1001', record: true, voicemail: false });
   return `<h3 class="gh">Llamadas</h3><p class="muted">Desde qué número llamas y cómo se registran las llamadas.</p>
@@ -1282,7 +1287,7 @@ const PANES = {
   'mk-email': paneMkEmail, 'mk-forms': paneMkForms, 'mk-ads': paneMkAds, 'mk-social': paneMkSocial,
   'ct-pages': paneCtPages, 'ct-blog': paneCtBlog, 'ct-domains': () => paneTrackDomains('Dominios y URL'),
   'sl-deals': paneSlDeals, 'sl-quotes': paneSlQuotes, 'sl-meetings': paneSlMeetings, 'sl-products': paneProducts, 'sl-templates': paneSlTemplates,
-  'sv-tickets': paneSvTickets, 'sv-inbox': paneSvInbox, 'sv-surveys': paneSvSurveys, 'sv-kb': paneSvKb,
+  'sv-tickets': paneSvTickets, 'ib-channels': paneIbChannels, 'ib-inboxes': paneIbInboxes, 'ib-availability': paneIbAvailability, 'ib-spam': paneIbSpam, 'sv-surveys': paneSvSurveys, 'sv-kb': paneSvKb,
   'tools-calling': paneCalling, 'tools-payments': panePayments,
 };
 
@@ -1319,6 +1324,8 @@ function render() {
   wireMenus(root);
   const cem = document.getElementById('cem');
   if (cem) mountConnectedEmails(cem);
+  const ibs = document.getElementById('ibs');
+  if (ibs) mountInboxSettings(ibs);
   if (state.section === 'data-properties') {
     const q = document.getElementById('props-q');
     if (q && state.propsQuery) { q.focus(); q.setSelectionRange(q.value.length, q.value.length); }

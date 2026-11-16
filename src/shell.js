@@ -74,7 +74,6 @@ const NAV = [
   ]],
   ['service', 'Servicio', 'tickets/', [
     ['Tickets', 'tickets/'],
-    ['Bandeja de entrada', 'inbox/', '<span class="sidenav__badge" data-nav-badge="inbox" hidden></span>'],
     ['Encuestas de feedback', '#'],
     ['Portal del cliente', '#'],
     ['Base de conocimientos', '#'],
