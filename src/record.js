@@ -25,6 +25,7 @@ import { ownerHtml } from './owner.js';
 import { enhanceOwnerSelects } from './owner-select.js';
 import { enhancePhoneInputs, focusPhoneInput, displayPhone, phoneHref } from './phone.js';
 import { sendSms, hasTwilio } from './twilio.js';
+import { startCall } from './call.js';
 import { loadLayout, cardCatalog } from './layout-defaults.js';
 import { mountQueueBar, dueText, dueClass, completeTask } from './task-queue.js';
 
@@ -2002,7 +2003,21 @@ if (!rec) {
         addEvent({ type: 'task', when: Date.now(), who: 'Tú', text: `Tarea creada: seguimiento con ${cfg.title(rec)} para ${formatDate(new Date(TODAY.getTime() + 3 * 86400000))}.` });
         toast('Tarea creada');
       } else if (a === 'call') {
-        openLogModal('call');
+        const phone = String(rec.mobilephone || rec.phone || '').trim();
+        if (hasTwilio() && phone) {
+          // Llamada real por Twilio (navegador → teléfono del contacto). Si falla, cae al registro manual.
+          (async () => {
+            try {
+              await startCall({ to: phone, name: cfg.title(rec) });
+              addEvent({ type: 'call', when: Date.now(), who: 'Tú', text: `Llamada saliente a ${cfg.title(rec)} (${displayPhone(phone)}).` });
+            } catch (err) {
+              toast(`No se pudo llamar: ${(err && err.message) || 'error de voz'}`);
+              openLogModal('call');
+            }
+          })();
+        } else {
+          openLogModal('call');
+        }
       } else if (a === 'email') {
         openCompose({
           to: cfg.title(rec),

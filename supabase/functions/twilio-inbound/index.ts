@@ -3,15 +3,7 @@
 // connection's Auth Token (HMAC-SHA1 of the URL + sorted POST params) — anything forged is rejected.
 // Configure in the Twilio console (Phone Numbers → tu número → Messaging → "A message comes in"):
 //   https://<project>.supabase.co/functions/v1/twilio-inbound
-import { handle, serviceClient, json, fail } from '../_shared/twilio.ts';
-
-async function twilioSignatureValid(url: string, params: Record<string, string>, signature: string, token: string): Promise<boolean> {
-  const data = url + Object.keys(params).sort().map((k) => k + params[k]).join('');
-  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(token), { name: 'HMAC', hash: 'SHA-1' }, false, ['sign']);
-  const mac = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(data));
-  const expected = btoa(String.fromCharCode(...new Uint8Array(mac)));
-  return expected === signature;
-}
+import { handle, serviceClient, json, fail, twilioSignatureValid } from '../_shared/twilio.ts';
 
 Deno.serve(handle(async (req) => {
   if (req.method !== 'POST') return fail('Usa POST', 405);

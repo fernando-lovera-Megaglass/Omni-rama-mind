@@ -15,5 +15,25 @@ verify_jwt = true
 [functions.gmail-sync]
 verify_jwt = true
 
+# Twilio: los webhooks (voice, inbound SMS, call-status) los llama Twilio sin JWT — se validan
+# con la firma X-Twilio-Signature. connect/send/token sí llevan la sesión del usuario.
+[functions.twilio-voice]
+verify_jwt = false
+
+[functions.twilio-inbound]
+verify_jwt = false
+
+[functions.twilio-call-status]
+verify_jwt = false
+
+[functions.twilio-connect]
+verify_jwt = true
+
+[functions.twilio-send]
+verify_jwt = true
+
+[functions.twilio-token]
+verify_jwt = true
+
 [functions.gmail-account]
 verify_jwt = true

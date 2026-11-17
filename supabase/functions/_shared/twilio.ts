@@ -73,3 +73,19 @@ export function e164(raw: string, defaultCountry = '+52'): string {
   if (s.startsWith('00')) return '+' + s.slice(2);
   return defaultCountry + s;
 }
+
+// Twilio signs every webhook with X-Twilio-Signature: HMAC-SHA1 of (URL + sorted POST params),
+// base64, keyed with the account's Auth Token. Forged requests get rejected.
+export async function twilioSignatureValid(url: string, params: Record<string, string>, signature: string, token: string): Promise<boolean> {
+  const data = url + Object.keys(params).sort().map((k) => k + params[k]).join('');
+  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(token), { name: 'HMAC', hash: 'SHA-1' }, false, ['sign']);
+  const mac = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(data));
+  const expected = btoa(String.fromCharCode(...new Uint8Array(mac)));
+  return expected === signature;
+}
+
+export const twiml = (inner: string): Response =>
+  new Response(`<Response>${inner}</Response>`, { headers: { 'Content-Type': 'text/xml' } });
+
+export const xmlEscape = (s: string): string =>
+  String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');

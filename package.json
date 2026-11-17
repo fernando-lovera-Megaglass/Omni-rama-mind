@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.119.0",
+    "@twilio/voice-sdk": "^2.19.0",
     "xlsx": "^0.18.5"
   }
 }

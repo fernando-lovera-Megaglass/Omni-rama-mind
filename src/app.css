@@ -17084,6 +17084,63 @@ body.has-slideover {
 
 /* ---------- "En construcción" fin ---------- */
 
+/* ---------- Marcador de llamadas (Twilio Voice): tarjeta flotante abajo a la derecha ---------- */
+.callbox {
+  position: fixed;
+  right: var(--sp-24);
+  bottom: var(--sp-24);
+  z-index: 300;
+  width: 280px;
+  padding: var(--sp-16);
+  background: var(--c-white);
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-md);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.28);
+  text-align: center;
+}
+
+.callbox__state {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--c-link);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.callbox__name {
+  margin-top: var(--sp-4);
+  font-size: var(--fs-md);
+  font-weight: 600;
+  color: var(--c-text);
+}
+
+.callbox__num {
+  color: var(--c-muted);
+  font-size: var(--fs-sm);
+}
+
+.callbox__timer {
+  margin-top: var(--sp-8);
+  font-size: var(--fs-lg);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--c-text);
+}
+
+.callbox__btns {
+  display: flex;
+  gap: var(--sp-8);
+  justify-content: center;
+  margin-top: var(--sp-16);
+}
+
+.callbox__hang {
+  background: #d94c53;
+  border-color: #d94c53;
+}
+
+/* ---------- Marcador fin ---------- */
+
 /* ---------- Owner dropdown (avatar + name per option, searchable) over the native select ---------- */
 .osel {
   position: relative;
