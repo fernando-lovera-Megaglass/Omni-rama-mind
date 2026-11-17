@@ -88,6 +88,9 @@ function setSection(id) {
     state.objectsTab = m[2] || 'config';
     id = 'data-objects';
   }
+  // "#prefs-general:llamadas" opens General on that tab.
+  const g = /^prefs-general(?::([a-z]+))?$/.exec(id || '');
+  if (g) { if (g[1]) state.generalTab = g[1]; id = 'prefs-general'; }
   if (id === 'sv-inbox') id = 'ib-inboxes'; // the old Servicio › Bandeja link lands on the new group
   state.section = flatItems().some((it) => it[0] === id) ? id : 'prefs-general';
   const p = parentOf(state.section);

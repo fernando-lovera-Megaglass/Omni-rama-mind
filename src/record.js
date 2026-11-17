@@ -24,6 +24,7 @@ import { workflows, enrollRecord as enrollWorkflow } from './workflows-data.js';
 import { ownerHtml } from './owner.js';
 import { enhanceOwnerSelects } from './owner-select.js';
 import { enhancePhoneInputs, focusPhoneInput, displayPhone, phoneHref } from './phone.js';
+import { sendSms, hasTwilio } from './twilio.js';
 import { loadLayout, cardCatalog } from './layout-defaults.js';
 import { mountQueueBar, dueText, dueClass, completeTask } from './task-queue.js';
 
@@ -322,6 +323,7 @@ const MORE_ITEMS = [
   ['linkedin', ACT_ICONS.linkedin, 'Interactuar en LinkedIn', ['Ver perfil de LinkedIn', 'Enviar solicitud de conexión', 'Enviar InMail']],
   ['log', ACT_ICONS.log, 'Registrar actividad', ['Llamada', 'Correo', 'Reunión', 'Mensaje de LinkedIn', 'Mensaje de WhatsApp', 'SMS']],
   ['whatsapp', ACT_ICONS.whatsapp, 'Enviar mensaje de WhatsApp'],
+  ['sms', ACT_ICONS.sms, 'Enviar SMS'],
   ['schedule', ACT_ICONS.schedule, 'Programar una reunión'],
   ['deal', ACT_ICONS.deal, 'Crear negocio'],
   ['ticket', ACT_ICONS.ticket, 'Crear ticket'],
@@ -1355,6 +1357,25 @@ function runMore(kind, sub) {
       addEvent({ type: 'note', when: Date.now(), who: 'Tú', text: 'Mensaje de WhatsApp iniciado.' });
       break;
     }
+    case 'sms': {
+      if (!hasTwilio()) {
+        openModal('Enviar SMS', `<p class="muted">Para enviar SMS de verdad primero conecta tu cuenta de Twilio.</p>`, `<a class="btn btn--primary" href="../settings/#prefs-general:llamadas">Ir a Ajustes › Llamadas</a><button class="btn btn--ghost" type="button" data-close>Cancelar</button>`);
+        break;
+      }
+      const phone = String(rec.mobilephone || rec.phone || '').trim();
+      if (!phone) { toast('Este registro no tiene número de teléfono.'); break; }
+      openModal(
+        `Enviar SMS a ${esc(name)}`,
+        `<label class="field"><span>Al número</span><input id="sms-to" value="${esc(phone)}" /></label>
+         <label class="field"><span>Mensaje</span><textarea id="sms-body" rows="4" maxlength="1600" placeholder="Escribe tu mensaje…"></textarea></label>
+         <p class="muted" id="sms-count">0 / 1600 · se envía desde tu número de Twilio</p>`,
+        `<button class="btn btn--primary" type="button" data-confirm="sendsms">Enviar SMS</button><button class="btn btn--ghost" type="button" data-close>Cancelar</button>`,
+      );
+      const ta = $('sms-body');
+      ta.addEventListener('input', () => { $('sms-count').textContent = `${ta.value.length} / 1600 · se envía desde tu número de Twilio`; });
+      ta.focus();
+      break;
+    }
     case 'schedule':
       openLogModal('meeting', { schedule: true });
       break;
@@ -1624,7 +1645,7 @@ function runAction(act) {
   }
 }
 
-$('rec-modal').addEventListener('click', (e) => {
+$('rec-modal').addEventListener('click', async (e) => {
   const b = e.target.closest('[data-confirm]');
   if (!b) return;
   const what = b.dataset.confirm;
@@ -1667,6 +1688,24 @@ $('rec-modal').addEventListener('click', (e) => {
     addEvent({ type: 'stage', when: Date.now(), who: 'Tú', text: `${label} ${num} creada por ${formatMoney(amount)}: ${$('doc-desc').value.trim()}. Vence el ${formatDate($('doc-due').value)}.` });
     closeModal();
     toast(`${label} ${num} creada`);
+  } else if (what === 'sendsms') {
+    const to = $('sms-to').value.trim();
+    const body = $('sms-body').value.trim();
+    if (!to) { toast('Escribe el número de destino.'); return; }
+    if (!body) { toast('Escribe el mensaje.'); return; }
+    b.disabled = true;
+    b.textContent = 'Enviando…';
+    try {
+      await sendSms({ to, body, contactId: type === 'contacts' ? rec.id : (rec.contactId || undefined) });
+      addEvent({ type: 'message', when: Date.now(), who: 'Tú', text: `SMS enviado a ${to}: ${body}` });
+      closeModal();
+      toast(`SMS enviado a ${to}`);
+      renderTimeline();
+    } catch (err) {
+      b.disabled = false;
+      b.textContent = 'Enviar SMS';
+      toast(`No se pudo enviar: ${(err && err.message) || 'error de Twilio'}`);
+    }
   } else if (what === 'logact') {
     const kind = b.dataset.kind;
     const schedule = b.dataset.schedule === '1';

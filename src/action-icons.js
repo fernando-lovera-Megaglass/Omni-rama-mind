@@ -15,6 +15,7 @@ export const ACT_ICONS = {
   linkedin: ico('<rect x="3.5" y="3.5" width="17" height="17" rx="3"/><path d="M8 10.5V17M8 7.2v.01M12 17v-3.6c0-1.2.9-2.1 2-2.1s2 .9 2 2.1V17"/>'),
   log: ico('<path d="M5 5.5h14M5 10h14M5 14.5h8"/><path d="M15.5 16.5l3.5 3.5M19 16.5l-3.5 3.5" stroke-width="0"/><path d="M14 19.5h6"/>'),
   whatsapp: ico('<path d="M12 4a8 8 0 0 0-6.9 12L4 20l4.1-1.1A8 8 0 1 0 12 4z"/><path d="M9.5 9.2c0 3 2.3 5.3 5.3 5.3l.8-1.5-2-1-1 .7a3.6 3.6 0 0 1-1.3-1.3l.7-1-1-2-1.2.7z" stroke-width="1.2"/>'),
+  sms: ico('<path d="M4 5.5h16v10H9.5L5 19v-3.5H4z" transform="translate(0 -1)"/><path d="M8 8.5h8M8 11.5h5"/>'),
   schedule: ico('<rect x="3.5" y="5" width="17" height="15.5" rx="2"/><path d="M3.5 9.5h17M8 3v3.5M16 3v3.5"/><circle cx="12" cy="14.5" r="2.6"/><path d="M12 13.2v1.3l1 .7"/>'),
   deal: ico('<path d="M8 12.5L3.5 8 8 3.5h8L20.5 8 16 12.5"/><path d="M8 12.5V17a3.5 3.5 0 0 0 3.5 3.5h1A3.5 3.5 0 0 0 16 17v-4.5M8 12.5h8"/>'),
   ticket: ico('<path d="M4 8.5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v1.5a2 2 0 0 0 0 4v1.5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V14a2 2 0 0 0 0-4V8.5z"/><path d="M13 7.5v1.6M13 11.2v1.6M13 14.9v1.6"/>'),
