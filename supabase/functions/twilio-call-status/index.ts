@@ -14,6 +14,14 @@ Deno.serve(handle(async (req) => {
   const { data: log } = await service.from('call_logs').select('id, status').eq('call_sid', callSid).maybeSingle();
   if (!log) return new Response('<Response></Response>', { headers: { 'Content-Type': 'text/xml' } }); // llamada ajena; OK silencioso
 
+  // Recording status callback (record="record-from-answer-dual" en twilio-voice): guarda la URL de la
+  // grabación en el registro de la llamada. Twilio la sirve con Basic auth; el navegador la pide a
+  // twilio-recording, que la retransmite.
+  if (params.RecordingSid && params.RecordingUrl) {
+    await service.from('call_logs').update({ recording_url: `${params.RecordingUrl}.mp3` }).eq('id', log.id);
+    return new Response('<Response></Response>', { headers: { 'Content-Type': 'text/xml' } });
+  }
+
   const status = params.CallStatus || params.DialCallStatus || log.status;
   const update: Record<string, unknown> = { status };
   if (status === 'completed' || status === 'busy' || status === 'no-answer' || status === 'failed' || status === 'canceled') {

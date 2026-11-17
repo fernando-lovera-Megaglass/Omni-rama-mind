@@ -17139,6 +17139,67 @@ body.has-slideover {
   border-color: #d94c53;
 }
 
+/* Notas y resultado durante la llamada */
+.callbox__outcome {
+  width: 100%;
+  margin-top: var(--sp-8);
+  padding: 7px 10px;
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-sm, 8px);
+  font: inherit;
+  font-size: var(--fs-sm);
+  background: var(--c-white);
+  color: var(--c-text);
+}
+.callbox__notes {
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: var(--sp-8);
+  padding: 8px 10px;
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-sm, 8px);
+  font: inherit;
+  font-size: var(--fs-sm);
+  resize: vertical;
+  background: var(--c-white);
+  color: var(--c-text);
+}
+.callbox__rec {
+  color: #d94c53;
+  font-weight: 700;
+  letter-spacing: 0;
+  animation: callrec-blink 1.4s ease-in-out infinite;
+}
+@keyframes callrec-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .25; }
+}
+
+/* Casilla «Grabar llamada» (menú de la ficha y marcador) */
+.callrec {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+  font-size: 13px;
+}
+.callrec input { accent-color: var(--c-link); }
+.callrec__note { margin: 2px 0 0 22px; font-size: 12px; }
+
+/* Reproductor de grabaciones en CRM › Llamadas */
+.calls-play {
+  margin-left: 8px;
+  border: 1px solid var(--c-border);
+  background: var(--c-white);
+  color: var(--c-link);
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.calls-play:hover { background: var(--c-bg, #f3f6f9); }
+.calls-audio { height: 28px; vertical-align: middle; margin-left: 8px; }
+
 /* ---------- Marcador fin ---------- */
 
 /* ---------- Owner dropdown (avatar + name per option, searchable) over the native select ---------- */

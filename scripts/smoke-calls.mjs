@@ -138,6 +138,31 @@ click(menu2.querySelector('[data-log]'));
 if (!manual) fail('el registro manual no se disparó');
 log('menú «Llamar» sin números: registro manual OK');
 
+// ===== 2b) Con Twilio conectado: números activos y casilla «Grabar llamada» =====
+const twilio = await import(resolve(here, '../src/twilio.js'));
+twilio.setTwilioClient({
+  functions: { invoke: async () => ({ data: { connection: { status: 'active', phoneNumber: '+17867418743', friendlyName: 'Cuenta de prueba', accountSid: 'ACx' } }, error: null }) },
+  from: () => ({ select: () => ({ order: () => ({ limit: async () => ({ data: [], error: null }) }) }) }),
+});
+await twilio.reloadConnection();
+manual = false;
+call.openCallMenu({ anchor, rec: { id: 7, name: 'Vanesa Orejel', phone: '+52 55 1234 5678' }, onManualLog: () => { manual = true; } });
+const menu3 = q('.callmenu');
+if (menu3.querySelector('[data-num]').disabled) fail('con Twilio los números deben estar activos');
+if (!text(menu3).includes('786')) fail(`«Llamada desde»: ${text(menu3)}`);
+const recBox = menu3.querySelector('[data-callrecord]');
+if (!recBox) fail('la casilla «Grabar llamada» no aparece');
+recBox.checked = true;
+recBox.dispatchEvent(new window.Event('change', { bubbles: true }));
+if (localStorage.getItem('omni:call:record') !== '1') fail('la preferencia de grabación no se guardó');
+if (menu3.querySelector('[data-callrecord-note]').hidden) fail('el aviso legal de grabación no se muestra');
+if (call.recordPref() !== true) fail('recordPref');
+// Marcar sin token de voz falla y cae al registro manual (no rompe la interfaz).
+click(menu3.querySelector('[data-num]'));
+await wait(30);
+if (!manual) fail('el fallo de voz no cayó al registro manual');
+log('menú «Llamar» con Twilio: números activos, «Llamada desde» y casilla de grabación OK');
+
 // ===== 3) Marcador de la barra superior =====
 await call.openDialer();
 const dialer = q('.dialer');
@@ -163,7 +188,16 @@ qInput.dispatchEvent(new window.Event('input', { bubbles: true }));
 await wait(10);
 const hit = dialer.querySelector('[data-pane="results"] [data-callnum]');
 if (!hit || !text(hit).includes(contact.name.split(' ')[0])) fail('la búsqueda no encontró al contacto');
+if (!hit.dataset.contactid) fail('el resultado de búsqueda debe llevar el id del contacto (para guardar la llamada en su ficha)');
 log('marcador: búsqueda de contactos OK');
+
+// Con Twilio el pie del marcador también trae la casilla de grabación.
+call.closeDialer();
+await call.openDialer();
+const dialer2 = q('.dialer');
+if (!dialer2.querySelector('[data-callrecord]')) fail('la casilla de grabación no aparece en el marcador');
+if (!text(dialer2).includes('786')) fail('«Llamada desde» en el marcador');
+log('marcador: casilla de grabación OK');
 
 call.closeDialer();
 if (q('.dialer')) fail('el marcador no se cerró');

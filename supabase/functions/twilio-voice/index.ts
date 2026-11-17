@@ -42,7 +42,10 @@ Deno.serve(handle(async (req) => {
 
   if (from.startsWith('client:')) {
     // Outbound from the browser: dial the destination with the Twilio number as caller ID.
+    // Record=1 (the "Grabar llamada" toggle) turns on dual-channel recording; the recording
+    // status comes back to twilio-call-status with RecordingSid/RecordingUrl.
     const dest = e164(to, '+');
+    const record = params.Record === '1';
     await service.from('call_logs').insert({
       user_id: conn.user_id,
       connection_id: conn.id,
@@ -53,7 +56,8 @@ Deno.serve(handle(async (req) => {
       status: 'initiated',
       started_at: new Date().toISOString(),
     });
-    return twiml(`<Dial callerId="${xmlEscape(conn.phone_number)}" statusCallback="${FN('twilio-call-status')}" statusCallbackEvent="initiated ringing answered completed"><Number>${xmlEscape(dest)}</Number></Dial>`);
+    const recAttrs = record ? ` record="record-from-answer-dual" recordingStatusCallback="${FN('twilio-call-status')}" recordingStatusCallbackEvent="completed"` : '';
+    return twiml(`<Dial callerId="${xmlEscape(conn.phone_number)}"${recAttrs} statusCallback="${FN('twilio-call-status')}" statusCallbackEvent="initiated ringing answered completed"><Number>${xmlEscape(dest)}</Number></Dial>`);
   }
 
   // Inbound PSTN call: ring the owner's browser (identity omni-<userId>) and log it.

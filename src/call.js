@@ -6,7 +6,7 @@
 import { supabase } from './supabaseClient.js';
 import { ready as twilioReady, hasTwilio, twilioConnection } from './twilio.js';
 import { displayPhone } from './phone.js';
-import { allContacts } from './data.js';
+import { allContacts, addActivity } from './data.js';
 import { toast } from './shell.js';
 
 let device = null;
@@ -15,8 +15,30 @@ let call = null;
 let panel = null;
 let timerId = null;
 let startedAt = 0;
+let callNotes = '';
+let callOutcome = '';
+let callRecording = false;
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+
+// ---------- preferencia de grabación ----------
+const RECORD_KEY = 'omni:call:record';
+export const recordPref = () => { try { return localStorage.getItem(RECORD_KEY) === '1'; } catch { return false; } };
+export const setRecordPref = (on) => { try { localStorage.setItem(RECORD_KEY, on ? '1' : '0'); } catch { /* sin storage */ } };
+// Casilla «Grabar llamada» (menú de la ficha y marcador). Aviso legal incluido.
+const recordToggleHtml = () => `
+  <label class="callrec"><input type="checkbox" data-callrecord ${recordPref() ? 'checked' : ''} /> Grabar llamada</label>
+  <p class="callrec__note muted" data-callrecord-note ${recordPref() ? '' : 'hidden'}>● Se grabará. Avisa a la otra persona si la ley de tu país lo pide.</p>`;
+const wireRecordToggle = (root) => {
+  const box = root.querySelector('[data-callrecord]');
+  if (!box) return;
+  box.addEventListener('change', () => {
+    setRecordPref(box.checked);
+    root.querySelectorAll('[data-callrecord-note]').forEach((n) => { n.hidden = !box.checked; });
+  });
+};
+
+const OUTCOMES = ['Conectado', 'Sin respuesta', 'Ocupado', 'Dejé mensaje de voz', 'Número equivocado'];
 
 async function tokenFor() {
   const { data, error } = await supabase.functions.invoke('twilio-token', { method: 'GET' });
@@ -43,16 +65,28 @@ function paint(state, { name = '', to = '' } = {}) {
     panel = document.createElement('div');
     panel.className = 'callbox';
     document.body.appendChild(panel);
+    // Las notas y el resultado sobreviven a los repintados (Marcando… → En curso → Finalizada).
+    panel.addEventListener('input', (e) => {
+      if (e.target.matches('.callbox__notes')) callNotes = e.target.value;
+      if (e.target.matches('.callbox__outcome')) callOutcome = e.target.value;
+    });
   }
   const isIncomingRing = !!incoming && incoming === call && state !== 'En curso';
+  const ended = ['Finalizada', 'Cancelada', 'Error'].includes(state);
   panel.innerHTML = `
-    <div class="callbox__state">${esc(state)}</div>
+    <div class="callbox__state">${esc(state)}${callRecording && !ended ? ' <span class="callbox__rec" title="Grabando">● REC</span>' : ''}</div>
     <div class="callbox__name">${esc(name || 'Llamada')}</div>
     <div class="callbox__num">${esc(to)}</div>
     <div class="callbox__timer" ${state === 'En curso' ? '' : 'hidden'}>00:00</div>
+    ${ended ? '' : `
+    <select class="callbox__outcome" aria-label="Resultado de la llamada">
+      <option value="">Resultado…</option>
+      ${OUTCOMES.map((o) => `<option value="${esc(o)}" ${callOutcome === o ? 'selected' : ''}>${esc(o)}</option>`).join('')}
+    </select>
+    <textarea class="callbox__notes" rows="3" placeholder="Toma notas de la llamada…" aria-label="Notas de la llamada">${esc(callNotes)}</textarea>`}
     <div class="callbox__btns">
-      ${isIncomingRing ? '<button class="btn btn--primary" type="button" data-call="answer">Contestar</button>' : '<button class="btn btn--ghost" type="button" data-call="mute">Silenciar</button>'}
-      <button class="btn btn--primary callbox__hang" type="button" data-call="hangup">${isIncomingRing ? 'Rechazar' : 'Colgar'}</button>
+      ${isIncomingRing ? '<button class="btn btn--primary" type="button" data-call="answer">Contestar</button>' : ended ? '' : '<button class="btn btn--ghost" type="button" data-call="mute">Silenciar</button>'}
+      ${ended ? '' : `<button class="btn btn--primary callbox__hang" type="button" data-call="hangup">${isIncomingRing ? 'Rechazar' : 'Colgar'}</button>`}
     </div>`;
   panel.hidden = false;
 }
@@ -62,8 +96,14 @@ function showIncoming(c) {
   call = c;
   incoming = c;
   const from = (c.parameters && c.parameters.From) || 'Número desconocido';
-  paint('Llamada entrante…', { name: from });
-  if (panel) panel.dataset.info = JSON.stringify({ name: from, to: '' });
+  const who = contactByPhone(from);
+  callNotes = '';
+  callOutcome = '';
+  callRecording = false;
+  callLogged = false;
+  callCtx = { contactId: who ? who.id : '', recordType: 'contacts', name: who ? who.name : from, to: from, incoming: true };
+  paint('Llamada entrante…', { name: callCtx.name });
+  if (panel) panel.dataset.info = JSON.stringify({ name: callCtx.name, to: '' });
   c.on('cancel', () => endPanel('Cancelada'));
   c.on('disconnect', () => endPanel('Finalizada'));
 }
@@ -85,16 +125,54 @@ function stopTimer() { if (timerId) clearInterval(timerId); timerId = null; }
 
 function endPanel(state) {
   stopTimer();
+  saveCallLog(state);
   if (panel) paint(state, panel.dataset.info ? JSON.parse(panel.dataset.info) : {});
-  setTimeout(() => { if (panel) { panel.remove(); panel = null; } call = null; incoming = null; }, 1800);
+  setTimeout(() => { if (panel) { panel.remove(); panel = null; } call = null; incoming = null; }, 2200);
+}
+
+// Al colgar, la llamada queda en la ficha del contacto con duración, resultado y notas.
+let callCtx = {};
+let callLogged = false;
+function saveCallLog(state) {
+  if (state !== 'Finalizada' && state !== 'Cancelada') return;
+  const ctx = callCtx;
+  callCtx = {};
+  if (!ctx.contactId || callLogged) return;
+  callLogged = true;
+  const durationMin = startedAt ? Math.max(1, Math.round((Date.now() - startedAt) / 60000)) : 0;
+  const bits = [`Llamada ${ctx.incoming ? 'entrante' : 'saliente'} con ${ctx.name || ctx.to}.`];
+  if (callNotes.trim()) bits.push(callNotes.trim());
+  try {
+    addActivity({
+      type: 'call',
+      recordType: ctx.recordType || 'contacts',
+      recordId: ctx.contactId,
+      text: bits.join(' '),
+      who: 'Tú',
+      when: Date.now(),
+      extra: { direction: ctx.incoming ? 'Entrante' : 'Saliente', outcome: callOutcome, durationMin, recorded: callRecording || undefined },
+    });
+    toast(callNotes.trim() ? 'Llamada y notas guardadas en la ficha' : 'Llamada guardada en la ficha');
+    if (typeof ctx.onLogged === 'function') ctx.onLogged();
+  } catch (e) { console.error('[llamada] no se pudo guardar en la ficha', e); }
+  callNotes = '';
+  callOutcome = '';
+  callRecording = false;
 }
 
 // Start an outbound call. Returns when the call connects (or throws).
-export async function startCall({ to, name = '', onState } = {}) {
+// contactId/recordType: la ficha donde se guarda al colgar. record: fuerza grabar o no (por defecto,
+// la preferencia «Grabar llamada»). onLogged: se dispara tras guardar (para refrescar la cronología).
+export async function startCall({ to, name = '', contactId = '', recordType = 'contacts', record, onLogged } = {}) {
   const d = await ensureDevice();
+  callNotes = '';
+  callOutcome = '';
+  callRecording = record !== undefined ? !!record : recordPref();
+  callLogged = false;
+  callCtx = { contactId, recordType, name, to, incoming: false, onLogged };
   paint('Marcando…', { name, to });
   if (panel) panel.dataset.info = JSON.stringify({ name, to });
-  const c = await d.connect({ params: { To: to } });
+  const c = await d.connect({ params: { To: to, ...(callRecording ? { Record: '1' } : {}) } });
   call = c;
   c.on('accept', () => { paint('En curso', { name, to }); if (panel) panel.dataset.info = JSON.stringify({ name, to }); startTimer(); });
   c.on('disconnect', () => endPanel('Finalizada'));
@@ -155,12 +233,14 @@ export function openCallMenu({ anchor, rec = {}, recordType = 'contacts', onCall
     <div class="callmenu__meta">
       ${live
         ? `<div class="callmenu__row"><span class="muted">Llamada desde:</span> <strong>${esc(displayPhone(fromNumber()))}</strong></div>
-           <div class="callmenu__row"><span class="muted">Dispositivo:</span> Navegador</div>`
+           <div class="callmenu__row"><span class="muted">Dispositivo:</span> Navegador</div>
+           ${recordToggleHtml()}`
         : '<div class="callmenu__row muted">Conecta Twilio para llamar desde el navegador.</div>'}
       <a class="callmenu__opts" href="${settingsHref()}">Abrir opciones de llamadas</a>
     </div>
     <button class="callmenu__log" type="button" data-log>Registrar una llamada</button>`;
   document.body.appendChild(el);
+  wireRecordToggle(el);
   const r = anchor && anchor.getBoundingClientRect ? anchor.getBoundingClientRect() : { left: 80, bottom: 120 };
   el.style.left = `${Math.min(r.left, window.innerWidth - 320)}px`;
   el.style.top = `${r.bottom + 6}px`;
@@ -173,8 +253,7 @@ export function openCallMenu({ anchor, rec = {}, recordType = 'contacts', onCall
       const n = numbers[Number(numBtn.dataset.num)];
       closeCallMenu();
       try {
-        await startCall({ to: n.value, name });
-        if (onCalled) onCalled(n.value);
+        await startCall({ to: n.value, name, contactId: rec.id || '', recordType, onLogged: onCalled });
       } catch (err) {
         toast(`No se pudo llamar: ${(err && err.message) || 'error de voz'}`);
         if (onManualLog) onManualLog();
@@ -254,6 +333,7 @@ export async function openDialer() {
     <div class="dialer__foot">
       <div class="dialer__row"><span class="muted">Llamada desde:</span> <strong>${hasTwilio() ? esc(displayPhone(fromNumber())) : 'Sin número'}</strong></div>
       <div class="dialer__row"><span class="muted">Dispositivo:</span> Navegador</div>
+      ${hasTwilio() ? recordToggleHtml() : ''}
     </div>
     <div class="dialer__tabs">
       <button class="dialer__tab is-active" type="button" data-tab="recents">Recientes</button>
@@ -261,6 +341,7 @@ export async function openDialer() {
     </div>`;
   document.body.appendChild(el);
   dialerEl = el;
+  wireRecordToggle(el);
 
   const q = el.querySelector('[data-dialer="q"]');
   const display = el.querySelector('[data-dialer="display"]');
@@ -273,10 +354,10 @@ export async function openDialer() {
     el.querySelectorAll('.dialer__tab').forEach((t) => t.classList.toggle('is-active', t.dataset.tab === name || (name === 'results' && t.dataset.tab === 'recents')));
   };
   const setNumber = (v) => { display.value = v; callBtn.disabled = !v.trim(); };
-  const placeCall = async (to, name) => {
+  const placeCall = async (to, name, contactId = '') => {
     if (!hasTwilio()) { toast('Primero conecta tu cuenta de Twilio en Ajustes › Llamadas.'); return; }
     closeDialer();
-    try { await startCall({ to, name }); } catch (err) { toast(`No se pudo llamar: ${(err && err.message) || 'error de voz'}`); }
+    try { await startCall({ to, name, contactId }); } catch (err) { toast(`No se pudo llamar: ${(err && err.message) || 'error de voz'}`); }
   };
 
   const fmtAgo = (iso) => {
@@ -294,7 +375,7 @@ export async function openDialer() {
           const num = isOut ? r.to_number : r.from_number;
           const c = r.contact_id ? contactById(r.contact_id) : contactByPhone(num);
           const title = c ? c.name : displayPhone(num);
-          return `<button class="dialer__recent" type="button" data-callnum="${esc(num)}" data-callname="${esc(c ? c.name : '')}">
+          return `<button class="dialer__recent" type="button" data-callnum="${esc(num)}" data-callname="${esc(c ? c.name : '')}"${c ? ` data-contactid="${esc(c.id)}"` : ''}>
             <span class="dialer__avatar">${esc((c ? c.name : '?').trim().charAt(0).toUpperCase())}</span>
             <span class="dialer__recent-main"><b>${esc(title)}</b><small>${isOut ? '↗' : '↙'} ${esc(displayPhone(num))}</small></span>
             <span class="dialer__recent-when">${esc(fmtAgo(r.started_at))}</span>
@@ -317,7 +398,7 @@ export async function openDialer() {
     panes.results.innerHTML = hits.length
       ? hits.map((c) => {
           const num = c.mobilephone || c.phone || '';
-          return `<button class="dialer__recent" type="button" data-callnum="${esc(num)}" data-callname="${esc(c.name)}" ${num ? '' : 'disabled'}>
+          return `<button class="dialer__recent" type="button" data-callnum="${esc(num)}" data-callname="${esc(c.name)}" data-contactid="${esc(c.id)}" ${num ? '' : 'disabled'}>
             <span class="dialer__avatar">${esc((c.name || '?').charAt(0).toUpperCase())}</span>
             <span class="dialer__recent-main"><b>${esc(c.name)}</b><small>${num ? esc(displayPhone(num)) : 'Sin número'}</small></span>
           </button>`;
@@ -338,7 +419,7 @@ export async function openDialer() {
     const rec = t.closest('[data-callnum]');
     if (rec && !rec.disabled) {
       const num = rec.dataset.callnum;
-      if (state.tab === 'pad' || q.value) { placeCall(num, rec.dataset.callname || ''); }
+      if (state.tab === 'pad' || q.value) { placeCall(num, rec.dataset.callname || '', rec.dataset.contactid || ''); }
       else { state.tab = 'pad'; showPane('pad'); setNumber(num); display.focus(); }
     }
   });
@@ -353,6 +434,37 @@ export function closeDialer() {
     document.removeEventListener('keydown', dialerEl._onKey);
     dialerEl.remove();
     dialerEl = null;
+  }
+}
+
+// ---------- reproducción de grabaciones ----------
+// La grabación la sirve Twilio con Basic auth; el navegador la pide a la función twilio-recording
+// (que valida la sesión) y la reproduce como blob.
+export async function playRecording(btn, callSid) {
+  if (!btn || !callSid) return;
+  const old = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Cargando…';
+  try {
+    const { data: sess } = await supabase.auth.getSession();
+    const jwt = sess && sess.session && sess.session.access_token;
+    const base = (supabase.supabaseUrl || '').replace(/\/$/, '');
+    const res = await fetch(`${base}/functions/v1/twilio-recording?call=${encodeURIComponent(callSid)}`, {
+      headers: { apikey: supabase.supabaseKey, Authorization: `Bearer ${jwt || supabase.supabaseKey}` },
+    });
+    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `Error ${res.status}`);
+    const url = URL.createObjectURL(await res.blob());
+    const holder = btn.closest('td') || btn.parentElement;
+    const audio = document.createElement('audio');
+    audio.controls = true;
+    audio.src = url;
+    audio.className = 'calls-audio';
+    btn.replaceWith(audio);
+    audio.play().catch(() => {});
+  } catch (e) {
+    btn.disabled = false;
+    btn.textContent = old;
+    toast(`No se pudo reproducir: ${(e && e.message) || e}`);
   }
 }
 

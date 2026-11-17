@@ -79,7 +79,7 @@ function normalize() {
 async function loadTwilio() {
   if (!dbIsLive() || !supabase) return [];
   try {
-    const { data, error } = await supabase.from('call_logs').select('id,direction,from_number,to_number,status,duration_sec,started_at,contact_id').order('started_at', { ascending: false }).limit(500);
+    const { data, error } = await supabase.from('call_logs').select('id,call_sid,direction,from_number,to_number,status,duration_sec,started_at,contact_id,recording_url').order('started_at', { ascending: false }).limit(500);
     if (error || !Array.isArray(data)) return [];
     return data.map((r) => {
       const isOut = r.direction === 'outbound';
@@ -87,6 +87,8 @@ async function loadTwilio() {
       const name = contactName(r.contact_id);
       return {
         id: `tw-${r.id}`,
+        callSid: r.call_sid || '',
+        recording: Boolean(r.recording_url),
         title: `Llamada con ${name || displayPhone(num)}`,
         when: r.started_at ? new Date(r.started_at).getTime() : Date.now(),
         durationSec: Number(r.duration_sec) || 0,
@@ -187,7 +189,7 @@ function render() {
               </tr></thead>
               <tbody>
                 ${slice.map((r) => `<tr data-callrow="${esc(r.id)}"${r.contactId ? ` data-contact="${esc(r.contactId)}"` : ''}>
-                  <td><span class="calls-table__title">${esc(r.title)}</span></td>
+                  <td><span class="calls-table__title">${esc(r.title)}</span>${r.recording ? ` <button class="calls-play" type="button" data-play="${esc(r.callSid)}" title="Escuchar la grabación">▶ Grabación</button>` : ''}</td>
                   <td>${r.direction ? `<span class="calls-table__dir">${r.direction === 'outbound' ? '↗' : '↙'} ${DIRECTION_LABEL[r.direction] || esc(r.direction)}</span>` : '—'}</td>
                   <td>${esc(fmtWhen(r.when))}</td>
                   <td>${esc(fmtDuration(r.durationSec))}</td>
@@ -232,6 +234,10 @@ function render() {
   });
   root.querySelectorAll('[data-contact]').forEach((tr) => tr.addEventListener('click', () => {
     location.href = `../contacts/record/?id=${encodeURIComponent(tr.dataset.contact)}`;
+  }));
+  root.querySelectorAll('[data-play]').forEach((b) => b.addEventListener('click', (e) => {
+    e.stopPropagation();
+    import('./call.js').then((m) => m.playRecording(b, b.dataset.play)).catch(() => {});
   }));
   // "/" enfoca el buscador, como en el original.
   if (!render._keys) {

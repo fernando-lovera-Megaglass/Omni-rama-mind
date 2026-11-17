@@ -26,6 +26,9 @@ verify_jwt = false
 [functions.twilio-call-status]
 verify_jwt = false
 
+[functions.twilio-recording]
+verify_jwt = true
+
 [functions.twilio-connect]
 verify_jwt = true
 

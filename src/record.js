@@ -2009,7 +2009,7 @@ if (!rec) {
           anchor: quick,
           rec,
           recordType: type,
-          onCalled: (phone) => addEvent({ type: 'call', when: Date.now(), who: 'Tú', text: `Llamada saliente a ${cfg.title(rec)} (${displayPhone(phone)}).` }),
+          onCalled: () => renderTimeline(),
           onAddPhone: (v) => { setField(type, rec.id, rec.phone ? 'mobilephone' : 'phone', v); toast('Número agregado'); renderProps(); },
           onManualLog: () => openLogModal('call'),
         });
