@@ -4,6 +4,7 @@
 // localStorage otherwise.
 import { dbIsLive, OWNERS } from './data.js';
 import { supabase } from './supabaseClient.js';
+import { reportDbError } from './db-report.js';
 import { TEAMS } from './layout-defaults.js';
 
 export const USERS = OWNERS.filter((o) => o !== 'Sin asignar');
@@ -35,7 +36,7 @@ const DEFAULTS = {
 let live = dbIsLive();
 const store = {};
 let queue = Promise.resolve();
-const enqueue = (fn) => { queue = queue.then(fn).catch((e) => console.error('[supabase] inbox_settings', e)); return queue; };
+const enqueue = (fn) => { queue = queue.then(fn).catch((e) => reportDbError('ajustes de la bandeja', e)); return queue; };
 export const pending = () => queue;
 const readLocal = (k) => { try { return JSON.parse(localStorage.getItem(LS(k))); } catch { return null; } };
 function persist(k) {

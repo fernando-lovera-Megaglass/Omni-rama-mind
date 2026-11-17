@@ -4,6 +4,7 @@
 // list. Stored in Supabase (deal_tags) with a localStorage fallback; seeded with the account's three tags.
 import { dbIsLive, allDeals, isClosedStage, dealPipelineDefs } from './data.js';
 import { supabase } from './supabaseClient.js';
+import { reportDbError } from './db-report.js';
 import { matcherFor, groupConditions } from './filter-editor.js';
 import { propertyMap } from './properties.js';
 import { opLabel, opsFor, kindGroup, DAYS_OPS, NO_VALUE_OPS, TWO_VALUE_OPS } from './filter-ops.js';
@@ -42,7 +43,7 @@ const seed = () => {
 let live = dbIsLive();
 let rows = [];
 let queue = Promise.resolve();
-const enqueue = (fn) => { queue = queue.then(fn).catch((e) => console.error('[supabase] etiquetas de negocio', e)); return queue; };
+const enqueue = (fn) => { queue = queue.then(fn).catch((e) => reportDbError('etiquetas de negocio', e)); return queue; };
 export const pending = () => queue;
 const fromDb = (r) => ({ id: r.id, name: r.name || '', emoji: r.emoji || '', color: r.color || '#EBEBEB', description: r.description || '', pipelineIds: Array.isArray(r.pipeline_ids) ? r.pipeline_ids : [], filters: Array.isArray(r.filters) ? r.filters : [], position: Number(r.position) || 0, createdAt: r.created_at, updatedAt: r.updated_at || r.created_at });
 const toDb = (t) => ({ id: t.id, name: t.name, emoji: t.emoji || '', color: t.color, description: t.description || '', pipeline_ids: t.pipelineIds || [], filters: t.filters || [], position: t.position || 0, created_at: t.createdAt, updated_at: t.updatedAt });

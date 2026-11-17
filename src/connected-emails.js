@@ -4,6 +4,7 @@
 // The composer and the sequences send from these accounts.
 import { dbIsLive, getSetting, setSetting, settingsLive } from './data.js';
 import { supabase } from './supabaseClient.js';
+import { reportDbError } from './db-report.js';
 import { currentUser } from './auth.js';
 import { gmailAccounts, ready as gmailReady } from './gmail.js';
 
@@ -49,7 +50,7 @@ let live = dbIsLive();
 let user = DEFAULT_USER;
 let rows = [];
 let queue = Promise.resolve();
-const enqueue = (fn) => { queue = queue.then(fn).catch((e) => console.error('[supabase] cuentas de correo', e)); return queue; };
+const enqueue = (fn) => { queue = queue.then(fn).catch((e) => reportDbError('cuentas de correo', e)); return queue; };
 export const pending = () => queue;
 const LS = () => `crm:connected_emails:${user}`;
 const uuid = () => (globalThis.crypto && typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : `ce-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`);

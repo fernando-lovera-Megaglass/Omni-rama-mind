@@ -6,6 +6,7 @@ import { propertyList, loadCustomProperties, setCustomPropertyWriter, localCusto
 import { REAL_DEAL_PIPELINES, LEGACY_STAGE_MAP, DEFAULT_PIPELINE_NAME } from './pipelines-seed.js';
 import { supabase, DB_MODE, createAnonProbe } from './supabaseClient.js';
 import { requireSession, signOut, siteRoot } from './auth.js';
+import { reportDbError } from './db-report.js';
 
 const FIRST = ['Ana', 'Luis', 'Marta', 'Pedro', 'Lucía', 'Javier', 'Carmen', 'Diego', 'Elena', 'Raúl', 'Sara', 'Hugo', 'Paula', 'Álvaro', 'Nuria', 'Iván', 'Laura', 'Sergio', 'Irene', 'Mario', 'Clara', 'Andrés', 'Beatriz', 'Tomás', 'Rocío', 'Daniel', 'Eva', 'Jorge', 'Alicia', 'Pablo', 'Silvia', 'Rubén', 'María José', 'Juan Carlos', 'Guadalupe', 'Ximena', 'Rodrigo', 'Valentina', 'Mateo', 'Camila', 'Santiago', 'Renata', 'Emilio', 'Fernanda', 'Joaquín', 'Patricia', 'Óscar', 'Verónica', 'Ignacio', 'Lorena'];
 const LAST = ['Torres', 'Martín', 'Gómez', 'Ruiz', 'Fernández', 'López', 'Díaz', 'Sánchez', 'Navarro', 'Moreno', 'Jiménez', 'Romero', 'Ortega', 'Castro', 'Serrano', 'Molina', 'Garrido', 'Pascual', 'Blanco', 'Herrera', 'Vidal', 'Peña', 'Cano', 'Ibáñez', 'Reyes', 'Prieto', 'Campos', 'Vargas', 'Lozano', 'Méndez', 'Gil', 'Santos', 'Zurita Rico', 'Cubas Vicencio', 'Hernández Zuviri', 'Zúñiga Verde', 'Garduño', 'De la Fuente', 'Ochoa', 'Salazar', 'Quintero', 'Villanueva', 'Esparza', 'Beltrán'];
@@ -573,13 +574,6 @@ export function setPageRows(type, rows) {
 let writeQueue = Promise.resolve();
 function dbWrite(fn) {
   writeQueue = writeQueue.then(fn).catch((e) => reportDbError('escritura', e));
-}
-// A failed write used to die in the console while the UI had already shown success; now it also tells the
-// user, so a record that did not reach the database never looks saved.
-function reportDbError(what, error) {
-  console.error('[supabase]', what, error);
-  const msg = (error && (error.message || error.details)) || String(error);
-  import('./shell.js').then((m) => m.toast(`No se pudo guardar en la base de datos (${what}): ${msg}`)).catch(() => {});
 }
 const dbRows = {};
 const nextId = {};

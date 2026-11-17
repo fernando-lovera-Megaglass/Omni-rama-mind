@@ -3,6 +3,7 @@
 // shortcut in any text editor, or from the "Insertar" menus.
 import { dbIsLive } from './data.js';
 import { supabase } from './supabaseClient.js';
+import { reportDbError } from './db-report.js';
 
 export const ME = 'Fernando L.';
 const LS_S = 'crm:snippets';
@@ -27,7 +28,7 @@ let live = dbIsLive();
 let rows = [];
 let folderRows = [];
 let queue = Promise.resolve();
-const enqueue = (fn) => { queue = queue.then(fn).catch((e) => console.error('[supabase] fragmentos', e)); return queue; };
+const enqueue = (fn) => { queue = queue.then(fn).catch((e) => reportDbError('fragmentos', e)); return queue; };
 const fromDb = (r) => ({ id: r.id, name: r.name || '', body: r.body || '', shortcut: r.shortcut || '', folder: r.folder || '', ownerId: r.owner_id || '', createdAt: r.created_at, updatedAt: r.updated_at || r.created_at });
 const toDb = (s) => ({ id: s.id, name: s.name, body: s.body, shortcut: s.shortcut, folder: s.folder || '', owner_id: s.ownerId, created_at: s.createdAt, updated_at: s.updatedAt });
 const saveLocal = () => { localStorage.setItem(LS_S, JSON.stringify(rows)); localStorage.setItem(LS_F, JSON.stringify(folderRows)); };

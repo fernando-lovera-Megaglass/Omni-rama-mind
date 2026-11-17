@@ -4,6 +4,7 @@
 // enrolled and the actions really change Omni's data (property edits, tasks, bell notifications).
 import { allContacts, allCompanies, allDeals, allTickets, addRecord, setField, addActivity, dbIsLive, OWNERS, PRIORITIES, dealPipelines, stagesFor, allTicketStatuses, formatDate, TODAY } from './data.js';
 import { propertyList } from './properties.js';
+import { reportDbError } from './db-report.js';
 import { renderTokens, contextFromRecord } from './tokens.js';
 import { addNotification } from './notifications.js';
 import { supabase } from './supabaseClient.js';
@@ -96,7 +97,7 @@ let live = dbIsLive();
 let rows = [];
 let enrollRows = [];
 let queue = Promise.resolve();
-const enqueue = (fn) => { queue = queue.then(fn).catch((e) => console.error('[supabase] workflows', e)); return queue; };
+const enqueue = (fn) => { queue = queue.then(fn).catch((e) => reportDbError('workflows', e)); return queue; };
 export const pending = () => queue;
 const LS = { wf: 'crm:workflows', enr: 'crm:workflow_enrollments', folders: 'crm:workflow_folders', views: 'crm:workflows:views' };
 const wfFromDb = (r, actions) => ({ id: r.id, name: r.name || '', description: r.description || '', folder: r.folder || '', objectType: r.object_type || 'contacts', status: r.status || 'draft', trigger: r.trigger && r.trigger.groups ? r.trigger : { groups: [], reenroll: false }, createdBy: r.created_by || '', deletedAt: r.deleted_at || null, publishedAt: r.published_at || null, createdAt: r.created_at, updatedAt: r.updated_at || r.created_at, actions: actions.map((a) => ({ id: a.id, parentId: a.parent_id || null, branch: a.branch || '', position: Number(a.position) || 0, type: a.type, config: a.config || {} })) });

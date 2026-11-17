@@ -4,6 +4,7 @@
 // contact's timeline (activity type of the channel).
 import { allContacts, addActivity, dbIsLive, OWNERS } from './data.js';
 import { supabase } from './supabaseClient.js';
+import { reportDbError } from './db-report.js';
 import { nextAvailableAssignee } from './inbox-settings.js';
 
 export const ME = 'Fernando L.';
@@ -58,7 +59,7 @@ let live = dbIsLive();
 let rows = [];
 let msgs = [];
 let queue = Promise.resolve();
-const enqueue = (fn) => { queue = queue.then(fn).catch((e) => console.error('[supabase] conversaciones', e)); return queue; };
+const enqueue = (fn) => { queue = queue.then(fn).catch((e) => reportDbError('conversaciones', e)); return queue; };
 const convFromDb = (r) => ({ id: r.id, subject: r.subject || '', channel: r.channel || 'email', status: r.status || 'open', assignedTo: r.assigned_to || '', contactId: r.contact_id ? Number(r.contact_id) : null, lastMessageAt: r.last_message_at, readAt: r.read_at || null, createdAt: r.created_at });
 const convToDb = (c) => ({ id: c.id, subject: c.subject, channel: c.channel, status: c.status, assigned_to: c.assignedTo || '', contact_id: c.contactId || null, last_message_at: c.lastMessageAt, read_at: c.readAt || null, created_at: c.createdAt });
 const msgFromDb = (m) => ({ id: m.id, conversationId: m.conversation_id, direction: m.direction, body: m.body || '', author: m.author || '', createdAt: m.created_at });

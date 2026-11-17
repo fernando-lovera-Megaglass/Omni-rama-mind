@@ -4,6 +4,7 @@
 // from the enrolments (simulated but consistent stats seeded once).
 import { dbIsLive, allContacts, allCompanies, allDeals, addRecord, addActivity, formatDate, TODAY } from './data.js';
 import { supabase } from './supabaseClient.js';
+import { reportDbError } from './db-report.js';
 
 export const ME = 'Fernando L.';
 const OWNERS = ['Fernando L.', 'Sofía R.', 'Diego G.', 'Laura M.'];
@@ -133,7 +134,7 @@ let rows = [];
 let enrollRows = [];
 let folderRows = [];
 let queue = Promise.resolve();
-const enqueue = (fn) => { queue = queue.then(fn).catch((e) => console.error('[supabase] secuencias', e)); return queue; };
+const enqueue = (fn) => { queue = queue.then(fn).catch((e) => reportDbError('secuencias', e)); return queue; };
 export const pending = () => queue;
 const seqFromDb = (r, steps) => ({ id: r.id, name: r.name || '', description: r.description || '', folder: r.folder || '', ownerId: r.owner_id || '', templateKey: r.template_key || '', prebuilt: Boolean(r.prebuilt), dynamic: Boolean(r.dynamic), exclusion: Array.isArray(r.exclusion) ? r.exclusion : [], deletedAt: r.deleted_at || null, createdAt: r.created_at, updatedAt: r.updated_at || r.created_at, steps: steps.map(stepFromDb) });
 const seqToDb = (s) => ({ id: s.id, name: s.name, description: s.description, folder: s.folder || '', owner_id: s.ownerId, template_key: s.templateKey || '', prebuilt: Boolean(s.prebuilt), dynamic: Boolean(s.dynamic), exclusion: s.exclusion || [], deleted_at: s.deletedAt || null, created_at: s.createdAt, updated_at: s.updatedAt });

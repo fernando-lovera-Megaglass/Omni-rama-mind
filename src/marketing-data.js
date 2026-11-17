@@ -3,6 +3,7 @@
 // metrics and every recipient gets an entry on its timeline. No real e-mail leaves the app.
 import { allContacts, addActivities, dbIsLive } from './data.js';
 import { supabase } from './supabaseClient.js';
+import { reportDbError } from './db-report.js';
 import { segments, segmentMembers } from './segments-data.js';
 import { renderEmailHtml, templateById, cloneModules } from './marketing-templates.js';
 
@@ -32,7 +33,7 @@ export function seedEmails() {
 let live = dbIsLive();
 let rows = [];
 let queue = Promise.resolve();
-const enqueue = (fn) => { queue = queue.then(fn).catch((e) => console.error('[supabase] marketing_emails', e)); return queue; };
+const enqueue = (fn) => { queue = queue.then(fn).catch((e) => reportDbError('correos de marketing', e)); return queue; };
 const fromDb = (r) => ({ id: r.id, nombre: r.nombre || '', asunto: r.asunto || '', deNombre: r.de_nombre || '', deEmail: r.de_email || '', htmlContent: r.html_content || '', estado: r.estado || 'borrador', tipo: r.tipo || 'normal', enviados: Number(r.enviados) || 0, entregados: Number(r.entregados) || 0, aperturas: Number(r.aperturas) || 0, clics: Number(r.clics) || 0, programadoPara: r.programado_para || null, enviadoAt: r.enviado_at || null, createdBy: r.created_by || '', updatedBy: r.updated_by || r.created_by || '', createdAt: r.created_at, updatedAt: r.updated_at || r.created_at, contenido: Array.isArray(r.contenido) ? r.contenido : [], destinatarios: r.destinatarios && typeof r.destinatarios === 'object' ? r.destinatarios : { kind: 'all' }, plantilla: r.plantilla || '', carpeta: r.carpeta || '' });
 const toDb = (e) => ({ id: e.id, nombre: e.nombre, asunto: e.asunto, de_nombre: e.deNombre, de_email: e.deEmail, html_content: e.htmlContent || '', estado: e.estado, tipo: e.tipo, enviados: e.enviados, entregados: e.entregados, aperturas: e.aperturas, clics: e.clics, programado_para: e.programadoPara || null, enviado_at: e.enviadoAt || null, created_by: e.createdBy, updated_by: e.updatedBy || e.createdBy, created_at: e.createdAt, updated_at: e.updatedAt, contenido: e.contenido || [], destinatarios: e.destinatarios || { kind: 'all' }, plantilla: e.plantilla || '', carpeta: e.carpeta || '' });
 const saveLocal = () => localStorage.setItem(LS, JSON.stringify(rows));

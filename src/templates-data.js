@@ -3,6 +3,7 @@
 // resolution against a real contact, the snippets and the template library.
 import { dbIsLive } from './data.js';
 import { supabase } from './supabaseClient.js';
+import { reportDbError } from './db-report.js';
 import { renderTokens, contextFromRecord, ownerRecord } from './tokens.js';
 
 export const ME = 'Fernando L.';
@@ -62,7 +63,7 @@ let live = dbIsLive();
 let rows = [];
 let folderRows = [];
 let queue = Promise.resolve();
-const enqueue = (fn) => { queue = queue.then(fn).catch((e) => console.error('[supabase] plantillas', e)); return queue; };
+const enqueue = (fn) => { queue = queue.then(fn).catch((e) => reportDbError('plantillas', e)); return queue; };
 const fromDb = (r) => ({ id: r.id, name: r.name || '', subject: r.subject || '', body: r.body || '', ownerId: r.owner_id || '', folder: r.folder || '', shared: r.shared !== false, createdAt: r.created_at, updatedAt: r.updated_at || r.created_at });
 const toDb = (t) => ({ id: t.id, name: t.name, subject: t.subject, body: t.body, owner_id: t.ownerId, folder: t.folder || '', shared: Boolean(t.shared), created_at: t.createdAt, updated_at: t.updatedAt });
 const saveLocal = () => { localStorage.setItem(LS_T, JSON.stringify(rows)); localStorage.setItem(LS_F, JSON.stringify(folderRows)); };
