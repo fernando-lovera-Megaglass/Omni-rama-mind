@@ -18252,3 +18252,307 @@ td[data-key="deal_tags"] .dtag {
     grid-template-columns: 1fr 1fr;
   }
 }
+
+/* ===== Llamadas: menú «Llamar» de la ficha, marcador de la barra superior y página de índice ===== */
+.callmenu {
+  position: fixed;
+  z-index: 90;
+  width: 300px;
+  background: var(--surface, #fff);
+  border: 1px solid var(--border, #e3e8ee);
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, .16);
+  padding: 10px;
+  font-size: 14px;
+}
+.callmenu__head {
+  font-weight: 600;
+  padding: 6px 10px 10px;
+  border-bottom: 1px solid var(--border, #e3e8ee);
+  margin-bottom: 6px;
+}
+.callmenu__num {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: 0;
+  border-radius: 8px;
+  padding: 9px 10px;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+}
+.callmenu__num:hover:not(:disabled) { background: var(--surface-2, #f3f6f9); }
+.callmenu__num:disabled { opacity: .45; cursor: default; }
+.callmenu__num-main { font-weight: 500; }
+.callmenu__num-sub { color: var(--muted, #6b7a8d); font-size: 12px; }
+.callmenu__empty { color: var(--muted, #6b7a8d); padding: 6px 10px; margin: 0; font-size: 13px; }
+.callmenu__add {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: 0;
+  border-radius: 8px;
+  padding: 9px 10px;
+  cursor: pointer;
+  color: var(--accent, #ff5c35);
+  font: inherit;
+}
+.callmenu__add:hover { background: var(--surface-2, #f3f6f9); }
+.callmenu__add-form { display: flex; gap: 8px; padding: 4px 10px 8px; }
+.callmenu__input {
+  flex: 1;
+  border: 1px solid var(--border, #e3e8ee);
+  border-radius: 8px;
+  padding: 7px 10px;
+  font: inherit;
+  background: var(--surface, #fff);
+  color: inherit;
+}
+.callmenu__meta {
+  border-top: 1px solid var(--border, #e3e8ee);
+  margin-top: 6px;
+  padding: 8px 10px 4px;
+  display: grid;
+  gap: 5px;
+  font-size: 13px;
+}
+.callmenu__opts { color: var(--accent, #ff5c35); text-decoration: none; }
+.callmenu__opts:hover { text-decoration: underline; }
+.callmenu__log {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: 0;
+  border-top: 1px solid var(--border, #e3e8ee);
+  padding: 10px;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+  border-radius: 0 0 8px 8px;
+}
+.callmenu__log:hover { background: var(--surface-2, #f3f6f9); }
+
+/* Marcador (popup de la barra superior) */
+.dialer {
+  position: fixed;
+  top: 52px;
+  right: 16px;
+  z-index: 90;
+  width: 340px;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface, #fff);
+  border: 1px solid var(--border, #e3e8ee);
+  border-radius: 14px;
+  box-shadow: 0 16px 44px rgba(0, 0, 0, .2);
+  overflow: hidden;
+  font-size: 14px;
+}
+.dialer__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border, #e3e8ee);
+}
+.dialer__brand { font-weight: 600; }
+.dialer__close {
+  background: none;
+  border: 0;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--muted, #6b7a8d);
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+.dialer__close:hover { background: var(--surface-2, #f3f6f9); color: inherit; }
+.dialer__search { padding: 10px 14px 6px; }
+.dialer__search input {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--border, #e3e8ee);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font: inherit;
+  background: var(--surface, #fff);
+  color: inherit;
+}
+.dialer__body { min-height: 260px; max-height: 340px; overflow-y: auto; }
+.dialer__hint { text-align: center; padding: 24px 16px; font-size: 13px; }
+.dialer__recent {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: 0;
+  padding: 9px 14px;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+}
+.dialer__recent:hover:not(:disabled) { background: var(--surface-2, #f3f6f9); }
+.dialer__recent:disabled { opacity: .5; cursor: default; }
+.dialer__avatar {
+  flex: 0 0 32px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--surface-2, #eef2f6);
+  color: var(--muted, #6b7a8d);
+  font-weight: 600;
+}
+.dialer__recent-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.dialer__recent-main b { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dialer__recent-main small { color: var(--muted, #6b7a8d); font-size: 12px; }
+.dialer__recent-when { color: var(--muted, #6b7a8d); font-size: 12px; }
+.dialer__display {
+  width: calc(100% - 28px);
+  margin: 12px 14px 4px;
+  box-sizing: border-box;
+  border: 0;
+  border-bottom: 1px solid var(--border, #e3e8ee);
+  padding: 8px 4px;
+  font: inherit;
+  font-size: 20px;
+  text-align: center;
+  background: transparent;
+  color: inherit;
+}
+.keypad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  padding: 10px 24px;
+}
+.keypad__key {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  border: 0;
+  background: none;
+  border-radius: 50%;
+  aspect-ratio: 1;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+}
+.keypad__key b { font-size: 20px; font-weight: 500; }
+.keypad__key small { font-size: 10px; letter-spacing: .12em; color: var(--muted, #6b7a8d); }
+.keypad__key:hover { background: var(--surface-2, #f3f6f9); }
+.dialer__actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 26px;
+  padding: 2px 14px 12px;
+}
+.dialer__back {
+  background: none;
+  border: 0;
+  font-size: 18px;
+  cursor: pointer;
+  color: var(--muted, #6b7a8d);
+  padding: 8px;
+  border-radius: 8px;
+}
+.dialer__back:hover { background: var(--surface-2, #f3f6f9); color: inherit; }
+.dialer__call {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: 0;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  background: var(--ok, #1f9d63);
+  color: #fff;
+}
+.dialer__call:disabled { opacity: .35; cursor: default; }
+.dialer__call .ico { filter: brightness(0) invert(1); }
+.dialer__foot {
+  border-top: 1px solid var(--border, #e3e8ee);
+  padding: 10px 14px;
+  display: grid;
+  gap: 4px;
+  font-size: 13px;
+}
+.dialer__tabs {
+  display: flex;
+  border-top: 1px solid var(--border, #e3e8ee);
+}
+.dialer__tab {
+  flex: 1;
+  background: none;
+  border: 0;
+  padding: 11px;
+  cursor: pointer;
+  color: var(--muted, #6b7a8d);
+  font: inherit;
+  border-bottom: 2px solid transparent;
+}
+.dialer__tab.is-active { color: inherit; font-weight: 600; border-bottom-color: var(--accent, #ff5c35); }
+
+/* Página CRM › Llamadas */
+.calls { padding: 20px 24px; max-width: 1400px; }
+.calls__head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.calls__title { margin: 0; font-size: 22px; }
+.calls__views { display: flex; gap: 4px; border-bottom: 1px solid var(--border, #e3e8ee); margin-bottom: 12px; }
+.calls__view {
+  background: none;
+  border: 0;
+  padding: 9px 14px;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+  border-bottom: 2px solid transparent;
+}
+.calls__view.is-active { font-weight: 600; border-bottom-color: var(--accent, #ff5c35); }
+.calls__toolbar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.calls__search {
+  width: 240px;
+  border: 1px solid var(--border, #e3e8ee);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font: inherit;
+  background: var(--surface, #fff);
+  color: inherit;
+}
+.calls__filter {
+  border: 1px solid var(--border, #e3e8ee);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font: inherit;
+  background: var(--surface, #fff);
+  color: inherit;
+}
+.calls-table { width: 100%; border-collapse: collapse; background: var(--surface, #fff); border: 1px solid var(--border, #e3e8ee); border-radius: 12px; overflow: hidden; }
+.calls-table th {
+  text-align: left;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted, #6b7a8d);
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border, #e3e8ee);
+}
+.calls-table td { padding: 10px 14px; border-bottom: 1px solid var(--border, #e3e8ee); font-size: 14px; }
+.calls-table tbody tr:last-child td { border-bottom: 0; }
+.calls-table tbody tr[data-contact] { cursor: pointer; }
+.calls-table tbody tr[data-contact]:hover { background: var(--surface-2, #f3f6f9); }
+.calls-table__title { font-weight: 500; }
+.calls-table__dir { white-space: nowrap; }
+.calls__pager { display: flex; align-items: center; gap: 12px; padding: 12px 2px 0; }
+.calls__count { margin: 8px 2px 0; font-size: 13px; }
+.calls__empty { padding: 40px 0; text-align: center; }

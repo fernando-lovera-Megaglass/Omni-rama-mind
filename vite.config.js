@@ -22,6 +22,7 @@ const pages = {
   segments: 'segments/index.html',
   'segments-editor': 'segments/editor/index.html',
   inbox: 'inbox/index.html',
+  calls: 'calls/index.html',
   'marketing-email': 'marketing/email/index.html',
   templates: 'templates/index.html',
   snippets: 'snippets/index.html',

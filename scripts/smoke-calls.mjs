@@ -1,0 +1,171 @@
+// DOM smoke test for the calls module: the CRM › Llamadas index page (views tab, search, filters,
+// table, pagination, export), the record-page «Llamar» menu (numbers, add-number form, device/from
+// rows, manual log fallback) and the topbar dialer (tabs, keypad, recents, contact search).
+// Runs in local mode (no Supabase). Run: node scripts/smoke-calls.mjs
+import { JSDOM } from 'jsdom';
+import { fileURLToPath } from 'node:url';
+import { dirname, resolve } from 'node:path';
+
+const here = dirname(fileURLToPath(import.meta.url));
+const log = (...a) => console.log('[llamadas]', ...a);
+const fail = (msg) => { console.error(`[llamadas] FAIL: ${msg}`); process.exit(1); };
+const mem = {};
+globalThis.localStorage = { getItem: (k) => (k in mem ? mem[k] : null), setItem: (k, v) => { mem[k] = String(v); }, removeItem: (k) => { delete mem[k]; }, key: (i) => Object.keys(mem)[i] ?? null, get length() { return Object.keys(mem).length; }, clear: () => { Object.keys(mem).forEach((k) => delete mem[k]); } };
+function useDom(html, url) {
+  const dom = new JSDOM(html, { url, pretendToBeVisual: true });
+  globalThis.window = dom.window;
+  globalThis.document = dom.window.document;
+  globalThis.location = dom.window.location;
+  globalThis.history = dom.window.history;
+  globalThis.HTMLElement = dom.window.HTMLElement;
+  globalThis.Event = dom.window.Event;
+  globalThis.CustomEvent = dom.window.CustomEvent;
+  globalThis.KeyboardEvent = dom.window.KeyboardEvent;
+  globalThis.MouseEvent = dom.window.MouseEvent;
+  globalThis.FormData = dom.window.FormData;
+  globalThis.URL = dom.window.URL;
+  globalThis.Blob = dom.window.Blob;
+  dom.window.confirm = () => true;
+  return dom;
+}
+Object.defineProperty(globalThis, 'navigator', { value: { clipboard: { writeText() {} } }, configurable: true });
+const $ = (id) => document.getElementById(id);
+const q = (sel) => document.querySelector(sel);
+const qa = (sel) => [...document.querySelectorAll(sel)];
+const text = (el) => (el ? el.textContent.replace(/\s+/g, ' ').trim() : '');
+const click = (el) => { if (!el) fail('missing element to click'); el.dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true })); };
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// ===== 1) Página CRM › Llamadas =====
+useDom('<!doctype html><body class="app"><aside id="sidenav"></aside><header id="topbar"></header><main class="content" id="calls-root"></main><div id="scrim"></div></body>', 'http://localhost/calls/');
+const data = await import(resolve(here, '../src/data.js'));
+// Dos llamadas registradas a mano ANTES de abrir la página (una saliente de hoy, una entrante vieja).
+const contact = data.allContacts()[0];
+data.addActivity({ type: 'call', recordType: 'contacts', recordId: contact.id, text: `Llamada saliente con ${contact.name}.`, who: 'Fernando L.', when: Date.now(), extra: { direction: 'Saliente', outcome: 'Conectado', durationMin: 4 } });
+const old = Date.now() - 10 * 86400000;
+data.addActivity({ type: 'call', recordType: 'contacts', recordId: contact.id, text: `Llamada entrante con ${contact.name}.`, who: 'Sofía R.', when: old, extra: { direction: 'Entrante', outcome: 'Sin respuesta', durationMin: 0 } });
+await import(resolve(here, '../src/calls.js'));
+await wait(60);
+
+if (text(q('.calls__title')) !== 'Llamadas') fail('título de la página');
+if (!q('.calls__view.is-active') || text(q('.calls__view.is-active')) !== 'Todas las llamadas') fail('pestaña de vista');
+if (!$('calls-q') || !$('calls-f-direction') || !$('calls-f-owner') || !$('calls-f-date') || !$('calls-f-duration')) fail('filtros rápidos');
+// Ambas llamadas en la tabla.
+let rowsText = text(q('.calls'));
+if (!rowsText.includes(`Llamada con ${contact.name}`)) fail('las llamadas registradas no aparecen');
+if (!rowsText.includes('4 minutos')) fail('la duración no aparece');
+if (!rowsText.includes('Sin respuesta')) fail('la entrante no aparece');
+if (!text(q('.calls__count')).includes('2 llamadas')) fail(`conteo inicial: ${text(q('.calls__count'))}`);
+log('página: cabecera, vista, filtros y tabla con las llamadas OK');
+
+// Filtro por dirección.
+const dirSel = $('calls-f-direction');
+dirSel.value = 'outbound';
+dirSel.dispatchEvent(new window.Event('change', { bubbles: true }));
+await wait(10);
+rowsText = text(q('.calls'));
+if (!rowsText.includes('4 minutos')) fail('el filtro de dirección perdió la saliente');
+if (rowsText.includes('Sin respuesta')) fail('el filtro de dirección no excluyó la entrante');
+log('filtro de dirección OK');
+
+// Filtro por responsable.
+const ownerSel = $('calls-f-owner');
+if (![...ownerSel.options].some((o) => o.value === 'Fernando L.')) fail('el filtro de responsable no lista al autor');
+dirSel.value = '';
+dirSel.dispatchEvent(new window.Event('change', { bubbles: true }));
+await wait(10);
+ownerSel.value = 'Sofía R.';
+ownerSel.dispatchEvent(new window.Event('change', { bubbles: true }));
+await wait(10);
+rowsText = text(q('.calls'));
+if (!rowsText.includes('Sin respuesta')) fail('filtro por responsable no muestra la entrante');
+if (rowsText.includes('4 minutos')) fail('filtro por responsable no excluye la saliente');
+log('filtro por responsable OK');
+
+// El pie con el total.
+if (!text(q('.calls__count')).includes('1 llamada')) fail(`conteo: ${text(q('.calls__count'))}`);
+log('conteo del pie OK');
+
+// Búsqueda.
+ownerSel.value = '';
+ownerSel.dispatchEvent(new window.Event('change', { bubbles: true }));
+const search = $('calls-q');
+search.value = 'zzzz-no-existe';
+search.dispatchEvent(new window.Event('input', { bubbles: true }));
+await wait(10);
+if (!text(q('.calls__empty')).includes('No hay llamadas')) fail('estado vacío tras buscar');
+search.value = '';
+search.dispatchEvent(new window.Event('input', { bubbles: true }));
+await wait(10);
+log('búsqueda y estado vacío OK');
+
+// ===== 2) Menú «Llamar» de la ficha =====
+const call = await import(resolve(here, '../src/call.js'));
+const anchor = document.createElement('button');
+document.body.appendChild(anchor);
+let manual = false;
+let added = '';
+call.openCallMenu({
+  anchor,
+  rec: { name: 'Vanesa Orejel', phone: '+52 55 1234 5678', mobilephone: '+44 553 225 7642' },
+  onManualLog: () => { manual = true; },
+  onAddPhone: (v) => { added = v; },
+});
+const menu = q('.callmenu');
+if (!menu) fail('el menú no se abrió');
+if (text(menu.querySelector('.callmenu__head')) !== 'Vanesa Orejel') fail('cabecera del menú');
+const nums = qa('.callmenu__num');
+if (nums.length !== 2) fail(`números: ${nums.length}`);
+if (!text(nums[0]).includes('(Número de móvil)') || !text(nums[1]).includes('(Número de teléfono)')) fail('etiquetas de los números');
+if (nums[0].disabled !== true) fail('sin Twilio los números deben estar deshabilitados');
+if (!text(menu).includes('Dispositivo:') && !text(menu).includes('Conecta Twilio')) fail('meta del menú');
+if (!text(menu).includes('Abrir opciones de llamadas')) fail('enlace a opciones');
+// Agregar número.
+click(menu.querySelector('[data-add]'));
+const addForm = menu.querySelector('.callmenu__add-form');
+if (addForm.hidden) fail('el formulario de agregar número no se abrió');
+addForm.querySelector('input').value = '+52 81 9999 0000';
+click(addForm.querySelector('[data-add-save]'));
+if (added !== '+52 81 9999 0000') fail(`número agregado: ${added}`);
+if (q('.callmenu')) fail('el menú no se cerró tras agregar');
+log('menú «Llamar»: números, agregar número y meta OK');
+
+// Sin números: mensaje + registro manual.
+call.openCallMenu({ anchor, rec: { name: 'Sin Tel' }, onManualLog: () => { manual = true; } });
+const menu2 = q('.callmenu');
+if (!text(menu2).includes('no tiene número de teléfono')) fail('aviso de sin números');
+click(menu2.querySelector('[data-log]'));
+if (!manual) fail('el registro manual no se disparó');
+log('menú «Llamar» sin números: registro manual OK');
+
+// ===== 3) Marcador de la barra superior =====
+await call.openDialer();
+const dialer = q('.dialer');
+if (!dialer) fail('el marcador no se abrió');
+if (!text(dialer).includes('Recientes') || !text(dialer).includes('Teclado')) fail('pestañas del marcador');
+if (!dialer.querySelector('[data-dialer="q"]').placeholder.includes('Contacto')) fail('buscador del marcador');
+// Teclado.
+click([...dialer.querySelectorAll('.dialer__tab')].find((t) => t.dataset.tab === 'pad'));
+const display = dialer.querySelector('[data-dialer="display"]');
+const callBtn = dialer.querySelector('[data-dialer="call"]');
+if (!callBtn.disabled) fail('el botón de llamar debe estar deshabilitado sin número');
+[...dialer.querySelectorAll('.keypad__key')].slice(0, 3).forEach((k) => click(k));
+if (display.value !== '123') fail(`teclado: ${display.value}`);
+if (callBtn.disabled) fail('el botón de llamar debe activarse con número');
+click(dialer.querySelector('[data-dialer="back"]'));
+if (display.value !== '12') fail(`borrar: ${display.value}`);
+log('marcador: pestañas, teclado y botón de llamar OK');
+
+// Buscar un contacto por nombre.
+const qInput = dialer.querySelector('[data-dialer="q"]');
+qInput.value = contact.name.slice(0, 6);
+qInput.dispatchEvent(new window.Event('input', { bubbles: true }));
+await wait(10);
+const hit = dialer.querySelector('[data-pane="results"] [data-callnum]');
+if (!hit || !text(hit).includes(contact.name.split(' ')[0])) fail('la búsqueda no encontró al contacto');
+log('marcador: búsqueda de contactos OK');
+
+call.closeDialer();
+if (q('.dialer')) fail('el marcador no se cerró');
+
+log('OK');

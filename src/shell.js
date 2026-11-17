@@ -40,7 +40,7 @@ const NAV = [
     ['Tickets', 'tickets/'],
     ['Segmentos', 'segments/'],
     ['Bandeja de entrada', 'inbox/', '<span class="sidenav__badge" data-nav-badge="inbox" hidden></span>'],
-    ['Llamadas', '#'],
+    ['Llamadas', 'calls/'],
     ['Tareas', 'tasks/'],
     ['Plantillas de mensaje', 'templates/'],
     ['Fragmentos', 'snippets/'],
@@ -211,7 +211,7 @@ export function mountShell({ root, active, sub }) {
           <a class="menu__item" href="${root}tasks/">Crear tarea</a>
         </div>
       </div>
-      <button class="topbar__icon" type="button" aria-label="Llamadas" data-soon="Llamadas"><span class="ico ico--phone"></span></button>
+      <button class="topbar__icon" type="button" aria-label="Llamadas" id="dialer-btn"><span class="ico ico--phone"></span></button>
       <button class="topbar__icon" type="button" aria-label="Marketplace" data-soon="Marketplace"><span class="ico ico--marketplace"></span></button>
       <div class="menu">
         <button class="topbar__icon" type="button" id="notif-btn" data-root="${root}" aria-label="Notificaciones" aria-haspopup="true"><span class="ico ico--bell"></span><span class="count" ${unreadCount() ? '' : 'hidden'}>${unreadCount()}</span></button>
@@ -249,7 +249,7 @@ export function mountShell({ root, active, sub }) {
   if (scrim) scrim.addEventListener('click', () => sidenav.classList.remove('is-open'));
 
   wireMenus();
-  // The topbar "soon" entries (Mejorar, Llamadas, Marketplace, help links) open the same
+  // The topbar "soon" entries (Mejorar, Marketplace, help links) open the same
   // "en construcción" dialog as the side navigation.
   topbar.addEventListener('click', (e) => {
     const soon = e.target.closest('[data-soon]');
@@ -259,6 +259,9 @@ export function mountShell({ root, active, sub }) {
     closeMenus();
     openSoon(root, soon.dataset.soon || soon.textContent.trim());
   });
+  // The phone icon opens the dialer (search, keypad and recent calls).
+  const dialerBtn = document.getElementById('dialer-btn');
+  if (dialerBtn) dialerBtn.addEventListener('click', () => { closeMenus(); import('./call.js').then((m) => m.openDialer()).catch(() => {}); });
   // The moon/sun button toggles light ↔ dark (the "Según el sistema" choice becomes explicit on click).
   const themeBtn = document.getElementById('theme-toggle');
   if (themeBtn) themeBtn.addEventListener('click', () => {
