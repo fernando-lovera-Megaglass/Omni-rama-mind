@@ -572,7 +572,14 @@ export function setPageRows(type, rows) {
 // synchronous) and then sent to Supabase in order, in the background.
 let writeQueue = Promise.resolve();
 function dbWrite(fn) {
-  writeQueue = writeQueue.then(fn).catch((e) => console.error('[supabase]', e));
+  writeQueue = writeQueue.then(fn).catch((e) => reportDbError('escritura', e));
+}
+// A failed write used to die in the console while the UI had already shown success; now it also tells the
+// user, so a record that did not reach the database never looks saved.
+function reportDbError(what, error) {
+  console.error('[supabase]', what, error);
+  const msg = (error && (error.message || error.details)) || String(error);
+  import('./shell.js').then((m) => m.toast(`No se pudo guardar en la base de datos (${what}): ${msg}`)).catch(() => {});
 }
 const dbRows = {};
 const nextId = {};
@@ -615,7 +622,7 @@ export function setField(type, id, field, value) {
     dbWrite(async () => {
       if (TABLE_COLS[type].includes(col)) {
         const { error } = await supabase.from(type).update({ [col]: value }).eq('id', id);
-        if (error) console.error('[supabase] update', type, error);
+        if (error) reportDbError(`actualizar ${type}`, error);
       } else {
         const { data: row, error: readErr } = await supabase.from(type).select('extra').eq('id', id).single();
         if (readErr) { console.error('[supabase] read extra', type, readErr); return; }
@@ -653,7 +660,7 @@ export function deleteRecords(type, ids) {
     dbWrite(async () => {
       const q = SOFT_DELETE.has(type) ? supabase.from(type).update({ deleted_at: stamp }).in('id', [...doomed]) : supabase.from(type).delete().in('id', [...doomed]);
       const { error } = await q;
-      if (error) console.error('[supabase] delete', type, error);
+      if (error) reportDbError(`eliminar ${type}`, error);
     });
     return;
   }
@@ -689,7 +696,7 @@ export function restoreRecords(type, ids) {
     bump();
     dbWrite(async () => {
       const { error } = await supabase.from(type).update({ deleted_at: null }).in('id', back.map((r) => Number(r.id)));
-      if (error) console.error('[supabase] restore', type, error);
+      if (error) reportDbError(`restaurar ${type}`, error);
     });
     return back.length;
   }
@@ -757,7 +764,7 @@ export function restoreAll(type) {
     dbWrite(async () => {
       const payload = missing.map((r) => toDb(type, r));
       const { error } = await supabase.from(type).insert(payload);
-      if (error) console.error('[supabase] restore', type, error);
+      if (error) reportDbError(`restaurar ${type}`, error);
     });
     return;
   }
@@ -773,8 +780,27 @@ export function addRecord(type, fields, opts = {}) {
     (dbRows[type] = dbRows[type] || []).unshift(augment(type, { ...rec }));
     bump();
     dbWrite(async () => {
-      const { error } = await supabase.from(type).insert(toDb(type, rec, true));
-      if (error) console.error('[supabase] insert', type, error);
+      let payload = toDb(type, rec, true);
+      let { error } = await supabase.from(type).insert(payload);
+      if (error && error.code === '23505') {
+        // The id was taken by another tab/session after this page loaded: take the real max and retry once.
+        const { data: top } = await supabase.from(type).select('id').order('id', { ascending: false }).limit(1);
+        const fresh = ((top && top[0] && Number(top[0].id)) || 0) + 1;
+        nextId[type] = Math.max(nextId[type] || 1, fresh + 1);
+        const mem = (dbRows[type] || []).find((r) => Number(r.id) === Number(rec.id));
+        if (mem) mem.id = fresh;
+        rec.id = fresh;
+        payload = toDb(type, rec, true);
+        ({ error } = await supabase.from(type).insert(payload));
+      }
+      if (error) {
+        // Roll the optimistic record back so it does not look saved.
+        const rows = dbRows[type] || [];
+        const i = rows.findIndex((r) => Number(r.id) === Number(rec.id));
+        if (i >= 0) rows.splice(i, 1);
+        bump();
+        reportDbError(`crear ${type}`, error);
+      }
     });
     return afterAdd(type, rec, opts);
   }
