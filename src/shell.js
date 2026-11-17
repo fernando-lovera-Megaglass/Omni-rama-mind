@@ -185,7 +185,7 @@ export function mountShell({ root, active, sub }) {
     const soon = e.target.closest('[data-soon]');
     if (!soon) return;
     e.preventDefault();
-    toast(`"${soon.textContent.replace('⊕', '').trim()}" no está incluido en esta versión.`);
+    openSoon(root, soon.textContent.replace('⊕', '').trim());
   });
 
   topbar.innerHTML = `
@@ -267,6 +267,29 @@ export function mountShell({ root, active, sub }) {
   }
   wireGlobalSearch(root);
   wireAccount(root);
+}
+
+// "En construcción" dialog for the sections this version does not include yet (nav entries with '#'),
+// with the isometric illustration in public/en-construccion.png.
+function openSoon(root, name) {
+  let dlg = document.getElementById('soon');
+  if (!dlg) {
+    dlg = document.createElement('div');
+    dlg.className = 'soon';
+    dlg.id = 'soon';
+    dlg.innerHTML = `<div class="soon__card" role="dialog" aria-modal="true" aria-labelledby="soon-title">
+      <img class="soon__img" src="${root}en-construccion.png" alt="Ilustración: página en construcción" />
+      <h2 class="soon__title" id="soon-title">Esta página aún está en construcción</h2>
+      <p class="soon__text"><strong id="soon-name"></strong> todavía no está incluido en esta versión de Omni. Estamos trabajando para traerlo pronto.</p>
+      <button class="btn btn--primary" type="button" id="soon-ok">Entendido</button>
+    </div>`;
+    document.body.appendChild(dlg);
+    const close = () => { dlg.classList.remove('is-open'); };
+    dlg.addEventListener('click', (e) => { if (e.target === dlg || e.target.closest('#soon-ok')) close(); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && dlg.classList.contains('is-open')) close(); });
+  }
+  dlg.querySelector('#soon-name').textContent = `«${name}»`;
+  dlg.classList.add('is-open');
 }
 
 // Signed-in user in the account menu and the "Cerrar sesión" button (Supabase Auth). Without Supabase the

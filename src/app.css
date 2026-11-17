@@ -17026,6 +17026,57 @@ body.has-slideover {
   display: none;
 }
 
+/* ---------- "En construcción": diálogo con ilustración para secciones aún no incluidas ---------- */
+.soon {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-24);
+  background: rgba(15, 23, 32, 0.45);
+}
+
+.soon.is-open {
+  display: flex;
+}
+
+.soon__card {
+  width: 100%;
+  max-width: 420px;
+  padding: var(--sp-24) var(--sp-24) var(--sp-20);
+  background: var(--c-white);
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-md);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.28);
+  text-align: center;
+}
+
+.soon__img {
+  width: 240px;
+  max-width: 100%;
+  height: auto;
+  margin: 0 auto var(--sp-8);
+  display: block;
+}
+
+.soon__title {
+  margin: 0 0 var(--sp-8);
+  font-size: var(--fs-md);
+  font-weight: 600;
+  color: var(--c-text);
+}
+
+.soon__text {
+  margin: 0 0 var(--sp-16);
+  font-size: var(--fs-sm);
+  color: var(--c-muted);
+  line-height: 20px;
+}
+
+/* ---------- "En construcción" fin ---------- */
+
 /* ---------- Owner dropdown (avatar + name per option, searchable) over the native select ---------- */
 .osel {
   position: relative;
