@@ -17186,6 +17186,25 @@ body.has-slideover {
 .callrec input { accent-color: var(--c-link); }
 .callrec__note { margin: 2px 0 0 22px; font-size: 12px; }
 
+/* Teclado y botón de grabación dentro de la llamada */
+.callbox__keypad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  margin-top: var(--sp-8);
+  padding: 6px 18px;
+}
+.keypad__key--sm { aspect-ratio: 2.2; border-radius: 10px; }
+.keypad__key--sm b { font-size: 16px; }
+.callbox__recbtn {
+  align-self: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: #d94c53;
+  padding: 6px 4px;
+}
+.callbox__btns { flex-wrap: wrap; }
+
 /* Reproductor de grabaciones en CRM › Llamadas */
 .calls-play {
   margin-left: 8px;

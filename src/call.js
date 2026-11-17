@@ -84,9 +84,17 @@ function paint(state, { name = '', to = '' } = {}) {
       ${OUTCOMES.map((o) => `<option value="${esc(o)}" ${callOutcome === o ? 'selected' : ''}>${esc(o)}</option>`).join('')}
     </select>
     <textarea class="callbox__notes" rows="3" placeholder="Toma notas de la llamada…" aria-label="Notas de la llamada">${esc(callNotes)}</textarea>`}
+    <div class="callbox__keypad" hidden>
+      ${KEYS.map(([d]) => `<button class="keypad__key keypad__key--sm" type="button" data-dtmf="${d}"><b>${d}</b></button>`).join('')}
+    </div>
     <div class="callbox__btns">
-      ${isIncomingRing ? '<button class="btn btn--primary" type="button" data-call="answer">Contestar</button>' : ended ? '' : '<button class="btn btn--ghost" type="button" data-call="mute">Silenciar</button>'}
-      ${ended ? '' : `<button class="btn btn--primary callbox__hang" type="button" data-call="hangup">${isIncomingRing ? 'Rechazar' : 'Colgar'}</button>`}
+      ${isIncomingRing ? '<button class="btn btn--primary" type="button" data-call="answer">Contestar</button><button class="btn btn--primary callbox__hang" type="button" data-call="hangup">Rechazar</button>' : ended ? '' : `
+      <button class="btn btn--ghost btn--sm" type="button" data-call="mute">Silenciar</button>
+      <button class="btn btn--ghost btn--sm" type="button" data-call="dtmf">Teclado</button>
+      ${callRecording
+        ? '<span class="callbox__recbtn is-on" title="La llamada se está grabando">● Grabando</span>'
+        : '<button class="btn btn--ghost btn--sm" type="button" data-call="record">Grabar</button>'}
+      <button class="btn btn--primary btn--sm callbox__hang" type="button" data-call="hangup">Colgar</button>`}
     </div>`;
   panel.hidden = false;
 }
@@ -471,11 +479,39 @@ export async function playRecording(btn, callSid) {
 // Panel buttons (one delegated listener for the whole page).
 if (typeof document !== 'undefined') {
   document.addEventListener('click', (e) => {
-    const b = e.target.closest('[data-call]');
+    const dtmf = e.target.closest && e.target.closest('[data-dtmf]');
+    if (dtmf && call && panel && panel.contains(dtmf)) {
+      // Tonos del teclado en plena llamada (extensiones, contestadoras).
+      try { call.sendDigits(dtmf.dataset.dtmf); } catch { /* la llamada ya terminó */ }
+      return;
+    }
+    const b = e.target.closest && e.target.closest('[data-call]');
     if (!b || !call) return;
     const a = b.dataset.call;
     if (a === 'hangup') { call.disconnect(); }
     else if (a === 'answer' && incoming === call) { call.accept(); incoming = null; paint('En curso', panel.dataset.info ? JSON.parse(panel.dataset.info) : {}); startTimer(); }
     else if (a === 'mute') { const m = !call.isMuted(); call.mute(m); b.textContent = m ? 'Activar sonido' : 'Silenciar'; }
+    else if (a === 'dtmf') {
+      const pad = panel && panel.querySelector('.callbox__keypad');
+      if (pad) { pad.hidden = !pad.hidden; b.textContent = pad.hidden ? 'Teclado' : 'Ocultar teclado'; }
+    } else if (a === 'record') {
+      // Grabar a media llamada: la función crea la grabación sobre la llamada en curso.
+      const sid = call.parameters && call.parameters.CallSid;
+      if (!sid) { toast('Aún no puedo grabar: espera a que contesten.'); return; }
+      b.disabled = true;
+      b.textContent = 'Iniciando…';
+      supabase.functions.invoke('twilio-call-record', { body: { callSid: sid } })
+        .then(({ data, error }) => {
+          if (error || (data && data.error)) throw new Error((data && data.error) || (error && error.message) || 'error');
+          callRecording = true;
+          toast('Grabando la llamada');
+          paint('En curso', panel.dataset.info ? JSON.parse(panel.dataset.info) : {});
+        })
+        .catch((err) => {
+          b.disabled = false;
+          b.textContent = 'Grabar';
+          toast(`No se pudo grabar: ${(err && err.message) || err}`);
+        });
+    }
   });
 }
