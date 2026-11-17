@@ -5,6 +5,7 @@ import { authEnabled, currentUser, signOut, onAuthChange, siteRoot, goTo, userLa
 import { notifications, unreadCount, markAllRead } from './notifications.js';
 import { displayPhone, phoneHref } from './phone.js';
 import { getTheme, setTheme, resolvedTheme } from './theme.js';
+import { sectionStatus, ready as roadmapReady } from './roadmap.js';
 
 // The bell: real notifications (workflows, sequences…) with the unread count.
 const escN = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -291,6 +292,7 @@ function openSoon(root, name) {
       <img class="soon__img" src="${root}en-construccion.png" alt="Ilustración: página en construcción" />
       <h2 class="soon__title" id="soon-title">Esta página aún está en construcción</h2>
       <p class="soon__text"><strong id="soon-name"></strong> todavía no está incluido en esta versión de Omni. Estamos trabajando para traerlo pronto.</p>
+      <p class="soon__queue" id="soon-queue" hidden></p>
       <button class="btn btn--primary" type="button" id="soon-ok">Entendido</button>
     </div>`;
     document.body.appendChild(dlg);
@@ -299,6 +301,17 @@ function openSoon(root, name) {
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && dlg.classList.contains('is-open')) close(); });
   }
   dlg.querySelector('#soon-name').textContent = `«${name}»`;
+  const q = dlg.querySelector('#soon-queue');
+  const paintQueue = () => {
+    const st = sectionStatus(name);
+    if (!st) { q.hidden = true; return; }
+    q.hidden = false;
+    q.textContent = st.status === 'building'
+      ? '🔨 Se está construyendo ahora mismo — es la prioridad de la lista.'
+      : `Va en el lugar ${st.position} de ${st.total} pendientes en la lista de construcción.`;
+  };
+  paintQueue();
+  roadmapReady.then(paintQueue).catch(() => {});
   dlg.classList.add('is-open');
 }
 

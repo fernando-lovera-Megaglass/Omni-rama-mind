@@ -17075,6 +17075,13 @@ body.has-slideover {
   line-height: 20px;
 }
 
+.soon__queue {
+  margin: calc(-1 * var(--sp-8)) 0 var(--sp-16);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--c-link);
+}
+
 /* ---------- "En construcción" fin ---------- */
 
 /* ---------- Owner dropdown (avatar + name per option, searchable) over the native select ---------- */

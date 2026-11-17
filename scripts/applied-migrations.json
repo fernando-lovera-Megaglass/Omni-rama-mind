@@ -94,5 +94,9 @@
   "twilio.sql": {
     "status": "aplicada",
     "at": "2026-11-17T01:48:42.978Z"
+  },
+  "roadmap.sql": {
+    "status": "aplicada",
+    "at": "2026-11-17T17:15:42.147Z"
   }
 }
