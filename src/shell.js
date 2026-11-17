@@ -199,7 +199,7 @@ export function mountShell({ root, active, sub }) {
     </div>
     <button class="topbar__assistant" type="button"><span class="ai-spark">✦</span> Asistente de Omni</button>
     <div class="topbar__right">
-      <button class="topbar__icon" type="button" aria-label="Mejorar"><span class="ico ico--rocket"></span></button>
+      <button class="topbar__icon" type="button" aria-label="Mejorar" data-soon="Mejorar"><span class="ico ico--rocket"></span></button>
       <div class="menu">
         <button class="topbar__icon" type="button" aria-label="Crear" aria-haspopup="true"><span class="ico ico--plus"></span></button>
         <div class="menu__panel menu__panel--right">
@@ -210,8 +210,8 @@ export function mountShell({ root, active, sub }) {
           <a class="menu__item" href="${root}tasks/">Crear tarea</a>
         </div>
       </div>
-      <button class="topbar__icon" type="button" aria-label="Llamadas"><span class="ico ico--phone"></span></button>
-      <button class="topbar__icon" type="button" aria-label="Marketplace"><span class="ico ico--marketplace"></span></button>
+      <button class="topbar__icon" type="button" aria-label="Llamadas" data-soon="Llamadas"><span class="ico ico--phone"></span></button>
+      <button class="topbar__icon" type="button" aria-label="Marketplace" data-soon="Marketplace"><span class="ico ico--marketplace"></span></button>
       <div class="menu">
         <button class="topbar__icon" type="button" id="notif-btn" data-root="${root}" aria-label="Notificaciones" aria-haspopup="true"><span class="ico ico--bell"></span><span class="count" ${unreadCount() ? '' : 'hidden'}>${unreadCount()}</span></button>
         <div class="menu__panel menu__panel--right menu__panel--wide" id="notif-panel">${notifPanelHtml(root)}</div>
@@ -219,9 +219,9 @@ export function mountShell({ root, active, sub }) {
       <div class="menu">
         <button class="topbar__icon" type="button" aria-label="Ayuda" aria-haspopup="true"><span class="ico ico--help"></span></button>
         <div class="menu__panel menu__panel--right">
-          <a class="menu__item" href="#">Base de conocimientos</a>
-          <a class="menu__item" href="#">Comunidad</a>
-          <a class="menu__item" href="#">Contactar con soporte</a>
+          <a class="menu__item" href="#" data-soon="Base de conocimientos">Base de conocimientos</a>
+          <a class="menu__item" href="#" data-soon="Comunidad">Comunidad</a>
+          <a class="menu__item" href="#" data-soon="Contactar con soporte">Contactar con soporte</a>
         </div>
       </div>
       <button class="topbar__icon tip" type="button" id="theme-toggle" aria-label="Cambiar tema"><span class="ico ${resolvedTheme() === 'dark' ? 'ico--sun' : 'ico--moon'}"></span><span class="tip__text">${resolvedTheme() === 'dark' ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'}</span></button>
@@ -248,6 +248,16 @@ export function mountShell({ root, active, sub }) {
   if (scrim) scrim.addEventListener('click', () => sidenav.classList.remove('is-open'));
 
   wireMenus();
+  // The topbar "soon" entries (Mejorar, Llamadas, Marketplace, help links) open the same
+  // "en construcción" dialog as the side navigation.
+  topbar.addEventListener('click', (e) => {
+    const soon = e.target.closest('[data-soon]');
+    if (!soon) return;
+    e.preventDefault();
+    e.stopPropagation();
+    closeMenus();
+    openSoon(root, soon.dataset.soon || soon.textContent.trim());
+  });
   // The moon/sun button toggles light ↔ dark (the "Según el sistema" choice becomes explicit on click).
   const themeBtn = document.getElementById('theme-toggle');
   if (themeBtn) themeBtn.addEventListener('click', () => {
