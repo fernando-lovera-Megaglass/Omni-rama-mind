@@ -684,8 +684,8 @@ h1 {
 }
 
 .menu__panel--picker {
-  min-width: 300px;
-  max-height: 420px;
+  min-width: 340px;
+  max-height: 460px;
   overflow-y: auto;
 }
 
@@ -1127,7 +1127,7 @@ h1 {
   position: absolute;
   top: calc(100% + 4px);
   left: 0;
-  min-width: 220px;
+  min-width: 260px;
   padding: var(--sp-8) 0;
   background: var(--c-white);
   border: 1px solid var(--c-border);
@@ -1148,10 +1148,11 @@ h1 {
 .menu__item {
   display: block;
   width: 100%;
-  padding: var(--sp-8) var(--sp-16);
+  padding: 11px var(--sp-20);
   border: 0;
   background: transparent;
   color: var(--c-text);
+  font-size: 15px;
   font-weight: 400;
   text-align: left;
   white-space: nowrap;
@@ -3379,15 +3380,17 @@ h1 {
 }
 
 .menu__title {
-  padding: var(--sp-4) var(--sp-16) var(--sp-8);
+  padding: var(--sp-8) var(--sp-20) var(--sp-10);
+  font-size: 15px;
   font-weight: 600;
   border-bottom: 1px solid var(--c-border);
 }
 
 .menu__note {
-  padding: var(--sp-8) var(--sp-16);
+  padding: var(--sp-10) var(--sp-20);
+  font-size: var(--fs-sm);
   white-space: normal;
-  line-height: 18px;
+  line-height: 20px;
 }
 
 .topbar__icon {
@@ -17041,7 +17044,7 @@ body.has-slideover {
   left: 0;
   right: 0;
   z-index: 80;
-  min-width: 240px;
+  min-width: 280px;
   background: var(--c-white);
   border: 1px solid var(--c-border);
   border-radius: var(--r-sm);
@@ -17081,12 +17084,12 @@ body.has-slideover {
   display: flex;
   align-items: center;
   width: 100%;
-  padding: var(--sp-8) var(--sp-12);
+  padding: 10px var(--sp-16);
   border: 0;
   background: transparent;
   color: var(--c-text);
   font-family: inherit;
-  font-size: var(--fs-sm);
+  font-size: 15px;
   text-align: left;
   cursor: pointer;
 }
@@ -17178,8 +17181,8 @@ body.has-slideover {
 }
 
 .ksel__ico svg {
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
   display: block;
 }
 
@@ -17189,8 +17192,8 @@ body.has-slideover {
   left: 0;
   right: 0;
   z-index: 90;
-  min-width: 240px;
-  max-height: 300px;
+  min-width: 280px;
+  max-height: 320px;
   overflow: auto;
   padding: var(--sp-4) 0;
   background: var(--c-white);
@@ -17206,14 +17209,14 @@ body.has-slideover {
 .ksel__item {
   display: flex;
   align-items: center;
-  gap: var(--sp-8);
+  gap: var(--sp-10);
   width: 100%;
-  padding: var(--sp-8) var(--sp-12);
+  padding: 10px var(--sp-16);
   border: 0;
   background: transparent;
   color: var(--c-text);
   font-family: inherit;
-  font-size: var(--fs-sm);
+  font-size: 15px;
   text-align: left;
   cursor: pointer;
 }
