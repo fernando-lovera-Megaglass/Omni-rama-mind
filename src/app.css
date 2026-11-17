@@ -17205,6 +17205,29 @@ body.has-slideover {
 }
 .callbox__btns { flex-wrap: wrap; }
 
+/* Minimizar la ventana de la llamada */
+.callbox__top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.callbox__min {
+  background: none;
+  border: 0;
+  cursor: pointer;
+  color: var(--c-muted);
+  font-size: 16px;
+  line-height: 1;
+  padding: 0 4px;
+  border-radius: 6px;
+}
+.callbox__min:hover { color: var(--c-text); background: var(--c-hover, rgba(0,0,0,.05)); }
+.callbox.is-min { width: auto; padding: 8px 12px; text-align: left; }
+.callbox.is-min > *:not(.callbox__top):not(.callbox__timer) { display: none; }
+.callbox.is-min .callbox__timer { display: inline !important; margin: 0 0 0 8px; font-size: 14px; }
+.callbox.is-min .callbox__top { display: inline-flex; vertical-align: middle; }
+
 /* Reproductor de grabaciones en CRM › Llamadas */
 .calls-play {
   margin-left: 8px;

@@ -6,7 +6,7 @@
 import { supabase } from './supabaseClient.js';
 import { ready as twilioReady, hasTwilio, twilioConnection } from './twilio.js';
 import { displayPhone } from './phone.js';
-import { allContacts, addActivity } from './data.js';
+import { allContacts, addActivity, addRecord, TODAY } from './data.js';
 import { toast } from './shell.js';
 
 let device = null;
@@ -17,7 +17,9 @@ let timerId = null;
 let startedAt = 0;
 let callNotes = '';
 let callOutcome = '';
+let callType = '';
 let callRecording = false;
+let minimized = false;
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 
@@ -39,6 +41,9 @@ const wireRecordToggle = (root) => {
 };
 
 const OUTCOMES = ['Conectado', 'Sin respuesta', 'Ocupado', 'Dejé mensaje de voz', 'Número equivocado'];
+const CALL_TYPES = ['Prospección', 'Seguimiento', 'Demostración', 'Cotización', 'Soporte', 'Cierre', 'Otro'];
+
+const fmtClock = (sec) => `${String(Math.floor(sec / 60)).padStart(2, '0')}:${String(sec % 60).padStart(2, '0')}`;
 
 async function tokenFor() {
   const { data, error } = await supabase.functions.invoke('twilio-token', { method: 'GET' });
@@ -69,12 +74,16 @@ function paint(state, { name = '', to = '' } = {}) {
     panel.addEventListener('input', (e) => {
       if (e.target.matches('.callbox__notes')) callNotes = e.target.value;
       if (e.target.matches('.callbox__outcome')) callOutcome = e.target.value;
+      if (e.target.matches('[data-wrap="type"]')) callType = e.target.value;
     });
   }
   const isIncomingRing = !!incoming && incoming === call && state !== 'En curso';
   const ended = ['Finalizada', 'Cancelada', 'Error'].includes(state);
   panel.innerHTML = `
-    <div class="callbox__state">${esc(state)}${callRecording && !ended ? ' <span class="callbox__rec" title="Grabando">● REC</span>' : ''}</div>
+    <div class="callbox__top">
+      <div class="callbox__state">${esc(state)}${callRecording && !ended ? ' <span class="callbox__rec" title="Grabando">● REC</span>' : ''}</div>
+      <button class="callbox__min" type="button" data-call="min" aria-label="${minimized ? 'Restaurar' : 'Minimizar'} la ventana de la llamada">${minimized ? '▢' : '—'}</button>
+    </div>
     <div class="callbox__name">${esc(name || 'Llamada')}</div>
     <div class="callbox__num">${esc(to)}</div>
     <div class="callbox__timer" ${state === 'En curso' ? '' : 'hidden'}>00:00</div>
@@ -96,6 +105,37 @@ function paint(state, { name = '', to = '' } = {}) {
         : '<button class="btn btn--ghost btn--sm" type="button" data-call="record">Grabar</button>'}
       <button class="btn btn--primary btn--sm callbox__hang" type="button" data-call="hangup">Colgar</button>`}
     </div>`;
+  panel.classList.toggle('is-min', minimized);
+  panel.hidden = false;
+}
+
+// Pantalla de cierre tras colgar (cuando la llamada tiene ficha): resultado, tipo de llamada,
+// comentarios (arrancan con las notas tomadas durante la llamada) y tarea de seguimiento opcional.
+function paintWrapUp() {
+  const ctx = callCtx;
+  const dur = startedAt ? Math.round((Date.now() - startedAt) / 1000) : 0;
+  panel.innerHTML = `
+    <div class="callbox__top">
+      <div class="callbox__state">Llamada finalizada</div>
+      <button class="callbox__min" type="button" data-call="min" aria-label="${minimized ? 'Restaurar' : 'Minimizar'}">${minimized ? '▢' : '—'}</button>
+    </div>
+    <div class="callbox__name">${esc(ctx.name || 'Llamada')}</div>
+    <div class="callbox__num">${esc(displayPhone(ctx.to || ''))}${dur ? ` · ${fmtClock(dur)}` : ''}${callRecording ? ' · ● Grabada' : ''}</div>
+    <select class="callbox__outcome" aria-label="Resultado de la llamada">
+      <option value="">Resultado de la llamada…</option>
+      ${OUTCOMES.map((o) => `<option value="${esc(o)}" ${callOutcome === o ? 'selected' : ''}>${esc(o)}</option>`).join('')}
+    </select>
+    <select class="callbox__outcome" data-wrap="type" aria-label="Tipo de llamada">
+      <option value="">Tipo de llamada…</option>
+      ${CALL_TYPES.map((o) => `<option value="${esc(o)}" ${callType === o ? 'selected' : ''}>${esc(o)}</option>`).join('')}
+    </select>
+    <textarea class="callbox__notes" rows="4" placeholder="Comentarios de la llamada…" aria-label="Comentarios">${esc(callNotes)}</textarea>
+    <label class="callrec"><input type="checkbox" data-wrap="task" /> Crear tarea de seguimiento para mañana</label>
+    <div class="callbox__btns">
+      <button class="btn btn--ghost btn--sm" type="button" data-call="discard">Descartar</button>
+      <button class="btn btn--primary btn--sm" type="button" data-call="save">Guardar</button>
+    </div>`;
+  panel.classList.toggle('is-min', minimized);
   panel.hidden = false;
 }
 
@@ -133,9 +173,67 @@ function stopTimer() { if (timerId) clearInterval(timerId); timerId = null; }
 
 function endPanel(state) {
   stopTimer();
+  // Llamada contestada y con ficha conocida: pantalla de cierre (resultado, tipo, comentarios, tarea).
+  if (state === 'Finalizada' && callCtx.contactId && startedAt) {
+    paintWrapUp();
+    call = null;
+    incoming = null;
+    return;
+  }
   saveCallLog(state);
   if (panel) paint(state, panel.dataset.info ? JSON.parse(panel.dataset.info) : {});
-  setTimeout(() => { if (panel) { panel.remove(); panel = null; } call = null; incoming = null; }, 2200);
+  setTimeout(() => closePanel(), 2200);
+}
+
+function closePanel() {
+  if (panel) { panel.remove(); panel = null; }
+  call = null;
+  incoming = null;
+  minimized = false;
+  callCtx = {};
+  callNotes = '';
+  callOutcome = '';
+  callType = '';
+  callRecording = false;
+}
+
+// Guardar desde la pantalla de cierre: actividad en la ficha (con duración, resultado, tipo y
+// comentarios) y, si se pidió, la tarea de seguimiento para mañana.
+function saveWrapUp(wantTask) {
+  const ctx = callCtx;
+  if (!ctx.contactId || callLogged) { closePanel(); return; }
+  callLogged = true;
+  const durationMin = startedAt ? Math.max(1, Math.round((Date.now() - startedAt) / 60000)) : 0;
+  const bits = [`Llamada ${ctx.incoming ? 'entrante' : 'saliente'} con ${ctx.name || ctx.to}.`];
+  if (callNotes.trim()) bits.push(callNotes.trim());
+  try {
+    addActivity({
+      type: 'call',
+      recordType: ctx.recordType || 'contacts',
+      recordId: ctx.contactId,
+      text: bits.join(' '),
+      who: 'Tú',
+      when: Date.now(),
+      extra: { direction: ctx.incoming ? 'Entrante' : 'Saliente', outcome: callOutcome, callType, durationMin, recorded: callRecording || undefined },
+    });
+    if (wantTask) {
+      const contact = contactById(ctx.contactId);
+      addRecord('tasks', {
+        name: `Seguimiento de la llamada con ${ctx.name || ctx.to}`,
+        type: 'Llamada',
+        due: new Date(TODAY.getTime() + 86400000).toISOString(),
+        priority: 'medium',
+        status: 'todo',
+        owner: (contact && contact.owner) || 'Sin asignar',
+        contactId: ctx.contactId,
+        contact: ctx.name || '',
+        lastActivity: TODAY.toISOString(),
+      });
+    }
+    toast(wantTask ? 'Llamada guardada y tarea creada' : 'Llamada guardada en la ficha');
+    if (typeof ctx.onLogged === 'function') ctx.onLogged();
+  } catch (e) { console.error('[llamada] no se pudo guardar en la ficha', e); }
+  closePanel();
 }
 
 // Al colgar, la llamada queda en la ficha del contacto con duración, resultado y notas.
@@ -486,8 +584,19 @@ if (typeof document !== 'undefined') {
       return;
     }
     const b = e.target.closest && e.target.closest('[data-call]');
-    if (!b || !call) return;
+    if (!b || !panel || !panel.contains(b)) return;
     const a = b.dataset.call;
+    // Minimizar/restaurar y guardar/descartar funcionan también sin llamada activa (pantalla de cierre).
+    if (a === 'min') {
+      minimized = !minimized;
+      panel.classList.toggle('is-min', minimized);
+      b.textContent = minimized ? '▢' : '—';
+      b.setAttribute('aria-label', minimized ? 'Restaurar la ventana de la llamada' : 'Minimizar la ventana de la llamada');
+      return;
+    }
+    if (a === 'save') { saveWrapUp(!!(panel.querySelector('[data-wrap="task"]') || {}).checked); return; }
+    if (a === 'discard') { closePanel(); return; }
+    if (!call) return;
     if (a === 'hangup') { call.disconnect(); }
     else if (a === 'answer' && incoming === call) { call.accept(); incoming = null; paint('En curso', panel.dataset.info ? JSON.parse(panel.dataset.info) : {}); startTimer(); }
     else if (a === 'mute') { const m = !call.isMuted(); call.mute(m); b.textContent = m ? 'Activar sonido' : 'Silenciar'; }
