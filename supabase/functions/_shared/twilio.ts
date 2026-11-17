@@ -1,0 +1,75 @@
+// Shared helpers of the Twilio Edge Functions: REST API calls with Basic auth (Account SID + Auth Token),
+// the caller's connection row and its secrets. Secrets in Supabase: none needed per-project — the user
+// supplies their own Account SID / Auth Token, stored in twilio_connection_secrets (RLS with no policies,
+// only the service role can read them).
+import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2';
+export { handle, userFromRequest, serviceClient, json, fail, env, requireEnv, ConfigError, AuthError } from './gmail.ts';
+
+export class TwilioError extends Error {
+  code: string;
+  status: number;
+  constructor(message: string, code = 'twilio', status = 502) { super(message); this.code = code; this.status = status; }
+}
+
+const API = 'https://api.twilio.com/2010-04-01';
+
+// One call to the Twilio REST API with the given credentials.
+export async function twilio(sid: string, token: string, path: string, init: { method?: string; form?: Record<string, string> } = {}): Promise<unknown> {
+  const res = await fetch(`${API}${path}`, {
+    method: init.method || 'GET',
+    headers: {
+      Authorization: `Basic ${btoa(`${sid}:${token}`)}`,
+      ...(init.form ? { 'Content-Type': 'application/x-www-form-urlencoded' } : {}),
+    },
+    body: init.form ? new URLSearchParams(init.form).toString() : undefined,
+  });
+  let body: Record<string, unknown> = {};
+  try { body = await res.json(); } catch { /* empty body */ }
+  if (!res.ok) {
+    const msg = (body.message as string) || `Twilio respondió ${res.status}`;
+    if (res.status === 401) throw new TwilioError('El Account SID o el Auth Token no son válidos. Revísalos en la consola de Twilio.', 'auth', 400);
+    if (res.status === 404) throw new TwilioError('No encontré eso en tu cuenta de Twilio. Revisa el Account SID.', 'not_found', 400);
+    throw new TwilioError(msg, 'api', 502);
+  }
+  return body;
+}
+
+export interface TwilioConnection {
+  id: string;
+  user_id: string;
+  account_sid: string;
+  phone_number: string;
+  friendly_name: string | null;
+  capabilities: { voice?: boolean; sms?: boolean; whatsapp?: boolean };
+  status: 'active' | 'error' | 'disabled';
+  last_error: string | null;
+}
+
+// The caller's Twilio connection (or null), without secrets.
+export async function connectionOf(service: SupabaseClient, userId: string): Promise<TwilioConnection | null> {
+  const { data, error } = await service.from('twilio_connections').select('*').eq('user_id', userId).maybeSingle();
+  if (error) throw error;
+  return (data as TwilioConnection | null) ?? null;
+}
+
+// The Auth Token of a connection (service role only — never returned to the browser).
+export async function authTokenOf(service: SupabaseClient, connectionId: string): Promise<string> {
+  const { data, error } = await service.from('twilio_connection_secrets').select('auth_token').eq('connection_id', connectionId).maybeSingle();
+  if (error) throw error;
+  if (!data) throw new TwilioError('La conexión no tiene token guardado. Vuelve a conectar Twilio.', 'no_secret', 400);
+  return data.auth_token as string;
+}
+
+export async function markConnection(service: SupabaseClient, id: string, status: 'active' | 'error' | 'disabled', lastError: string | null = null): Promise<void> {
+  await service.from('twilio_connections').update({ status, last_error: lastError, last_checked_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq('id', id);
+}
+
+// Normalize a phone to E.164 (+52…). Accepts digits, spaces, dashes, parentheses.
+export function e164(raw: string, defaultCountry = '+52'): string {
+  let s = String(raw || '').trim().replace(/[\s()-]/g, '');
+  if (!s) return s;
+  if (s.startsWith('+')) return '+' + s.slice(1).replace(/\D/g, '');
+  s = s.replace(/\D/g, '');
+  if (s.startsWith('00')) return '+' + s.slice(2);
+  return defaultCountry + s;
+}

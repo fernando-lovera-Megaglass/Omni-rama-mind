@@ -90,5 +90,9 @@
   "deal_tags.sql": {
     "status": "aplicada",
     "at": "2026-11-16T14:13:26-0600"
+  },
+  "twilio.sql": {
+    "status": "aplicada",
+    "at": "2026-11-17T01:48:42.978Z"
   }
 }

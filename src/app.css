@@ -17266,6 +17266,17 @@ body.has-slideover {
   text-overflow: ellipsis;
 }
 
+.dtag--green { background: #d8f0e2; color: #1f6b3a; }
+.dtag--red { background: #fadbd8; color: #a93226; }
+.dtag--off { opacity: 0.45; }
+
+.icard__caps {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
 .dtag__emoji {
   font-size: 12px;
 }

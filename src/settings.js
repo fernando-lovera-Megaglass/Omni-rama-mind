@@ -16,6 +16,7 @@ import { paneChannels as paneIbChannels, paneInboxes as paneIbInboxes, paneAvail
 import { ready as inboxSettingsReady } from './inbox-settings.js';
 import { dealTagsPaneHtml, pipelineTagsHtml, mountDealTags } from './deal-tags-ui.js';
 import { tagsForPipeline, ready as dealTagsReady } from './deal-tags.js';
+import { twilioPaneHtml, mountTwilioPane, twilioReady } from './twilio-ui.js';
 import { ready as emailsReady } from './connected-emails.js';
 
 boot({ root: '../', active: 'none', sub: '', title: 'Configuración' });
@@ -168,16 +169,13 @@ function tabCorreo() {
   ])}`;
 }
 emailsReady.then(() => { if (state.section === 'prefs-general' && state.generalTab === 'correo') render(); });
+twilioReady.then(() => { if (state.section === 'prefs-general' && state.generalTab === 'llamadas') render(); });
 inboxSettingsReady.then(() => { if (state.section.startsWith('ib-')) render(); });
 dealTagsReady.then(() => { if (state.section === 'data-objects' && state.objectsObject === 'deals' && state.objectsTab === 'pipelines') render(); });
 function tabLlamadas() {
-  const s = setting('general-llamadas', { provider: 'Llamadas integradas', number: '+52 712 690 1001', record: true, voicemail: false });
-  return `<h3 class="gh">Llamadas</h3><p class="muted">Desde qué número llamas y cómo se registran las llamadas.</p>
-    <form class="gform" data-save="general-llamadas">
-      <div class="gfield"><label>Proveedor de llamadas</label><select class="ginput" name="provider">${['Llamadas integradas', 'Twilio Connect', 'Aircall', 'Teléfono propio'].map((o) => `<option ${s.provider === o ? 'selected' : ''}>${o}</option>`).join('')}</select></div>
-      <div class="gfield"><label>Número desde el que llamas</label><input class="ginput" name="number" value="${esc(s.number)}" /></div>
-      <div class="sform__btns"><button class="btn btn--primary" type="submit">Guardar</button></div>
-    </form>
+  const s = setting('general-llamadas', { record: true, voicemail: false });
+  return `${twilioPaneHtml()}
+    <h3 class="gh">Registro de llamadas</h3><p class="muted">Cómo se registran las llamadas en las fichas.</p>
     ${switchRow('general-llamadas', 'record', 'Grabar llamadas', 'Las grabaciones se guardan en la actividad de la llamada.', s.record)}
     ${switchRow('general-llamadas', 'voicemail', 'Buzón de voz', 'Desvía al buzón cuando no contestas.', s.voicemail)}`;
 }
@@ -1330,6 +1328,8 @@ function render() {
   if (ibs) mountInboxSettings(ibs);
   const dtags = document.getElementById('dtags');
   if (dtags) mountDealTags(dtags, { rerender: render });
+  const twp = document.getElementById('twilio-pane');
+  if (twp) mountTwilioPane(twp, { rerender: render });
   if (state.section === 'data-properties') {
     const q = document.getElementById('props-q');
     if (q && state.propsQuery) { q.focus(); q.setSelectionRange(q.value.length, q.value.length); }
