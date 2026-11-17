@@ -299,12 +299,13 @@ const loadJson = (k, fb) => { try { return JSON.parse(localStorage.getItem(k)) ?
 const saveJson = (k, v) => localStorage.setItem(k, JSON.stringify(v));
 
 // ---------- quick action buttons + "Más" menu ----------
+import { ACT_ICONS } from './action-icons.js';
 const QUICK = [
-  ['note', '✎', 'Nota'],
-  ['email', '✉', 'Correo'],
-  ['call', '☏', 'Llamar'],
-  ['task', '☑', 'Tarea'],
-  ['meeting', '▦', 'Reunión'],
+  ['note', ACT_ICONS.note, 'Nota'],
+  ['email', ACT_ICONS.email, 'Correo'],
+  ['call', ACT_ICONS.call, 'Llamar'],
+  ['task', ACT_ICONS.task, 'Tarea'],
+  ['meeting', ACT_ICONS.meeting, 'Reunión'],
 ];
 const QUICK_ORDER_KEY = 'crm:quickorder';
 const quickOrder = () => {
@@ -313,19 +314,19 @@ const quickOrder = () => {
   return keys.map((k) => QUICK.find((q) => q[0] === k)).filter(Boolean);
 };
 const MORE_ITEMS = [
-  ['invoice', '🧾', 'Crea una factura'],
-  ['quote', '💲', 'Crear cotización'],
-  ['paylink', '💳', 'Crear enlace de pago'],
-  ['contract', '📄', 'Crear un contrato'],
-  ['sequence', '⤳', 'Inscribir en una secuencia'],
-  ['linkedin', '🔗', 'Interactuar en LinkedIn', ['Ver perfil de LinkedIn', 'Enviar solicitud de conexión', 'Enviar InMail']],
-  ['log', '🗒', 'Registrar actividad', ['Llamada', 'Correo', 'Reunión', 'Mensaje de LinkedIn', 'Mensaje de WhatsApp', 'SMS']],
-  ['whatsapp', '💬', 'Enviar mensaje de WhatsApp'],
-  ['schedule', '📅', 'Programar una reunión'],
-  ['deal', '🤝', 'Crear negocio'],
-  ['ticket', '🎫', 'Crear ticket'],
-  ['workflow', '⚙', 'Inscribir en un workflow'],
-  ['list', '☰', 'Agregar a lista'],
+  ['invoice', ACT_ICONS.invoice, 'Crea una factura'],
+  ['quote', ACT_ICONS.paylink, 'Crear cotización'],
+  ['paylink', ACT_ICONS.paylink, 'Crear enlace de pago'],
+  ['contract', ACT_ICONS.contract, 'Crear un contrato'],
+  ['sequence', ACT_ICONS.sequence, 'Inscribir en una secuencia'],
+  ['linkedin', ACT_ICONS.linkedin, 'Interactuar en LinkedIn', ['Ver perfil de LinkedIn', 'Enviar solicitud de conexión', 'Enviar InMail']],
+  ['log', ACT_ICONS.log, 'Registrar actividad', ['Llamada', 'Correo', 'Reunión', 'Mensaje de LinkedIn', 'Mensaje de WhatsApp', 'SMS']],
+  ['whatsapp', ACT_ICONS.whatsapp, 'Enviar mensaje de WhatsApp'],
+  ['schedule', ACT_ICONS.schedule, 'Programar una reunión'],
+  ['deal', ACT_ICONS.deal, 'Crear negocio'],
+  ['ticket', ACT_ICONS.ticket, 'Crear ticket'],
+  ['workflow', ACT_ICONS.workflow, 'Inscribir en un workflow'],
+  ['list', ACT_ICONS.list, 'Agregar a lista'],
 ];
 function renderQuick() {
   $('quick-row').innerHTML =
@@ -333,7 +334,7 @@ function renderQuick() {
       .map(([k, ico, label]) => `<button class="quick" type="button" data-action="${k}"><span class="quick__ico">${ico}</span>${label}</button>`)
       .join('') +
     `<div class="menu quick__more">
-      <button class="quick" type="button" aria-haspopup="true" aria-expanded="false"><span class="quick__ico">⋯</span>Más</button>
+      <button class="quick" type="button" aria-haspopup="true" aria-expanded="false"><span class="quick__ico">${ACT_ICONS.more}</span>Más</button>
       <div class="menu__panel more-menu" id="more-menu">
         <div class="more-menu__search"><input type="search" id="more-search" placeholder="Buscar" aria-label="Buscar acción" autocomplete="off" /><span class="ico ico--search" aria-hidden="true"></span></div>
         <div class="more-menu__list" id="more-list">

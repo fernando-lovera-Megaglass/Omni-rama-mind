@@ -1,6 +1,7 @@
 // Generic object list: views, filter menus, search, sort, paging, selection,
 // column editor (full property catalog), advanced filters, CSV export/import, create drawer.
 import { wireMenus, closeMenus, toast, linkHtml, wireLinkTooltips } from './shell.js';
+import { ACT_ICONS } from './action-icons.js';
 import { ownerHtml } from './owner.js';
 import { enhanceOwnerSelects, refreshOwnerSelects } from './owner-select.js';
 import { enhancePhoneInputs, displayPhone } from './phone.js';
@@ -526,12 +527,12 @@ export function mountList(cfg) {
       <p class="preview__sub" id="pv-sub"></p>
       <p class="preview__mail" id="pv-mail"></p>
       <div class="preview__quick">
-        <button class="quick" type="button" data-pv="note"><span class="quick__ico">✎</span>Nota</button>
-        <button class="quick" type="button" data-pv="email"><span class="quick__ico">✉</span>Corr…</button>
-        <button class="quick" type="button" data-pv="call"><span class="quick__ico">☏</span>Llam…</button>
-        <button class="quick" type="button" data-pv="task"><span class="quick__ico">☑</span>Tarea</button>
-        <button class="quick" type="button" data-pv="meeting"><span class="quick__ico">▦</span>Reu…</button>
-        <button class="quick" type="button" data-pv="more"><span class="quick__ico">⋯</span>Más</button>
+        <button class="quick" type="button" data-pv="note"><span class="quick__ico">${ACT_ICONS.note}</span>Nota</button>
+        <button class="quick" type="button" data-pv="email"><span class="quick__ico">${ACT_ICONS.email}</span>Corr…</button>
+        <button class="quick" type="button" data-pv="call"><span class="quick__ico">${ACT_ICONS.call}</span>Llam…</button>
+        <button class="quick" type="button" data-pv="task"><span class="quick__ico">${ACT_ICONS.task}</span>Tarea</button>
+        <button class="quick" type="button" data-pv="meeting"><span class="quick__ico">${ACT_ICONS.meeting}</span>Reu…</button>
+        <button class="quick" type="button" data-pv="more"><span class="quick__ico">${ACT_ICONS.more}</span>Más</button>
       </div>
       <div class="preview__about">
         <div class="preview__about-head">

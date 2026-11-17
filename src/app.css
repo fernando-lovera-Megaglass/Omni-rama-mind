@@ -1440,6 +1440,11 @@ h1 {
   color: var(--c-text);
 }
 
+.quick__ico svg {
+  width: 18px;
+  height: 18px;
+}
+
 .quick:hover .quick__ico {
   background: var(--c-row-hover);
 }
@@ -12262,6 +12267,14 @@ textarea.cellpop__input {
   width: 22px;
   text-align: center;
   font-size: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.more-item__ico svg {
+  width: 17px;
+  height: 17px;
 }
 
 .more-item__label {
