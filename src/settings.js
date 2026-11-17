@@ -2,6 +2,7 @@
 import { boot } from './page.js';
 import { toast, wireMenus, closeMenus } from './shell.js';
 import { ownerHtml } from './owner.js';
+import { enhanceKindSelects } from './kind-select.js';
 import { ticketPipelines, saveTicketPipelines, CURRENCY_DEFS, CURRENCY_CODES, currencyRates, saveCurrencyRates, homeCurrency, OWNERS, DEAL_STAGES, isClosedStage, TICKET_STATUSES, PIPELINE_KEY, ASSOC_LABELS_KEY, assocLabels, ALL, formatDate, formatMoney, dealPipelines, saveDealPipelines, dealPipelineDefs, saveDealPipelineDefs, newPipelineDef, setField, LIFECYCLES, download, lifecycleDef, saveLifecycleDef, defaultLifecycleDef, applyCompanyAutomation, EXCLUDED_DOMAINS_KEY, EXCLUDED_DOMAINS_MAX, DEFAULT_EXCLUDED_DOMAINS, FREE_EMAIL_DOMAINS, siteDomain, ticketPipelineDefs, saveTicketPipelineDefs, newTicketPipelineDef, ticketPipelineCounts, DEFAULT_TICKET_STATUSES } from './data.js';
 import { propertyGroups, customProperties, saveCustomProperties, propertyList } from './properties.js';
 import { listInvitations, invite, revoke, invitationsEnabled } from './invitations.js';
@@ -1720,7 +1721,7 @@ root.addEventListener('click', (e) => {
     return;
   }
   const pe = e.target.closest('[data-prop-edit]');
-  if (pe) { const p = customProperties(state.propsObject).find((x) => x.key === pe.dataset.propEdit); openModal('Editar propiedad', propertyForm(state.propsObject, p), `<button class="btn btn--primary" type="button" id="prop-save">Guardar</button><button class="btn btn--ghost" type="button" data-close>Cancelar</button>`); document.getElementById('prop-save').onclick = () => saveProperty(state.propsObject, p.key); return; }
+  if (pe) { const p = customProperties(state.propsObject).find((x) => x.key === pe.dataset.propEdit); openModal('Editar propiedad', propertyForm(state.propsObject, p), `<button class="btn btn--primary" type="button" id="prop-save">Guardar</button><button class="btn btn--ghost" type="button" data-close>Cancelar</button>`); enhanceKindSelects(document.getElementById('prop-form')); document.getElementById('prop-save').onclick = () => saveProperty(state.propsObject, p.key); return; }
   const pr = e.target.closest('[data-prop-rm]');
   if (pr) { if (window.confirm('¿Eliminar esta propiedad personalizada?')) { saveCustomProperties(state.propsObject, customProperties(state.propsObject).filter((x) => x.key !== pr.dataset.propRm)); render(); toast('Propiedad eliminada'); } return; }
   const pv = e.target.closest('[data-prop-view]');
@@ -1833,7 +1834,7 @@ root.addEventListener('click', (e) => {
     document.getElementById('exd-list').addEventListener('click', (ev) => { const b = ev.target.closest('[data-exd-rm]'); if (!b) return; list.splice(Number(b.dataset.exdRm), 1); saveList(list); toast('Dominio quitado'); });
   }
   else if (a === 'new-propgroup') promptModal('Crear grupo de propiedades', [['name', 'Nombre del grupo']], 'Crear', (d) => { const list = propGroupsStore(state.propsObject); const name = d.name.trim(); if (name && !list.includes(name)) list.push(name); save(`crm:propgroups:${state.propsObject}`, list); toast(`Grupo "${name}" creado`); });
-  else if (a === 'new-prop') { openModal('Crear propiedad', propertyForm(state.propsObject), `<button class="btn btn--primary" type="button" id="prop-save">Crear</button><button class="btn btn--ghost" type="button" data-close>Cancelar</button>`); document.getElementById('prop-save').onclick = () => saveProperty(state.propsObject); }
+  else if (a === 'new-prop') { openModal('Crear propiedad', propertyForm(state.propsObject), `<button class="btn btn--primary" type="button" id="prop-save">Crear</button><button class="btn btn--ghost" type="button" data-close>Cancelar</button>`); enhanceKindSelects(document.getElementById('prop-form')); document.getElementById('prop-save').onclick = () => saveProperty(state.propsObject); }
   else if (a === 'invite-focus') { state.utab = 'users'; render(); document.querySelector('#invite-form [name="email"]')?.focus(); }
   else if (a === 'invites-reload') { loadInvitations(true); render(); }
   else if (a === 'new-user') userModal(null);

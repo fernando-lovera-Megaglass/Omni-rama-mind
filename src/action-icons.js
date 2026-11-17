@@ -21,3 +21,24 @@ export const ACT_ICONS = {
   workflow: ico('<circle cx="6" cy="6" r="2.3"/><circle cx="18" cy="6" r="2.3"/><circle cx="12" cy="18" r="2.3"/><path d="M6 8.3v3.2a3 3 0 0 0 3 3h1M18 8.3v3.2a3 3 0 0 1-3 3h-1"/>'),
   list: ico('<path d="M8.5 6.5H20M8.5 12H20M8.5 17.5H20"/><circle cx="4.8" cy="6.5" r="1.15" fill="currentColor" stroke="none"/><circle cx="4.8" cy="12" r="1.15" fill="currentColor" stroke="none"/><circle cx="4.8" cy="17.5" r="1.15" fill="currentColor" stroke="none"/>'),
 };
+
+// Property field types (Ajustes › Propiedades › Crear propiedad): one minimalist icon per kind.
+export const FIELD_ICONS = {
+  text: ico('<path d="M5 6.5V5h14v1.5M12 5v14M9 19h6"/>'),
+  textarea: ico('<path d="M4 6h16M4 10.5h16M4 15h10M4 19.5h7"/>'),
+  number: ico('<path d="M9 4.5L7.5 19.5M16.5 4.5L15 19.5M5 9.5h15M4 14.5h15"/>'),
+  currency: ico('<circle cx="12" cy="12" r="8.5"/><path d="M15 9.2c-.6-.9-1.7-1.4-3-1.4-1.9 0-3.2 1-3.2 2.4 0 3.4 6.6 1.7 6.6 4.6 0 1.4-1.4 2.4-3.4 2.4-1.4 0-2.6-.6-3.2-1.5M12 6.3v11.4"/>'),
+  percent: ico('<path d="M18.5 5.5l-13 13"/><circle cx="7.5" cy="7.5" r="2.3"/><circle cx="16.5" cy="16.5" r="2.3"/>'),
+  date: ico('<rect x="3.5" y="5" width="17" height="15.5" rx="2"/><path d="M3.5 9.5h17M8 3v3.5M16 3v3.5"/><circle cx="12" cy="14.5" r="1.15" fill="currentColor" stroke="none"/>'),
+  datetime: ico('<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>'),
+  enum: ico('<path d="M8.5 6.5H20M8.5 12H20M8.5 17.5H20"/><path d="M4 5.2l1.4 1.4L7.5 4.5M4 10.7l1.4 1.4 2.1-2.1M4 16.2l1.4 1.4 2.1-2.1"/>'),
+  bool: ico('<rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8.5 12.2l2.4 2.4 4.6-4.8"/>'),
+  user: ico('<circle cx="12" cy="8.2" r="3.6"/><path d="M5 20c.8-3.6 3.7-5.4 7-5.4s7 1.8 7 5.4"/>'),
+  email: ico('<rect x="3.5" y="5.5" width="17" height="13" rx="2"/><path d="M4 7l8 6 8-6"/>'),
+  phone: ico('<path d="M6.8 4h2.6l1.3 4-1.9 1.6a13.5 13.5 0 0 0 5.6 5.6l1.6-1.9 4 1.3v2.6a1.8 1.8 0 0 1-2 1.8C9.9 18.4 5.6 14.1 5 6a1.8 1.8 0 0 1 1.8-2z"/>'),
+  url: ico('<path d="M10 14.5a4.2 4.2 0 0 0 6 .4l2.6-2.6a4.24 4.24 0 0 0-6-6l-1.4 1.4"/><path d="M14 9.5a4.2 4.2 0 0 0-6-.4l-2.6 2.6a4.24 4.24 0 0 0 6 6l1.4-1.4"/>'),
+  id: ico('<rect x="3.5" y="5" width="17" height="14" rx="2"/><circle cx="8.3" cy="10" r="1.8"/><path d="M5.7 15.5c.4-1.8 1.4-2.7 2.6-2.7s2.2.9 2.6 2.7M14 9h5M14 12.5h5"/>'),
+  stage: ico('<path d="M4 5.5h4v13H4zM10.5 5.5h4v9h-4zM17 5.5h4v5h-4z"/>'),
+  status: ico('<circle cx="12" cy="12" r="8.5"/><path d="M8.5 12.2l2.4 2.4 4.6-4.8"/>'),
+  priority: ico('<path d="M6 21V4.5M6 4.5c2-1.2 4 1.2 6 0s4-1.2 6 0V12c-2 1.2-4-1.2-6 0s-4 1.2-6 0"/>'),
+};
