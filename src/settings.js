@@ -17,6 +17,7 @@ import { ready as inboxSettingsReady } from './inbox-settings.js';
 import { dealTagsPaneHtml, pipelineTagsHtml, mountDealTags } from './deal-tags-ui.js';
 import { tagsForPipeline, ready as dealTagsReady } from './deal-tags.js';
 import { twilioPaneHtml, mountTwilioPane, twilioReady } from './twilio-ui.js';
+import { getTheme, setTheme } from './theme.js';
 import { ready as emailsReady } from './connected-emails.js';
 
 boot({ root: '../', active: 'none', sub: '', title: 'Configuración' });
@@ -155,7 +156,7 @@ function tabPerfil() {
       <hr class="cd-sep" />
       <h3 class="gh">Esta cuenta</h3><p class="muted">Esto solo se aplica a la cuenta ${esc(account().name)}.</p>
       <div class="gfield"><label for="pf-home">Página de inicio predeterminada <span class="info">ⓘ</span></label><p class="muted">Elige la página que quieres ver al iniciar sesión.</p><select id="pf-home" class="ginput" name="home">${HOME_PAGES.map((h) => `<option ${(p.home || HOME_PAGES[0]) === h ? 'selected' : ''}>${h}</option>`).join('')}</select></div>
-      <div class="gfield"><label for="pf-theme">Tema</label><select id="pf-theme" class="ginput" name="theme">${['Claro', 'Oscuro', 'Según el sistema'].map((h) => `<option ${(p.theme || 'Claro') === h ? 'selected' : ''}>${h}</option>`).join('')}</select></div>
+      <div class="gfield"><label for="pf-theme">Tema</label><select id="pf-theme" class="ginput" name="theme">${[['light', 'Claro'], ['dark', 'Oscuro'], ['system', 'Según el sistema']].map(([v, h]) => `<option value="${v}" ${getTheme() === v ? 'selected' : ''}>${h}</option>`).join('')}</select><p class="muted">Cambia el fondo de toda la app. También puedes usar el icono de luna de la barra superior.</p></div>
       <div class="gfield"><label for="pf-tz">Zona horaria</label><select id="pf-tz" class="ginput" name="tz">${TIMEZONES.map((h) => `<option ${(p.tz || TIMEZONES[0]) === h ? 'selected' : ''}>${h}</option>`).join('')}</select></div>
       <div class="sform__btns gsave"><button class="btn btn--primary" type="submit">Guardar</button><button class="btn btn--ghost" type="reset">Cancelar</button></div>
     </form>`;
@@ -1502,6 +1503,7 @@ root.addEventListener('change', (e) => {
   else if (t.hasAttribute('data-props-check-all')) { root.querySelectorAll('[data-props-check]').forEach((c) => { if (t.checked) state.propsSel.add(c.dataset.propsCheck); else state.propsSel.delete(c.dataset.propsCheck); }); render(); }
   else if (t.hasAttribute('data-props-check')) { if (t.checked) state.propsSel.add(t.dataset.propsCheck); else state.propsSel.delete(t.dataset.propsCheck); render(); }
   else if (t.id === 'prop-kind') { document.getElementById('prop-options-field').hidden = t.value !== 'enum'; }
+  else if (t.id === 'pf-theme') { setTheme(t.value); }
   else if (t.id === 'pf-region') { const s = REGIONS[t.value]; document.getElementById('pf-sample').textContent = `Formato: ${s[0]}, ${s[1]}, ${s[2]} y ${s[3]}`; }
   else if (t.id === 'avatar-file') {
     const f = t.files && t.files[0];

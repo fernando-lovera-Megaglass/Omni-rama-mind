@@ -4,6 +4,7 @@
 import { authEnabled, currentUser, signOut, onAuthChange, siteRoot, goTo, userLabel, userInitial } from './auth.js';
 import { notifications, unreadCount, markAllRead } from './notifications.js';
 import { displayPhone, phoneHref } from './phone.js';
+import { getTheme, setTheme, resolvedTheme } from './theme.js';
 
 // The bell: real notifications (workflows, sequences…) with the unread count.
 const escN = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -223,6 +224,7 @@ export function mountShell({ root, active, sub }) {
           <a class="menu__item" href="#">Contactar con soporte</a>
         </div>
       </div>
+      <button class="topbar__icon tip" type="button" id="theme-toggle" aria-label="Cambiar tema"><span class="ico ${resolvedTheme() === 'dark' ? 'ico--sun' : 'ico--moon'}"></span><span class="tip__text">${resolvedTheme() === 'dark' ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'}</span></button>
       <a class="topbar__icon tip" href="${root}settings/" aria-label="Configuración"><span class="ico ico--gear"></span><span class="tip__text">Configuración</span></a>
       <span class="topbar__divider" aria-hidden="true"></span>
       <div class="menu" id="account-menu">
@@ -246,6 +248,16 @@ export function mountShell({ root, active, sub }) {
   if (scrim) scrim.addEventListener('click', () => sidenav.classList.remove('is-open'));
 
   wireMenus();
+  // The moon/sun button toggles light ↔ dark (the "Según el sistema" choice becomes explicit on click).
+  const themeBtn = document.getElementById('theme-toggle');
+  if (themeBtn) themeBtn.addEventListener('click', () => {
+    setTheme(resolvedTheme() === 'dark' ? 'light' : 'dark');
+    const dark = resolvedTheme() === 'dark';
+    themeBtn.querySelector('.ico').className = `ico ${dark ? 'ico--sun' : 'ico--moon'}`;
+    const tip = themeBtn.querySelector('.tip__text');
+    if (tip) tip.textContent = dark ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro';
+    themeBtn.setAttribute('aria-label', tip ? tip.textContent : 'Cambiar tema');
+  });
   // The bell re-renders when a module pushes a notification; "Marcar todas como leídas" clears the count.
   const bellPanel = document.getElementById('notif-panel');
   if (bellPanel && !bellPanel.dataset.wired) {

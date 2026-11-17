@@ -38,6 +38,34 @@
   --shadow-banner: rgba(0, 0, 0, 0.28) 0px 8px 28px 0px;
 }
 
+/* Tema oscuro también en la pantalla de inicio de sesión */
+[data-theme="dark"] {
+  --c-white: #1c242e;
+  --c-text: #e6ebf0;
+  --c-dark: #f2f5f8;
+  --c-link: #5ac8ca;
+  --c-muted: #93a1b0;
+  --c-alert-bg: #452222;
+  --c-alert-border: #a93226;
+  --c-input-border: #4a5765;
+  --c-btn-disabled: #232d38;
+  color-scheme: dark;
+}
+
+[data-theme="dark"] body {
+  background: #12181f;
+}
+
+/* El aviso de cookies usa --c-dark como fondo y --c-white como texto; en oscuro se fijan */
+[data-theme="dark"] .cookie {
+  background: #0f141b;
+  color: #e6ebf0;
+}
+
+[data-theme="dark"] .cookie__link {
+  color: #e6ebf0;
+}
+
 * {
   box-sizing: border-box;
 }
