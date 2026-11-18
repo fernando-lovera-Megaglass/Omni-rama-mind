@@ -26,7 +26,7 @@ import { ownerHtml } from './owner.js';
 import { enhanceOwnerSelects } from './owner-select.js';
 import { enhancePhoneInputs, focusPhoneInput, displayPhone, phoneHref } from './phone.js';
 import { sendSms, hasTwilio } from './twilio.js';
-import { openCallMenu, playRecording } from './call.js';
+import { openCallMenu, playRecording, openCallReview } from './call.js';
 import { loadLayout, cardCatalog } from './layout-defaults.js';
 import { mountQueueBar, dueText, dueClass, completeTask } from './task-queue.js';
 
@@ -140,7 +140,7 @@ async function loadCallLogs() {
   if (!supabase || !dbIsLive() || (type !== 'contacts' && type !== 'companies')) return;
   const col = type === 'companies' ? 'company_id' : 'contact_id';
   try {
-    const { data, error } = await supabase.from('call_logs').select('call_sid,direction,status,duration_sec,started_at,recording_url,transcript').eq(col, String(id)).order('started_at', { ascending: false }).limit(100);
+    const { data, error } = await supabase.from('call_logs').select('call_sid,direction,status,duration_sec,started_at,recording_url,transcript,outcome').eq(col, String(id)).order('started_at', { ascending: false }).limit(100);
     if (!error && Array.isArray(data)) callLogs = data;
   } catch { /* sin llamadas */ }
 }
@@ -1294,7 +1294,7 @@ function allEvents() {
     text: `Llamada ${l.direction === 'inbound' ? 'entrante' : 'saliente'}.`,
     extra: {
       direction: l.direction === 'inbound' ? 'Entrante' : 'Saliente',
-      outcome: CALL_OUTCOME[l.status] || l.status || '',
+      outcome: l.outcome || CALL_OUTCOME[l.status] || l.status || '',
       durationSec: Number(l.duration_sec) || 0,
       callSid: l.call_sid,
       recording: !!l.recording_url,
@@ -1324,13 +1324,11 @@ function renderTimeline() {
     if (x.subject) tags.push(`Asunto: ${x.subject}`);
     return tags.length ? `<div class="timeline__tags">${tags.map((t) => `<span class="tag tag--none">${esc(t)}</span>`).join('')}</div>` : '';
   };
-  // Grabación y transcripción dentro de la entrada de llamada (como «Revisar grabación» del original).
+  // «Revisar grabación» abre el panel lateral estilo HubSpot (reproductor, resultado, transcripción).
   const callMedia = (ev) => {
     const x = ev.extra || {};
-    let h = '';
-    if (x.callSid && x.recording) h += `<button class="calls-play" type="button" data-playcall="${esc(x.callSid)}">▶ Grabación</button>`;
-    if (x.transcript) h += `<div class="calls-transcript calls-transcript--timeline"><strong>Transcripción</strong><p>${esc(x.transcript)}</p></div>`;
-    return h;
+    if (x.callSid && (x.recording || x.transcript)) return `<button class="calls-play" type="button" data-reviewcall="${esc(x.callSid)}">Revisar grabación y seguimiento</button>`;
+    return '';
   };
   // Each entry: icon by type, title, who logged it and when (relative); click expands the full text,
   // the exact date and the details.
@@ -1353,6 +1351,27 @@ function renderTimeline() {
   $('rec-timeline').querySelectorAll('[data-playcall]').forEach((b) => b.addEventListener('click', (e) => {
     e.stopPropagation();
     playRecording(b, b.dataset.playcall);
+  }));
+  $('rec-timeline').querySelectorAll('[data-reviewcall]').forEach((b) => b.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const ev = events.find((x) => x.extra && x.extra.callSid === b.dataset.reviewcall);
+    if (!ev) return;
+    openCallReview({
+      callSid: ev.extra.callSid,
+      title: `Llamada con ${cfg.title(rec)}`,
+      name: cfg.title(rec),
+      when: ev.when,
+      durationSec: ev.extra.durationSec || (Number(ev.extra.durationMin) || 0) * 60,
+      outcome: ev.extra.outcome || '',
+      transcript: ev.extra.transcript || '',
+      hasRecording: !!ev.extra.recording,
+      onOutcome: (val) => {
+        ev.extra.outcome = val;
+        const log = callLogs.find((l) => l.call_sid === ev.extra.callSid);
+        if (log) log.outcome = val;
+        renderTimeline();
+      },
+    });
   }));
   if ($('rec-timeline-short')) $('rec-timeline-short').innerHTML = allEvents().filter((e) => e.type === 'task' || e.type === 'email').slice(0, 2).map(item).join('');
 }

@@ -17338,6 +17338,39 @@ body.has-slideover {
 .calls-transcript p { margin: 0; white-space: pre-wrap; color: var(--c-text); line-height: 1.5; }
 .calls-transcript--timeline { margin-top: 8px; }
 
+/* Panel «Revisión de grabación» (lateral derecho, como el original) */
+.callreview {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 380px;
+  max-width: 92vw;
+  background: var(--c-white);
+  border-left: 1px solid var(--c-border);
+  box-shadow: -18px 0 50px rgba(0, 0, 0, 0.18);
+  z-index: 320;
+  padding: var(--sp-16) var(--sp-24);
+  overflow-y: auto;
+  transform: translateX(100%);
+  transition: transform 0.18s ease-out;
+  text-align: left;
+}
+.callreview.is-open { transform: translateX(0); }
+.callreview__head { display: flex; justify-content: space-between; align-items: center; }
+.callreview__head h3 { margin: 0; font-size: var(--fs-md); }
+.callreview__close { background: none; border: 0; font-size: 22px; cursor: pointer; color: var(--c-muted); line-height: 1; padding: 2px 6px; border-radius: 6px; }
+.callreview__close:hover { background: var(--c-hover, rgba(0,0,0,.06)); color: var(--c-text); }
+.callreview__title { font-weight: 600; margin-top: var(--sp-8); }
+.callreview__meta { font-size: var(--fs-xs); margin-bottom: var(--sp-8); }
+.callreview__label { display: block; font-size: var(--fs-xs); color: var(--c-muted); margin: var(--sp-8) 0 4px; }
+.callreview__section { margin-top: var(--sp-16); border-top: 1px solid var(--c-border); padding-top: var(--sp-12, 12px); }
+.callreview__section h4 { margin: 0 0 8px; font-size: var(--fs-sm); }
+.callreview__player audio { width: 100%; height: 36px; }
+.callreview__player label { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; margin-top: 4px; }
+.callreview__player select { font: inherit; font-size: 12px; padding: 2px 4px; border: 1px solid var(--c-border); border-radius: 6px; background: var(--c-white); }
+.callreview__transcript { white-space: pre-wrap; font-size: 13px; line-height: 1.55; margin: 0; }
+
 /* ---------- Marcador fin ---------- */
 
 /* ---------- Owner dropdown (avatar + name per option, searchable) over the native select ---------- */

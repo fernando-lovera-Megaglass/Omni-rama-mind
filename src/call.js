@@ -559,20 +559,24 @@ export function closeDialer() {
 // ---------- reproducción de grabaciones ----------
 // La grabación la sirve Twilio con Basic auth; el navegador la pide a la función twilio-recording
 // (que valida la sesión) y la reproduce como blob.
+async function fetchRecordingUrl(callSid) {
+  const { data: sess } = await supabase.auth.getSession();
+  const jwt = sess && sess.session && sess.session.access_token;
+  const base = (supabase.supabaseUrl || '').replace(/\/$/, '');
+  const res = await fetch(`${base}/functions/v1/twilio-recording?call=${encodeURIComponent(callSid)}`, {
+    headers: { apikey: supabase.supabaseKey, Authorization: `Bearer ${jwt || supabase.supabaseKey}` },
+  });
+  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `Error ${res.status}`);
+  return URL.createObjectURL(await res.blob());
+}
+
 export async function playRecording(btn, callSid) {
   if (!btn || !callSid) return;
   const old = btn.textContent;
   btn.disabled = true;
   btn.textContent = 'Cargando…';
   try {
-    const { data: sess } = await supabase.auth.getSession();
-    const jwt = sess && sess.session && sess.session.access_token;
-    const base = (supabase.supabaseUrl || '').replace(/\/$/, '');
-    const res = await fetch(`${base}/functions/v1/twilio-recording?call=${encodeURIComponent(callSid)}`, {
-      headers: { apikey: supabase.supabaseKey, Authorization: `Bearer ${jwt || supabase.supabaseKey}` },
-    });
-    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `Error ${res.status}`);
-    const url = URL.createObjectURL(await res.blob());
+    const url = await fetchRecordingUrl(callSid);
     const holder = btn.closest('td') || btn.parentElement;
     const audio = document.createElement('audio');
     audio.controls = true;
@@ -585,6 +589,81 @@ export async function playRecording(btn, callSid) {
     btn.textContent = old;
     toast(`No se pudo reproducir: ${(e && e.message) || e}`);
   }
+}
+
+// ---------- «Revisión de grabación»: panel lateral como el del original ----------
+// Reproductor con velocidad, selector de resultado (se guarda en call_logs), participantes y
+// transcripción. Se abre desde la cronología de la ficha (botón «Revisar grabación»).
+let reviewEl = null;
+export function closeCallReview() {
+  if (reviewEl) { reviewEl.remove(); reviewEl = null; }
+}
+export function openCallReview({ callSid, title = 'Llamada', name = '', when = 0, durationSec = 0, outcome = '', transcript = '', hasRecording = true, onOutcome } = {}) {
+  closeCallReview();
+  const d = when ? new Date(when) : null;
+  const fecha = d ? `${d.toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })} ${d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}` : '';
+  const dur = durationSec ? (durationSec < 60 ? `${durationSec} s` : `${Math.round(durationSec / 60)} min`) : '';
+  const el = document.createElement('aside');
+  el.className = 'callreview';
+  el.innerHTML = `
+    <div class="callreview__head">
+      <h3>Revisión de grabación</h3>
+      <button class="callreview__close" type="button" aria-label="Cerrar">×</button>
+    </div>
+    <div class="callreview__title">${esc(title)}</div>
+    <div class="callreview__meta muted">${esc([fecha, dur].filter(Boolean).join(' · '))}</div>
+    <label class="callreview__label" for="cr-outcome">Resultado de la llamada</label>
+    <select id="cr-outcome" class="callbox__outcome">
+      <option value="">Seleccionar resultado</option>
+      ${OUTCOMES.map((o) => `<option value="${esc(o)}" ${outcome === o ? 'selected' : ''}>${esc(o)}</option>`).join('')}
+    </select>
+    <div class="callreview__section">
+      <h4>Grabación y transcripción${dur ? ` · ${esc(dur)}` : ''}</h4>
+      ${hasRecording
+        ? '<button class="btn btn--ghost btn--sm" type="button" data-cr="load">▶ Cargar grabación</button><div class="callreview__player" hidden><audio controls></audio><label class="muted">Velocidad <select data-cr="speed"><option>0.75</option><option selected>1</option><option>1.25</option><option>1.5</option><option>2</option></select>x</label></div>'
+        : '<p class="muted">Esta llamada no tiene grabación.</p>'}
+    </div>
+    <div class="callreview__section">
+      <h4>Transcripción</h4>
+      ${transcript ? `<p class="callreview__transcript">${esc(transcript)}</p>` : '<p class="muted">No hay transcripción disponible.</p>'}
+    </div>
+    <div class="callreview__section">
+      <h4>Participantes</h4>
+      <p class="muted">Tú ↔ ${esc(name || title.replace(/^Llamada con /, ''))}</p>
+    </div>`;
+  document.body.appendChild(el);
+  reviewEl = el;
+  requestAnimationFrame(() => el.classList.add('is-open'));
+
+  el.querySelector('.callreview__close').addEventListener('click', closeCallReview);
+  const outcomeSel = el.querySelector('#cr-outcome');
+  outcomeSel.addEventListener('change', async () => {
+    const val = outcomeSel.value;
+    try {
+      await supabase.from('call_logs').update({ outcome: val || null }).eq('call_sid', callSid);
+      toast(val ? `Resultado guardado: ${val}` : 'Resultado quitado');
+      if (typeof onOutcome === 'function') onOutcome(val);
+    } catch { toast('No se pudo guardar el resultado.'); }
+  });
+  const loadBtn = el.querySelector('[data-cr="load"]');
+  if (loadBtn) loadBtn.addEventListener('click', async () => {
+    loadBtn.disabled = true;
+    loadBtn.textContent = 'Cargando…';
+    try {
+      const url = await fetchRecordingUrl(callSid);
+      const player = el.querySelector('.callreview__player');
+      const audio = player.querySelector('audio');
+      audio.src = url;
+      player.hidden = false;
+      loadBtn.remove();
+      audio.play().catch(() => {});
+      player.querySelector('[data-cr="speed"]').addEventListener('change', (e) => { audio.playbackRate = Number(e.target.value); });
+    } catch (err) {
+      loadBtn.disabled = false;
+      loadBtn.textContent = '▶ Cargar grabación';
+      toast(`No se pudo reproducir: ${(err && err.message) || err}`);
+    }
+  });
 }
 
 // Panel buttons (one delegated listener for the whole page).
