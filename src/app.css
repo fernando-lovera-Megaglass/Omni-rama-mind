@@ -107,6 +107,9 @@
 [data-theme="dark"] .mk-bars__track { background: var(--c-head); }
 [data-theme="dark"] .mk-method:has(input:checked) { background: #1d3a40; }
 [data-theme="dark"] .mk-tpl__cat.is-active { background: var(--c-row-hover); }
+[data-theme="dark"] th.th:hover,
+[data-theme="dark"] th.th.is-dragging { background: var(--c-row-hover); }
+[data-theme="dark"] .th__more:hover { background: rgba(255, 255, 255, 0.1); }
 
 * {
   box-sizing: border-box;
