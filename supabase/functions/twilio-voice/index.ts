@@ -44,8 +44,16 @@ Deno.serve(handle(async (req) => {
     // Outbound from the browser: dial the destination with the Twilio number as caller ID.
     // Record=1 (the "Grabar llamada" toggle) turns on dual-channel recording; the recording
     // status comes back to twilio-call-status with RecordingSid/RecordingUrl.
+    // ContactId/CompanyId vienen del marcador (call.js) y enlazan la llamada con su ficha;
+    // si no vienen, intentamos adivinar la ficha por el número de teléfono.
     const dest = e164(to, '+');
     const record = params.Record === '1';
+    let contactId = params.ContactId || '';
+    let companyId = params.CompanyId || '';
+    if (!contactId && !companyId) {
+      const match = await contactByPhone(service, conn.user_id, dest);
+      if (match) { contactId = String(match.id); if (match.company_id) companyId = String(match.company_id); }
+    }
     await service.from('call_logs').insert({
       user_id: conn.user_id,
       connection_id: conn.id,
@@ -54,6 +62,8 @@ Deno.serve(handle(async (req) => {
       from_number: conn.phone_number,
       to_number: dest,
       status: 'initiated',
+      contact_id: contactId || null,
+      company_id: companyId || null,
       started_at: new Date().toISOString(),
     });
     const recAttrs = record ? ` record="record-from-answer-dual" recordingStatusCallback="${FN('twilio-call-status')}" recordingStatusCallbackEvent="completed"` : '';
@@ -61,6 +71,7 @@ Deno.serve(handle(async (req) => {
   }
 
   // Inbound PSTN call: ring the owner's browser (identity omni-<userId>) and log it.
+  const who = await contactByPhone(service, conn.user_id, from);
   await service.from('call_logs').insert({
     user_id: conn.user_id,
     connection_id: conn.id,
@@ -69,7 +80,21 @@ Deno.serve(handle(async (req) => {
     from_number: from,
     to_number: to,
     status: 'ringing',
+    contact_id: who ? String(who.id) : null,
+    company_id: who && who.company_id ? String(who.company_id) : null,
     started_at: new Date().toISOString(),
   });
   return twiml(`<Dial answerOnBridge="true" statusCallback="${FN('twilio-call-status')}" statusCallbackEvent="initiated ringing answered completed"><Client>omni-${conn.user_id}</Client></Dial>`);
 }));
+
+// La ficha del contacto por número (últimos 10 dígitos, contra phone y mobilephone).
+async function contactByPhone(service: ReturnType<typeof serviceClient>, userId: string, num: string): Promise<{ id: unknown; company_id: unknown } | null> {
+  const digits = String(num || '').replace(/\D/g, '').slice(-10);
+  if (!digits) return null;
+  const { data } = await service.from('contacts').select('id, phone, mobilephone, company_id').eq('user_id', userId).is('deleted_at', null).limit(5000);
+  for (const c of data || []) {
+    const hit = [c.phone, c.mobilephone].some((p) => String(p || '').replace(/\D/g, '').slice(-10) === digits);
+    if (hit) return c as { id: unknown; company_id: unknown };
+  }
+  return null;
+}

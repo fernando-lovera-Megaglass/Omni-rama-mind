@@ -217,7 +217,7 @@ function saveWrapUp(wantTask) {
       text: bits.join(' '),
       who: 'Tú',
       when: Date.now(),
-      extra: { direction: ctx.incoming ? 'Entrante' : 'Saliente', outcome: callOutcome, callType, durationMin, recorded: callRecording || undefined },
+      extra: { direction: ctx.incoming ? 'Entrante' : 'Saliente', outcome: callOutcome, callType, durationMin, recorded: callRecording || undefined, callSid: ctx.callSid || undefined },
     });
     if (wantTask) {
       const contact = contactById(ctx.contactId);
@@ -259,7 +259,7 @@ function saveCallLog(state) {
       text: bits.join(' '),
       who: 'Tú',
       when: Date.now(),
-      extra: { direction: ctx.incoming ? 'Entrante' : 'Saliente', outcome: callOutcome, durationMin, recorded: callRecording || undefined },
+      extra: { direction: ctx.incoming ? 'Entrante' : 'Saliente', outcome: callOutcome, durationMin, recorded: callRecording || undefined, callSid: ctx.callSid || undefined },
     });
     toast(callNotes.trim() ? 'Llamada y notas guardadas en la ficha' : 'Llamada guardada en la ficha');
     if (typeof ctx.onLogged === 'function') ctx.onLogged();
@@ -281,8 +281,18 @@ export async function startCall({ to, name = '', contactId = '', recordType = 'c
   callCtx = { contactId, recordType, name, to, incoming: false, onLogged };
   paint('Marcando…', { name, to });
   if (panel) panel.dataset.info = JSON.stringify({ name, to });
-  const c = await d.connect({ params: { To: to, ...(callRecording ? { Record: '1' } : {}) } });
+  const c = await d.connect({
+    params: {
+      To: to,
+      ...(callRecording ? { Record: '1' } : {}),
+      // La ficha asociada viaja al webhook para que la llamada quede ligada al contacto/empresa.
+      ...(contactId && recordType === 'companies' ? { CompanyId: String(contactId) } : {}),
+      ...(contactId && recordType !== 'companies' ? { ContactId: String(contactId) } : {}),
+    },
+  });
   call = c;
+  // El SID de Twilio enlaza esta llamada con su fila de call_logs (grabación, transcripción).
+  callCtx.callSid = (c.parameters && c.parameters.CallSid) || '';
   c.on('accept', () => { paint('En curso', { name, to }); if (panel) panel.dataset.info = JSON.stringify({ name, to }); startTimer(); });
   c.on('disconnect', () => endPanel('Finalizada'));
   c.on('cancel', () => endPanel('Cancelada'));

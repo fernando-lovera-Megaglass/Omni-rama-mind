@@ -17336,6 +17336,7 @@ body.has-slideover {
 }
 .calls-transcript strong { display: block; margin-bottom: 4px; color: var(--c-text); }
 .calls-transcript p { margin: 0; white-space: pre-wrap; color: var(--c-text); line-height: 1.5; }
+.calls-transcript--timeline { margin-top: 8px; }
 
 /* ---------- Marcador fin ---------- */
 

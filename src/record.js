@@ -11,8 +11,9 @@ import {
   ticketStatusesFor, ticketStatusLabel, firstOpenTicketStatus, ticketPipelines, stagesFor, allDealStages, dealStageLabel, dealStageProb, isClosedStage,
   formatDate, formatMoney, initials, colorFor, labelOf, toCsv, download, TODAY, assocLabels, CURRENCY_DEFS, CURRENCY_CODES, relativeTimeFine,
   activitiesFor, ensureActivitiesFor, addActivity, historyFor, addHistoryEntry, getSetting, setSetting, settingsLive, settingScope, lineItemsFor, fetchLineItems, lineItemsTotal,
-  parentCompanyOf, childCompaniesOf, isCompanyDescendant,
+  parentCompanyOf, childCompaniesOf, isCompanyDescendant, dbIsLive,
 } from './data.js';
+import { supabase } from './supabaseClient.js';
 import { propertyGroups, propertyMap } from './properties.js';
 const PROPERTIES = new Proxy({}, { get: (_, t) => propertyGroups(t) });
 wireLinkTooltips();
@@ -25,7 +26,7 @@ import { ownerHtml } from './owner.js';
 import { enhanceOwnerSelects } from './owner-select.js';
 import { enhancePhoneInputs, focusPhoneInput, displayPhone, phoneHref } from './phone.js';
 import { sendSms, hasTwilio } from './twilio.js';
-import { openCallMenu } from './call.js';
+import { openCallMenu, playRecording } from './call.js';
 import { loadLayout, cardCatalog } from './layout-defaults.js';
 import { mountQueueBar, dueText, dueClass, completeTask } from './task-queue.js';
 
@@ -130,6 +131,20 @@ boot({ root, active: 'crm', sub: cfg.sub, title: cfg.label });
 const id = new URLSearchParams(location.search).get('id');
 // The timeline loads only this record's activities (record_type + record_id), not the whole table.
 await ensureActivitiesFor(type, id);
+// Llamadas reales de Twilio ligadas a esta ficha (aparecen en la cronología con grabación y
+// transcripción), como en la pestaña «Llamadas» del original.
+let callLogs = [];
+const CALL_OUTCOME = { completed: 'Conectado', 'no-answer': 'Sin respuesta', busy: 'Ocupado', canceled: 'Cancelada', failed: 'Fallida', 'in-progress': 'En curso', ringing: 'Sonando', queued: 'En cola', initiated: 'Iniciada' };
+async function loadCallLogs() {
+  callLogs = [];
+  if (!supabase || !dbIsLive() || (type !== 'contacts' && type !== 'companies')) return;
+  const col = type === 'companies' ? 'company_id' : 'contact_id';
+  try {
+    const { data, error } = await supabase.from('call_logs').select('call_sid,direction,status,duration_sec,started_at,recording_url,transcript').eq(col, String(id)).order('started_at', { ascending: false }).limit(100);
+    if (!error && Array.isArray(data)) callLogs = data;
+  } catch { /* sin llamadas */ }
+}
+await loadCallLogs();
 let rec = findRecord(type, id);
 // A ticket's status choices are the statuses of its own pipeline.
 if (type === 'tickets' && rec) { const f = cfg.fields.find((x) => x[0] === 'status'); if (f) f[3] = opt(ticketStatusesFor(rec.pipeline).map(([k, l]) => [k, l])); }
@@ -1262,7 +1277,31 @@ let actWho = ''; // '' | 'Tú' | owner name | 'Sistema'
 const actDateOk = (ev) => { if (actDate === '') return true; const n = Number(actDate); const start = new Date(); start.setHours(0, 0, 0, 0); return new Date(ev.when).getTime() >= start.getTime() - n * 86400000; };
 function allEvents() {
   const real = loadNotes();
-  return (real.length ? real : sampleEvents()).sort((a, b) => b.when - a.when);
+  const base = real.length ? real : sampleEvents();
+  // Mezclar las llamadas reales de Twilio: si una actividad ya trae su callSid (la pantalla de
+  // cierre la guardó), solo se enriquece con grabación/transcripción; si no, entra como evento.
+  const loggedSids = new Set(base.map((a) => a.extra && a.extra.callSid).filter(Boolean));
+  const enriched = base.map((a) => {
+    const sid = a.extra && a.extra.callSid;
+    const log = sid ? callLogs.find((l) => l.call_sid === sid) : null;
+    if (!log) return a;
+    return { ...a, extra: { ...a.extra, recording: !!log.recording_url, transcript: log.transcript || '' } };
+  });
+  const callEvs = callLogs.filter((l) => !loggedSids.has(l.call_sid)).map((l) => ({
+    type: 'call',
+    when: l.started_at ? new Date(l.started_at).getTime() : Date.now(),
+    who: 'Tú',
+    text: `Llamada ${l.direction === 'inbound' ? 'entrante' : 'saliente'}.`,
+    extra: {
+      direction: l.direction === 'inbound' ? 'Entrante' : 'Saliente',
+      outcome: CALL_OUTCOME[l.status] || l.status || '',
+      durationSec: Number(l.duration_sec) || 0,
+      callSid: l.call_sid,
+      recording: !!l.recording_url,
+      transcript: l.transcript || '',
+    },
+  }));
+  return [...enriched, ...callEvs].sort((a, b) => b.when - a.when);
 }
 function renderTimeline() {
   const q = actQuery.toLowerCase();
@@ -1279,10 +1318,19 @@ function renderTimeline() {
     if (x.outcome) tags.push(`Resultado: ${x.outcome}`);
     if (x.direction) tags.push(x.direction);
     if (x.durationMin) tags.push(`${x.durationMin} min`);
+    else if (x.durationSec) tags.push(x.durationSec < 60 ? `${x.durationSec} s` : `${Math.round(x.durationSec / 60)} min`);
     if (x.locationType) tags.push(x.locationType);
     if (x.channel) tags.push(x.channel);
     if (x.subject) tags.push(`Asunto: ${x.subject}`);
     return tags.length ? `<div class="timeline__tags">${tags.map((t) => `<span class="tag tag--none">${esc(t)}</span>`).join('')}</div>` : '';
+  };
+  // Grabación y transcripción dentro de la entrada de llamada (como «Revisar grabación» del original).
+  const callMedia = (ev) => {
+    const x = ev.extra || {};
+    let h = '';
+    if (x.callSid && x.recording) h += `<button class="calls-play" type="button" data-playcall="${esc(x.callSid)}">▶ Grabación</button>`;
+    if (x.transcript) h += `<div class="calls-transcript calls-transcript--timeline"><strong>Transcripción</strong><p>${esc(x.transcript)}</p></div>`;
+    return h;
   };
   // Each entry: icon by type, title, who logged it and when (relative); click expands the full text,
   // the exact date and the details.
@@ -1298,10 +1346,14 @@ function renderTimeline() {
         </button>
         <div class="timeline__meta"><strong>${esc(ev.who)}</strong> · <span title="${esc(fmtWhen(ev))}">${esc(relativeTimeFine(ev.when))}</span></div>
         <div class="timeline__text">${esc(ev.text)}</div>
-        <div class="timeline__detail"><div class="muted">${esc(fmtWhen(ev))}</div>${extraTags(ev)}</div>
+        <div class="timeline__detail"><div class="muted">${esc(fmtWhen(ev))}</div>${extraTags(ev)}${callMedia(ev)}</div>
       </div>
     </li>`;
   $('rec-timeline').innerHTML = events.length ? events.map(item).join('') : '<li class="muted">Sin actividades que coincidan.</li>';
+  $('rec-timeline').querySelectorAll('[data-playcall]').forEach((b) => b.addEventListener('click', (e) => {
+    e.stopPropagation();
+    playRecording(b, b.dataset.playcall);
+  }));
   if ($('rec-timeline-short')) $('rec-timeline-short').innerHTML = allEvents().filter((e) => e.type === 'task' || e.type === 'email').slice(0, 2).map(item).join('');
 }
 function addEvent(ev) {
