@@ -1613,6 +1613,12 @@ h1 {
   border-radius: 50%;
   background: var(--c-head);
   border: 1px solid var(--c-border);
+  color: var(--c-muted);
+}
+
+.timeline__ico svg {
+  width: 15px;
+  height: 15px;
 }
 
 .timeline__meta {

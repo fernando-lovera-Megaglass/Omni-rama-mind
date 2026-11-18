@@ -68,7 +68,7 @@ if (chips.join('|') !== 'Todo|Notas|Correos|Llamadas|Tareas|Reuniones|Mensajes|S
 const items = () => [...$('rec-timeline').querySelectorAll('li.timeline__item')];
 const first = items()[0];
 log('first entry:', text(first.querySelector('.timeline__ico')), '|', text(first.querySelector('.timeline__title')), '|', text(first.querySelector('.timeline__meta')), '| text:', text(first.querySelector('.timeline__text')), '| open:', first.classList.contains('is-open'));
-if (text(first.querySelector('.timeline__ico')) !== '⚙' || text(first.querySelector('.timeline__title')) !== 'Actividad del sistema' || !/^Sistema · (ahora mismo|hace)/.test(text(first.querySelector('.timeline__meta'))) || first.classList.contains('is-open')) fail('entry layout');
+if (!first.querySelector('.timeline__ico svg') || text(first.querySelector('.timeline__title')) !== 'Actividad del sistema' || !/^Sistema · (ahora mismo|hace)/.test(text(first.querySelector('.timeline__meta'))) || first.classList.contains('is-open')) fail('entry layout');
 click(first.querySelector('.timeline__head'));
 log('after click: open:', first.classList.contains('is-open'), '| aria:', first.querySelector('.timeline__head').getAttribute('aria-expanded'), '| detail date:', text(first.querySelector('.timeline__detail')));
 if (!first.classList.contains('is-open') || first.querySelector('.timeline__head').getAttribute('aria-expanded') !== 'true' || !/\d{4}/.test(text(first.querySelector('.timeline__detail')))) fail('click expands the entry');
@@ -85,7 +85,7 @@ const all = items().length;
 click(document.querySelector('#act-filters [data-kind="system"]'));
 const onlySystem = items();
 log('Sistema chip:', onlySystem.length, 'of', all, '| all system:', onlySystem.every((li) => text(li.querySelector('.timeline__ico')) === '⚙'));
-if (!onlySystem.length || onlySystem.length >= all || !onlySystem.every((li) => text(li.querySelector('.timeline__ico')) === '⚙')) fail('Sistema chip filters');
+if (!onlySystem.length || onlySystem.length >= all || !onlySystem.every((li) => li.querySelector('.timeline__ico svg'))) fail('Sistema chip filters');
 click(document.querySelector('#act-filters [data-kind=""]'));
 $('act-who').value = 'Tú';
 $('act-who').dispatchEvent(new dom.window.Event('change', { bubbles: true }));

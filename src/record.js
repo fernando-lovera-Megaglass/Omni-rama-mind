@@ -1240,7 +1240,7 @@ function saveAssociations(ids, labels) {
   toast(`${names.length} ${names.length === 1 ? KIND_META[kind].s.toLowerCase() : KIND_META[kind].p.toLowerCase()} asociad${names.length === 1 ? 'o' : 'os'}`);
 }
 
-const ICONS = { note: '✎', email: '✉', call: '☏', created: '＋', task: '☑', meeting: '▦', stage: '➜', prop: '✎', message: '💬', system: '⚙' };
+const ICONS = { note: ACT_ICONS.note, email: ACT_ICONS.email, call: ACT_ICONS.call, created: ACT_ICONS.created, task: ACT_ICONS.task, meeting: ACT_ICONS.meeting, stage: ACT_ICONS.stage, prop: ACT_ICONS.prop, message: ACT_ICONS.sms, system: ACT_ICONS.system };
 // Title of a timeline entry by type (what the collapsed row shows first).
 const KIND_TITLE = { note: 'Nota', email: 'Correo', call: 'Llamada', created: 'Registro creado', task: 'Tarea', meeting: 'Reunión', stage: 'Asociación', prop: 'Propiedad actualizada', message: 'Mensaje', system: 'Actividad del sistema' };
 function sampleEvents() {
@@ -1290,7 +1290,7 @@ function renderTimeline() {
   const evKey = (ev) => `${ev.id || ''}:${ev.when}:${ev.type}`;
   const item = (ev) => `
     <li class="timeline__item${openEvents.has(evKey(ev)) ? ' is-open' : ''}" data-ev="${esc(evKey(ev))}">
-      <span class="timeline__ico" aria-hidden="true">${ICONS[ev.type] || '•'}</span>
+      <span class="timeline__ico" aria-hidden="true">${ICONS[ev.type] || ACT_ICONS.more}</span>
       <div class="timeline__body">
         <button class="timeline__head" type="button" aria-expanded="${openEvents.has(evKey(ev))}">
           <span class="timeline__title">${esc(titleOf(ev))}</span>

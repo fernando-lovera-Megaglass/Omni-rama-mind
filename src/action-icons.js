@@ -21,6 +21,10 @@ export const ACT_ICONS = {
   ticket: ico('<path d="M4 8.5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v1.5a2 2 0 0 0 0 4v1.5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V14a2 2 0 0 0 0-4V8.5z"/><path d="M13 7.5v1.6M13 11.2v1.6M13 14.9v1.6"/>'),
   workflow: ico('<circle cx="6" cy="6" r="2.3"/><circle cx="18" cy="6" r="2.3"/><circle cx="12" cy="18" r="2.3"/><path d="M6 8.3v3.2a3 3 0 0 0 3 3h1M18 8.3v3.2a3 3 0 0 1-3 3h-1"/>'),
   list: ico('<path d="M8.5 6.5H20M8.5 12H20M8.5 17.5H20"/><circle cx="4.8" cy="6.5" r="1.15" fill="currentColor" stroke="none"/><circle cx="4.8" cy="12" r="1.15" fill="currentColor" stroke="none"/><circle cx="4.8" cy="17.5" r="1.15" fill="currentColor" stroke="none"/>'),
+  created: ico('<circle cx="12" cy="12" r="8.5"/><path d="M12 8.5v7M8.5 12h7"/>'),
+  stage: ico('<path d="M4 5.5h4v13H4zM10.5 5.5h4v9h-4zM17 5.5h4v5h-4z"/>'),
+  prop: ico('<path d="M4 4.5h6.6L20 13.9a1.8 1.8 0 0 1 0 2.5l-5.6 5.6a1.8 1.8 0 0 1-2.5 0L2.5 12.6V4.5z" transform="translate(1 0)"/><circle cx="8" cy="9" r="1.4"/>'),
+  system: ico('<circle cx="12" cy="12" r="3.2"/><path d="M12 2.8v2.6M12 18.6v2.6M2.8 12h2.6M18.6 12h2.6M5.5 5.5l1.8 1.8M16.7 16.7l1.8 1.8M18.5 5.5l-1.8 1.8M7.3 16.7l-1.8 1.8"/>'),
 };
 
 // Property field types (Ajustes › Propiedades › Crear propiedad): one minimalist icon per kind.
