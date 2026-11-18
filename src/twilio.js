@@ -58,3 +58,19 @@ export async function disconnectTwilio() {
 // ---------- messages ----------
 export const sendSms = ({ to, body, contactId }) => invoke('twilio-send', { body: { to, body, channel: 'sms', contactId } });
 export const sendWhatsApp = ({ to, body, contactId }) => invoke('twilio-send', { body: { to, body, channel: 'whatsapp', contactId } });
+
+// ---------- buzón de voz precargado ----------
+// El mensaje vive en la conexión: voicemailText (lo lee una voz automática) y/o voicemailUrl
+// (audio MP3/WAV subido al bucket público `voicemails`). dropVoicemail cuelga la llamada actual
+// y Twilio marca de nuevo al número; al detectar el tono del buzón reproduce el mensaje y cuelga.
+export const hasVoicemail = () => {
+  const c = connection;
+  return !!c && !!(String(c.voicemailText || '').trim() || String(c.voicemailUrl || '').trim());
+};
+export async function saveVoicemail({ voicemailText = '', voicemailUrl = '' }) {
+  const data = await invoke('twilio-connect', { body: { action: 'voicemail', voicemailText, voicemailUrl } });
+  if (connection) { connection.voicemailText = data.voicemailText || ''; connection.voicemailUrl = data.voicemailUrl || ''; }
+  notify();
+  return data;
+}
+export const dropVoicemail = ({ to, contactId }) => invoke('twilio-voicemail-drop', { body: { to, contactId } });

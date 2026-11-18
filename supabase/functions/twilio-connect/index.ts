@@ -10,17 +10,19 @@ import { handle, userFromRequest, serviceClient, json, fail, twilio, connectionO
 interface TwilioAccount { friendly_name?: string; status?: string }
 interface TwilioNumbers { incoming_phone_numbers?: Array<{ phone_number: string; friendly_name?: string; capabilities?: { voice?: boolean; sms?: boolean; mms?: boolean } }> }
 
+const vmFields = (c: { voicemail_text?: string | null; voicemail_url?: string | null }) => ({ voicemailText: c.voicemail_text || '', voicemailUrl: c.voicemail_url || '' });
+
 async function liveState(service: ReturnType<typeof serviceClient>, c: NonNullable<Awaited<ReturnType<typeof connectionOf>>>) {
-  if (c.status === 'disabled') return { id: c.id, accountSid: c.account_sid, phoneNumber: c.phone_number, friendlyName: c.friendly_name, capabilities: c.capabilities, status: 'disabled', lastError: null, checkedAt: new Date().toISOString() };
+  if (c.status === 'disabled') return { id: c.id, accountSid: c.account_sid, phoneNumber: c.phone_number, friendlyName: c.friendly_name, capabilities: c.capabilities, status: 'disabled', lastError: null, checkedAt: new Date().toISOString(), ...vmFields(c) };
   try {
     const token = await authTokenOf(service, c.id);
     const acc = await twilio(c.account_sid, token, `/Accounts/${c.account_sid}.json`) as TwilioAccount;
     await markConnection(service, c.id, 'active');
-    return { id: c.id, accountSid: c.account_sid, phoneNumber: c.phone_number, friendlyName: acc.friendly_name || c.friendly_name, capabilities: c.capabilities, status: 'active', lastError: null, checkedAt: new Date().toISOString() };
+    return { id: c.id, accountSid: c.account_sid, phoneNumber: c.phone_number, friendlyName: acc.friendly_name || c.friendly_name, capabilities: c.capabilities, status: 'active', lastError: null, checkedAt: new Date().toISOString(), ...vmFields(c) };
   } catch (e) {
     const message = (e as Error).message || 'No se pudo comprobar la cuenta';
     if (e instanceof TwilioError && e.code === 'auth') await markConnection(service, c.id, 'error', message);
-    return { id: c.id, accountSid: c.account_sid, phoneNumber: c.phone_number, friendlyName: c.friendly_name, capabilities: c.capabilities, status: 'error', lastError: message, checkedAt: new Date().toISOString() };
+    return { id: c.id, accountSid: c.account_sid, phoneNumber: c.phone_number, friendlyName: c.friendly_name, capabilities: c.capabilities, status: 'error', lastError: message, checkedAt: new Date().toISOString(), ...vmFields(c) };
   }
 }
 
@@ -42,6 +44,20 @@ Deno.serve(handle(async (req) => {
     const { error } = await service.from('twilio_connections').delete().eq('id', c.id);
     if (error) throw error;
     return json({ ok: true });
+  }
+
+  // Guardar el mensaje de buzón de voz (texto para voz automática y/o URL del audio subido).
+  if (b.action === 'voicemail') {
+    const c = await connectionOf(service, user.id);
+    if (!c) return fail('Primero conecta tu cuenta de Twilio.', 404, { code: 'no_connection' });
+    const voicemailText = String(b.voicemailText || '').trim().slice(0, 800);
+    const voicemailUrl = String(b.voicemailUrl || '').trim().slice(0, 600);
+    if (voicemailUrl && !/^https:\/\/[a-z0-9]+\.supabase\.co\/storage\/v1\/object\/public\/voicemails\//.test(voicemailUrl)) {
+      return fail('La URL del audio debe venir del buzón de voz de Omni (súbela desde Ajustes › Llamadas).', 400, { code: 'bad_url' });
+    }
+    const { error } = await service.from('twilio_connections').update({ voicemail_text: voicemailText || null, voicemail_url: voicemailUrl || null, updated_at: new Date().toISOString() }).eq('id', c.id);
+    if (error) throw error;
+    return json({ ok: true, voicemailText, voicemailUrl });
   }
 
   const sid = String(b.accountSid || '').trim();

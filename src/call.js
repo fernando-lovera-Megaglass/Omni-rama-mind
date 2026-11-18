@@ -4,7 +4,7 @@
 // Also here: the «Llamar» menu on record pages and the topbar dialer (search + keypad + recents),
 // both copies of the original's calling UI.
 import { supabase } from './supabaseClient.js';
-import { ready as twilioReady, hasTwilio, twilioConnection } from './twilio.js';
+import { ready as twilioReady, hasTwilio, twilioConnection, hasVoicemail, dropVoicemail } from './twilio.js';
 import { displayPhone } from './phone.js';
 import { allContacts, addActivity, addRecord, TODAY } from './data.js';
 import { toast } from './shell.js';
@@ -97,13 +97,16 @@ function paint(state, { name = '', to = '' } = {}) {
       ${KEYS.map(([d]) => `<button class="keypad__key keypad__key--sm" type="button" data-dtmf="${d}"><b>${d}</b></button>`).join('')}
     </div>
     <div class="callbox__btns">
-      ${isIncomingRing ? '<button class="btn btn--primary" type="button" data-call="answer">Contestar</button><button class="btn btn--primary callbox__hang" type="button" data-call="hangup">Rechazar</button>' : ended ? '' : `
-      <button class="btn btn--ghost btn--sm" type="button" data-call="mute">Silenciar</button>
-      <button class="btn btn--ghost btn--sm" type="button" data-call="dtmf">Teclado</button>
+      ${isIncomingRing ? `
+      <button class="callbox__ico callbox__ico--hang" type="button" data-call="hangup" title="Rechazar" aria-label="Rechazar llamada"><span class="ico ico--hang"></span></button>
+      <button class="callbox__ico callbox__ico--answer" type="button" data-call="answer" title="Contestar" aria-label="Contestar llamada"><span class="ico ico--phone"></span></button>` : ended ? '' : `
+      <button class="callbox__ico" type="button" data-call="mute" title="Silenciar micrófono" aria-label="Silenciar micrófono"><span class="ico ico--mic"></span></button>
+      <button class="callbox__ico" type="button" data-call="dtmf" title="Teclado (marcar extensiones)" aria-label="Teclado"><span class="ico ico--pad"></span></button>
+      <button class="callbox__ico" type="button" data-call="voicemail" title="${hasVoicemail() ? 'Dejar mi mensaje de buzón de voz y colgar' : 'Buzón de voz: primero guarda tu mensaje en Ajustes › Llamadas'}" aria-label="Dejar mensaje de buzón de voz"><span class="ico ico--vmail"></span></button>
       ${callRecording
-        ? '<span class="callbox__recbtn is-on" title="La llamada se está grabando">● Grabando</span>'
-        : '<button class="btn btn--ghost btn--sm" type="button" data-call="record">Grabar</button>'}
-      <button class="btn btn--primary btn--sm callbox__hang" type="button" data-call="hangup">Colgar</button>`}
+        ? '<span class="callbox__ico callbox__ico--rec-on" title="La llamada se está grabando"><span class="ico ico--rec"></span></span>'
+        : '<button class="callbox__ico" type="button" data-call="record" title="Grabar la llamada" aria-label="Grabar la llamada"><span class="ico ico--rec"></span></button>'}
+      <button class="callbox__ico callbox__ico--hang" type="button" data-call="hangup" title="Colgar" aria-label="Colgar"><span class="ico ico--hang"></span></button>`}
     </div>`;
   panel.classList.toggle('is-min', minimized);
   panel.hidden = false;
@@ -599,16 +602,33 @@ if (typeof document !== 'undefined') {
     if (!call) return;
     if (a === 'hangup') { call.disconnect(); }
     else if (a === 'answer' && incoming === call) { call.accept(); incoming = null; paint('En curso', panel.dataset.info ? JSON.parse(panel.dataset.info) : {}); startTimer(); }
-    else if (a === 'mute') { const m = !call.isMuted(); call.mute(m); b.textContent = m ? 'Activar sonido' : 'Silenciar'; }
+    else if (a === 'mute') {
+      const m = !call.isMuted();
+      call.mute(m);
+      b.classList.toggle('is-on', m);
+      const ico = b.querySelector('.ico');
+      if (ico) ico.className = m ? 'ico ico--mic-off' : 'ico ico--mic';
+      b.title = m ? 'Activar micrófono' : 'Silenciar micrófono';
+    }
     else if (a === 'dtmf') {
       const pad = panel && panel.querySelector('.callbox__keypad');
-      if (pad) { pad.hidden = !pad.hidden; b.textContent = pad.hidden ? 'Teclado' : 'Ocultar teclado'; }
+      if (pad) { pad.hidden = !pad.hidden; b.classList.toggle('is-on', !pad.hidden); }
+    } else if (a === 'voicemail') {
+      // Buzón de voz: cuelga la llamada actual y deja el mensaje precargado tras el tono.
+      if (!hasVoicemail()) { toast('Primero guarda tu mensaje de buzón en Ajustes › Llamadas.'); return; }
+      const to = callCtx.to;
+      if (!to) { toast('Esta llamada no tiene número de destino.'); return; }
+      b.disabled = true;
+      const drop = dropVoicemail({ to, contactId: callCtx.contactId || '' })
+        .then(() => toast('Dejando tu mensaje en el buzón de voz…'))
+        .catch((err) => { b.disabled = false; toast(`No se pudo dejar el mensaje: ${(err && err.message) || err}`); });
+      try { call.disconnect(); } catch { /* ya colgó */ }
+      drop.catch(() => {});
     } else if (a === 'record') {
       // Grabar a media llamada: la función crea la grabación sobre la llamada en curso.
       const sid = call.parameters && call.parameters.CallSid;
       if (!sid) { toast('Aún no puedo grabar: espera a que contesten.'); return; }
       b.disabled = true;
-      b.textContent = 'Iniciando…';
       supabase.functions.invoke('twilio-call-record', { body: { callSid: sid } })
         .then(({ data, error }) => {
           if (error || (data && data.error)) throw new Error((data && data.error) || (error && error.message) || 'error');
@@ -618,7 +638,6 @@ if (typeof document !== 'undefined') {
         })
         .catch((err) => {
           b.disabled = false;
-          b.textContent = 'Grabar';
           toast(`No se pudo grabar: ${(err && err.message) || err}`);
         });
     }
