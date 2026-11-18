@@ -14,15 +14,17 @@ const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 const STATUS_LABEL = {
-  completed: 'Completada', 'in-progress': 'En curso', ringing: 'Sonando', queued: 'En cola',
-  busy: 'Ocupado', 'no-answer': 'Sin respuesta', failed: 'Fallida', canceled: 'Cancelada',
+  completed: 'Conectado', 'in-progress': 'En curso', ringing: 'Sonando', queued: 'En cola',
+  busy: 'Ocupado', 'no-answer': 'Sin respuesta', failed: 'Fallida', canceled: 'Cancelada', initiated: 'Iniciada',
 };
 const DIRECTION_LABEL = { outbound: 'Saliente', inbound: 'Entrante' };
 const PAGE_SIZES = [25, 50, 100];
+const VIEWS = [['all', 'Todas las llamadas'], ['recorded', 'Llamadas grabadas']];
 
 const state = {
   rows: null, // null = todavía cargando
   q: '',
+  view: 'all',
   direction: '',
   owner: '',
   dateRange: '',
@@ -119,6 +121,7 @@ function filtered() {
   const t = state.q.trim().toLowerCase();
   const now = new Date();
   return rows.filter((r) => {
+    if (state.view === 'recorded' && !r.recording) return false;
     if (t && !`${r.title} ${r.number}`.toLowerCase().includes(t)) return false;
     if (state.direction && r.direction !== state.direction) return false;
     if (state.owner && r.owner !== state.owner) return false;
@@ -156,7 +159,7 @@ function render() {
         </div>
       </div>
       <div class="calls__views">
-        <button class="calls__view is-active" type="button">Todas las llamadas</button>
+        ${VIEWS.map(([k, label]) => `<button class="calls__view ${state.view === k ? 'is-active' : ''}" type="button" data-view="${k}">${label}</button>`).join('')}
       </div>
       <div class="calls__toolbar">
         <input class="calls__search" type="search" id="calls-q" placeholder="Buscar ( / )" value="${esc(state.q)}" aria-label="Buscar llamadas" />
@@ -187,16 +190,16 @@ function render() {
         : slice.length
           ? `<table class="calls-table">
               <thead><tr>
-                <th>Título de la llamada</th><th>Dirección</th><th>Fecha de actividad</th><th>Duración de la llamada</th><th>Actividad asignada a</th><th>Estado</th>
+                <th>Título de la llamada</th><th>Actividad asignada a</th><th>Duración de la llamada</th><th>Fecha de actividad</th><th>Resultado de la llamada</th><th>Dirección de la llamada</th>
               </tr></thead>
               <tbody>
                 ${slice.map((r) => `<tr data-callrow="${esc(r.id)}"${r.contactId ? ` data-contact="${esc(r.contactId)}"` : ''}>
                   <td><span class="calls-table__title">${esc(r.title)}</span>${r.recording ? ` <button class="calls-play" type="button" data-play="${esc(r.callSid)}" title="Escuchar la grabación">▶ Grabación</button>` : ''}${r.transcript ? ` <button class="calls-play" type="button" data-transcript="${esc(r.id)}" title="Ver la transcripción">${state.openTranscripts.has(r.id) ? '▾' : '▸'} Transcripción</button>` : r.recording ? ` <button class="calls-play" type="button" data-transcribe="${esc(r.callSid)}" title="Transcribir con IA">Transcribir</button>` : ''}</td>
-                  <td>${r.direction ? `<span class="calls-table__dir">${r.direction === 'outbound' ? '↗' : '↙'} ${DIRECTION_LABEL[r.direction] || esc(r.direction)}</span>` : '—'}</td>
-                  <td>${esc(fmtWhen(r.when))}</td>
+                  <td>${r.owner ? `<span class="calls-owner"><span class="calls-owner__avatar">${esc((r.owner || '?').trim().charAt(0).toUpperCase())}</span>${esc(r.owner)}</span>` : '—'}</td>
                   <td>${esc(fmtDuration(r.durationSec))}</td>
-                  <td>${esc(r.owner || '—')}</td>
+                  <td>${esc(fmtWhen(r.when))}</td>
                   <td><span class="tag">${esc(r.status || '—')}</span></td>
+                  <td>${r.direction ? `<span class="calls-table__dir">${r.direction === 'outbound' ? '↗' : '↙'} ${DIRECTION_LABEL[r.direction] || esc(r.direction)}</span>` : '—'}</td>
                 </tr>${r.transcript && state.openTranscripts.has(r.id) ? `<tr class="calls-transcript-row"><td colspan="6"><div class="calls-transcript"><strong>Transcripción</strong><p>${esc(r.transcript)}</p></div></td></tr>` : ''}`).join('')}
               </tbody>
             </table>
@@ -212,6 +215,7 @@ function render() {
           : '<p class="muted calls__empty">No hay llamadas con estos filtros. Las llamadas que hagas con el marcador o registres en las fichas aparecen aquí.</p>'}
     </div>`;
   $('calls-q').addEventListener('input', (e) => { state.q = e.target.value; state.page = 1; render(); });
+  root.querySelectorAll('[data-view]').forEach((b) => b.addEventListener('click', () => { state.view = b.dataset.view; state.page = 1; render(); }));
   $('calls-f-direction').addEventListener('change', (e) => { state.direction = e.target.value; state.page = 1; render(); });
   $('calls-f-owner').addEventListener('change', (e) => { state.owner = e.target.value; state.page = 1; render(); });
   $('calls-f-date').addEventListener('change', (e) => { state.dateRange = e.target.value; state.page = 1; render(); });
@@ -227,7 +231,7 @@ function render() {
       'Fecha de actividad': new Date(r.when).toISOString(),
       'Duración (segundos)': r.durationSec,
       'Actividad asignada a': r.owner,
-      'Estado': r.status,
+      'Resultado de la llamada': r.status,
       'Número': r.number,
     }));
     if (!rowsOut.length) { toast('No hay llamadas que exportar.'); return; }
