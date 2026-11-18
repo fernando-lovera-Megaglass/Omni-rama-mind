@@ -5,7 +5,7 @@ import { runSql } from './mgmt-sql.mjs';
 const [{ account_sid, auth_token }] = await runSql("select c.account_sid, s.auth_token from twilio_connections c join twilio_connection_secrets s on s.connection_id = c.id limit 1");
 const auth = 'Basic ' + Buffer.from(`${account_sid}:${auth_token}`).toString('base64');
 
-const stuck = await runSql("select id, call_sid, started_at from call_logs where status in ('initiated','ringing','in-progress','queued') and started_at < now() - interval '2 hours'");
+const stuck = await runSql("select id, call_sid, started_at from call_logs where status in ('initiated','ringing','in-progress','queued') and started_at < now() - interval '15 minutes'");
 console.log(`${stuck.length} llamadas atascadas`);
 
 for (const row of stuck) {

@@ -591,6 +591,57 @@ export async function playRecording(btn, callSid) {
   }
 }
 
+// Mini reproductor en línea para la cronología de la ficha: botón de play grande, tiempo
+// transcurrido, barra de progreso (clic para adelantar) y duración total. El audio se descarga
+// al primer play.
+export function attachInlinePlayer(root, callSid) {
+  const btn = root.querySelector('[data-tplay]');
+  const cur = root.querySelector('[data-tcur]');
+  const fill = root.querySelector('[data-tfill]');
+  const bar = root.querySelector('[data-tbar]');
+  if (!btn) return;
+  const fmt = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+  let audio = null;
+  let loading = false;
+  const paintBtn = () => { btn.textContent = audio && !audio.paused ? '❚❚' : '▶'; };
+  btn.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    if (audio) {
+      if (audio.paused) audio.play().catch(() => {}); else audio.pause();
+      paintBtn();
+      return;
+    }
+    if (loading) return;
+    loading = true;
+    btn.textContent = '…';
+    try {
+      const url = await fetchRecordingUrl(callSid);
+      audio = new Audio(url);
+      audio.addEventListener('timeupdate', () => {
+        if (cur) cur.textContent = fmt(audio.currentTime);
+        if (fill && audio.duration) fill.style.width = `${(audio.currentTime / audio.duration) * 100}%`;
+      });
+      audio.addEventListener('ended', () => {
+        paintBtn();
+        if (cur) cur.textContent = '0:00';
+        if (fill) fill.style.width = '0%';
+      });
+      if (bar) bar.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        if (!audio || !audio.duration) return;
+        const r = bar.getBoundingClientRect();
+        audio.currentTime = Math.min(0.99, Math.max(0, (ev.clientX - r.left) / r.width)) * audio.duration;
+      });
+      paintBtn();
+      audio.play().catch(() => {});
+    } catch (err) {
+      paintBtn();
+      toast(`No se pudo reproducir: ${(err && err.message) || err}`);
+    }
+    loading = false;
+  });
+}
+
 // ---------- «Revisión de grabación»: panel lateral como el del original ----------
 // Reproductor con velocidad, selector de resultado (se guarda en call_logs), participantes y
 // transcripción. Se abre desde la cronología de la ficha (botón «Revisar grabación»).

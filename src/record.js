@@ -26,7 +26,7 @@ import { ownerHtml } from './owner.js';
 import { enhanceOwnerSelects } from './owner-select.js';
 import { enhancePhoneInputs, focusPhoneInput, displayPhone, phoneHref } from './phone.js';
 import { sendSms, hasTwilio } from './twilio.js';
-import { openCallMenu, playRecording, openCallReview } from './call.js';
+import { openCallMenu, playRecording, openCallReview, attachInlinePlayer } from './call.js';
 import { loadLayout, cardCatalog } from './layout-defaults.js';
 import { mountQueueBar, dueText, dueClass, completeTask } from './task-queue.js';
 
@@ -1324,11 +1324,19 @@ function renderTimeline() {
     if (x.subject) tags.push(`Asunto: ${x.subject}`);
     return tags.length ? `<div class="timeline__tags">${tags.map((t) => `<span class="tag tag--none">${esc(t)}</span>`).join('')}</div>` : '';
   };
-  // «Revisar grabación» abre el panel lateral estilo HubSpot (reproductor, resultado, transcripción).
+  // Grabada: mini reproductor en línea (play grande, tiempo y duración) + enlace al panel lateral.
   const callMedia = (ev) => {
     const x = ev.extra || {};
-    if (x.callSid && (x.recording || x.transcript)) return `<button class="calls-play" type="button" data-reviewcall="${esc(x.callSid)}">Revisar grabación y seguimiento</button>`;
-    return '';
+    if (!x.callSid || (!x.recording && !x.transcript)) return '';
+    const dur = x.durationSec || (Number(x.durationMin) || 0) * 60;
+    const fmt = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+    return `<div class="tplayer" data-tplayer="${esc(x.callSid)}">
+      <button class="tplayer__play" type="button" data-tplay aria-label="Escuchar la grabación">▶</button>
+      <span class="tplayer__time" data-tcur>0:00</span>
+      <div class="tplayer__bar" data-tbar><div class="tplayer__fill" data-tfill></div></div>
+      <span class="tplayer__time">${dur ? esc(fmt(dur)) : ''}</span>
+      <button class="tplayer__review" type="button" data-reviewcall="${esc(x.callSid)}">Revisar grabación y seguimiento</button>
+    </div>`;
   };
   // Each entry: icon by type, title, who logged it and when (relative); click expands the full text,
   // the exact date and the details.
@@ -1352,6 +1360,7 @@ function renderTimeline() {
     e.stopPropagation();
     playRecording(b, b.dataset.playcall);
   }));
+  $('rec-timeline').querySelectorAll('[data-tplayer]').forEach((el) => attachInlinePlayer(el, el.dataset.tplayer));
   $('rec-timeline').querySelectorAll('[data-reviewcall]').forEach((b) => b.addEventListener('click', (e) => {
     e.stopPropagation();
     const ev = events.find((x) => x.extra && x.extra.callSid === b.dataset.reviewcall);

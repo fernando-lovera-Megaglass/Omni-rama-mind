@@ -17371,6 +17371,55 @@ body.has-slideover {
 .callreview__player select { font: inherit; font-size: 12px; padding: 2px 4px; border: 1px solid var(--c-border); border-radius: 6px; background: var(--c-white); }
 .callreview__transcript { white-space: pre-wrap; font-size: 13px; line-height: 1.55; margin: 0; }
 
+/* Mini reproductor en línea de la cronología (llamadas grabadas) */
+.tplayer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: var(--c-bg, #f3f6f9);
+  border: 1px solid var(--c-border);
+  border-radius: 10px;
+  max-width: 560px;
+}
+.tplayer__play {
+  width: 38px;
+  height: 38px;
+  flex: none;
+  border-radius: 50%;
+  border: 0;
+  background: var(--c-link);
+  color: #fff;
+  font-size: 15px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 0 0 2px;
+}
+.tplayer__play:hover { filter: brightness(1.1); }
+.tplayer__time { font-size: 12px; color: var(--c-muted); font-variant-numeric: tabular-nums; flex: none; }
+.tplayer__bar {
+  flex: 1;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--c-border);
+  cursor: pointer;
+  overflow: hidden;
+}
+.tplayer__fill { height: 100%; width: 0; background: var(--c-link); border-radius: 999px; }
+.tplayer__review {
+  flex: none;
+  background: none;
+  border: 0;
+  color: var(--c-link);
+  font-size: 12px;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
+}
+
 /* ---------- Marcador fin ---------- */
 
 /* ---------- Owner dropdown (avatar + name per option, searchable) over the native select ---------- */
