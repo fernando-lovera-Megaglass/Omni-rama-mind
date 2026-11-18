@@ -28,8 +28,11 @@ export const HL_STYLES = [
 const HL_STEPS = [0.62, 0.47, 0.33, 0.2, 0.09]; // share of the base tone: max → min
 const mixWhite = (hex, t) => {
   const n = parseInt(hex.slice(1), 16);
-  const f = (c) => Math.round(255 + (c - 255) * t);
-  return `rgb(${f(n >> 16)}, ${f((n >> 8) & 255)}, ${f(n & 255)})`;
+  // En tema oscuro la mezcla va hacia la superficie del panel en vez de hacia
+  // blanco: el resaltado se ve como un tinte, no como un foco claro.
+  const tgt = (typeof document !== 'undefined' && document.documentElement.getAttribute('data-theme') === 'dark') ? 0x1c242e : 0xffffff;
+  const f = (c, shift) => { const tc = (tgt >> shift) & 255; return Math.round(tc + (c - tc) * t); };
+  return `rgb(${f(n >> 16, 16)}, ${f((n >> 8) & 255, 8)}, ${f(n & 255, 0)})`;
 };
 export const hlShades = (style) => {
   const base = (HL_STYLES.find((s) => s[0] === style) || HL_STYLES[0])[1];
@@ -1846,6 +1849,9 @@ export function mountList(cfg) {
     if ($('hl-pop').hidden || e.target.closest('#hl-pop, [data-col="highlight"]')) return;
     closeHighlightPop();
   });
+  // Los tintes del resaltado condicional se calculan según el tema: al cambiar
+  // claro/oscuro se repinta la tabla para regenerarlos.
+  document.addEventListener('crm:theme', () => render());
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && !$('hl-pop').hidden) closeHighlightPop();
   });

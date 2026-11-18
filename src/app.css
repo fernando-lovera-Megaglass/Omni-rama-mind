@@ -90,6 +90,24 @@
 /* Imágenes e iframes claros no deben deslumbrar */
 [data-theme="dark"] img { opacity: 0.92; }
 
+/* Parches de tema oscuro para colores claros fijos (capturan los #eaf0f6/#f5f8fa/#d6efec
+   que el diseño original dejó quemados). Los resaltados condicionales de tabla se
+   corrigen en list.js (mezcla hacia la superficie oscura, no hacia blanco). */
+[data-theme="dark"] .seg--icons .seg__btn.is-active { background: var(--c-row-hover); }
+[data-theme="dark"] .pill--total { background: var(--c-row-hover); }
+[data-theme="dark"] .pill.is-set {
+  background: #1d3a40;
+  border-color: var(--c-link);
+}
+[data-theme="dark"] .table--zebra tbody tr:nth-child(even),
+[data-theme="dark"] .table--frozen.table--zebra tbody tr:nth-child(even) {
+  background: rgba(255, 255, 255, 0.04);
+}
+[data-theme="dark"] .kcol { background: var(--c-head); }
+[data-theme="dark"] .mk-bars__track { background: var(--c-head); }
+[data-theme="dark"] .mk-method:has(input:checked) { background: #1d3a40; }
+[data-theme="dark"] .mk-tpl__cat.is-active { background: var(--c-row-hover); }
+
 * {
   box-sizing: border-box;
 }
