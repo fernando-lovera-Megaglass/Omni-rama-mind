@@ -3,7 +3,7 @@
 // supplies their own Account SID / Auth Token, stored in twilio_connection_secrets (RLS with no policies,
 // only the service role can read them).
 import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2';
-export { handle, userFromRequest, serviceClient, json, fail, env, requireEnv, ConfigError, AuthError } from './gmail.ts';
+export { handle, userFromRequest, serviceClient, json, fail, env, requireEnv, ConfigError, AuthError, CORS } from './gmail.ts';
 
 export class TwilioError extends Error {
   code: string;

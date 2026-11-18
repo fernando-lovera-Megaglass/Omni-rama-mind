@@ -2,7 +2,7 @@
 // auth (Account SID + Auth Token, which the browser never sees), so the audio element cannot fetch
 // them directly — this function checks the caller owns the call log and pipes the audio through.
 // GET /functions/v1/twilio-recording?call=<CallSid>  (con el JWT del usuario, verify_jwt = true)
-import { handle, userFromRequest, serviceClient, fail, authTokenOf } from '../_shared/twilio.ts';
+import { handle, userFromRequest, serviceClient, fail, authTokenOf, CORS } from '../_shared/twilio.ts';
 
 Deno.serve(handle(async (req) => {
   if (req.method !== 'GET') return fail('Usa GET', 405);
@@ -24,6 +24,6 @@ Deno.serve(handle(async (req) => {
   });
   if (!res.ok || !res.body) return fail(`Twilio respondió ${res.status} al pedir la grabación.`, 502, { code: 'twilio' });
   return new Response(res.body, {
-    headers: { 'Content-Type': 'audio/mpeg', 'Cache-Control': 'private, max-age=3600' },
+    headers: { ...CORS, 'Content-Type': 'audio/mpeg', 'Cache-Control': 'private, max-age=3600' },
   });
 }));
