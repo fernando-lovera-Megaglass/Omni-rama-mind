@@ -6795,6 +6795,12 @@ td.cell--hl .cell__pen {
   margin-bottom: 2px;
 }
 
+/* Tema oscuro: el gris claro fijo de arriba resalta como un foco; usa la
+   superficie elevada oscura equivalente. */
+[data-theme="dark"] .views__tabwrap.is-active {
+  background: var(--c-row-hover);
+}
+
 .views__tabwrap.is-active .views__tab {
   color: var(--c-text);
 }
