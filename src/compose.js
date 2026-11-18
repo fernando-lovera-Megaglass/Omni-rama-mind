@@ -151,7 +151,7 @@ function render() {
       <div class="compose__row">
         <label class="compose__lbl" for="cmp-to">Para</label>
         <div class="compose__chips" id="cmp-to-chips">
-          ${ctx.recipients.map((r, i) => `<span class="chip-to">${esc(r.name || r.email)} <button type="button" data-rm="${i}" aria-label="Quitar">×</button></span>`).join('')}
+          ${ctx.recipients.map((r, i) => `<span class="chip-to" title="${esc(r.email ? `Se enviará a: ${r.email}` : (r.name || ''))}">${esc(r.name || r.email)} <button type="button" data-rm="${i}" aria-label="Quitar">×</button></span>`).join('')}
           <input id="cmp-to" type="email" placeholder="${ctx.recipients.length ? '' : 'Añadir destinatario'}" aria-label="Añadir destinatario" />
         </div>
       </div>
