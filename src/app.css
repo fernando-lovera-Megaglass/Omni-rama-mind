@@ -17308,6 +17308,20 @@ body.has-slideover {
 .calls-play:hover { background: var(--c-bg, #f3f6f9); }
 .calls-audio { height: 28px; vertical-align: middle; margin-left: 8px; }
 
+/* Transcripción desplegable bajo la llamada */
+.calls-transcript-row td { padding: 0 12px 12px; border-top: 0; }
+.calls-transcript {
+  background: var(--c-bg, #f3f6f9);
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-sm, 8px);
+  padding: 10px 14px;
+  font-size: 13px;
+  text-align: left;
+  max-width: 720px;
+}
+.calls-transcript strong { display: block; margin-bottom: 4px; color: var(--c-text); }
+.calls-transcript p { margin: 0; white-space: pre-wrap; color: var(--c-text); line-height: 1.5; }
+
 /* ---------- Marcador fin ---------- */
 
 /* ---------- Owner dropdown (avatar + name per option, searchable) over the native select ---------- */

@@ -49,3 +49,6 @@ verify_jwt = true
 
 [functions.twilio-voicemail-amd]
 verify_jwt = false
+
+[functions.twilio-transcribe]
+verify_jwt = true

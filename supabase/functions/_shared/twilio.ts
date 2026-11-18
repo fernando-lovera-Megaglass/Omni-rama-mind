@@ -87,5 +87,41 @@ export async function twilioSignatureValid(url: string, params: Record<string, s
 export const twiml = (inner: string): Response =>
   new Response(`<Response>${inner}</Response>`, { headers: { 'Content-Type': 'text/xml' } });
 
+// Transcribe a recorded call with OpenAI Whisper and saves the text on call_logs.transcript, so it
+// shows up in CRM › Llamadas and the AI can read it. Needs the OPENAI_API_KEY secret; without it,
+// returns null silently (transcription is optional). Idempotent: skips logs already transcribed.
+export async function transcribeCallLog(service: SupabaseClient, log: { id: string; recording_url: string | null; connection_id: string; transcript?: string | null }): Promise<string | null> {
+  const apiKey = Deno.env.get('OPENAI_API_KEY');
+  if (!apiKey) return null;
+  if (!log.recording_url) return null;
+  if (log.transcript) return log.transcript;
+  const { data: conn } = await service.from('twilio_connections').select('account_sid').eq('id', log.connection_id).maybeSingle();
+  if (!conn) return null;
+  const token = await authTokenOf(service, log.connection_id);
+  const audio = await fetch(log.recording_url, { headers: { Authorization: `Basic ${btoa(`${conn.account_sid}:${token}`)}` } });
+  if (!audio.ok) throw new TwilioError(`No se pudo bajar la grabación (${audio.status})`, 'api', 502);
+  const fd = new FormData();
+  fd.append('file', new Blob([await audio.arrayBuffer()], { type: 'audio/mpeg' }), 'grabacion.mp3');
+  fd.append('model', 'whisper-1');
+  fd.append('language', 'es');
+  const res = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${apiKey}` },
+    body: fd,
+  });
+  const data = await res.json().catch(() => ({})) as Record<string, unknown>;
+  if (!res.ok) throw new TwilioError(`OpenAI respondió ${res.status}: ${(data.error as Record<string, unknown> | undefined)?.message || res.statusText}`, 'openai', 502);
+  const text = String(data.text || '').trim();
+  await service.from('call_logs').update({ transcript: text }).eq('id', log.id);
+  return text;
+}
+
+// Runs work after responding when the runtime allows it (EdgeRuntime.waitUntil), awaited otherwise.
+export function background(p: Promise<unknown>): void {
+  const rt = (globalThis as { EdgeRuntime?: { waitUntil?: (p: Promise<unknown>) => void } }).EdgeRuntime;
+  if (rt && typeof rt.waitUntil === 'function') rt.waitUntil(p.catch(() => {}));
+  else p.catch(() => {});
+}
+
 export const xmlEscape = (s: string): string =>
   String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');

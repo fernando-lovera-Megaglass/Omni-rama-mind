@@ -29,6 +29,7 @@ const state = {
   duration: '',
   page: 1,
   size: 25,
+  openTranscripts: new Set(), // filas con la transcripción desplegada
 };
 
 function fmtDuration(sec) {
@@ -79,7 +80,7 @@ function normalize() {
 async function loadTwilio() {
   if (!dbIsLive() || !supabase) return [];
   try {
-    const { data, error } = await supabase.from('call_logs').select('id,call_sid,direction,from_number,to_number,status,duration_sec,started_at,contact_id,recording_url').order('started_at', { ascending: false }).limit(500);
+    const { data, error } = await supabase.from('call_logs').select('id,call_sid,direction,from_number,to_number,status,duration_sec,started_at,contact_id,recording_url,transcript').order('started_at', { ascending: false }).limit(500);
     if (error || !Array.isArray(data)) return [];
     return data.map((r) => {
       const isOut = r.direction === 'outbound';
@@ -89,6 +90,7 @@ async function loadTwilio() {
         id: `tw-${r.id}`,
         callSid: r.call_sid || '',
         recording: Boolean(r.recording_url),
+        transcript: r.transcript || '',
         title: `Llamada con ${name || displayPhone(num)}`,
         when: r.started_at ? new Date(r.started_at).getTime() : Date.now(),
         durationSec: Number(r.duration_sec) || 0,
@@ -189,13 +191,13 @@ function render() {
               </tr></thead>
               <tbody>
                 ${slice.map((r) => `<tr data-callrow="${esc(r.id)}"${r.contactId ? ` data-contact="${esc(r.contactId)}"` : ''}>
-                  <td><span class="calls-table__title">${esc(r.title)}</span>${r.recording ? ` <button class="calls-play" type="button" data-play="${esc(r.callSid)}" title="Escuchar la grabación">▶ Grabación</button>` : ''}</td>
+                  <td><span class="calls-table__title">${esc(r.title)}</span>${r.recording ? ` <button class="calls-play" type="button" data-play="${esc(r.callSid)}" title="Escuchar la grabación">▶ Grabación</button>` : ''}${r.transcript ? ` <button class="calls-play" type="button" data-transcript="${esc(r.id)}" title="Ver la transcripción">${state.openTranscripts.has(r.id) ? '▾' : '▸'} Transcripción</button>` : r.recording ? ` <button class="calls-play" type="button" data-transcribe="${esc(r.callSid)}" title="Transcribir con IA">Transcribir</button>` : ''}</td>
                   <td>${r.direction ? `<span class="calls-table__dir">${r.direction === 'outbound' ? '↗' : '↙'} ${DIRECTION_LABEL[r.direction] || esc(r.direction)}</span>` : '—'}</td>
                   <td>${esc(fmtWhen(r.when))}</td>
                   <td>${esc(fmtDuration(r.durationSec))}</td>
                   <td>${esc(r.owner || '—')}</td>
                   <td><span class="tag">${esc(r.status || '—')}</span></td>
-                </tr>`).join('')}
+                </tr>${r.transcript && state.openTranscripts.has(r.id) ? `<tr class="calls-transcript-row"><td colspan="6"><div class="calls-transcript"><strong>Transcripción</strong><p>${esc(r.transcript)}</p></div></td></tr>` : ''}`).join('')}
               </tbody>
             </table>
             <div class="calls__pager">
@@ -238,6 +240,30 @@ function render() {
   root.querySelectorAll('[data-play]').forEach((b) => b.addEventListener('click', (e) => {
     e.stopPropagation();
     import('./call.js').then((m) => m.playRecording(b, b.dataset.play)).catch(() => {});
+  }));
+  // Transcripciones: desplegar la que ya existe o pedirla a la IA si hay grabación sin texto.
+  root.querySelectorAll('[data-transcript]').forEach((b) => b.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const id = b.dataset.transcript;
+    if (state.openTranscripts.has(id)) state.openTranscripts.delete(id); else state.openTranscripts.add(id);
+    render();
+  }));
+  root.querySelectorAll('[data-transcribe]').forEach((b) => b.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    b.disabled = true;
+    b.textContent = 'Transcribiendo…';
+    try {
+      const { data, error } = await supabase.functions.invoke('twilio-transcribe', { body: { callSid: b.dataset.transcribe } });
+      if (error || (data && data.error)) throw new Error((data && data.error) || (error && error.message) || 'error');
+      toast('Transcripción lista');
+      const row = (state.rows || []).find((r) => r.callSid === b.dataset.transcribe);
+      if (row) { row.transcript = data.transcript || ''; state.openTranscripts.add(row.id); }
+      render();
+    } catch (err) {
+      b.disabled = false;
+      b.textContent = 'Transcribir';
+      toast(`No se pudo transcribir: ${(err && err.message) || err}`);
+    }
   }));
   // "/" enfoca el buscador, como en el original.
   if (!render._keys) {

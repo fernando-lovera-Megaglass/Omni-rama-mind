@@ -1,6 +1,6 @@
 // twilio-call-status: status callbacks of the <Dial> in twilio-voice. Updates call_logs with the
 // final state and duration of each call (initiated / ringing / answered / completed).
-import { handle, serviceClient, fail } from '../_shared/twilio.ts';
+import { handle, serviceClient, fail, transcribeCallLog, background } from '../_shared/twilio.ts';
 
 Deno.serve(handle(async (req) => {
   if (req.method !== 'POST') return fail('Usa POST', 405);
@@ -18,7 +18,11 @@ Deno.serve(handle(async (req) => {
   // grabación en el registro de la llamada. Twilio la sirve con Basic auth; el navegador la pide a
   // twilio-recording, que la retransmite.
   if (params.RecordingSid && params.RecordingUrl) {
-    await service.from('call_logs').update({ recording_url: `${params.RecordingUrl}.mp3` }).eq('id', log.id);
+    const recordingUrl = `${params.RecordingUrl}.mp3`;
+    await service.from('call_logs').update({ recording_url: recordingUrl }).eq('id', log.id);
+    // Transcripción automática (Whisper) si hay OPENAI_API_KEY: corre en segundo plano.
+    const { data: full } = await service.from('call_logs').select('id, connection_id, recording_url, transcript').eq('id', log.id).maybeSingle();
+    if (full) background(transcribeCallLog(service, full));
     return new Response('<Response></Response>', { headers: { 'Content-Type': 'text/xml' } });
   }
 
