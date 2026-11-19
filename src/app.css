@@ -18962,3 +18962,36 @@ td[data-key="deal_tags"] .dtag {
 .record .recent {
   min-width: 0;
 }
+
+/* ---------- Tarjetas de asociación: etiquetas y enlaces largos no se salen ---------- */
+.tag {
+  max-width: 100%;
+  height: auto;
+  min-height: 24px;
+  line-height: 1.4;
+  padding-top: 3px;
+  padding-bottom: 3px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.assoc-more {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  max-width: 100%;
+  text-align: left;
+  line-height: 1.4;
+  padding: 4px 10px;
+}
+
+.assoc-card__head,
+.assoc-card__row {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.assoc-card__head a,
+.assoc-card__due {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
