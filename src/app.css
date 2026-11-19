@@ -18837,3 +18837,52 @@ td[data-key="deal_tags"] .dtag {
 .calls__pager { display: flex; align-items: center; gap: 12px; padding: 12px 2px 0; }
 .calls__count { margin: 8px 2px 0; font-size: 13px; }
 .calls__empty { padding: 40px 0; text-align: center; }
+
+/* ---------- Record page: columnas que respiran en pantallas medianas ---------- */
+/* Portátiles grandes: laterales más delgadas para que la columna central no quede apretada. */
+@media (max-width: 1680px) {
+  .record,
+  .content--record .record {
+    grid-template-columns: 320px minmax(0, 1fr) 320px;
+  }
+}
+
+/* Pantallas medianas: la columna derecha baja y se reparte en una cuadrícula de tarjetas. */
+@media (max-width: 1500px) {
+  .record,
+  .content--record .record {
+    grid-template-columns: 300px minmax(0, 1fr);
+  }
+
+  .record__right,
+  .content--record .record__right {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: var(--sp-16);
+    align-items: start;
+  }
+
+  .record__right .card,
+  .content--record .record__right .card {
+    margin-bottom: 0;
+  }
+
+  .record.is-side-collapsed {
+    grid-template-columns: 300px minmax(0, 1fr) !important;
+  }
+}
+
+/* Pantallas chicas: una sola columna, la derecha vuelve a apilarse normal. */
+@media (max-width: 900px) {
+  .record,
+  .content--record .record {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .record__right,
+  .content--record .record__right {
+    grid-column: auto;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  }
+}
