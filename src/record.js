@@ -27,7 +27,7 @@ import { enhanceOwnerSelects } from './owner-select.js';
 import { enhancePhoneInputs, focusPhoneInput, displayPhone, phoneHref } from './phone.js';
 import { sendSms, hasTwilio } from './twilio.js';
 import { openCallMenu, playRecording, openCallReview, attachInlinePlayer } from './call.js';
-import { loadLayout, cardCatalog } from './layout-defaults.js';
+import { loadLayout, saveLayout, cardCatalog } from './layout-defaults.js';
 import { mountQueueBar, dueText, dueClass, completeTask } from './task-queue.js';
 
 const type = document.body.dataset.type;
@@ -961,17 +961,20 @@ function renderTabs() {
     L.tabs.map((t) => `<button class="rtabs__tab${t.id === activeTabId ? ' is-active' : ''}" role="tab" type="button" data-tab="${t.id}">${esc(t.label)}</button>`).join('') +
     `<button class="rtabs__custom" type="button" data-act="customize">⚙ Personalizar</button>`;
 }
-function sectionsHtml(sections) {
-  return sections.map((s) => `<h2 class="rsection">${esc(s.title)}</h2>${s.cards.map(middleCardHtml).join('')}`).join('') || '<p class="muted">Esta pestaña no tiene tarjetas. Añádelas desde "Personalizar".</p>';
+function sectionsHtml(sections, tabId = 'overview') {
+  return sections
+    .map((s, si) => `<h2 class="rsection">${esc(s.title)}</h2>${s.cards.map((cid) => middleCardHtml(cid).replace('<div class="card', `<div data-lcard="${esc(cid)}" data-ltab="${esc(tabId)}" data-sect="${si}" class="card`)).join('')}`)
+    .join('') || '<p class="muted">Esta pestaña no tiene tarjetas. Añádelas desde "Personalizar".</p>';
 }
 function renderMiddle() {
   const L = layoutOf();
   const overview = L.tabs.find((t) => t.id === 'overview');
-  $('overview-body').innerHTML = overview ? sectionsHtml(overview.sections || []) : '';
+  $('overview-body').innerHTML = overview ? sectionsHtml(overview.sections || [], 'overview') : '';
   $('custom-panes').innerHTML = L.tabs
     .filter((t) => !t.fixed && t.id !== 'overview')
-    .map((t) => `<div class="tabpane" id="pane-${t.id}" hidden>${sectionsHtml(t.sections || [])}</div>`)
+    .map((t) => `<div class="tabpane" id="pane-${t.id}" hidden>${sectionsHtml(t.sections || [], t.id)}</div>`)
     .join('');
+  addGrips($('record-root').querySelector('.record__middle'));
   const aboutCard = $('rec-props').closest('.card');
   aboutCard.hidden = !L.left.includes('about');
 }
@@ -1082,9 +1085,90 @@ function rightCardHtml(cardId) {
 }
 function renderRight() {
   const L = layoutOf();
-  $('rec-right').innerHTML = L.right.map(rightCardHtml).join('');
+  $('rec-right').innerHTML = L.right
+    .map((cid) => {
+      const html = rightCardHtml(cid);
+      return html ? html.replace('<div class="card', `<div data-lcard="${esc(cid)}" class="card`) : '';
+    })
+    .join('');
+  addGrips($('rec-right'));
   renderLead();
 }
+// Grip de arrastre estilo HubSpot: aparece al pasar el cursor sobre la tarjeta y
+// permite reordenarla dentro de su columna/sección; el orden se guarda en el layout.
+const GRIP_HTML = '<span class="card__grip" draggable="true" title="Arrastrar para mover la tarjeta" aria-label="Arrastrar para mover la tarjeta">⋮⋮</span>';
+function addGrips(container) {
+  if (!container) return;
+  container.querySelectorAll('.card[data-lcard]').forEach((el) => {
+    if (!el.querySelector(':scope > .card__grip')) el.insertAdjacentHTML('afterbegin', GRIP_HTML);
+  });
+}
+let dragCard = null; // { id, tab, sect, zone }
+function dropZoneOf(el) {
+  return el.closest('#rec-right') ? 'right' : 'middle';
+}
+function cardListOf(zone, tabId) {
+  const L = layoutOf();
+  if (zone === 'right') return L.right;
+  const tab = L.tabs.find((t) => t.id === tabId) || { sections: [] };
+  return (tab.sections || []).flatMap((s) => s.cards);
+}
+mount.addEventListener('dragstart', (e) => {
+  const grip = e.target.closest('.card__grip');
+  if (!grip) return;
+  const card = grip.closest('.card[data-lcard]');
+  if (!card) return;
+  dragCard = { id: card.dataset.lcard, tab: card.dataset.ltab || '', sect: card.dataset.sect || '', zone: dropZoneOf(card) };
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', dragCard.id);
+  requestAnimationFrame(() => card.classList.add('is-dragging'));
+});
+mount.addEventListener('dragover', (e) => {
+  if (!dragCard) return;
+  const over = e.target.closest('.card[data-lcard]');
+  mount.querySelectorAll('.card.drop-before, .card.drop-after').forEach((c) => c.classList.remove('drop-before', 'drop-after'));
+  if (!over || over.dataset.lcard === dragCard.id || dropZoneOf(over) !== dragCard.zone) return;
+  if (dragCard.zone === 'middle' && (over.dataset.ltab || '') !== dragCard.tab) return; // solo dentro de la misma pestaña
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  const r = over.getBoundingClientRect();
+  over.classList.add(e.clientY < r.top + r.height / 2 ? 'drop-before' : 'drop-after');
+});
+mount.addEventListener('drop', (e) => {
+  if (!dragCard) return;
+  const over = e.target.closest('.card[data-lcard]');
+  if (!over || over.dataset.lcard === dragCard.id || dropZoneOf(over) !== dragCard.zone) return;
+  e.preventDefault();
+  const before = over.classList.contains('drop-before');
+  const L = layoutOf();
+  if (dragCard.zone === 'right') {
+    const i = L.right.indexOf(dragCard.id);
+    if (i >= 0) L.right.splice(i, 1);
+    const j = L.right.indexOf(over.dataset.lcard);
+    L.right.splice(j < 0 ? L.right.length : before ? j : j + 1, 0, dragCard.id);
+  } else {
+    const tab = L.tabs.find((t) => t.id === dragCard.tab);
+    if (!tab) return;
+    const from = tab.sections[Number(dragCard.sect)];
+    if (from) {
+      const i = from.cards.indexOf(dragCard.id);
+      if (i >= 0) from.cards.splice(i, 1);
+    }
+    const to = tab.sections[Number(over.dataset.sect)];
+    if (!to) return;
+    const j = to.cards.indexOf(over.dataset.lcard);
+    to.cards.splice(j < 0 ? to.cards.length : before ? j : j + 1, 0, dragCard.id);
+  }
+  dragCard = null;
+  saveLayout(type, L);
+  renderMiddle();
+  renderRight();
+  toast('Tarjeta movida · diseño guardado');
+});
+mount.addEventListener('dragend', () => {
+  dragCard = null;
+  mount.querySelectorAll('.card.is-dragging, .card.drop-before, .card.drop-after').forEach((c) => c.classList.remove('is-dragging', 'drop-before', 'drop-after'));
+});
 // "Elementos de pedido" of a deal: the lines saved in deal_line_items (fetched once from Supabase).
 let lineItemsFetched = false;
 function lineItemsCard(label) {

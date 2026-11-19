@@ -18886,3 +18886,79 @@ td[data-key="deal_tags"] .dtag {
     grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   }
 }
+
+/* ---------- Ficha: grip para mover tarjetas (estilo HubSpot) ---------- */
+.card__grip {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  z-index: 3;
+  padding: 2px 5px;
+  border-radius: var(--r-sm);
+  background: var(--c-white);
+  color: var(--c-muted);
+  font-size: 13px;
+  letter-spacing: -3px;
+  line-height: 1;
+  cursor: grab;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+  user-select: none;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+.card:hover > .card__grip,
+.card__grip:active {
+  opacity: 1;
+}
+
+.card__grip:active {
+  cursor: grabbing;
+}
+
+.card.is-dragging {
+  opacity: 0.35;
+}
+
+.card.drop-before {
+  box-shadow: 0 -3px 0 var(--c-link);
+}
+
+.card.drop-after {
+  box-shadow: 0 3px 0 var(--c-link);
+}
+
+/* ---------- Ficha: los textos largos no se salen de las tarjetas ---------- */
+.record__left,
+.record__middle,
+.record__right {
+  min-width: 0;
+}
+
+.record__who {
+  min-width: 0;
+}
+
+.record__mail,
+.record__mail a,
+.record__sub {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.props dd,
+.props__value {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.props__value > * {
+  min-width: 0;
+}
+
+.record .card,
+.record .ai-box,
+.record .recent {
+  min-width: 0;
+}
