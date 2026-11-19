@@ -247,6 +247,108 @@
       "status": "done",
       "instruction": "Editor de teléfono unificado estilo HubSpot. Ya existe un popover de edición de teléfono en las LISTAS (src/list.js ~línea 1939, .phonebox con país/número/Extensión) pero el panel «Acerca de» del registro (src/record.js) sigue usando un <input> de texto plano para «Número de móvil», «Número de teléfono», etc.\n\nCambio pedido:\n1. Extrae el editor de teléfono de list.js a un componente reutilizable (selector de país con bandera y prefijo, número con formato automático, campo Extensión, opción «Eliminar formato de número»).\n2. Úsalo en TODOS los lugares donde se edite un teléfono: panel «Acerca de» del registro (contacto y empresa), edición en línea en listas, formularios de creación de contacto/empresa, y todos los campos de teléfono (móvil, alternativo, teléfono de empresa).\n3. La visualización también debe ser consistente: número formateado con su prefijo en listas, registro y tarjetas.\n4. Guarda el valor con prefijo internacional para consistencia en Supabase.\n5. Prueba smoke: el campo de teléfono del registro renderiza el selector de país y formatea al escribir.\nNo despliegues nada a producción; solo código local.",
       "completedAt": "2026-11-16T14:50:35-0600"
+    },
+    {
+      "id": "gap-tickets-los-4-pipelines-reales-de-cotizaciones",
+      "status": "pending",
+      "instruction": "Crear los 4 pipelines reales de tickets con sus 27 etapas reales (hoy Omni tiene 10 de 27, cobertura 37%).\n\nPasos:\n1. Lee el token de HubSpot en app/.hubspot-token y consulta GET https://api.hubapi.com/crm/v3/pipelines/tickets (header Authorization: Bearer <token>). Devuelve los 4 pipelines: Cotizaciones Proyectos, Cotizaciones SACA, Cotizaciones Acristala, Cotizaciones Kafer, con sus etapas, orden y probabilidades.\n2. Modela esos pipelines y etapas en Supabase (migración SQL nueva en supabase/; usa scripts/migrate-ticket-pipelines.mjs como referencia de cómo se hizo la vez anterior) y en el seed/config local (src/data.js ticketPipelines).\n3. La ficha y listas de tickets deben poder cambiar de pipeline y mostrar las etapas reales de cada uno.\n4. Prueba smoke: abrir un ticket de cada pipeline muestra sus etapas reales.\nNo despliegues nada a producción; solo código local.",
+      "createdAt": "2026-11-19T17:12:33-06:00"
+    },
+    {
+      "id": "llamadas-entrantes",
+      "status": "pending",
+      "instruction": "Llamadas entrantes reales con Twilio (hoy solo salen llamadas salientes).\n\nContexto: las salientes funcionan por puente (supabase/functions/twilio-*). El usuario ya tiene número Twilio configurado y probado.\n\nCambio pedido:\n1. Configura el webhook de voz del número Twilio para apuntar a una nueva Edge Function twilio-incoming: cuando entre una llamada, reenvíala al teléfono personal del usuario (Dial) y registra la llamada en call_logs con direction=inbound, número del que llama y duración/estado via callbacks (igual que twilio-call-status pero para entrantes).\n2. Liga la entrante al contacto por últimos 10 dígitos (contact_id/company_id como ya hace twilio-call-status).\n3. Muestra las entrantes en la página CRM › Llamadas y en la cronología del contacto con su icono de dirección entrante.\n4. Documenta en Ajustes › Llamadas qué número hay que publicar para recibir llamadas.\nNo despliegues el frontend a producción; las Edge Functions sí puedes desplegarlas.",
+      "createdAt": "2026-11-19T17:12:33-06:00"
+    },
+    {
+      "id": "gap-segmentos-motor-de-workflows-inscripci-n-real",
+      "status": "pending",
+      "instruction": "Motor de workflows funcional (MVP estilo HubSpot). Hoy existe la UI: catálogo (src/workflows-data.js), botón «Inscribir en un workflow» en la ficha y enrollRecord(), pero no hay motor que ejecute nada.\n\nCambio pedido:\n1. Tabla workflow_runs en Supabase: workflow_id, record_type, record_id, step_actual, estado, próxima_ejecución.\n2. Motor de pasos (cliente, src/workflow-engine.js): al inscribir, crea el run; soporta pasos tipo: enviar correo (usa el compose/Gmail conectado), crear tarea, cambiar propiedad, esperar N días (programa próxima_ejecución) y ramificación si/entonces simple por valor de propiedad.\n3. Un verificador que al cargar la app (y cada minuto con la app abierta) procese los runs vencidos y avance pasos, registrando cada acción en la cronología del registro.\n4. Vista del workflow con sus inscritos activos y historial de acciones ejecutadas.\n5. Prueba smoke: inscribir un contacto en un workflow de 2 pasos (correo + tarea) ejecuta ambos y queda en la cronología.\nNo despliegues nada a producción; solo código local.",
+      "createdAt": "2026-11-19T17:12:33-06:00"
+    },
+    {
+      "id": "gap-informes-y-paneles-constructor-de-informes-personalizados",
+      "status": "pending",
+      "instruction": "Constructor de informes personalizados (Informes y paneles está en 33%, es el módulo más atrasado).\n\nCambio pedido:\n1. Asistente de creación: elegir fuente (contactos, empresas, negocios, tickets, actividades, llamadas), medida (conteo, suma de importe, promedio), dimensión (etapa, pipeline, propietario, fuente, mes de creación) y visualización (tabla, barras, línea, dona, KPI numérico).\n2. Los datos salen de Supabase en vivo (agregación en cliente con los datos ya cargados en src/data.js).\n3. Tabla reports en Supabase para guardar informes con su configuración JSON.\n4. Los informes guardados se pueden anclar como tarjeta al panel (dashboard principal).\n5. Prueba smoke: crear un informe «Negocios por etapa (barras)», guardarlo y verlo en la biblioteca.\nNo despliegues nada a producción; solo código local.",
+      "createdAt": "2026-11-19T17:12:33-06:00"
+    },
+    {
+      "id": "gap-informes-y-paneles-biblioteca-de-informes-guardados",
+      "status": "pending",
+      "instruction": "Biblioteca de informes real. Hoy es un marcador de posición («disponible en la próxima versión»).\n\nCambio pedido: lista de los informes guardados en la tabla reports (ver informes-constructor) con buscar, abrir, duplicar, renombrar y eliminar; estado vacío con ilustración «en construcción» solo si no hay informes. Prueba smoke: crear/duplicar/eliminar un informe desde la biblioteca. No despliegues a producción.",
+      "createdAt": "2026-11-19T17:12:33-06:00"
+    },
+    {
+      "id": "gap-tareas-recordatorios-funcionales-de-tareas",
+      "status": "pending",
+      "instruction": "El recordatorio predeterminado de tareas existe en Ajustes pero no dispara nada.\n\nCambio pedido:\n1. Al crear/editar una tarea con recordatorio, guarda la fecha-hora del recordatorio en la tarea.\n2. Con la app abierta, un verificador cada 30 s dispara el recordatorio vencido: notificación del navegador (Notification API, pidiendo permiso) + burbuja dentro de la app con sonido suave y enlace a la tarea.\n3. Marca el recordatorio como disparado para no repetir.\n4. Prueba smoke: tarea con recordatorio en 1 minuto dispara la notificación. No despliegues a producción.",
+      "createdAt": "2026-11-19T17:12:33-06:00"
+    },
+    {
+      "id": "gap-tareas-subtareas",
+      "status": "pending",
+      "instruction": "Subtareas estilo HubSpot dentro de una tarea.\n\nCambio pedido: columna parent_id en tasks; en la ficha de la tarea, lista de subtareas con checkbox, agregar inline y barra de progreso (2/5); las subtareas no aparecen como tareas sueltas en las listas; completar todas sugiere completar la madre. Prueba smoke: crear 3 subtareas, completar 2, ver progreso. No despliegues a producción.",
+      "createdAt": "2026-11-19T17:12:33-06:00"
+    },
+    {
+      "id": "gap-tareas-colas-con-nombre-guardadas",
+      "status": "pending",
+      "instruction": "Colas de tareas con nombre reales (hoy «cola» es solo una propiedad de texto).\n\nCambio pedido: tabla task_queues en Supabase; Ajustes o página de Tareas permite crear/renombrar/eliminar colas y asignar tareas a una cola; filtro por cola en la lista; el botón «Iniciar N tareas» trabaja sobre la cola elegida. Prueba smoke: crear cola «Cobranza», asignar 3 tareas, filtrar por ella. No despliegues a producción.",
+      "createdAt": "2026-11-19T17:12:33-06:00"
+    },
+    {
+      "id": "gap-actividades-y-cronolog-a-comentarios-en-actividades",
+      "status": "pending",
+      "instruction": "Comentarios en actividades de la cronología (como HubSpot: comentar una nota, correo o llamada).\n\nCambio pedido: tabla activity_comments (activity_id, texto, autor, fecha); en cada actividad de la cronología, botón «Comentar» que abre hilo inline con sus comentarios y contador; avatar del autor. Prueba smoke: comentar una nota, recargar y ver el comentario persistido. No despliegues a producción.",
+      "createdAt": "2026-11-19T17:12:33-06:00"
+    },
+    {
+      "id": "gap-segmentos-categor-a-eventos-en-filtros",
+      "status": "pending",
+      "instruction": "La categoría «Eventos» del editor de filtros de segmentos está visible pero deshabilitada.\n\nCambio pedido: habilítala con criterios reales sobre la tabla activities/llamadas: «ha tenido actividad en últimos N días», «tiene llamada grabada», «último resultado de llamada = X», «tiene correo abierto/sin abrir» (según datos disponibles). La vista previa del segmento debe contar bien. Prueba smoke: segmento «contactos con llamada en últimos 30 días» devuelve resultados correctos. No despliegues a producción.",
+      "createdAt": "2026-11-19T17:12:33-06:00"
+    },
+    {
+      "id": "gap-negocios-y-pipelines-categor-as-de-previsi-n-por-etapa",
+      "status": "pending",
+      "instruction": "Categorías de previsión por etapa en el editor de pipelines (HubSpot: cada etapa tiene categoría de previsión: Pipeline, Mejor caso, Comprometido, Ganado/Perdido).\n\nCambio pedido: en Configuración › Objetos › Negocios › edición de pipeline, selector de categoría por etapa persistido en Supabase; úsalo en la vista de previsión si existe o muéstralo como columna en la lista de negocios. Prueba smoke: cambiar la categoría de una etapa y verla persistida tras recargar. No despliegues a producción.",
+      "createdAt": "2026-11-19T17:12:33-06:00"
+    },
+    {
+      "id": "gap-configuraci-n-y-propiedades-editor-completo-de-propiedades-reglas-se",
+      "status": "pending",
+      "instruction": "Editor de propiedades PARTE B (reglas de validación, datos sensibles, control de acceso) — pendiente verificado por el análisis.\n\nCambio pedido en Configuración › Propiedades › editar propiedad:\n1. Reglas: obligatoria al crear, valor único (validar contra Supabase), y para texto: longitud máxima.\n2. Marca «dato sensible»: se muestra enmascarada (•••) hasta pulsar el ojo, y no sale en exportaciones CSV.\n3. Control de acceso visual: solo lectura para propiedades marcadas (respeta en ficha y listas).\n4. Prueba smoke: marcar RFC como único+sensible; crear empresa con RFC duplicado falla con mensaje; el valor se enmascara. No despliegues a producción.",
+      "createdAt": "2026-11-19T17:12:33-06:00"
+    },
+    {
+      "id": "gap-tickets-propiedades-personalizadas-reales-de-tic",
+      "status": "pending",
+      "instruction": "Faltan las 4 propiedades personalizadas reales de tickets (cobertura 0/4).\n\nPasos: GET https://api.hubapi.com/crm/v3/properties/tickets?limit=100 con el token de app/.hubspot-token; toma las 4 NO hubspotDefined; créalas en src/properties.js (grupo, etiqueta, tipo, opciones) y en Supabase si hace falta columna; que se vean y editen en la ficha del ticket y en «Ver todas las propiedades». Prueba smoke: las 4 aparecen con su nombre real en la ficha. No despliegues a producción.",
+      "createdAt": "2026-11-19T17:12:33-06:00"
+    },
+    {
+      "id": "custom-props-cobertura",
+      "status": "pending",
+      "instruction": "Cobertura de propiedades personalizadas reales: contactos 22/61 (36%), negocios 25/51 (49%).\n\nPasos: GET /crm/v3/properties/contacts y /crm/v3/properties/deals con el token de app/.hubspot-token; para cada propiedad NO hubspotDefined que falte en src/properties.js, agrégala con etiqueta, tipo y opciones reales (prioriza las que tengan valor en la cuenta real: verifícalo con un par de registros vía API). Objetivo: contactos y negocios ≥80% de cobertura. Prueba smoke: la ficha muestra las nuevas propiedades en «Ver todas las propiedades». No despliegues a producción.",
+      "createdAt": "2026-11-19T17:12:33-06:00"
+    },
+    {
+      "id": "gap-importaci-n-importaci-n-multiarchivo-con-asociacione",
+      "status": "pending",
+      "instruction": "Importación multiarchivo con asociaciones cruzadas (hoy: un objeto por archivo).\n\nCambio pedido: el asistente de importación acepta 2+ archivos (p.ej. contactos.csv + empresas.csv + negocios.csv), detecta columnas de cruce (correo, dominio, nombre de empresa) y crea las asociaciones entre registros importados en la misma corrida; resumen final con creados/actualizados/asociados por objeto. Prueba smoke: importar contactos+empresas y ver la empresa asociada en la ficha del contacto. No despliegues a producción.",
+      "createdAt": "2026-11-19T17:12:33-06:00"
+    },
+    {
+      "id": "gap-autenticaci-n-mfa-sso-real",
+      "status": "pending",
+      "instruction": "MFA real (hoy el interruptor de Ajustes › Seguridad es decorativo).\n\nCambio pedido: TOTP con supabase.auth.mfa: alta (QR con otpauth url, verify del primer código), estado «activo» real, reto de segundo factor al iniciar sesión si está activo, y baja pidiendo código. SSO: si no hay proveedor configurado, el interruptor debe mostrar «próximamente» honesto en vez de simular. Prueba smoke: smoke-auth con flujo de enrolamiento simulado. No despliegues a producción.",
+      "createdAt": "2026-11-19T17:12:33-06:00"
+    },
+    {
+      "id": "gap-autenticaci-n-rls-por-usuario-activo-paso-2",
+      "status": "pending",
+      "instruction": "RLS estricto por usuario: el PASO 2 de supabase/auth.sql sigue comentado (cada usuario vería solo sus datos).\n\nCambio pedido: aplica el PASO 2 (políticas owner-only) en una migración nueva, verificando antes qué tablas comparten datos entre usuarios del equipo para no romper la operación (si la cuenta es multiusuario con datos compartidos, propón políticas por equipo en vez de por usuario y documéntalo en el PR/commit). Corre scripts/smoke-auth.mjs y las pruebas de listas. No despliegues a producción.",
+      "createdAt": "2026-11-19T17:12:33-06:00"
     }
   ]
 }
