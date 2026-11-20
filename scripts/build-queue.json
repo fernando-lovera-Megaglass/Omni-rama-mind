@@ -445,10 +445,12 @@
     },
     {
       "id": "gap-ui-llamadas-filtros-chip",
-      "status": "pending",
+      "status": "done",
       "createdAt": "2026-11-19T19:38:10-06:00",
       "instruction": "Los filtros rápidos de la página de Llamadas son <select> nativos del navegador (src/calls.js ~164-186: Dirección, Actividad asignada a, Fecha de actividad, Duración de la llamada, con clase .calls__filter), mientras Contactos, Empresas, Negocios y Tickets usan los chips desplegables .qchip con .menu__panel (src/list.js ~432-444). Visualmente son dos lenguajes distintos (caja nativa con borde gris vs píldora con caret), y en HubSpot el índice de llamadas usa los mismos chips de filtro que el resto de listas.\n\nCómo debe verse: los cuatro filtros de Llamadas como chips .qchip que abren el mismo menú .menu__panel que las demás listas (opción «Todos» primero, opción activa marcada, etiqueta del chip con el valor elegido en negrita si procede), reutilizando las clases existentes en vez de .calls__filter; el selector «N por página» puede seguir igual que las demás listas (menú con opciones).\n\nCriterio de aceptación: los cuatro filtros de Llamadas se abren como menú al estilo de Contactos, muestran el valor activo en el chip y filtran igual que antes (dirección, responsable, fecha, duración); no queda ningún <select class=\"calls__filter\"> en la barra. No despliegues nada a producción; solo código local.",
-      "lane": "codex"
+      "lane": "codex",
+      "completedAt": "2026-11-20T12:56:06-0600",
+      "completedBy": "codex"
     },
     {
       "id": "gap-ui-menus-ancho-base",

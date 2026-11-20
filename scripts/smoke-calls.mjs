@@ -77,37 +77,47 @@ $('calls-q').dispatchEvent(new window.Event('input', { bubbles: true }));
 log('tabla: ordenación, columnas y búsqueda OK');
 
 
-// Filtro por dirección.
-const dirSel = $('calls-f-direction');
-dirSel.value = 'outbound';
-dirSel.dispatchEvent(new window.Event('change', { bubbles: true }));
-await wait(10);
-rowsText = text(q('.calls'));
-if (!rowsText.includes('4 minutos')) fail('el filtro de dirección perdió la saliente');
-if (rowsText.includes('Sin respuesta')) fail('el filtro de dirección no excluyó la entrante');
-log('filtro de dirección OK');
-
-// Filtro por responsable.
-const ownerSel = $('calls-f-owner');
-if (![...ownerSel.options].some((o) => o.value === 'Fernando L.')) fail('el filtro de responsable no lista al autor');
-dirSel.value = '';
-dirSel.dispatchEvent(new window.Event('change', { bubbles: true }));
-await wait(10);
-ownerSel.value = 'Sofía R.';
-ownerSel.dispatchEvent(new window.Event('change', { bubbles: true }));
-await wait(10);
-rowsText = text(q('.calls'));
-if (!rowsText.includes('Sin respuesta')) fail('filtro por responsable no muestra la entrante');
-if (rowsText.includes('4 minutos')) fail('filtro por responsable no excluye la saliente');
-log('filtro por responsable OK');
+// Los filtros comparten chips y menús, con selección y cierre al elegir.
+if (qa('.calls__toolbar .qchip').length !== 4 || q('select.calls__filter')) fail('chips compartidos');
+function chooseFilter(id, value) {
+  const chip = $(`calls-f-${id}`);
+  click(chip);
+  if (!chip.parentElement.classList.contains('is-open') || chip.getAttribute('aria-expanded') !== 'true') fail('abrir filtro');
+  const options = [...chip.parentElement.querySelectorAll('[data-call-filter]')];
+  if (options[0].dataset.value !== '' || !text(options[0]).includes('Todos')) fail('Todos primero');
+  click(options.find((option) => option.dataset.value === value));
+  const current = $(`calls-f-${id}`);
+  if (current.parentElement.classList.contains('is-open')) fail('cerrar filtro');
+  const selected = current.parentElement.querySelector('[aria-checked="true"]');
+  if (selected?.dataset.value !== value) fail('opción activa');
+  if (value && !current.querySelector('strong')) fail('valor activo en negrita');
+}
+chooseFilter('direction', 'outbound');
+if (!text(q('.table')).includes('4 minutos') || text(q('.table')).includes('Sin respuesta')) fail('dirección');
+chooseFilter('direction', '');
+chooseFilter('date', 'today');
+if (qa('.table tbody tr').length !== 1) fail('fecha hoy');
+chooseFilter('date', 'week');
+if (qa('.table tbody tr').length !== 1) fail('fecha semana');
+chooseFilter('date', '');
+chooseFilter('duration', '1-5');
+if (qa('.table tbody tr').length !== 1) fail('duración');
+chooseFilter('duration', 'gt5');
+if (q('.table')) fail('duración sin resultados');
+chooseFilter('duration', '');
+chooseFilter('owner', 'Sofía R.');
+if (!text(q('.table')).includes('Sin respuesta') || text(q('.table')).includes('4 minutos')) fail('responsable');
+log('chips: apertura, selección, reinicio y cuatro filtros OK');
 
 // El pie con el total.
 if (!text(q('.calls__count')).includes('1 llamada')) fail(`conteo: ${text(q('.calls__count'))}`);
 log('conteo del pie OK');
 
 // Búsqueda.
-ownerSel.value = '';
-ownerSel.dispatchEvent(new window.Event('change', { bubbles: true }));
+chooseFilter('owner', '');
+click($('calls-size'));
+click(q('[data-size="50"]'));
+if (!text($('calls-size')).includes('50 por página')) fail('tamaño de página');
 const search = $('calls-q');
 search.value = 'zzzz-no-existe';
 search.dispatchEvent(new window.Event('input', { bubbles: true }));

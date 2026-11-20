@@ -170,6 +170,17 @@ function cellHtml(r, key) {
   }
 }
 
+function filterChip(id, key, label, options) {
+  const value = state[key];
+  const activeLabel = options.find(([v]) => v === value)?.[1] || value;
+  return `<div class="menu">
+    <button id="calls-f-${id}" class="qchip${value ? ' is-set' : ''}" type="button" aria-haspopup="true" aria-expanded="false">${esc(label)}${value ? `: <strong>${esc(activeLabel)}</strong>` : ''} <span class="caret"></span></button>
+    <div class="menu__panel" role="menu" aria-labelledby="calls-f-${id}">
+      ${[['', 'Todos'], ...options].map(([v, text]) => `<button class="menu__item" type="button" role="menuitemradio" aria-checked="${value === v}" data-call-filter="${key}" data-value="${esc(v)}">${value === v ? '✓ ' : ''}${esc(text)}</button>`).join('')}
+    </div>
+  </div>`;
+}
+
 function render() {
   closeMenus();
   const root = $('calls-root');
@@ -193,27 +204,10 @@ function render() {
       </div>
       <div class="calls__toolbar">
         <div class="search search--pill"><span class="ico ico--search" aria-hidden="true"></span><input type="search" id="calls-q" placeholder="Buscar ( / )" value="${esc(state.q)}" aria-label="Buscar llamadas" /></div>
-        <select id="calls-f-direction" class="calls__filter" aria-label="Dirección">
-          <option value="">Dirección</option>
-          <option value="outbound" ${state.direction === 'outbound' ? 'selected' : ''}>Saliente</option>
-          <option value="inbound" ${state.direction === 'inbound' ? 'selected' : ''}>Entrante</option>
-        </select>
-        <select id="calls-f-owner" class="calls__filter" aria-label="Actividad asignada a">
-          <option value="">Actividad asignada a</option>
-          ${owners.map((o) => `<option value="${esc(o)}" ${state.owner === o ? 'selected' : ''}>${esc(o)}</option>`).join('')}
-        </select>
-        <select id="calls-f-date" class="calls__filter" aria-label="Fecha de actividad">
-          <option value="">Fecha de actividad</option>
-          <option value="today" ${state.dateRange === 'today' ? 'selected' : ''}>Hoy</option>
-          <option value="week" ${state.dateRange === 'week' ? 'selected' : ''}>Últimos 7 días</option>
-          <option value="month" ${state.dateRange === 'month' ? 'selected' : ''}>Este mes</option>
-        </select>
-        <select id="calls-f-duration" class="calls__filter" aria-label="Duración de la llamada">
-          <option value="">Duración de la llamada</option>
-          <option value="lt1" ${state.duration === 'lt1' ? 'selected' : ''}>Menos de 1 minuto</option>
-          <option value="1-5" ${state.duration === '1-5' ? 'selected' : ''}>1 a 5 minutos</option>
-          <option value="gt5" ${state.duration === 'gt5' ? 'selected' : ''}>Más de 5 minutos</option>
-        </select>
+        ${filterChip('direction', 'direction', 'Dirección', Object.entries(DIRECTION_LABEL))}
+        ${filterChip('owner', 'owner', 'Actividad asignada a', owners.map((o) => [o, o]))}
+        ${filterChip('date', 'dateRange', 'Fecha de actividad', [['today', 'Hoy'], ['week', 'Últimos 7 días'], ['month', 'Este mes']])}
+        ${filterChip('duration', 'duration', 'Duración de la llamada', [['lt1', 'Menos de 1 minuto'], ['1-5', '1 a 5 minutos'], ['gt5', 'Más de 5 minutos']])}
       </div>
       ${rows === null
         ? '<p class="muted calls__empty">Cargando llamadas…</p>'
@@ -248,9 +242,12 @@ function render() {
               <button class="btn btn--ghost btn--sm" type="button" id="calls-prev" ${state.page <= 1 ? 'disabled' : ''}>‹ Anterior</button>
               <span class="muted">Página ${state.page} de ${pages}</span>
               <button class="btn btn--ghost btn--sm" type="button" id="calls-next" ${state.page >= pages ? 'disabled' : ''}>Siguiente ›</button>
-              <select id="calls-size" class="calls__filter" aria-label="Por página">
-                ${PAGE_SIZES.map((n) => `<option value="${n}" ${state.size === n ? 'selected' : ''}>${n} por página</option>`).join('')}
-              </select>
+              <div class="menu pager__sizemenu">
+                <button id="calls-size" class="pager__btn" type="button" aria-haspopup="true" aria-expanded="false">${state.size} por página <span class="caret"></span></button>
+                <div class="menu__panel menu__panel--up" role="menu" aria-labelledby="calls-size">
+                  ${PAGE_SIZES.map((n) => `<button class="menu__item" type="button" role="menuitemradio" aria-checked="${state.size === n}" data-size="${n}">${state.size === n ? '✓ ' : ''}${n} por página</button>`).join('')}
+                </div>
+              </div>
             </div>
             <p class="muted calls__count">${total.toLocaleString('es-MX')} ${total === 1 ? 'llamada' : 'llamadas'}</p>`
           : '<p class="muted calls__empty">No hay llamadas con estos filtros. Las llamadas que hagas con el marcador o registres en las fichas aparecen aquí.</p>'}
@@ -294,13 +291,18 @@ function render() {
   }
   $('calls-q').addEventListener('input', (e) => { state.q = e.target.value; state.page = 1; render(); $('calls-q').focus(); });
   root.querySelectorAll('[data-view]').forEach((b) => b.addEventListener('click', () => { state.view = b.dataset.view; state.page = 1; render(); }));
-  $('calls-f-direction').addEventListener('change', (e) => { state.direction = e.target.value; state.page = 1; render(); });
-  $('calls-f-owner').addEventListener('change', (e) => { state.owner = e.target.value; state.page = 1; render(); });
-  $('calls-f-date').addEventListener('change', (e) => { state.dateRange = e.target.value; state.page = 1; render(); });
-  $('calls-f-duration').addEventListener('change', (e) => { state.duration = e.target.value; state.page = 1; render(); });
+  root.querySelectorAll('[data-call-filter]').forEach((button) => button.addEventListener('click', () => {
+    state[button.dataset.callFilter] = button.dataset.value;
+    state.page = 1;
+    render();
+  }));
   const prev = $('calls-prev'); if (prev) prev.addEventListener('click', () => { state.page -= 1; render(); });
   const next = $('calls-next'); if (next) next.addEventListener('click', () => { state.page += 1; render(); });
-  const size = $('calls-size'); if (size) size.addEventListener('change', (e) => { state.size = Number(e.target.value); state.page = 1; render(); });
+  root.querySelectorAll('[data-size]').forEach((button) => button.addEventListener('click', () => {
+    state.size = Number(button.dataset.size);
+    state.page = 1;
+    render();
+  }));
   const exp = $('calls-export');
   if (exp) exp.addEventListener('click', () => {
     const rowsOut = filtered().map((r) => ({
