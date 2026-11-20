@@ -5,9 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build"
+    "build": "vite build",
+    "test:sequence-process": "node scripts/smoke-sequence-process.mjs"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.17",
     "jsdom": "^31.0.0",
     "vite": "^5.4.0"
   },

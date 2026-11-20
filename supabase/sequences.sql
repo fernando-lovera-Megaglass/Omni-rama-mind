@@ -6,7 +6,8 @@
 --                       de la que nació, exclusion = criterios de exclusión, deleted_at = en la papelera).
 -- sequence_steps:       los pasos en orden (position), type = auto_email | manual_email | call | task | inmail | connection,
 --                       delay_days = días laborables desde el paso anterior, subject/body (HTML con tokens y [[MARCADORES]]).
--- sequence_enrollments: las inscripciones de contactos (status, current_step, next_step_at, placeholders y stats simuladas).
+-- sequence_enrollments: current_step es el ordinal pendiente (1-based); next_step_at es su vencimiento.
+-- Ejecutar también sequence-process.sql para habilitar el ejecutor. Ver docs/sequence-process.md.
 -- Las 6 secuencias preelaboradas se siembran con template_key y prebuilt = true (no cuentan en la lista).
 -- Misma seguridad que el resto de tablas. Idempotente: no duplica la semilla.
 
@@ -47,6 +48,7 @@ create table if not exists public.sequence_enrollments (
   company_id bigint,
   company_name text not null default '',
   enrolled_by text not null default '',
+  sender_account_id uuid,
   status text not null default 'active',
   current_step int not null default 1,
   next_step_at timestamptz,

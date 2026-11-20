@@ -55,3 +55,7 @@ verify_jwt = true
 
 [functions.twilio-incoming]
 verify_jwt = false
+
+# Handler additionally requires the exact service-role credential.
+[functions.sequence-process]
+verify_jwt = true

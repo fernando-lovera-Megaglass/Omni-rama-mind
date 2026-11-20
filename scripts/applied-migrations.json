@@ -124,5 +124,9 @@
     "status": "aplicada",
     "at": "2026-11-19T18:22:40-0600",
     "nota": "ya existía de la aplicación manual original"
+  },
+  "sequence-process.sql": {
+    "status": "pendiente",
+    "nota": "Solo código local; no aplicada a producción. Ver docs/sequence-process.md."
   }
 }

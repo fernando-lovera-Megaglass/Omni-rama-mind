@@ -140,8 +140,8 @@ const seqFromDb = (r, steps) => ({ id: r.id, name: r.name || '', description: r.
 const seqToDb = (s) => ({ id: s.id, name: s.name, description: s.description, folder: s.folder || '', owner_id: s.ownerId, template_key: s.templateKey || '', prebuilt: Boolean(s.prebuilt), dynamic: Boolean(s.dynamic), exclusion: s.exclusion || [], deleted_at: s.deletedAt || null, created_at: s.createdAt, updated_at: s.updatedAt });
 const stepFromDb = (r) => ({ id: r.id, type: r.type, delayDays: Number(r.delay_days) || 0, title: r.title || '', subject: r.subject || '', body: r.body || '', templateName: r.template_name || '', version: r.version || 'A', replyToPrevious: Boolean(r.reply_to_previous) });
 const stepToDb = (seqId, s, i) => ({ id: s.id, sequence_id: seqId, position: i, type: s.type, delay_days: Number(s.delayDays) || 0, title: s.title || '', subject: s.subject || '', body: s.body || '', template_name: s.templateName || '', version: s.version || 'A', reply_to_previous: Boolean(s.replyToPrevious) });
-const enrFromDb = (r) => ({ id: r.id, sequenceId: r.sequence_id, contactId: r.contact_id, contactName: r.contact_name || '', companyId: r.company_id, companyName: r.company_name || '', enrolledBy: r.enrolled_by || '', status: r.status || 'active', currentStep: Number(r.current_step) || 1, nextStepAt: r.next_step_at, placeholders: r.placeholders || {}, stats: r.stats || {}, enrolledAt: r.enrolled_at, updatedAt: r.updated_at || r.enrolled_at });
-const enrToDb = (e) => ({ id: e.id, sequence_id: e.sequenceId, contact_id: e.contactId == null ? null : Number(e.contactId), contact_name: e.contactName, company_id: e.companyId == null ? null : Number(e.companyId), company_name: e.companyName, enrolled_by: e.enrolledBy, status: e.status, current_step: e.currentStep, next_step_at: e.nextStepAt, placeholders: e.placeholders || {}, stats: e.stats || {}, enrolled_at: e.enrolledAt, updated_at: e.updatedAt });
+const enrFromDb = (r) => ({ id: r.id, sequenceId: r.sequence_id, contactId: r.contact_id, contactName: r.contact_name || '', companyId: r.company_id, companyName: r.company_name || '', enrolledBy: r.enrolled_by || '', senderAccountId: r.sender_account_id || null, status: r.status || 'active', currentStep: Number(r.current_step) || 1, nextStepAt: r.next_step_at, placeholders: r.placeholders || {}, stats: r.stats || {}, enrolledAt: r.enrolled_at, updatedAt: r.updated_at || r.enrolled_at });
+const enrToDb = (e) => ({ id: e.id, sequence_id: e.sequenceId, contact_id: e.contactId == null ? null : Number(e.contactId), contact_name: e.contactName, company_id: e.companyId == null ? null : Number(e.companyId), company_name: e.companyName, enrolled_by: e.enrolledBy, sender_account_id: e.senderAccountId || null, status: e.status, current_step: e.currentStep, next_step_at: e.nextStepAt, placeholders: e.placeholders || {}, stats: e.stats || {}, enrolled_at: e.enrolledAt, updated_at: e.updatedAt });
 const saveLocal = () => { localStorage.setItem(LS.seq, JSON.stringify(rows)); localStorage.setItem(LS.enr, JSON.stringify(enrollRows)); localStorage.setItem(LS.folders, JSON.stringify(folderRows)); };
 const persistSeq = (s) => { if (live) enqueue(async () => { const { error } = await supabase.from('sequences').upsert(seqToDb(s), { onConflict: 'id' }); if (error) throw error; const { error: e2 } = await supabase.from('sequence_steps').delete().eq('sequence_id', s.id); if (e2) throw e2; if (s.steps.length) { const { error: e3 } = await supabase.from('sequence_steps').insert(s.steps.map((x, i) => stepToDb(s.id, x, i))); if (e3) throw e3; } }); else saveLocal(); };
 const persistEnr = (e) => { if (live) enqueue(async () => { const { error } = await supabase.from('sequence_enrollments').upsert(enrToDb(e), { onConflict: 'id' }); if (error) throw error; }); else saveLocal(); };
@@ -301,7 +301,7 @@ export function sequencesCsv(list = sequences()) {
 }
 
 // Enrols a contact: the enrolment row, the first step scheduled (a task when it is manual) and the timeline entry.
-export function enroll({ sequenceId, contact, placeholders = {}, enrolledBy = ME, now = new Date(), from = '' } = {}) {
+export function enroll({ sequenceId, contact, placeholders = {}, enrolledBy = ME, now = new Date(), from = '', senderAccountId = null } = {}) {
   const seq = rows.find((x) => x.id === sequenceId && !x.deletedAt);
   if (!seq || !contact || !seq.steps.length) return null;
   const first = seq.steps[0];
@@ -309,17 +309,17 @@ export function enroll({ sequenceId, contact, placeholders = {}, enrolledBy = ME
   // A start later than now schedules the first step instead of running it right away.
   const future = when.getTime() > Date.now() + 60000;
   const company = contact.companyId ? allCompanies().find((x) => Number(x.id) === Number(contact.companyId)) : allCompanies().find((x) => x.name && x.name === contact.company);
-  const e = { id: uuid(), sequenceId, contactId: contact.id, contactName: contact.name || `${contact.first || ''} ${contact.last || ''}`.trim(), companyId: company ? company.id : null, companyName: company ? company.name : contact.company || '', enrolledBy, status: 'active', currentStep: 1, nextStepAt: when.toISOString(), placeholders: { ...placeholders }, stats: { sent: isAuto(first) && !future ? 1 : 0, opens: 0, clicks: 0, replied: 0, meeting: 0, bounced: 0, unsubscribed: 0 }, enrolledAt: when.toISOString(), updatedAt: new Date().toISOString() };
+  const e = { id: uuid(), sequenceId, contactId: contact.id, contactName: contact.name || `${contact.first || ''} ${contact.last || ''}`.trim(), companyId: company ? company.id : null, companyName: company ? company.name : contact.company || '', enrolledBy, senderAccountId, status: 'active', currentStep: 1, nextStepAt: when.toISOString(), placeholders: { ...placeholders }, stats: { sent: 0, opens: 0, clicks: 0, replied: 0, meeting: 0, bounced: 0, unsubscribed: 0 }, enrolledAt: when.toISOString(), updatedAt: new Date().toISOString() };
   enrollRows.unshift(e);
   persistEnr(e);
   const label = STEP_TYPES[first.type].label;
   let task = null;
-  if (!isAuto(first)) {
+  if (!live && !isAuto(first)) {
     task = addRecord('tasks', { name: fillPlaceholders(first.title || `${label} · ${seq.name}`, placeholders).replace(/{{[^}]+}}/g, contact.first || contact.name || ''), type: first.type === 'call' ? 'Llamada' : first.type === 'manual_email' ? 'Correo' : 'Tarea', status: 'todo', priority: 'medium', owner: enrolledBy, contactId: contact.id, contact: e.contactName, due: when.toISOString(), lastActivity: when.toISOString() });
   }
   const timeStr = `${String(when.getHours()).padStart(2, '0')}:${String(when.getMinutes()).padStart(2, '0')}`;
   const subject = fillPlaceholders(first.subject, placeholders).replace(/{{[^}]+}}/g, '…');
-  const detail = isAuto(first) ? (future ? `Paso 1: correo automatizado «${subject}» programado para el ${formatDate(when)} a las ${timeStr}.` : `Paso 1: correo automatizado «${subject}» enviado hoy a las ${timeStr}.`) : `Paso 1: ${label.toLowerCase()} creada para el ${formatDate(when)}.`;
+  const detail = `Paso 1 pendiente, programado para el ${formatDate(when)} a las ${timeStr}.`;
   addActivity({ type: 'system', when: Math.min(when.getTime(), Date.now()), who: enrolledBy, text: `Inscrito en la secuencia «${seq.name}» por ${enrolledBy}. ${detail}${from ? ` Correos enviados desde ${from}.` : ''}`, recordType: 'contacts', recordId: contact.id, extra: { sequenceId, enrollmentId: e.id, subject: `Secuencia: ${seq.name}`, from } });
   return { enrollment: out(e), sequence: out(seq), firstStep: clone(first), task, scheduled: future };
 }
