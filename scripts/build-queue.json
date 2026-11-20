@@ -715,10 +715,12 @@
     },
     {
       "id": "gap-ui-cotizacion-icono-pago",
-      "status": "pending",
+      "status": "done",
       "createdAt": "2026-11-20T13:33:46-06:00",
       "lane": "codex",
-      "instruction": "En el menú «Más» de la ficha de registro, «Crear cotización» usa el icono equivocado: src/record.js 341 tiene ['quote', ACT_ICONS.paylink, 'Crear cotización'], es decir, el icono de tarjeta de pago, idéntico al de «Crear enlace de pago» de la línea 342. Dos acciones distintas con el mismo icono y la cotización sin su icono propio: ACT_ICONS.quote existe en src/action-icons.js 27 pero no se usa ahí. En HubSpot cada acción del menú tiene su icono distintivo. Cómo debe verse: «Crear cotización» con ACT_ICONS.quote y «Crear enlace de pago» con ACT_ICONS.paylink. Criterio de aceptación: en el menú «Más» de la ficha las dos entradas muestran iconos distintos, y el de cotización es el icono de cotización; no se rompe nada más del menú. No despliegues nada a producción; solo código local."
+      "instruction": "En el menú «Más» de la ficha de registro, «Crear cotización» usa el icono equivocado: src/record.js 341 tiene ['quote', ACT_ICONS.paylink, 'Crear cotización'], es decir, el icono de tarjeta de pago, idéntico al de «Crear enlace de pago» de la línea 342. Dos acciones distintas con el mismo icono y la cotización sin su icono propio: ACT_ICONS.quote existe en src/action-icons.js 27 pero no se usa ahí. En HubSpot cada acción del menú tiene su icono distintivo. Cómo debe verse: «Crear cotización» con ACT_ICONS.quote y «Crear enlace de pago» con ACT_ICONS.paylink. Criterio de aceptación: en el menú «Más» de la ficha las dos entradas muestran iconos distintos, y el de cotización es el icono de cotización; no se rompe nada más del menú. No despliegues nada a producción; solo código local.",
+      "completedAt": "2026-11-20T16:50:28-0600",
+      "completedBy": "codex"
     },
     {
       "id": "gap-ui-tablero-tarjetas-oscuro",
@@ -775,6 +777,90 @@
       "createdAt": "2026-11-20T15:29:48-06:00",
       "lane": "claude",
       "instruction": "La biblioteca de informes personalizados (Informes › Paneles › Biblioteca de informes) no sigue los patrones visuales del resto del CRM: cada fila muestra cinco botones btn--ghost seguidos (Abrir informe / Duplicar / Renombrar / Eliminar / Anclar, src/report-builder.js 20) en vez del menú «Acciones» desplegable que usan Plantillas, Secuencias y Workflows (.tpls__rowmenu), así que las filas crecen y se desalinean con nombres largos. Además sus controles son formularios sin las clases del sistema: el buscador y los selects usan la regla suelta .custom-library input, .custom-library select (border #b6c7d6 quemado y background var(--bg,#fff) — la variable --bg no existe, así que siempre cae a #fff y en tema oscuro quedan cajas blancas) y el constructor usa <label>texto<input/select> desnudos (src/report-builder.js 23 y 34-35) sin .field ni .search. Cómo debe verse: una acción primaria visible (Abrir) y el resto en un menú «Acciones» con el patrón .menu/.menu__panel; buscador con .search.search--sm e icono; campos del constructor con .field; eliminar en rojo menu__item--danger; sustituir la regla .custom-library por clases del sistema para heredar el tema. Criterio de aceptación: la biblioteca no muestra más de dos botones por fila, sus inputs se ven como los de cualquier formulario del CRM en claro y oscuro, y no queda la regla con #b6c7d6 ni var(--bg,#fff). No despliegues nada a producción; solo código local."
+    },
+    {
+      "id": "gap-smoke-paginadores-regresion",
+      "status": "pending",
+      "instruction": "Las pruebas smoke-templates («pager state wrong on page 1») y smoke-server-pagination («pager must show the last page from the exact count») fallan tras el commit 6fbcb5f (gap-ui-paginadores-inconsistentes). Investiga si el cambio de paginadores rompió el comportamiento (regresión) o si las pruebas quedaron desactualizadas respecto al nuevo comportamiento correcto; corrige el código o actualiza las pruebas según corresponda. Criterio de aceptación: ambas pruebas pasan. Ejecuta la(s) prueba(s) con node scripts/<smoke>.mjs hasta que pasen. No despliegues nada a producción; solo código local.",
+      "createdAt": "2026-11-20T16:48:58-06:00",
+      "lane": "claude"
+    },
+    {
+      "id": "gap-smoke-calls-elemento-faltante",
+      "status": "pending",
+      "instruction": "smoke-calls.mjs falla con «missing element to click» después de las pruebas de chips y pie de tabla, probablemente por los commits de hoy en llamadas (tabla plana, filtros chip). Verifica qué elemento del DOM espera la prueba y si aún existe; corrige el código o la prueba. Criterio de aceptación: smoke-calls pasa. Ejecuta la(s) prueba(s) con node scripts/<smoke>.mjs hasta que pasen. No despliegues nada a producción; solo código local.",
+      "createdAt": "2026-11-20T16:48:58-06:00",
+      "lane": "codex"
+    },
+    {
+      "id": "gap-smoke-bulk-assign",
+      "status": "pending",
+      "instruction": "smoke-bulk.mjs falla en «assign»: la asignación masiva de registros no funciona como espera la prueba. Reproduce, encuentra la causa (posible regresión de los commits de hoy) y corrige. Criterio de aceptación: smoke-bulk pasa. Ejecuta la(s) prueba(s) con node scripts/<smoke>.mjs hasta que pasen. No despliegues nada a producción; solo código local.",
+      "createdAt": "2026-11-20T16:48:58-06:00",
+      "lane": "claude"
+    },
+    {
+      "id": "gap-smoke-currency-registro",
+      "status": "pending",
+      "instruction": "smoke-currency.mjs falla en «record should show the new currency right away»: al cambiar la moneda, el registro no la refleja de inmediato. Investiga si falta refresco de estado o si la prueba quedó vieja; corrige. Criterio de aceptación: smoke-currency pasa. Ejecuta la(s) prueba(s) con node scripts/<smoke>.mjs hasta que pasen. No despliegues nada a producción; solo código local.",
+      "createdAt": "2026-11-20T16:48:58-06:00",
+      "lane": "codex"
+    },
+    {
+      "id": "gap-smoke-company-hierarchy-fila",
+      "status": "pending",
+      "instruction": "smoke-company-hierarchy.mjs falla en «row shape for the table»: la fila de la tabla de jerarquía de empresas no tiene la forma esperada. Reproduce y corrige el código o la prueba. Criterio de aceptación: smoke-company-hierarchy pasa. Ejecuta la(s) prueba(s) con node scripts/<smoke>.mjs hasta que pasen. No despliegues nada a producción; solo código local.",
+      "createdAt": "2026-11-20T16:48:58-06:00",
+      "lane": "claude"
+    },
+    {
+      "id": "gap-smoke-custom-props-writer",
+      "status": "pending",
+      "instruction": "smoke-custom-props.mjs falla en «saving should persist through the writer»: al guardar una propiedad personalizada no persiste (cuenta de contacts, in_form, options Norte/Sur o group_name). Investiga el writer de propiedades y corrige. Criterio de aceptación: smoke-custom-props pasa. Ejecuta la(s) prueba(s) con node scripts/<smoke>.mjs hasta que pasen. No despliegues nada a producción; solo código local.",
+      "createdAt": "2026-11-20T16:48:58-06:00",
+      "lane": "codex"
+    },
+    {
+      "id": "gap-smoke-dedupe-skip",
+      "status": "pending",
+      "instruction": "smoke-dedupe.mjs falla en «skip duplicates choice»: el flujo de importación con opción «omitir duplicados» no se comporta como espera la prueba (stats created:2, updated:2, failed:1; contacts 420→422). Reproduce y corrige código o prueba. Criterio de aceptación: smoke-dedupe pasa. Ejecuta la(s) prueba(s) con node scripts/<smoke>.mjs hasta que pasen. No despliegues nada a producción; solo código local.",
+      "createdAt": "2026-11-20T16:48:58-06:00",
+      "lane": "claude"
+    },
+    {
+      "id": "gap-smoke-import-map-en",
+      "status": "pending",
+      "instruction": "smoke-import.mjs falla en «english fallback auto-map»: el auto-mapeo de columnas en inglés durante la importación dejó de funcionar, posiblemente por el commit de importación multiarchivo (2853737). Reproduce y corrige. Criterio de aceptación: smoke-import pasa. Ejecuta la(s) prueba(s) con node scripts/<smoke>.mjs hasta que pasen. No despliegues nada a producción; solo código local.",
+      "createdAt": "2026-11-20T16:48:58-06:00",
+      "lane": "codex"
+    },
+    {
+      "id": "gap-smoke-invitations-reemplazo",
+      "status": "pending",
+      "instruction": "smoke-invitations.mjs falla en «the sample users must be replaced»: la lista de usuarios de ejemplo no se reemplaza correctamente al invitar usuarios reales. Reproduce y corrige. Criterio de aceptación: smoke-invitations pasa. Ejecuta la(s) prueba(s) con node scripts/<smoke>.mjs hasta que pasen. No despliegues nada a producción; solo código local.",
+      "createdAt": "2026-11-20T16:48:58-06:00",
+      "lane": "claude"
+    },
+    {
+      "id": "gap-smoke-phone-guardado-celda",
+      "status": "pending",
+      "instruction": "smoke-phone.mjs falla en «cell save: +57 1 321 4008»: guardar un teléfono editado en la celda no persiste o no formatea como espera la prueba. Reproduce y corrige código o prueba. Criterio de aceptación: smoke-phone pasa. Ejecuta la(s) prueba(s) con node scripts/<smoke>.mjs hasta que pasen. No despliegues nada a producción; solo código local.",
+      "createdAt": "2026-11-20T16:48:58-06:00",
+      "lane": "codex"
+    },
+    {
+      "id": "gap-smoke-task-queue-barra",
+      "status": "pending",
+      "instruction": "smoke-task-queue.mjs falla en «bar should reflect the completed task»: la barra de progreso de la cola de tareas no refleja la tarea completada, posiblemente por los commits de tareas/colas de hoy. Reproduce y corrige. Criterio de aceptación: smoke-task-queue pasa. Ejecuta la(s) prueba(s) con node scripts/<smoke>.mjs hasta que pasen. No despliegues nada a producción; solo código local.",
+      "createdAt": "2026-11-20T16:48:58-06:00",
+      "lane": "claude"
+    },
+    {
+      "id": "gap-smoke-views-error",
+      "status": "pending",
+      "instruction": "smoke-views.mjs falla sin imprimir línea FAIL clara (posible excepción). Ejecuta node scripts/smoke-views.mjs, captura el error real, diagnostica y corrige código o prueba. Criterio de aceptación: smoke-views pasa. Ejecuta la(s) prueba(s) con node scripts/<smoke>.mjs hasta que pasen. No despliegues nada a producción; solo código local.",
+      "createdAt": "2026-11-20T16:48:58-06:00",
+      "lane": "codex"
     }
   ]
 }

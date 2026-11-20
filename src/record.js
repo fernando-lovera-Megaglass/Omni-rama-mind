@@ -338,7 +338,7 @@ const quickOrder = () => {
 };
 const MORE_ITEMS = [
   ['invoice', ACT_ICONS.invoice, 'Crea una factura'],
-  ['quote', ACT_ICONS.paylink, 'Crear cotización'],
+  ['quote', ACT_ICONS.quote, 'Crear cotización'],
   ['paylink', ACT_ICONS.paylink, 'Crear enlace de pago'],
   ['contract', ACT_ICONS.contract, 'Crear un contrato'],
   ['sequence', ACT_ICONS.sequence, 'Inscribir en una secuencia'],
