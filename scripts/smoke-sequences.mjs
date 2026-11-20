@@ -52,7 +52,7 @@ if (S.PREBUILT.length !== 6 || S.enrollments().length < 40) fail('pre-built sequ
 if (qa('[data-tab]').map(text).join('|') !== 'Administrar|Análisis|Automatizar|Programado') fail('tabs');
 if (!q('[data-ta="export"]') || !q('[data-ta="trash"]') || !q('[data-ta="create"]') || q('[data-ta="create"]').getAttribute('href') !== 'create/') fail('Acciones / Crear secuencia');
 if (!text($('seq-banner')).includes('Envía secuencias sin salir de tu bandeja de entrada')) fail('banner');
-if ($('seq-q').placeholder !== 'Buscar en secuencias' || !text(q('#seq-owner option')).startsWith('Propietario: Cualquiera') || !q('[data-ta="new-folder"]')) fail('filters row');
+if ($('seq-q').placeholder !== 'Buscar en secuencias' || !text(q('#seq-owner [data-value=""] .owner__name')).startsWith('Cualquiera') || !q('[data-ta="new-folder"]')) fail('filters row');
 const heads = qa('.seqs__table thead th').map(text).filter(Boolean);
 if (heads.join('|') !== 'Nombre|Total inscritos|Tasa de respuesta|Tasa de reuniones|Propietario|Fecha de modificación') fail(`columns: ${heads.join('|')}`);
 if (rows().length !== 3 || !qa('[data-folder-row]').map((r) => r.dataset.folderRow).includes('Ventas')) fail('rows / folders');

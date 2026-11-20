@@ -1,3 +1,4 @@
+import './filter-chip.js';
 import { validatePropertyValues } from './data.js';
 import { sensitiveValue } from './property-privacy.js';
 import { mountActivityComments } from './activity-comments.js';
@@ -279,8 +280,8 @@ mount.innerHTML = `
             <button class="chip" type="button" data-kind="system">Sistema</button>
           </div>
           <div class="act-selects" id="act-selects">
-            <label class="act-select"><span>Fecha de actividad</span><select id="act-date"><option value="">Todas las fechas</option><option value="0">Hoy</option><option value="7">Últimos 7 días</option><option value="30">Últimos 30 días</option><option value="90">Últimos 90 días</option></select></label>
-            <label class="act-select"><span>Actividad asignada a</span><select id="act-who"><option value="">Cualquiera</option><option value="Tú">Tú</option>${OWNERS.filter((o) => o !== 'Sin asignar').map((o) => `<option value="${esc(o)}">${esc(o)}</option>`).join('')}<option value="Sistema">Sistema</option></select></label>
+            <filter-chip id="act-date" aria-label="Fecha de actividad"><template><option value="">Todas las fechas</option><option value="0">Hoy</option><option value="7">Últimos 7 días</option><option value="30">Últimos 30 días</option><option value="90">Últimos 90 días</option></template></filter-chip>
+            <filter-chip id="act-who" aria-label="Actividad asignada a" owner><template><option value="">Cualquiera</option><option value="Tú">Tú</option>${OWNERS.filter((o) => o !== 'Sin asignar').map((o) => `<option value="${esc(o)}">${esc(o)}</option>`).join('')}<option value="Sistema">Sistema</option></template></filter-chip>
             <button class="link-btn" type="button" data-actclear="1" id="act-clear" hidden>Borrar todo</button>
           </div>
           <form class="note" id="note-form">

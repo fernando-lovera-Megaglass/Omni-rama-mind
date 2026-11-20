@@ -1,3 +1,4 @@
+import './filter-chip.js';
 // Bandeja de entrada: the original's conversations inbox in three columns — the list with its filters on the
 // left, the thread (chat bubbles + reply box) in the middle, the contact card and the actions on the right.
 import { boot } from './page.js';
@@ -35,8 +36,8 @@ root.innerHTML = `
         <button class="inbox__tab" type="button" role="tab" data-who="mine">Asignados a mí</button>
       </div>
       <div class="inbox__filters">
-        <select id="inbox-status" aria-label="Estado"><option value="open">Abiertos</option><option value="closed">Cerrados</option><option value="snoozed">Pospuestos</option><option value="">Todos los estados</option></select>
-        <select id="inbox-channel" aria-label="Canal"><option value="">Todos los canales</option>${Object.entries(CHANNELS).map(([k, c]) => `<option value="${k}">${c.label}</option>`).join('')}</select>
+        <filter-chip id="inbox-status" aria-label="Estado"><template><option value="">Todos los estados</option><option value="open" selected>Abiertos</option><option value="closed">Cerrados</option><option value="snoozed">Pospuestos</option></template></filter-chip>
+        <filter-chip id="inbox-channel" aria-label="Canal"><template><option value="">Todos los canales</option>${Object.entries(CHANNELS).map(([k, c]) => `<option value="${k}">${c.label}</option>`).join('')}</template></filter-chip>
       </div>
       <div class="search search--sm inbox__search"><span class="ico ico--search" aria-hidden="true"></span><input type="search" id="inbox-q" placeholder="Buscar conversaciones" aria-label="Buscar conversaciones" autocomplete="off" /></div>
       <ul class="inbox__items" id="inbox-items"></ul>

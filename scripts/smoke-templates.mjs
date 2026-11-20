@@ -51,7 +51,7 @@ const folderBtns = [...document.querySelectorAll('#tpl-folders [data-folder]')].
 if (!folderBtns.some((f) => f.startsWith('Ventas') && f.endsWith('2'))) fail(`folders: ${folderBtns.join(' | ')}`);
 if (!q('[data-ta="new-folder"]') || !q('[data-ta="analyze"]') || !q('[data-ta="export"]') || !q('[data-ta="new-scratch"]') || !q('[data-ta="new-library"]')) fail('header buttons missing');
 if (!q('#tpl-q') || q('#tpl-q').placeholder !== 'Buscar en plantillas') fail('search box missing');
-if (!text(q('#tpl-owner option')).startsWith('Propietario: Cualquiera')) fail('owner filter missing');
+if (!text(q('#tpl-owner [data-value=""] .owner__name')).startsWith('Cualquiera')) fail('owner filter missing');
 if (!rows()[0].querySelector('[data-act="clone"]') || !rows()[0].querySelector('[data-act="move"]') || !rows()[0].querySelector('[data-act="share"]') || !rows()[0].querySelector('[data-act="delete"]')) fail('row actions missing');
 log('list loads: 3 seeded templates, counter, columns, folders, actions');
 

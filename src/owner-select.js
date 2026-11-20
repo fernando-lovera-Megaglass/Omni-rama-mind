@@ -26,7 +26,7 @@ function wireGlobal() {
 }
 const labelOf = (opt) => (opt ? opt.textContent.trim() : '');
 // Avatar + name of an option; an empty value (or «Sin asignar» / «--») gets the placeholder avatar.
-function displayHtml(opt) {
+export function ownerOptionHtml(opt) {
   const label = labelOf(opt);
   if (!opt || opt.value === '' || EMPTY_LABELS.test(label)) return `<span class="owner owner--none">${ownerAvatarHtml('', 'xs')}<span class="owner__name muted">${esc(label && !/^(--|—|)$/.test(label) ? label : 'Sin asignar')}</span></span>`;
   return ownerHtml(label, 'xs');
@@ -59,11 +59,11 @@ function enhance(sel) {
   const search = panel.querySelector('input');
   const listEl = panel.querySelector('.osel__list');
   const options = () => [...sel.options].filter((o) => !o.disabled);
-  const renderBtn = () => { btn.innerHTML = `${displayHtml(sel.selectedOptions[0] || null)}<span class="caret" aria-hidden="true"></span>`; };
+  const renderBtn = () => { btn.innerHTML = `${ownerOptionHtml(sel.selectedOptions[0] || null)}<span class="caret" aria-hidden="true"></span>`; };
   const renderList = () => {
     const q = search.value.trim().toLowerCase();
     const items = options().filter((o) => !q || labelOf(o).toLowerCase().includes(q));
-    listEl.innerHTML = items.length ? items.map((o) => `<button type="button" class="osel__opt${o.selected ? ' is-selected' : ''}" role="option" aria-selected="${o.selected}" data-value="${esc(o.value)}">${displayHtml(o)}</button>`).join('') : '<div class="osel__empty muted">Ningún usuario coincide</div>';
+    listEl.innerHTML = items.length ? items.map((o) => `<button type="button" class="osel__opt${o.selected ? ' is-selected' : ''}" role="option" aria-selected="${o.selected}" data-value="${esc(o.value)}">${ownerOptionHtml(o)}</button>`).join('') : '<div class="osel__empty muted">Ningún usuario coincide</div>';
   };
   const open = () => { closeOwnerSelects(wrap); wrap.classList.add('is-open'); btn.setAttribute('aria-expanded', 'true'); panel.hidden = false; search.value = ''; renderList(); search.focus(); };
   const pick = (value) => {

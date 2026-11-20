@@ -1,3 +1,4 @@
+import './filter-chip.js';
 // Plantillas de mensaje: the original's templates list (folders on the left, search and owner filter, sortable
 // table with multi-select, row actions and pagination) and its editor — a large modal with the compose pane
 // (name, subject and rich-text body with personalisation tokens and snippets) next to the sample-e-mail
@@ -54,7 +55,7 @@ function renderPage() {
         <section class="tpls__main">
           <div class="tpls__filters">
             <div class="search search--sm"><span class="ico ico--search" aria-hidden="true"></span><input type="search" id="tpl-q" placeholder="Buscar en plantillas" aria-label="Buscar en plantillas" /></div>
-            <select id="tpl-owner" aria-label="Propietario"></select>
+            <filter-chip id="tpl-owner" aria-label="Propietario" owner><template></template></filter-chip>
             <div class="tpls__bulk" id="tpl-bulk"></div>
           </div>
           <div class="table-wrap" id="tpl-table"></div>
@@ -69,7 +70,7 @@ function renderPage() {
 function renderOwners() {
   const sel = $('tpl-owner');
   const list = owners();
-  sel.innerHTML = `<option value="">Propietario: Cualquiera</option><option value="${esc(ME)}">Propietario: Yo</option>${list.filter((o) => o !== ME).map((o) => `<option value="${esc(o)}">Propietario: ${esc(o)}</option>`).join('')}`;
+  sel.innerHTML = `<template><option value="">Cualquiera</option><option value="${esc(ME)}">Yo</option>${list.filter((o) => o !== ME).map((o) => `<option value="${esc(o)}">${esc(o)}</option>`).join('')}</template>`;
   sel.value = state.owner;
 }
 function renderFolders() {
@@ -170,7 +171,7 @@ function openEditor(id, preset = {}) {
       <div class="tpe__bar">
         <select id="tpe-shared" aria-label="Compartir"><option value="1" ${editor.shared ? 'selected' : ''}>Compartido con todos</option><option value="0" ${editor.shared ? '' : 'selected'}>Privado</option></select>
         <select id="tpe-folder" aria-label="Carpeta"><option value="">Seleccionar una carpeta</option>${folders().map((f) => `<option value="${esc(f)}" ${f === editor.folder ? 'selected' : ''}>${esc(f)}</option>`).join('')}</select>
-        <span class="tpe__owner">Propietario: ${ownerHtml(editor.ownerId)}</span>
+        <span class="tpe__owner">${ownerHtml(editor.ownerId)}</span>
       </div>
       <div class="tpe__panes${editor.preview ? '' : ' is-solo'}" id="tpe-panes">
         <section class="tpe__pane" aria-label="Redactar plantilla">

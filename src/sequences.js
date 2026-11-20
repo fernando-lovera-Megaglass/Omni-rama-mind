@@ -1,3 +1,4 @@
+import './filter-chip.js';
 // Secuencias (Ventas › Secuencias): the list with its tabs — Administrar (folders, search, owner filter,
 // multi-select table with per-row actions, Acciones: export / papelera), Análisis (filters as chips, metric
 // cards and the performance chart computed from the enrolments), Automatizar and Programado.
@@ -66,7 +67,7 @@ function renderManage() {
     <section class="tpls__main">
       <div class="tpls__filters">
         <div class="search search--sm"><span class="ico ico--search" aria-hidden="true"></span><input type="search" id="seq-q" placeholder="Buscar en secuencias" aria-label="Buscar en secuencias" value="${esc(state.q)}" /></div>
-        <select id="seq-owner" aria-label="Propietario"><option value="">Propietario: Cualquiera</option><option value="${esc(ME)}" ${state.owner === ME ? 'selected' : ''}>Propietario: Yo</option>${owners().filter((o) => o !== ME).map((o) => `<option value="${esc(o)}" ${state.owner === o ? 'selected' : ''}>Propietario: ${esc(o)}</option>`).join('')}</select>
+        <filter-chip id="seq-owner" aria-label="Propietario" owner><template><option value="">Cualquiera</option><option value="${esc(ME)}" ${state.owner === ME ? 'selected' : ''}>Yo</option>${owners().filter((o) => o !== ME).map((o) => `<option value="${esc(o)}" ${state.owner === o ? 'selected' : ''}>${esc(o)}</option>`).join('')}</template></filter-chip>
         <button class="btn btn--secondary btn--sm" type="button" data-ta="new-folder">Nueva carpeta</button>
         <div class="tpls__bulk" id="seq-bulk">${n ? `<span>${plural(n, 'seleccionada', 'seleccionadas')}</span><button class="btn btn--secondary btn--sm" type="button" data-ta="bulk-move">Mover</button><button class="btn btn--secondary btn--sm" type="button" data-ta="bulk-delete">Eliminar</button>` : ''}</div>
       </div>
