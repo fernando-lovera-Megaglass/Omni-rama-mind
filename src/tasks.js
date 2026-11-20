@@ -77,15 +77,15 @@ const list = mountList({
     { key: 'status', label: 'Estado', options: TASK_STATUSES.map(([k, l]) => [k, l]), test: (r, v) => r.status === v },
   ],
   columns: [
-    { key: 'queueId', label: 'Cola', text: r => taskQueues().find(q => q.id === r.queueId)?.name || 'Sin cola', render: r => esc(taskQueues().find(q => q.id === r.queueId)?.name || 'Sin cola') },
+    { key: 'name', label: 'Título', render: (r) => `<a href="./record/?id=${r.id}" class="${r.status === 'done' ? 'is-done' : ''}">${esc(r.name)}</a>` },
     { key: 'done', label: 'Hecha', text: (r) => (r.status === 'done' ? 'Sí' : 'No'), render: (r) => `<input type="checkbox" class="task-done" data-id="${r.id}" ${r.status === 'done' ? 'checked' : ''} aria-label="Marcar como completada" />` },
-    { key: 'name', label: 'Título', render: (r) => `<a href="./record/?id=${r.id}" class="${r.status === 'done' ? 'is-done' : ''}">${r.name}</a>` },
     { key: 'contact', label: 'Contacto asociado', render: (r) => (r.contact ? link(`../contacts/record/?id=${r.contactId}`, r.contact) : '<span class="muted">—</span>') },
     { key: 'due', label: 'Fecha de vencimiento', text: (r) => formatDate(r.due), sortValue: (r) => new Date(r.due).getTime(), render: (r) => `<span class="${pending(r) ? dueClass(r) : ''}" title="${pending(r) ? dueText(r) : 'Completada'}">${formatDate(r.due)}</span>` },
     { key: 'type', label: 'Tipo de tarea' },
     { key: 'priority', label: 'Prioridad', text: (r) => labelOf(PRIORITIES, r.priority), render: (r) => tag(labelOf(PRIORITIES, r.priority), classOf(PRIORITIES, r.priority)) },
     { key: 'status', label: 'Estado', text: (r) => labelOf(TASK_STATUSES, r.status), render: (r) => tag(labelOf(TASK_STATUSES, r.status), classOf(TASK_STATUSES, r.status)) },
     { key: 'owner', label: 'Asignada a', render: (r) => ownerHtml(r.owner) },
+    { key: 'queueId', label: 'Cola', text: r => taskQueues().find(q => q.id === r.queueId)?.name || 'Sin cola', render: r => esc(taskQueues().find(q => q.id === r.queueId)?.name || 'Sin cola') },
     { key: 'created', label: 'Fecha de creación', default: false, text: (r) => formatDate(r.created), sortValue: (r) => new Date(r.created).getTime() },
   ],
   createFields: [
