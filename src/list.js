@@ -2163,9 +2163,9 @@ export function mountList(cfg) {
     } else if (a === 'export') {
       download(`${cfg.singular}-${r.id}.csv`, toCsv([r], visibleColumns(), cfg.type));
       toast('Exportado a CSV');
-    } else if (['note', 'email', 'call', 'task', 'meeting'].includes(a)) {
+    } else if (['note', 'email', 'call', 'task', 'meeting', 'more'].includes(a)) {
       location.href = `./record/?id=${r.id}#${a}`;
-    } else if (a === 'more') toast('Más acciones: Mensaje de WhatsApp, Registrar actividad, Programar reunión.');
+    }
   });
 
   // ---------- drawers ----------

@@ -1995,11 +1995,13 @@ if (!rec) {
   $('desc-form').querySelector('textarea').value = rec.description || '';
   renderAll();
 
-  // Deep links from the list preview: #note, #email, #call, #task, #meeting, #advanced
+  // Deep links from the list preview: #note, #email, #call, #task, #meeting, #more, #advanced
   const hash = location.hash.replace('#', '');
   if (hash === 'advanced') document.querySelector('[data-tab="advanced"]').click();
   else if (['note', 'email', 'call', 'task', 'meeting'].includes(hash)) {
     setTimeout(() => document.querySelector(`.record__quick [data-action="${hash}"]`)?.click(), 0);
+  } else if (hash === 'more') {
+    setTimeout(() => document.querySelector('.record__quick .quick__more > button')?.click(), 0);
   }
 
   // "Más" menu: search, submenus and actions
