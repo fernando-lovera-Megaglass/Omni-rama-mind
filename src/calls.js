@@ -1,3 +1,4 @@
+import { ACT_ICONS } from './action-icons.js';
 // CRM › Llamadas: la página de índice de llamadas, copia de la del original — pestaña de vista,
 // buscador, filtros rápidos (dirección, asignada a, fecha, duración), tabla con el título, la fecha,
 // la duración y el responsable, paginación y exportar. Junta las llamadas reales de Twilio
@@ -164,7 +165,7 @@ function cellHtml(r, key) {
     case 'durationSec': return `${esc(fmtDuration(r.durationSec))}`;
     case 'when': return `${esc(fmtWhen(r.when))}`;
     case 'status': return `<span class="tag">${esc(r.status || '—')}</span>`;
-    case 'direction': return `${r.direction ? `<span class="calls__direction">${r.direction === 'outbound' ? '↗' : '↙'} ${DIRECTION_LABEL[r.direction] || esc(r.direction)}</span>` : '—'}`;
+    case 'direction': return `${r.direction ? `<span class="calls__direction">${r.direction === 'outbound' ? ACT_ICONS.outbound : ACT_ICONS.inbound} ${DIRECTION_LABEL[r.direction] || esc(r.direction)}</span>` : '—'}`;
     default: return esc(r[key] || '—');
   }
 }

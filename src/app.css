@@ -1532,9 +1532,23 @@ h1 {
   color: var(--c-text);
 }
 
-.quick__ico svg {
+/* Shared action glyph size across records, boards, queues and call direction. */
+.quick__ico svg,
+.timeline__ico svg,
+.kcard__pill-ico svg,
+.kcard__actions > a > svg,
+.tq__ico svg,
+.calls__direction svg {
   width: 18px;
   height: 18px;
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+
+.calls__direction {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .quick:hover .quick__ico {
@@ -1636,10 +1650,6 @@ h1 {
   color: var(--c-muted);
 }
 
-.timeline__ico svg {
-  width: 15px;
-  height: 15px;
-}
 
 .timeline__meta {
   font-size: var(--fs-xs);

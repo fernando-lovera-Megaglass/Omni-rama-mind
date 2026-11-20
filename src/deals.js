@@ -1,3 +1,4 @@
+import { ACT_ICONS } from './action-icons.js';
 import { dealForecastLabel } from './data.js';
 import { boot } from './page.js';
 import { mountList, tag, link } from './list.js';
@@ -67,7 +68,6 @@ const daysInStage = (r) => Math.max(0, Math.floor((TODAY - new Date(r.stageEnter
 const isImportant = (r) => r.important === true || ['true', 'sí', 'si', '1'].includes(String(r.important ?? '').trim().toLowerCase());
 // Open tasks of the deal (associated to it or to its contact): the card's "próxima actividad".
 const pendingTasks = (r) => allTasks().filter((t) => t.status !== 'done' && (Number(t.dealId) === Number(r.id) || (r.contactId && Number(t.contactId) === Number(r.contactId))));
-const ACT_ICON = { email: '✉', call: '☏', task: '☑', meeting: '▦', note: '✎', message: '💬' };
 // The card's foot shows the owner's avatar (same colour as everywhere else) with the name as tooltip.
 const ownerAvatar = (name) => ownerAvatarHtml(name, 'xs', { titled: true });
 // The board shows one pipeline at a time: the selected one or the default pipeline.
@@ -81,7 +81,8 @@ function dealCard(r, ctx) {
   const pending = pendingTasks(r);
   const when = r.lastActivity || r.created;
   const last = activitiesFor('deals', r.id).find((a) => a.type !== 'prop' && a.type !== 'stage');
-  const icon = ACT_ICON[(last && last.type) || r.lastActivityType] || '✉';
+  const activityType = (last && last.type) || r.lastActivityType;
+  const icon = ACT_ICONS[activityType === 'message' ? 'sms' : activityType] || ACT_ICONS.email;
   // The deal tags (Ajustes › Objetos › Negocios › Pipelines › Etiquetas de Negocio) the deal earns right now.
   const tags = `${dealTagChips(r)}${isImportant(r) ? '<span class="kcard__tag">Importante</span>' : ''}${inStage > 30 ? `<span class="kcard__days" title="${inStage} días en esta etapa" aria-label="${inStage} días en esta etapa">${inStage}</span>` : ''}`;
   const taskTitle = pending.length ? `${pending.length} tarea${pending.length === 1 ? '' : 's'} pendiente${pending.length === 1 ? '' : 's'}` : 'Sin tareas pendientes';
@@ -95,10 +96,10 @@ function dealCard(r, ctx) {
                   <span class="kcard__pill" title="Última actividad: ${esc(formatDate(when))}"><span class="kcard__pill-ico" aria-hidden="true">${icon}</span> ${esc(agoText(when))}${pending.length ? '' : ' <span class="kcard__pill-sep">|</span> <span class="kcard__alert" title="Sin actividad programada" aria-label="Sin actividad programada">⚠</span>'}</span>
                 </div>
                 <div class="kcard__actions">
-                  <a href="./record/?id=${r.id}#tasks" class="${pending.length ? 'is-pending' : ''}" title="${taskTitle}" aria-label="${taskTitle}">☑${pending.length ? `<span class="kcard__badge">${pending.length}</span>` : ''}</a>
+                  <a href="./record/?id=${r.id}#tasks" class="${pending.length ? 'is-pending' : ''}" title="${taskTitle}" aria-label="${taskTitle}">${ACT_ICONS.task}${pending.length ? `<span class="kcard__badge">${pending.length}</span>` : ''}</a>
                   <button type="button" data-kai="${r.id}" title="Resumen" aria-label="Resumen"><span class="ai-spark">✦</span></button>
-                  <a href="./record/?id=${r.id}#email" title="Correo" aria-label="Correo">✉</a>
-                  <a href="./record/?id=${r.id}#note" title="Nota" aria-label="Nota">✎</a>
+                  <a href="./record/?id=${r.id}#email" title="Correo" aria-label="Correo">${ACT_ICONS.email}</a>
+                  <a href="./record/?id=${r.id}#note" title="Nota" aria-label="Nota">${ACT_ICONS.note}</a>
                 </div>
               </article>`;
 }

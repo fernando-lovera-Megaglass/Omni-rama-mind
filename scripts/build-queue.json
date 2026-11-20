@@ -411,10 +411,12 @@
     },
     {
       "id": "gap-ui-iconos-actividad-unificados",
-      "status": "pending",
+      "status": "done",
       "createdAt": "2026-11-19T19:34:10-06:00",
       "instruction": "Los iconos de las acciones Nota/Correo/Llamada/Tarea/Reunión son de un estilo distinto según dónde aparezcan. La ficha (src/record.js, fila .quick y cronología ICONS ~1365) usa los SVG lineales de src/action-icons.js (ACT_ICONS), pero: las tarjetas del tablero de las listas usan caracteres sueltos — src/list.js ~1391 `const ACT_ICON = { email: '✉', call: '☏', task: '☑', meeting: '▦', note: '✎' }` y botones ✉/✎ en ~1429-1430 —; Negocios repite otro mapa igual con 💬 extra (src/deals.js ~69, usado en ~94 y los botones ☑/✉/✎ de ~97-100); la cola de tareas usa emoji (src/task-queue.js ~48 `TYPE_ICONS = { Llamada: '📞', Correo: '✉', Tarea: '☑' }`); la columna Dirección de Llamadas usa flechas de texto ↗/↙ (src/calls.js ~202) y la cronología mete '↙' suelto para llamadas entrantes (src/record.js ~1454). En HubSpot todas estas superficies usan el mismo set de iconos de línea.\n\nCómo debe verse: un solo origen — ACT_ICONS de src/action-icons.js (mismo viewBox 24, trazo 1.8, currentColor) — en las tarjetas Kanban de Contactos/Empresas/Tickets/Tareas (src/list.js), las de Negocios (src/deals.js), la cola de tareas (src/task-queue.js) y la columna de dirección de Llamadas (añade iconos entrante/saliente al set si hace falta). Nada de emoji ni caracteres ✉☏✎📞💬 en esas posiciones.\n\nCriterio de aceptación: grep de '✉', '☏', '📞', '💬', '▦' en src/list.js, src/deals.js y src/task-queue.js queda vacío; los iconos de una tarjeta del tablero y de la ficha del mismo registro son idénticos en forma y tamaño. No despliegues nada a producción; solo código local.",
-      "lane": "codex"
+      "lane": "codex",
+      "completedAt": "2026-11-20T12:51:27-0600",
+      "completedBy": "codex"
     },
     {
       "id": "gap-ui-re-propietario-avatar-llamadas",

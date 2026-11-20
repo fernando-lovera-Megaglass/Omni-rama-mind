@@ -1388,7 +1388,6 @@ export function mountList(cfg) {
   }
 
   // ---------- Kanban board ("Vista de panel") ----------
-  const ACT_ICON = { email: '✉', call: '☏', task: '☑', meeting: '▦', note: '✎' };
   function renderBoard(list) {
     const board = $('kanban');
     const isBoard = state.mode === 'board' && cfg.board;
@@ -1422,12 +1421,12 @@ export function mountList(cfg) {
                 </div>
                 <div class="kcard__lines">${linesOf(r).map(lineHtml).join('')}</div>
                 ${sub && sub.name ? `<div class="kcard__sub"><span class="avatar avatar--xs avatar--soft" aria-hidden="true">${esc(String(sub.name).split(' ').filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase())}</span><a href="${sub.href || '#'}">${esc(sub.name)}</a></div>` : ''}
-                <span class="kcard__pill"><span class="kcard__pill-ico">${ACT_ICON[r.lastActivityType] || '✉'}</span> ${relativeTime(when)} <span class="kcard__pill-sep">|</span> <span class="kcard__info" title="Tiempo desde la última actividad">ⓘ</span></span>
+                <span class="kcard__pill"><span class="kcard__pill-ico">${ACT_ICONS[r.lastActivityType === 'message' ? 'sms' : r.lastActivityType] || ACT_ICONS.email}</span> ${relativeTime(when)} <span class="kcard__pill-sep">|</span> <span class="kcard__info" title="Tiempo desde la última actividad">ⓘ</span></span>
                 <div class="kcard__actions">
                   <button type="button" data-preview="${r.id}" title="Vista previa" aria-label="Vista previa">▭</button>
                   <button type="button" data-kai="${r.id}" title="Resumen" aria-label="Resumen"><span class="ai-spark">✦</span></button>
-                  <a href="./record/?id=${r.id}#email" title="Correo" aria-label="Correo">✉</a>
-                  <a href="./record/?id=${r.id}#note" title="Nota" aria-label="Nota">✎</a>
+                  <a href="./record/?id=${r.id}#email" title="Correo" aria-label="Correo">${ACT_ICONS.email}</a>
+                  <a href="./record/?id=${r.id}#note" title="Nota" aria-label="Nota">${ACT_ICONS.note}</a>
                 </div>
               </article>`;
     };

@@ -1453,7 +1453,7 @@ function renderTimeline() {
   const evKey = (ev) => `${ev.id || ''}:${ev.when}:${ev.type}`;
   const item = (ev) => `
     <li class="timeline__item${openEvents.has(evKey(ev)) ? ' is-open' : ''}" data-ev="${esc(evKey(ev))}">
-      <span class="timeline__ico" aria-hidden="true">${ev.type === 'call' && ev.extra?.direction === 'Entrante' ? '↙' : ICONS[ev.type] || ACT_ICONS.more}</span>
+      <span class="timeline__ico" aria-hidden="true">${ev.type === 'call' && ev.extra?.direction === 'Entrante' ? ACT_ICONS.inbound : ICONS[ev.type] || ACT_ICONS.more}</span>
       <div class="timeline__body">
         <button class="timeline__head" type="button" aria-expanded="${openEvents.has(evKey(ev))}">
           <span class="timeline__title">${esc(titleOf(ev))}</span>

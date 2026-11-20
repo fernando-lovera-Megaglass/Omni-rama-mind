@@ -18,6 +18,8 @@ export const ACT_ICONS = {
   note: ico('<path d="M15.5 4.5l4 4L9 19H5v-4L15.5 4.5z"/><path d="M13.5 6.5l4 4"/>'),
   email: ico('<rect x="3.5" y="5.5" width="17" height="13" rx="2"/><path d="M4 7l8 6 8-6"/>'),
   call: ico('<path d="M6.8 4h2.6l1.3 4-1.9 1.6a13.5 13.5 0 0 0 5.6 5.6l1.6-1.9 4 1.3v2.6a1.8 1.8 0 0 1-2 1.8C9.9 18.4 5.6 14.1 5 6a1.8 1.8 0 0 1 1.8-2z"/>'),
+  inbound: ico('<path d="M18 6L6 18M6 8v10h10"/>'),
+  outbound: ico('<path d="M6 18L18 6M8 6h10v10"/>'),
   task: ico('<rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8.5 12.2l2.4 2.4 4.6-4.8"/>'),
   meeting: ico('<rect x="3.5" y="5" width="17" height="15.5" rx="2"/><path d="M3.5 9.5h17M8 3v3.5M16 3v3.5"/>'),
   more: ico('<circle cx="5.5" cy="12" r="1.15" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.15" fill="currentColor" stroke="none"/><circle cx="18.5" cy="12" r="1.15" fill="currentColor" stroke="none"/>'),

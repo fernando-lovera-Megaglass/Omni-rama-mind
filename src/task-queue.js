@@ -1,3 +1,4 @@
+import { ACT_ICONS } from './action-icons.js';
 // Task queue (the original's "Comenzar N tareas"): the person works the tasks of a view one by one.
 // The queue lives in localStorage (crm:taskqueue) so it survives moving between record pages. Each task
 // opens the record it is associated with (or its own page when it has none) with a bar on top: position in
@@ -45,7 +46,7 @@ export function dueText(task) {
   return `Vence el ${formatDate(task.due)}`;
 }
 export const dueClass = (task) => { const d = dayDiff(task.due); return d === null ? '' : d < 0 ? 'is-overdue' : d === 0 ? 'is-today' : ''; };
-export const TYPE_ICONS = { Llamada: '📞', Correo: '✉', Tarea: '☑' };
+export const TYPE_ICONS = { Llamada: ACT_ICONS.call, Correo: ACT_ICONS.email, Tarea: ACT_ICONS.task };
 
 // ---------- queue state ----------
 export function activeQueue() {
@@ -150,7 +151,7 @@ export function mountQueueBar({ container, root = '../../', onChange } = {}) {
     container.innerHTML = `
       <div class="tq__pos"><strong>Tarea ${q.index + 1} de ${n}</strong><div class="tq__bar"><span style="width:${pct}%"></span></div><span class="muted">${done} completada${done === 1 ? '' : 's'}${skipped ? ` · ${skipped} omitida${skipped === 1 ? '' : 's'}` : ''}</span></div>
       <div class="tq__task">
-        <span class="tq__title"><span class="tq__ico" aria-hidden="true">${TYPE_ICONS[t.type] || '☑'}</span><a href="${root}tasks/record/?id=${t.id}" class="${isDone ? 'is-done' : ''}">${esc(t.name)}</a>${isDone ? '<span class="tag tag--done">Completada</span>' : ''}</span>
+        <span class="tq__title"><span class="tq__ico" aria-hidden="true">${TYPE_ICONS[t.type] || ACT_ICONS.task}</span><a href="${root}tasks/record/?id=${t.id}" class="${isDone ? 'is-done' : ''}">${esc(t.name)}</a>${isDone ? '<span class="tag tag--done">Completada</span>' : ''}</span>
         <span class="tq__meta"><span class="${dueClass(t)}">${esc(dueText(t))}</span><span>${esc(t.type)}</span><span>Prioridad ${esc(labelOf(PRIORITIES, t.priority)).toLowerCase()}</span><span>Asignada a ${ownerHtml(t.owner)}</span>${t.contact ? `<span>Contacto: ${here ? esc(t.contact) : `<a href="${root}contacts/record/?id=${t.contactId}">${esc(t.contact)}</a>`}</span>` : ''}<span class="muted">Cola: ${esc(q.label)}</span></span>
       </div>
       <div class="tq__actions">
