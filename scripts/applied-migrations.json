@@ -148,5 +148,10 @@
   "voicemail-storage.sql": {
     "status": "pendiente",
     "nota": "Solo código local; no aplicada a producción. Ver docs/voicemail-storage.md."
+  },
+  "contact-integrity.sql": {
+    "status": "pospuesta_calidad_datos",
+    "at": "2026-11-20T22:50:45.060Z",
+    "nota": "Bloqueada a propósito: los correos duplicados en contacts se conservan para un ejercicio posterior de calidad de datos. Aplicar solo después de ese trabajo."
   }
 }
