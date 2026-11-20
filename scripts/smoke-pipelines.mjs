@@ -30,11 +30,11 @@ log('pipelines:', defs.map((p) => `${p.name} (${p.stages.length})`).join(' | '))
 const EXPECTED = {
   'FUERZA DE VENTAS': ['OFERTA A+W', 'Proyecto en Cotización por parte del cliente', 'Proyecto Ganado por el cliente', 'Evalua', 'Ganado', 'Perdido', 'Eliminado'],
   'SACA SUMINISTRO': ['Oferta A+W', 'Entrega de presupuesto', 'Negociación con el cliente', 'Re-Cotizacion', 'Generacion de contrato y factura', 'En Producción', 'Ganados', 'Perdidos', 'Eliminación'],
-  'SACA Instalaciones': ['Compra de Materiales', 'Toma de Medidas', 'Fabricación Vidrio', 'Fabricación Aluminio (Corte, Armado, Envidriado)', 'Instalacion', 'Limpieza y entrega', 'Generación de factura', 'Cobranza', 'Ganado', 'PERDIDO', 'ELIMINADO', 'Proceso de Cotizacion'],
-  'Proyectos Nacionales Desarrolladores': ['Presentación de la empresa', 'Obtener contactos', 'Especificacion de Productos', 'Entrega de la cotización', 'Re-cotizacion', 'Contratos', 'Ganados', 'Perdidos'],
+  'SACA Instalaciones': ['Compra de Materiales', 'Toma de Medidas', 'Fabricación Vidrio', 'Fabricación Aluminio ( Corte, Armado, Envidriado)', 'Instalacion', 'Limpieza y entrega', 'Generación de factura', 'Cobranza', 'Ganado', 'PERDIDO', 'ELIMINADO', 'Proceso de Cotizacion'],
+  'Proyectos Nacionales Desarrolladores': ['Presentación de la empresa', 'Obtener contactos', 'Especificacion de Productos', 'Entrega de la cotización', 'Re - cotizacion', 'Contratos', 'Ganados', 'Perdidos'],
   'Ventas Extranjero': ['Generación de cotización', 'Cotizacion Enviada', 'Proyecto ganado por el cliente', 'Envio de muestra', 'Envio de orden de compra', 'Ganado', 'Perdido', 'Cotizacion Duplicada', 'Muestras'],
   'JFC Cargo Destino': ['Cotización', 'Envio de Cotizacion', 'Ganada', 'Perdida'],
-  'Acristala obras': ['Base de Datos', 'Contacto concretado', 'Información recibida', 'Cotización trabajada (Enviada)', 'Contrato-Factura', 'Cierre ganado', 'Cierre perdido', 'Instaladores', 'Cierre de obra'],
+  'Acristala obras': ['Base de Datos', 'Contacto concretado (llamada, coreo, visita)', 'Información recibida', 'Cotización trabajada (Enviada)', 'Contrato-Factura', 'Cierre ganado', 'Cierre perdido', 'Instaladores', 'Cierre de obra'],
   'Acristala Proyectos': ['Cita programada', 'Calificado para comprar', 'Presentación programada', 'Propuesta aceptada', 'Contrato enviado', 'Cierre ganado', 'Cierre perdido'],
 };
 if (defs.map((p) => p.name).join('|') !== Object.keys(EXPECTED).join('|')) fail('the 8 pipelines in order');

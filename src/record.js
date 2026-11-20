@@ -107,7 +107,7 @@ const CONFIG = {
     fields: [
       ['status', 'Estado del ticket', 'select', opt(TICKET_STATUSES.map(([k, l]) => [k, l]))], ['priority', 'Prioridad', 'select', opt(PRIORITIES.map(([k, l]) => [k, l]))],
       ['owner', 'Propietario del ticket', 'select', ownerOpts], ['source', 'Fuente', 'select', opt(['Correo', 'Formulario', 'Chat', 'Teléfono'])],
-      ['description', 'Descripción', 'textarea'], ['pipeline', 'Pipeline', 'ro'], ['created', 'Fecha de creación', 'date-ro'],
+      ['description', 'Descripción', 'textarea'], ['pipeline', 'Pipeline', 'select', opt(ticketPipelines())], ['created', 'Fecha de creación', 'date-ro'],
     ],
     highlights: (r) => [['Fecha de creación', formatDate(r.created)], ['Estado', ticketStatusLabel(r.pipeline, r.status)], ['Prioridad', labelOf(PRIORITIES, r.priority)], ['Última actividad', formatDate(r.lastActivity)]],
     stages: true,
@@ -1680,6 +1680,13 @@ async function save(key, value, label) {
   try { await validatePropertyValues(type, { [key]: value }, { id: rec.id }); } catch (e) { toast(e.message); return; }
   const from = rec[key];
   setField(type, rec.id, key, value);
+  // A ticket moved to another pipeline takes that pipeline's statuses (first open one if its status is not there).
+  if (type === 'tickets' && key === 'pipeline') {
+    const statuses = ticketStatusesFor(value);
+    const f = cfg.fields.find((x) => x[0] === 'status');
+    if (f) f[3] = opt(statuses.map(([k, l]) => [k, l]));
+    if (!statuses.some((s) => s[0] === rec.status)) setField(type, rec.id, 'status', firstOpenTicketStatus(value));
+  }
   rec = findRecord(type, id);
   const lbl = label || (cfg.fields.find((f) => f[0] === key) || props[key] || { label: key })[1] || props[key]?.label || key;
   addHistory(key, from, value, lbl);

@@ -440,10 +440,12 @@
     },
     {
       "id": "gap-ui-menus-ancho-base",
-      "status": "pending",
+      "status": "done",
       "createdAt": "2026-11-19T19:39:10-06:00",
       "instruction": "Todos los menús desplegables de la app fuerzan min-width: 260px (src/app.css .menu__panel ~1204-1216), con excepciones repartidas: --picker 340px (~765), --wide 320px (~3463), --actions 300px (~7830) y .ptable 200px (~11611). Resultado: menús de dos o tres opciones cortas (p. ej. «Nueva plantilla» Desde cero/Biblioteca, «Insertar» Token/Fragmento, el ⋮ de cada fila de propiedades, el ⋮ de cada informe en Paneles) se renderizan con una franja vacía a la derecha y tamaños distintos según el módulo. En HubSpot estos menús abrazan el contenido (~180-220px según la opción más larga) con el mismo padding en todas partes.\n\nCómo debe verse: un único menú base con min-width ~200px y width: max-content (con max-width razonable, p. ej. 320px, y las opciones largas con wrap o elipsis), conservando las variantes que de verdad necesitan más ancho (buscadores, --picker) pero revisando que --actions y .ptable hereden la base; mismo padding de ítem en todos los módulos.\n\nCriterio de aceptación: el menú «Nueva plantilla» y el ⋮ de una fila de Ajustes › Propiedades miden lo justo para su texto más largo (sin franja vacía de 60+ px), y los menús de acciones de ficha/lista comparten el mismo ancho mínimo y padding. No despliegues nada a producción; solo código local.",
-      "lane": "codex"
+      "lane": "codex",
+      "completedAt": "2026-11-19T20:06:48-0600",
+      "completedBy": "codex"
     },
     {
       "id": "gap-ui-ajustes-iconos-objetos-emoji",

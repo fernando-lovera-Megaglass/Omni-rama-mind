@@ -1,7 +1,7 @@
 // Association filters for the list pages ("Filtros avanzados"): which other objects a record is linked
 // to, how to reach the linked records (implied keys plus the associations added on the record page,
 // with their labels), and how a property of a linked record reads as text for comparisons.
-import { ALL, allDealStages, TICKET_STATUSES, TASK_STATUSES, PRIORITIES, STATUSES, assocLabels, formatDate, formatMoney, strip } from './data.js';
+import { ALL, allDealStages, allTicketStatuses, TASK_STATUSES, PRIORITIES, STATUSES, assocLabels, formatDate, formatMoney, strip } from './data.js';
 import { propertyGroups, propertyMap } from './properties.js';
 import { evalCondition, conditionValues, kindGroup } from './filter-ops.js';
 
@@ -78,7 +78,7 @@ export function assocText(kind, key, r) {
   if (key === 'priority' || k === 'priority') return labelIn(PRIORITIES, v);
   if (key === 'status' || k === 'status') {
     if (kind === 'contacts') return (STATUSES[v] || [v])[0];
-    if (kind === 'tickets') return labelIn(TICKET_STATUSES, v);
+    if (kind === 'tickets') return labelIn(allTicketStatuses(), v);
     if (kind === 'tasks') return labelIn(TASK_STATUSES, v);
   }
   if (k === 'currency') return formatMoney(v, kind === 'deals' && key === 'amount' ? r.deal_currency_code : undefined);

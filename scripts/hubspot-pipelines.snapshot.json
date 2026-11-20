@@ -1,0 +1,826 @@
+{
+  "tickets": [
+    {
+      "id": "1652313",
+      "label": "Cotizaciones Proyectos",
+      "displayOrder": 0,
+      "stages": [
+        {
+          "id": "1979405",
+          "label": "Sin Contactar",
+          "displayOrder": 0,
+          "probability": null,
+          "isClosed": false,
+          "ticketState": "OPEN"
+        },
+        {
+          "id": "1652314",
+          "label": "Primer contacto",
+          "displayOrder": 1,
+          "probability": null,
+          "isClosed": false,
+          "ticketState": "OPEN"
+        },
+        {
+          "id": "1652316",
+          "label": "Asignado a un Vendedor",
+          "displayOrder": 2,
+          "probability": null,
+          "isClosed": false,
+          "ticketState": "OPEN"
+        },
+        {
+          "id": "6140570",
+          "label": "Generación de cotizacion",
+          "displayOrder": 3,
+          "probability": null,
+          "isClosed": false,
+          "ticketState": "OPEN"
+        },
+        {
+          "id": "72329130",
+          "label": "Instalación (S.A.C.A.)",
+          "displayOrder": 4,
+          "probability": null,
+          "isClosed": false,
+          "ticketState": "OPEN"
+        },
+        {
+          "id": "1652317",
+          "label": "Generación de Negocio",
+          "displayOrder": 5,
+          "probability": null,
+          "isClosed": false,
+          "ticketState": "OPEN"
+        },
+        {
+          "id": "1979380",
+          "label": "Cerrado",
+          "displayOrder": 6,
+          "probability": null,
+          "isClosed": true,
+          "ticketState": "CLOSED"
+        }
+      ]
+    },
+    {
+      "id": "1652307",
+      "label": "Cotizaciones SACA",
+      "displayOrder": 1,
+      "stages": [
+        {
+          "id": "1652309",
+          "label": "Sin Contactar",
+          "displayOrder": 0,
+          "probability": null,
+          "isClosed": false,
+          "ticketState": "OPEN"
+        },
+        {
+          "id": "1652310",
+          "label": "Asignado a un vendedor",
+          "displayOrder": 1,
+          "probability": null,
+          "isClosed": false,
+          "ticketState": "OPEN"
+        },
+        {
+          "id": "1652311",
+          "label": "Generación de cotizacion",
+          "displayOrder": 2,
+          "probability": null,
+          "isClosed": false,
+          "ticketState": "OPEN"
+        },
+        {
+          "id": "1652308",
+          "label": "Envio de cotización",
+          "displayOrder": 3,
+          "probability": null,
+          "isClosed": false,
+          "ticketState": "OPEN"
+        },
+        {
+          "id": "10157010",
+          "label": "Análisis de Costos",
+          "displayOrder": 4,
+          "probability": null,
+          "isClosed": false,
+          "ticketState": "OPEN"
+        },
+        {
+          "id": "1391858707",
+          "label": "Envió de Análisis/Cotización",
+          "displayOrder": 5,
+          "probability": null,
+          "isClosed": false,
+          "ticketState": "OPEN"
+        },
+        {
+          "id": "6305845",
+          "label": "Generación de Negocio",
+          "displayOrder": 6,
+          "probability": null,
+          "isClosed": false,
+          "ticketState": "OPEN"
+        },
+        {
+          "id": "6305846",
+          "label": "Cerrado",
+          "displayOrder": 7,
+          "probability": null,
+          "isClosed": true,
+          "ticketState": "CLOSED"
+        }
+      ]
+    },
+    {
+      "id": "931354724",
+      "label": "Cotizaciones Acristala",
+      "displayOrder": 2,
+      "stages": [
+        {
+          "id": "1429476917",
+          "label": "Recepción de información",
+          "displayOrder": 0,
+          "probability": null,
+          "isClosed": false,
+          "ticketState": "OPEN"
+        },
+        {
+          "id": "1429476918",
+          "label": "Asignación a un cotizador",
+          "displayOrder": 1,
+          "probability": null,
+          "isClosed": false,
+          "ticketState": "OPEN"
+        },
+        {
+          "id": "1429476919",
+          "label": "Generación de cotización",
+          "displayOrder": 2,
+          "probability": null,
+          "isClosed": false,
+          "ticketState": "OPEN"
+        },
+        {
+          "id": "1458267664",
+          "label": "Espera de informacion Pendiente",
+          "displayOrder": 3,
+          "probability": null,
+          "isClosed": false,
+          "ticketState": "OPEN"
+        },
+        {
+          "id": "1429740212",
+          "label": "Cotización de Materiales",
+          "displayOrder": 4,
+          "probability": null,
+          "isClosed": false,
+          "ticketState": "OPEN"
+        },
+        {
+          "id": "1429476920",
+          "label": "Modificación de cotización ",
+          "displayOrder": 5,
+          "probability": null,
+          "isClosed": true,
+          "ticketState": "CLOSED"
+        },
+        {
+          "id": "1429487984",
+          "label": "Análisis de costos",
+          "displayOrder": 6,
+          "probability": null,
+          "isClosed": false,
+          "ticketState": "OPEN"
+        },
+        {
+          "id": "1429487985",
+          "label": "Envió de cotizacion",
+          "displayOrder": 7,
+          "probability": null,
+          "isClosed": false,
+          "ticketState": "OPEN"
+        }
+      ]
+    },
+    {
+      "id": "931362903",
+      "label": "Cotizaciones Kafer",
+      "displayOrder": 3,
+      "stages": [
+        {
+          "id": "1429474858",
+          "label": "Solicitud de Cotizacion",
+          "displayOrder": 0,
+          "probability": null,
+          "isClosed": false,
+          "ticketState": "OPEN"
+        },
+        {
+          "id": "1429474859",
+          "label": "Vendedor Asignado",
+          "displayOrder": 1,
+          "probability": null,
+          "isClosed": false,
+          "ticketState": "OPEN"
+        },
+        {
+          "id": "1429474860",
+          "label": "Cotizacion Realizada",
+          "displayOrder": 2,
+          "probability": null,
+          "isClosed": false,
+          "ticketState": "OPEN"
+        },
+        {
+          "id": "1429474861",
+          "label": "Cotizacion Enviada",
+          "displayOrder": 3,
+          "probability": null,
+          "isClosed": true,
+          "ticketState": "CLOSED"
+        }
+      ]
+    }
+  ],
+  "deals": [
+    {
+      "id": "1020687",
+      "label": "FUERZA DE VENTAS ",
+      "displayOrder": 1,
+      "stages": [
+        {
+          "id": "1223105",
+          "label": "OFERTA A+W",
+          "displayOrder": 0,
+          "probability": 0.1,
+          "isClosed": false,
+          "ticketState": null
+        },
+        {
+          "id": "1021991",
+          "label": "Proyecto en Cotización por parte del cliente",
+          "displayOrder": 1,
+          "probability": 0.3,
+          "isClosed": false,
+          "ticketState": null
+        },
+        {
+          "id": "1222630",
+          "label": "Proyecto Ganado por el cliente",
+          "displayOrder": 2,
+          "probability": 0.4,
+          "isClosed": false,
+          "ticketState": null
+        },
+        {
+          "id": "1370944",
+          "label": "Evalua",
+          "displayOrder": 3,
+          "probability": 0.8,
+          "isClosed": false,
+          "ticketState": null
+        },
+        {
+          "id": "1020688",
+          "label": "Ganado",
+          "displayOrder": 4,
+          "probability": 1,
+          "isClosed": true,
+          "ticketState": null
+        },
+        {
+          "id": "1370945",
+          "label": "Perdido",
+          "displayOrder": 5,
+          "probability": 0,
+          "isClosed": true,
+          "ticketState": null
+        },
+        {
+          "id": "1699122",
+          "label": "Eliminado",
+          "displayOrder": 6,
+          "probability": 0,
+          "isClosed": true,
+          "ticketState": null
+        }
+      ]
+    },
+    {
+      "id": "746096",
+      "label": "SACA SUMINISTRO",
+      "displayOrder": 2,
+      "stages": [
+        {
+          "id": "1096648246",
+          "label": "Oferta A+W",
+          "displayOrder": 0,
+          "probability": 0.1,
+          "isClosed": false,
+          "ticketState": null
+        },
+        {
+          "id": "967124",
+          "label": "Entrega de presupuesto",
+          "displayOrder": 1,
+          "probability": 0.2,
+          "isClosed": false,
+          "ticketState": null
+        },
+        {
+          "id": "746100",
+          "label": "Negociación con el cliente",
+          "displayOrder": 2,
+          "probability": 0.6,
+          "isClosed": false,
+          "ticketState": null
+        },
+        {
+          "id": "1214455",
+          "label": "Re-Cotizacion",
+          "displayOrder": 3,
+          "probability": 0.7,
+          "isClosed": false,
+          "ticketState": null
+        },
+        {
+          "id": "1056088",
+          "label": "Generacion de contrato y factura",
+          "displayOrder": 4,
+          "probability": 0.9,
+          "isClosed": false,
+          "ticketState": null
+        },
+        {
+          "id": "1080593831",
+          "label": "En Producción",
+          "displayOrder": 5,
+          "probability": 0.9,
+          "isClosed": false,
+          "ticketState": null
+        },
+        {
+          "id": "746101",
+          "label": "Ganados",
+          "displayOrder": 6,
+          "probability": 1,
+          "isClosed": true,
+          "ticketState": null
+        },
+        {
+          "id": "746102",
+          "label": "Perdidos",
+          "displayOrder": 7,
+          "probability": 0,
+          "isClosed": true,
+          "ticketState": null
+        },
+        {
+          "id": "1088406452",
+          "label": "Eliminación",
+          "displayOrder": 8,
+          "probability": 0,
+          "isClosed": true,
+          "ticketState": null
+        }
+      ]
+    },
+    {
+      "id": "2030897",
+      "label": "SACA Instalaciones",
+      "displayOrder": 3,
+      "stages": [
+        {
+          "id": "2030901",
+          "label": "Compra de Materiales",
+          "displayOrder": 0,
+          "probability": 0.1,
+          "isClosed": false,
+          "ticketState": null
+        },
+        {
+          "id": "2030898",
+          "label": "Toma de Medidas",
+          "displayOrder": 1,
+          "probability": 0.1,
+          "isClosed": false,
+          "ticketState": null
+        },
+        {
+          "id": "2030899",
+          "label": "Fabricación Vidrio",
+          "displayOrder": 2,
+          "probability": 0.1,
+          "isClosed": false,
+          "ticketState": null
+        },
+        {
+          "id": "2030900",
+          "label": "Fabricación Aluminio ( Corte, Armado, Envidriado)",
+          "displayOrder": 3,
+          "probability": 0.1,
+          "isClosed": false,
+          "ticketState": null
+        },
+        {
+          "id": "2030902",
+          "label": "Instalacion",
+          "displayOrder": 4,
+          "probability": 0.1,
+          "isClosed": false,
+          "ticketState": null
+        },
+        {
+          "id": "2030903",
+          "label": "Limpieza y entrega",
+          "displayOrder": 5,
+          "probability": 0.1,
+          "isClosed": false,
+          "ticketState": null
+        },
+        {
+          "id": "2030904",
+          "label": "Generación de factura",
+          "displayOrder": 6,
+          "probability": 0.1,
+          "isClosed": false,
+          "ticketState": null
+        },
+        {
+          "id": "2030915",
+          "label": "Cobranza",
+          "displayOrder": 7,
+          "probability": 0.1,
+          "isClosed": false,
+          "ticketState": null
+        },
+        {
+          "id": "2263775",
+          "label": "Ganado",
+          "displayOrder": 8,
+          "probability": 1,
+          "isClosed": true,
+          "ticketState": null
+        },
+        {
+          "id": "1005585211",
+          "label": "PERDIDO",
+          "displayOrder": 9,
+          "probability": 0,
+          "isClosed": true,
+          "ticketState": null
+        },
+        {
+          "id": "1088390230",
+          "label": "ELIMINADO",
+          "displayOrder": 10,
+          "probability": 0,
+          "isClosed": true,
+          "ticketState": null
+        },
+        {
+          "id": "1404640292",
+          "label": "Proceso de Cotizacion",
+          "displayOrder": 11,
+          "probability": 0.1,
+          "isClosed": false,
+          "ticketState": null
+        }
+      ]
+    },
+    {
+      "id": "1219152",
+      "label": "Proyectos Nacionales Desarrolladores",
+      "displayOrder": 4,
+      "stages": [
+        {
+          "id": "1219153",
+          "label": "Presentación de la empresa",
+          "displayOrder": 0,
+          "probability": 0.1,
+          "isClosed": false,
+          "ticketState": null
+        },
+        {
+          "id": "1219154",
+          "label": "Obtener contactos",
+          "displayOrder": 1,
+          "probability": 0.1,
+          "isClosed": false,
+          "ticketState": null
+        },
+        {
+          "id": "1219155",
+          "label": "Especificacion de Productos",
+          "displayOrder": 2,
+          "probability": 0.3,
+          "isClosed": false,
+          "ticketState": null
+        },
+        {
+          "id": "1219156",
+          "label": "Entrega de la cotización",
+          "displayOrder": 3,
+          "probability": 0.5,
+          "isClosed": false,
+          "ticketState": null
+        },
+        {
+          "id": "12665359",
+          "label": "Re - cotizacion",
+          "displayOrder": 4,
+          "probability": 0.8,
+          "isClosed": false,
+          "ticketState": null
+        },
+        {
+          "id": "12665360",
+          "label": "Contratos",
+          "displayOrder": 5,
+          "probability": 0.9,
+          "isClosed": false,
+          "ticketState": null
+        },
+        {
+          "id": "1219158",
+          "label": "Ganados",
+          "displayOrder": 6,
+          "probability": 1,
+          "isClosed": true,
+          "ticketState": null
+        },
+        {
+          "id": "1219172",
+          "label": "Perdidos",
+          "displayOrder": 7,
+          "probability": 0,
+          "isClosed": true,
+          "ticketState": null
+        }
+      ]
+    },
+    {
+      "id": "746126",
+      "label": "Ventas Extranjero",
+      "displayOrder": 6,
+      "stages": [
+        {
+          "id": "746130",
+          "label": "Generación de cotización",
+          "displayOrder": 0,
+          "probability": 0.2,
+          "isClosed": false,
+          "ticketState": null
+        },
+        {
+          "id": "746128",
+          "label": "Cotizacion Enviada",
+          "displayOrder": 1,
+          "probability": 0.3,
+          "isClosed": false,
+          "ticketState": null
+        },
+        {
+          "id": "746127",
+          "label": "Proyecto ganado por el cliente",
+          "displayOrder": 2,
+          "probability": 0.6,
+          "isClosed": false,
+          "ticketState": null
+        },
+        {
+          "id": "746129",
+          "label": "Envio de muestra",
+          "displayOrder": 3,
+          "probability": 0.7,
+          "isClosed": false,
+          "ticketState": null
+        },
+        {
+          "id": "746131",
+          "label": "Envio de orden de compra",
+          "displayOrder": 4,
+          "probability": 0.9,
+          "isClosed": false,
+          "ticketState": null
+        },
+        {
+          "id": "746132",
+          "label": "Ganado",
+          "displayOrder": 5,
+          "probability": 1,
+          "isClosed": true,
+          "ticketState": null
+        },
+        {
+          "id": "746133",
+          "label": "Perdido",
+          "displayOrder": 6,
+          "probability": 0,
+          "isClosed": true,
+          "ticketState": null
+        },
+        {
+          "id": "57923668",
+          "label": "Cotizacion Duplicada",
+          "displayOrder": 7,
+          "probability": 0,
+          "isClosed": true,
+          "ticketState": null
+        },
+        {
+          "id": "60501538",
+          "label": "Muestras",
+          "displayOrder": 8,
+          "probability": 0,
+          "isClosed": true,
+          "ticketState": null
+        }
+      ]
+    },
+    {
+      "id": "746470149",
+      "label": "JFC Cargo Destino",
+      "displayOrder": 6,
+      "stages": [
+        {
+          "id": "1086525771",
+          "label": "Cotización",
+          "displayOrder": 0,
+          "probability": 0.2,
+          "isClosed": false,
+          "ticketState": null
+        },
+        {
+          "id": "1086525772",
+          "label": "Envio de Cotizacion",
+          "displayOrder": 1,
+          "probability": 0.4,
+          "isClosed": false,
+          "ticketState": null
+        },
+        {
+          "id": "1086525776",
+          "label": "Ganada",
+          "displayOrder": 2,
+          "probability": 1,
+          "isClosed": true,
+          "ticketState": null
+        },
+        {
+          "id": "1086525777",
+          "label": "Perdida",
+          "displayOrder": 3,
+          "probability": 0,
+          "isClosed": true,
+          "ticketState": null
+        }
+      ]
+    },
+    {
+      "id": "746423848",
+      "label": "Acristala obras",
+      "displayOrder": 7,
+      "stages": [
+        {
+          "id": "1086849546",
+          "label": "Base de Datos",
+          "displayOrder": 0,
+          "probability": 0.1,
+          "isClosed": false,
+          "ticketState": null
+        },
+        {
+          "id": "1086849547",
+          "label": "Contacto concretado (llamada, coreo, visita) ",
+          "displayOrder": 1,
+          "probability": 0.25,
+          "isClosed": false,
+          "ticketState": null
+        },
+        {
+          "id": "1086849548",
+          "label": "Información recibida",
+          "displayOrder": 2,
+          "probability": 0.4,
+          "isClosed": false,
+          "ticketState": null
+        },
+        {
+          "id": "1086849549",
+          "label": "Cotización trabajada (Enviada) ",
+          "displayOrder": 3,
+          "probability": 0.8,
+          "isClosed": false,
+          "ticketState": null
+        },
+        {
+          "id": "1086849550",
+          "label": "Contrato-Factura",
+          "displayOrder": 4,
+          "probability": 0.9,
+          "isClosed": false,
+          "ticketState": null
+        },
+        {
+          "id": "1086849551",
+          "label": "Cierre ganado",
+          "displayOrder": 5,
+          "probability": 1,
+          "isClosed": true,
+          "ticketState": null
+        },
+        {
+          "id": "1086849552",
+          "label": "Cierre perdido",
+          "displayOrder": 6,
+          "probability": 0,
+          "isClosed": true,
+          "ticketState": null
+        },
+        {
+          "id": "1117106562",
+          "label": "Instaladores",
+          "displayOrder": 7,
+          "probability": 1,
+          "isClosed": true,
+          "ticketState": null
+        },
+        {
+          "id": "1117106563",
+          "label": "Cierre de obra ",
+          "displayOrder": 8,
+          "probability": 1,
+          "isClosed": true,
+          "ticketState": null
+        }
+      ]
+    },
+    {
+      "id": "929417000",
+      "label": "Acristala Proyectos",
+      "displayOrder": 7,
+      "stages": [
+        {
+          "id": "1427145516",
+          "label": "Cita programada",
+          "displayOrder": 0,
+          "probability": 0.2,
+          "isClosed": false,
+          "ticketState": null
+        },
+        {
+          "id": "1427145517",
+          "label": "Calificado para comprar",
+          "displayOrder": 1,
+          "probability": 0.4,
+          "isClosed": false,
+          "ticketState": null
+        },
+        {
+          "id": "1427145518",
+          "label": "Presentación programada",
+          "displayOrder": 2,
+          "probability": 0.6,
+          "isClosed": false,
+          "ticketState": null
+        },
+        {
+          "id": "1427145519",
+          "label": "Propuesta aceptada",
+          "displayOrder": 3,
+          "probability": 0.8,
+          "isClosed": false,
+          "ticketState": null
+        },
+        {
+          "id": "1427145520",
+          "label": "Contrato enviado",
+          "displayOrder": 4,
+          "probability": 0.9,
+          "isClosed": false,
+          "ticketState": null
+        },
+        {
+          "id": "1427145521",
+          "label": "Cierre ganado",
+          "displayOrder": 5,
+          "probability": 1,
+          "isClosed": true,
+          "ticketState": null
+        },
+        {
+          "id": "1427145522",
+          "label": "Cierre perdido",
+          "displayOrder": 6,
+          "probability": 0,
+          "isClosed": true,
+          "ticketState": null
+        }
+      ]
+    }
+  ]
+}

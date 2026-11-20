@@ -695,7 +695,7 @@ export function sampleCsv(type = 'contacts') {
     contacts: ['Nombre,Apellidos,Correo electrónico,Número de teléfono,Empresa,Cargo,Propietario del contacto,Etapa del ciclo de vida', 'Ana,Ejemplo,ana@ejemplo.com,+52 55 1234 5678,Cristales Ejemplo,Compras,Fernando L.,Lead', 'Luis,Muestra,luis@ejemplo.com,+34 600 000 000,Vidrios Muestra,Dirección,Sofía R.,Cliente'],
     companies: ['Nombre de la empresa,Nombre de dominio de la empresa,Número de teléfono,Sector,Ciudad,Propietario de la empresa', 'Cristales Ejemplo,cristalesejemplo.com,+52 55 1234 5678,Construcción,Monterrey,Fernando L.', 'Vidrios Muestra,vidriosmuestra.es,+34 600 000 000,Arquitectura,Madrid,Sofía R.'],
     deals: [`Nombre del negocio,Pipeline,Etapa del negocio,Importe,Moneda,Fecha de cierre,Propietario del negocio,Empresa asociada`, `Instalación ventanas Ejemplo,${dealPipelines()[0]},${(stagesFor(dealPipelines()[0])[0] || DEAL_STAGES[0])[1]},125000,MXN,31/12/2026,Fernando L.,Cristales Ejemplo`],
-    tickets: [`Nombre del ticket,Pipeline,Estado del ticket,Prioridad,Propietario del ticket,Descripción`, `Cristal roto en entrega,${ticketPipelines()[0]},${TICKET_STATUSES[0][1]},Alta,Sofía R.,El cliente pide reposición`],
+    tickets: [`Nombre del ticket,Pipeline,Estado del ticket,Prioridad,Propietario del ticket,Descripción`, `Cristal roto en entrega,${ticketPipelines()[0]},${ticketStatusesFor(ticketPipelines()[0])[0][1]},Alta,Sofía R.,El cliente pide reposición`],
     tasks: ['Título,Fecha de vencimiento,Tipo de tarea,Prioridad,Asignada a', 'Llamar a Ana Ejemplo,15/12/2026,Llamada,Media,Fernando L.'],
   };
   return (samples[type] || samples.contacts).join('\n');

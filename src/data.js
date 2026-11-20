@@ -3,7 +3,7 @@
 // Supabase and all edits go to the database. Without them, edits, additions
 // and deletions are kept in localStorage so the demo remembers them.
 import { customProperties, propertyList, loadCustomProperties, setCustomPropertyWriter, localCustomProperties, clearLocalCustomProperties, customPropToDb, CUSTOM_OBJECT_NAME, SEED_BY_TYPE } from './properties.js';
-import { REAL_DEAL_PIPELINES, LEGACY_STAGE_MAP, DEFAULT_PIPELINE_NAME } from './pipelines-seed.js';
+import { REAL_DEAL_PIPELINES, LEGACY_STAGE_MAP, DEFAULT_PIPELINE_NAME, REAL_TICKET_PIPELINES, LEGACY_TICKET_MAP } from './pipelines-seed.js';
 import { supabase, DB_MODE, createAnonProbe } from './supabaseClient.js';
 import { requireSession, signOut, siteRoot } from './auth.js';
 import { reportDbError } from './db-report.js';
@@ -80,7 +80,9 @@ export { LEGACY_STAGE_MAP, DEFAULT_PIPELINE_NAME, REAL_DEAL_PIPELINES };
 // Where a deal that still carries one of the sample keys belongs (the database rows were updated by
 // supabase/pipelines.sql; the app also applies it when reading, so nothing gets lost).
 export const LEGACY_TO_REAL = LEGACY_STAGE_MAP[DEFAULT_PIPELINE_NAME];
-export const CLOSED_STAGES = ['won', 'lost', 'deleted'];
+// won / lost / deleted in every pipeline, plus the stages HubSpot marks as closed in one pipeline each
+// (Ventas Extranjero: Cotizacion Duplicada, Muestras · Acristala obras: Instaladores, Cierre de obra).
+export const CLOSED_STAGES = ['won', 'lost', 'deleted', 'cotizacion_duplicada', 'muestras', 'instaladores', 'cierre_obra'];
 export const isClosedStage = (key) => CLOSED_STAGES.includes(key);
 export const isOpenDeal = (r) => !isClosedStage(r.stage);
 export const TICKET_STATUSES = [
@@ -272,7 +274,11 @@ export function saveDealPipelines(names) {
 // first run with the four statuses of especificacion-tickets-crm.md §2.
 export const TICKET_PIPELINES_KEY = 'crm:pipelines:tickets';
 export const DEFAULT_TICKET_STATUSES = [['new', 'Nuevo', 'open'], ['waiting', 'En espera de contacto', 'open'], ['progress', 'En espera de nosotros', 'open'], ['closed', 'Cerrado', 'closed']];
-export const DEFAULT_TICKET_PIPELINES = ['Pipeline de soporte', 'Cotizaciones', 'Garantías', 'Instalaciones'];
+// The built-in pipelines are the account's real ones (src/pipelines-seed.js: Cotizaciones Proyectos / SACA /
+// Acristala / Kafer with their 27 statuses); a pipeline created by hand starts with the four generic statuses.
+export const DEFAULT_TICKET_PIPELINES = REAL_TICKET_PIPELINES.map((p) => p.name);
+const TICKET_SEED_PIPE = [0, 0, 1, 2, 0, 1, 3];
+const cloneTicketPipe = (p) => ({ ...p, stages: p.stages.map((s) => [...s]) });
 const ticketPipeId = (name) => 200000 + (Math.abs(Array.from(String(name)).reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 11)) % 700000);
 const ticketStage = (s) => [String(s[0]), String(s[1]), s[2] === 'closed' ? 'closed' : 'open'];
 export function newTicketPipelineDef(name, stages) {
@@ -289,7 +295,24 @@ export function ticketPipelineDefs() {
   } catch {
     /* ignore */
   }
-  return DEFAULT_TICKET_PIPELINES.map((n) => newTicketPipelineDef(n));
+  return REAL_TICKET_PIPELINES.map(cloneTicketPipe);
+}
+// A ticket saved with one of the sample pipelines / statuses of earlier versions lands in its real pipeline
+// (the n-th open status, or the first closed one); an unknown status falls back to the first open status.
+export function normalizeTicket(r, defs = ticketPipelineDefs()) {
+  if (!r) return r;
+  let pipeline = r.pipeline;
+  if (!defs.some((p) => p.name === pipeline)) pipeline = LEGACY_TICKET_MAP.pipelines[pipeline] || (defs[0] ? defs[0].name : pipeline);
+  const def = defs.find((p) => p.name === pipeline);
+  const stages = def ? def.stages : DEFAULT_TICKET_STATUSES;
+  let status = r.status;
+  if (!stages.some((s) => s[0] === status)) {
+    const open = stages.filter((s) => s[2] !== 'closed');
+    const closed = stages.filter((s) => s[2] === 'closed');
+    if (status === 'closed') status = (closed[0] || stages[stages.length - 1])[0];
+    else { const i = LEGACY_TICKET_MAP.statuses[status]; status = (open[Math.min(i === undefined ? 0 : i, open.length - 1)] || stages[0])[0]; }
+  }
+  return pipeline === r.pipeline && status === r.status ? r : { ...r, pipeline, status };
 }
 export function saveTicketPipelineDefs(list) {
   localStorage.setItem(TICKET_PIPELINES_KEY, JSON.stringify(list.map(normalizeTicketDef)));
@@ -310,7 +333,7 @@ export function ticketStatusesFor(pipelineName) {
 export function allTicketStatuses() {
   const out = [];
   const seen = new Set();
-  [...DEFAULT_TICKET_STATUSES, ...ticketPipelineDefs().flatMap((p) => p.stages)].forEach((s) => { if (!seen.has(s[0])) { seen.add(s[0]); out.push(ticketStage(s)); } });
+  [...ticketPipelineDefs().flatMap((p) => p.stages), ...DEFAULT_TICKET_STATUSES].forEach((s) => { if (!seen.has(s[0])) { seen.add(s[0]); out.push(ticketStage(s)); } });
   return out;
 }
 export const ticketStatusDef = (pipeline, key) => ticketStatusesFor(pipeline).find((s) => s[0] === key) || allTicketStatuses().find((s) => s[0] === key) || null;
@@ -909,10 +932,11 @@ function merge(type, base) {
   const deleted = getDeleted(type);
   // Contacts carry their company links (contact_companies) and their real activity counts.
   const counts = type === 'contacts' ? activityCounts('contacts') : null;
+  const tdefs = type === 'tickets' ? ticketPipelineDefs() : null;
   return [...extra, ...base]
     .filter((r) => !deleted.has(Number(r.id)))
     .map((r) => (overrides[r.id] ? { ...r, ...overrides[r.id] } : r))
-    .map((r) => (type === 'deals' ? withHomeAmount(normalizeDealStage(r)) : type === 'contacts' ? withActivityCounts(withCompanyLinks(r), counts) : r));
+    .map((r) => (type === 'deals' ? withHomeAmount(normalizeDealStage(r)) : type === 'contacts' ? withActivityCounts(withCompanyLinks(r), counts) : type === 'tickets' ? normalizeTicket(r, tdefs) : r));
 }
 
 // ---------- contact ↔ companies (contact_companies: a contact can belong to several companies) ----------
@@ -1205,9 +1229,9 @@ function buildTicket(i) {
   return {
     id: i + 1,
     name: ['Cristal roto en entrega', 'Retraso en instalación', 'Consulta de garantía', 'Factura incorrecta', 'Medidas no coinciden', 'Solicitud de presupuesto', 'Ruido en ventana', 'Cambio de fecha', 'Condensación entre vidrios', 'Herraje suelto', 'Duda sobre mantenimiento', 'Reclamación de transporte'][i % 12],
-    status: TICKET_STATUSES[(i * 3) % 4][0],
+    status: REAL_TICKET_PIPELINES[TICKET_SEED_PIPE[i % 7]].stages[(i * 3) % REAL_TICKET_PIPELINES[TICKET_SEED_PIPE[i % 7]].stages.length][0],
     priority: PRIORITIES[(i * 3) % 3][0],
-    pipeline: DEFAULT_TICKET_PIPELINES[[0, 0, 1, 2, 0, 1, 3][i % 7]],
+    pipeline: REAL_TICKET_PIPELINES[TICKET_SEED_PIPE[i % 7]].name,
     owner: OWNERS[(i * 3) % OWNERS.length],
     contactId: (i * 7) % COUNTS.contacts + 1,
     source: ['Correo', 'Formulario', 'Chat', 'Teléfono', 'WhatsApp'][i % 5],

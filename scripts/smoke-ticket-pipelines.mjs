@@ -47,18 +47,18 @@ if (items().length !== data.ticketPipelines().length + 1 || !items()[0].startsWi
 
 // choose a pipeline: the label, the rows and the Pipeline column follow
 const before = total();
-click(document.querySelector('#pipeline-items [data-pipeline="Cotizaciones"]'));
-log('after choosing Cotizaciones ->', total(), 'of', before, '| label:', $('pipeline-label').textContent, '| column tags:', [...new Set([...document.querySelectorAll('tbody td[data-key="pipeline"] .tag')].map((t) => t.textContent.trim()))].join(','));
-if (total() !== counts.Cotizaciones || $('pipeline-label').textContent !== 'Cotizaciones') fail('choosing a pipeline should filter the list');
-if ([...document.querySelectorAll('tbody td[data-key="pipeline"] .tag')].some((t) => t.textContent.trim() !== 'Cotizaciones')) fail('all visible rows should belong to the chosen pipeline');
+click(document.querySelector('#pipeline-items [data-pipeline="Cotizaciones SACA"]'));
+log('after choosing Cotizaciones SACA ->', total(), 'of', before, '| label:', $('pipeline-label').textContent, '| column tags:', [...new Set([...document.querySelectorAll('tbody td[data-key="pipeline"] .tag')].map((t) => t.textContent.trim()))].join(','));
+if (total() !== counts['Cotizaciones SACA'] || $('pipeline-label').textContent !== 'Cotizaciones SACA') fail('choosing a pipeline should filter the list');
+if ([...document.querySelectorAll('tbody td[data-key="pipeline"] .tag')].some((t) => t.textContent.trim() !== 'Cotizaciones SACA')) fail('all visible rows should belong to the chosen pipeline');
 log('pipeline column shown by default:', Boolean(document.querySelector('th.th[data-key="pipeline"]')));
 if (!document.querySelector('th.th[data-key="pipeline"]')) fail('the Pipeline column should be visible by default');
 
 // search inside the menu, then back to all pipelines
-$('pipeline-q').value = 'gar';
+$('pipeline-q').value = 'kaf';
 $('pipeline-q').dispatchEvent(new dom.window.Event('input', { bubbles: true }));
-log('search "gar" ->', items().join(' | '));
-if (items().length !== 1 || !items()[0].startsWith('Garantías')) fail('menu search should narrow the pipelines');
+log('search "kaf" ->', items().join(' | '));
+if (items().length !== 1 || !items()[0].startsWith('Cotizaciones Kafer')) fail('menu search should narrow the pipelines');
 $('pipeline-q').value = '';
 $('pipeline-q').dispatchEvent(new dom.window.Event('input', { bubbles: true }));
 click(document.querySelector('#pipeline-items [data-pipeline=""]'));
@@ -66,11 +66,11 @@ log('back to all ->', total(), '| label:', $('pipeline-label').textContent);
 if (total() !== before) fail('"Todos los pipelines" should show everything again');
 
 // the board groups by status inside the chosen pipeline
-click(document.querySelector('#pipeline-items [data-pipeline="Instalaciones"]'));
+click(document.querySelector('#pipeline-items [data-pipeline="Cotizaciones Acristala"]'));
 click(document.querySelector('[data-action="mode-board"]'));
 const cards = document.querySelectorAll('#kanban .kcard').length;
-log('board cards for Instalaciones:', cards, '| expected:', counts.Instalaciones);
-if (cards !== counts.Instalaciones) fail('board should show only the chosen pipeline');
+log('board cards for Cotizaciones Acristala:', cards, '| expected:', counts['Cotizaciones Acristala']);
+if (cards !== counts['Cotizaciones Acristala']) fail('board should show only the chosen pipeline');
 click(document.querySelector('[data-action="mode-table"]'));
 
 // settings: pipelines table, create one, it appears in the list's menu; remove an empty one
@@ -79,13 +79,13 @@ await import(resolve(here, '../src/settings.js'));
 const form = document.querySelector('form[data-save="ticketpipeline"]');
 log('settings pipelines rows:', document.querySelectorAll('[data-ticketpipe-rm]').length, '| create form:', Boolean(form));
 if (!form) fail('settings should offer to create ticket pipelines');
-form.querySelector('[name="name"]').value = 'Cotizaciones Kafer';
+form.querySelector('[name="name"]').value = 'Garantías';
 form.dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true }));
 log('after create:', data.ticketPipelines().join(' | '));
-if (!data.ticketPipelines().includes('Cotizaciones Kafer')) fail('new pipeline not saved');
+if (!data.ticketPipelines().includes('Garantías')) fail('new pipeline not saved');
 const rmBtn = [...document.querySelectorAll('[data-ticketpipe-rm]')].find((b) => !b.disabled);
 log('removable (empty) pipeline index:', rmBtn?.dataset.ticketpipeRm);
 rmBtn.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true }));
 log('after remove:', data.ticketPipelines().join(' | '));
-if (data.ticketPipelines().includes('Cotizaciones Kafer')) fail('empty pipeline should be removable');
+if (data.ticketPipelines().includes('Garantías')) fail('empty pipeline should be removable');
 log('OK');

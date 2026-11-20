@@ -287,10 +287,12 @@ const idDealPlan = E.planImport(idDeals, E.autoMap(idDeals.headers, 'es', 'deals
 log('deals by id:', codes(idDealPlan));
 if (idDealPlan.records[0].action !== 'update' || idDealPlan.records[1].code !== 'DUPLICATE_RECORD_ID') fail('deal record id rules');
 // tickets: pipeline and status; tasks: title and due date
-const tkTable = E.parsePasted(`Nombre del ticket\tPipeline\tEstado del ticket\tPrioridad\nTicket Prueba\t${data.ticketPipelines()[1]}\t${data.TICKET_STATUSES[1][1]}\tAlta\nTicket sin estado\t${data.ticketPipelines()[0]}\t\t`);
+// the status must belong to the row's pipeline: the second status of the second real pipeline
+const tkStatus = data.ticketStatusesFor(data.ticketPipelines()[1])[1];
+const tkTable = E.parsePasted(`Nombre del ticket\tPipeline\tEstado del ticket\tPrioridad\nTicket Prueba\t${data.ticketPipelines()[1]}\t${tkStatus[1]}\tAlta\nTicket sin estado\t${data.ticketPipelines()[0]}\t\t`);
 const tkPlan = E.planImport(tkTable, E.autoMap(tkTable.headers, 'es', 'tickets'), { object: 'tickets' });
 log('tickets plan:', codes(tkPlan), '| first:', JSON.stringify({ pipeline: tkPlan.records[0].data.pipeline, status: tkPlan.records[0].data.status, priority: tkPlan.records[0].data.priority }));
-if (tkPlan.records[0].action !== 'create' || tkPlan.records[0].data.status !== data.TICKET_STATUSES[1][0] || tkPlan.records[0].data.priority !== 'high' || tkPlan.records[1].code !== 'MISSING_REQUIRED_PROPERTY') fail('tickets rules');
+if (tkPlan.records[0].action !== 'create' || tkPlan.records[0].data.status !== tkStatus[0] || tkPlan.records[0].data.priority !== 'high' || tkPlan.records[1].code !== 'MISSING_REQUIRED_PROPERTY') fail('tickets rules');
 const taskTable = E.parsePasted('Título\tFecha de vencimiento\tTipo de tarea\nLlamar a la empresa\t15/12/2026\tLlamada\nSin fecha\t\t');
 const taskPlan = E.planImport(taskTable, E.autoMap(taskTable.headers, 'es', 'tasks'), { object: 'tasks' });
 log('tasks plan:', codes(taskPlan), '| due:', taskPlan.records[0].data.due?.slice(0, 10));
