@@ -12,7 +12,7 @@ export const setNavigator = (fn) => { navigate = fn; };
 export const goTo = (href) => navigate(href);
 
 // ---------- where the login page lives ----------
-const PAGE_RE = /\/(contacts|companies|deals|tickets|tasks|reports|layout|views|settings|data|segments)(\/(record|import|editor))?\/?(index\.html)?$/;
+const PAGE_RE = /\/(contacts|companies|deals|tickets|tasks|reports|layout|views|settings|data|segments|automation|calls|inbox|marketing|sequences|snippets|templates)(\/(record|import|editor|create|email))?\/?(index\.html)?$/;
 // Site root (the folder of the login page) from the path of any CRM page, also when the site is hosted
 // under a sub-path.
 export function siteRoot(pathname = location.pathname) {
@@ -50,7 +50,12 @@ export async function currentUser() {
 export async function requireSession() {
   if (!client) return null;
   const session = await getSession();
-  if (session) return session;
+  if (session) {
+    try { if (!(await mfaStatus()).required) return session; }
+    catch { /* Fail closed if the assurance check is unavailable. */ }
+    navigate(loginUrl('mfa'));
+    return new Promise(() => {});
+  }
   navigate(loginUrl('expired'));
   return new Promise(() => {});
 }
@@ -94,6 +99,7 @@ export function onAuthChange(cb) {
 
 // ---------- messages in the person's language ----------
 const MESSAGES = [
+  [/invalid.*(totp|mfa|verification).*code|mfa_verification_failed|incorrect.*code/i, 'Código incorrecto o caducado. Prueba con el código actual de tu aplicación.'],
   [/solo usuarios invitados|no tiene invitaci|database error (saving|creating) new user|unexpected_failure/i, INVITE_MESSAGE],
   [/invalid login credentials|invalid_credentials/i, 'Correo o contraseña incorrectos.'],
   [/email not confirmed/i, 'Confirma tu correo desde el mensaje que te enviamos antes de iniciar sesión.'],
@@ -111,3 +117,30 @@ export function authMessage(error) {
 }
 export const userLabel = (user) => (user && (user.user_metadata?.name || user.email)) || '';
 export const userInitial = (user) => (userLabel(user).trim()[0] || 'U').toUpperCase();
+
+// MFA state comes from Auth, never localStorage.
+const mfaResult = ({ data, error }) => { if (error) throw error; return data; };
+export async function mfaStatus() {
+  const factors = mfaResult(await client.auth.mfa.listFactors()).totp.filter((f) => f.status === 'verified');
+  const aal = mfaResult(await client.auth.mfa.getAuthenticatorAssuranceLevel());
+  return { factors, active: factors.length > 0, required: aal.currentLevel !== 'aal2' && (factors.length > 0 || aal.nextLevel === 'aal2') };
+}
+export async function enrollTotp() {
+  // Clear abandoned, unverified enrollments; never remove a verified factor here.
+  const factors = mfaResult(await client.auth.mfa.listFactors());
+  for (const f of factors.all || []) {
+    if (f.factor_type === 'totp' && f.status === 'unverified') await cancelTotp(f.id);
+  }
+  return mfaResult(await client.auth.mfa.enroll({ factorType: 'totp' }));
+}
+export async function verifyTotp(factorId, code) {
+  if (!/^\d{6}$/.test(String(code).trim())) throw new Error('Escribe el código de 6 dígitos de tu aplicación.');
+  return mfaResult(await client.auth.mfa.challengeAndVerify({ factorId, code: String(code).trim() }));
+}
+export async function cancelTotp(factorId) {
+  return mfaResult(await client.auth.mfa.unenroll({ factorId }));
+}
+export async function disableTotp(factorId, code) {
+  await verifyTotp(factorId, code);
+  return cancelTotp(factorId);
+}

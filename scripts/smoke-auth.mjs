@@ -27,8 +27,19 @@ const tick = () => new Promise((r) => setTimeout(r, 0));
 
 // a stand-in for supabase.auth
 const stub = {
-  session: null, calls: [], cb: null,
+  session: null, calls: [], cb: null, factors: [], aal: 'aal1',
   auth: {
+    mfa: {
+      listFactors: async () => ({ data: { all: stub.factors, totp: stub.factors.filter((f) => f.status === 'verified') } }),
+      getAuthenticatorAssuranceLevel: async () => ({ data: { currentLevel: stub.aal, nextLevel: stub.factors.some((f) => f.status === 'verified') ? 'aal2' : 'aal1' } }),
+      enroll: async () => { const factor = { id: 'totp-1', factor_type: 'totp', status: 'unverified' }; stub.factors.push(factor); return { data: { ...factor, totp: { qr_code: '<svg xmlns="http://www.w3.org/2000/svg"/>', uri: 'otpauth://totp/CRM?secret=TEST' } } }; },
+      challengeAndVerify: async ({ factorId, code }) => {
+        stub.calls.push(['verify', factorId]);
+        if (code !== '123456') return { error: { message: 'Invalid TOTP code' } };
+        stub.factors.find((f) => f.id === factorId).status = 'verified'; stub.aal = 'aal2'; return { data: {} };
+      },
+      unenroll: async ({ factorId }) => { stub.calls.push(['unenroll', factorId]); stub.factors = stub.factors.filter((f) => f.id !== factorId); return { data: {} }; },
+    },
     getSession: async () => ({ data: { session: stub.session }, error: null }),
     signInWithPassword: async ({ email, password }) => { stub.calls.push(['signIn', email]); if (password !== 'secreta1') return { data: {}, error: { message: 'Invalid login credentials' } }; stub.session = { user: { email } }; return { data: { session: stub.session }, error: null }; },
     signInWithOtp: async ({ email }) => { stub.calls.push(['otp', email]); if (email === 'intruso@ejemplo.com') return { data: {}, error: { message: 'Database error saving new user', code: 'unexpected_failure' } }; return { data: {}, error: null }; },
@@ -113,6 +124,47 @@ await submit();
 log('recovery saved → update called:', stub.calls.some((c) => c[0] === 'update' && c[1] === 'nueva123'), '| navigated:', nav[0]);
 if (!stub.calls.some((c) => c[0] === 'update') || nav[0] !== '/deals/') fail('recovery flow');
 nav.length = 0;
+
+// ---------- MFA enrollment, sign-in gate and removal ----------
+const { mountMfaSettings, ssoUnavailable } = await import(resolve(here, '../src/mfa-settings.js'));
+const panel = document.createElement('div'); document.body.append(panel);
+await mountMfaSettings(panel);
+click(panel.querySelector('[data-action="enroll"]')); await tick(); await tick();
+if (!panel.querySelector('img')?.src.startsWith('data:image/svg+xml') || !panel.querySelector('[data-uri]').href.startsWith('otpauth:') || (await A.mfaStatus()).active) fail('unverified QR enrollment');
+const mfaSubmit = async (code) => {
+  panel.querySelector('input').value = code;
+  panel.querySelector('form').dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true })); await tick(); await tick();
+};
+await mfaSubmit('000000');
+if ((await A.mfaStatus()).active || !panel.querySelector('[data-error]').textContent) fail('bad enrollment code');
+await mfaSubmit('123456');
+if (!(await A.mfaStatus()).active || panel.querySelector('img') || panel.querySelector('[data-status]').textContent !== 'Activo') fail('verified enrollment state');
+stub.aal = 'aal1'; nav.length = 0;
+stub.session = { user: { email: 'ana@ejemplo.com' } };
+const blockedMfa = await Promise.race([A.requireSession(), new Promise((r) => setTimeout(() => r('pending'), 20))]);
+if (blockedMfa !== 'pending' || !nav[0]?.includes('reason=mfa')) fail('AAL1 route must be blocked');
+nav.length = 0;
+M.state.mode = 'login'; M.state.step = 2; M.render();
+$('username').value = 'ana@ejemplo.com'; $('password').value = 'secreta1';
+await submit();
+if (nav.length || M.state.mode !== 'mfa' || !$('mfa-code')) fail('password must lead to second-factor challenge');
+$('mfa-code').value = '000000'; await submit();
+if (nav.length) fail('bad second factor must not navigate');
+$('mfa-code').value = '123456'; await submit();
+if (nav[0] !== '/deals/' || stub.aal !== 'aal2') fail('valid second factor');
+await mfaSubmit('000000');
+if (!(await A.mfaStatus()).active || stub.calls.some((c) => c[0] === 'unenroll')) fail('removal requires valid code');
+await mfaSubmit('123456');
+if ((await A.mfaStatus()).active || panel.querySelector('[data-status]').textContent !== 'Inactivo') fail('remove factor');
+click(panel.querySelector('[data-action="enroll"]')); await tick(); await tick();
+click(panel.querySelector('[data-action="cancel"]')); await tick(); await tick();
+if (stub.factors.length || panel.querySelector('img')) fail('cancel must remove pending enrollment and secret');
+const reloadedPanel = document.createElement('div'); document.body.append(reloadedPanel);
+await mountMfaSettings(reloadedPanel);
+if (reloadedPanel.querySelector('[data-status]').textContent !== 'Inactivo') fail('reload reads real factor state');
+if (!/disabled/.test(ssoUnavailable) || !/Próximamente/.test(ssoUnavailable)) fail('SSO unavailable');
+nav.length = 0;
+log('MFA enrollment, invalid codes, AAL gate, login challenge, removal and SSO OK');
 
 // ---------- shell: signed-in user and sign out ----------
 stub.session = { user: { email: 'ana@ejemplo.com', user_metadata: { name: 'Ana Ejemplo' } } };

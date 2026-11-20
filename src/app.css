@@ -18995,3 +18995,40 @@ td[data-key="deal_tags"] .dtag {
   min-width: 0;
   overflow-wrap: anywhere;
 }
+
+/* Constructor y biblioteca de informes personalizados */
+.custom-library { margin-top: 24px; padding: 24px; }
+.custom-library[hidden] { display: none; }
+.custom-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin: 20px 0; }
+.custom-library label { display: flex; flex-direction: column; gap: 8px; }
+.custom-library input, .custom-library select { padding: 10px; border: 1px solid #b6c7d6; border-radius: 4px; background: var(--bg, #fff); color: inherit; font: inherit; }
+.custom-library-row { padding: 16px 0; border-bottom: 1px solid #dfe3eb; }
+.custom-bar { margin: 12px 0; }
+.custom-bar span { display: block; overflow-wrap: anywhere; }
+[data-preview] { max-height: 500px; overflow: auto; margin-bottom: 20px; }
+.custom-library svg { width: 100%; max-height: 240px; }
+
+/* Subtasks inside the task record. */
+.subtasks { margin-top: 16px; padding: 16px; border: 1px solid #dfe3eb; border-radius: 6px; background: #fff; }
+.subtasks h3 { display: flex; justify-content: space-between; margin: 0 0 10px; font-size: 14px; }
+.subtasks__count { color: #516f90; font-weight: 400; }
+.subtasks progress { width: 100%; height: 8px; accent-color: #00a4bd; }
+.subtasks ul { list-style: none; padding: 0; margin: 12px 0; }
+.subtasks li { padding: 7px 0; }
+.subtasks label { display: flex; gap: 8px; align-items: flex-start; overflow-wrap: anywhere; }
+.subtasks input[type="checkbox"] { accent-color: #00a4bd; }
+.subtasks__add { display: flex; gap: 8px; flex-wrap: wrap; }
+.subtasks__add input { flex: 1; min-width: 100px; width: 100%; padding: 8px; border: 1px solid #cbd6e2; border-radius: 3px; }
+.subtasks__suggestion { margin-top: 12px; padding: 10px; background: #e5f5f8; border-radius: 4px; }
+.subtasks__suggestion p { margin: 0 0 8px; }
+
+/* Inline activity comment threads */
+.activity-comments { margin-top: 10px; }
+.activity-comments [data-comment-thread] { border-top: 1px solid #dfe3eb; margin-top: 8px; padding-top: 12px; }
+.activity-comments ul { list-style: none; padding: 0; margin: 0 0 12px; }
+.activity-comments li { padding: 8px 0; }
+.activity-comments li p { white-space: pre-wrap; overflow-wrap: anywhere; margin: 6px 0; }
+.activity-comments time { color: #516f90; font-size: 12px; margin-left: 8px; }
+.activity-comments form { display: grid; gap: 8px; justify-items: start; }
+.activity-comments textarea { width: 100%; box-sizing: border-box; resize: vertical; padding: 8px; border: 1px solid #cbd6e2; border-radius: 3px; font: inherit; }
+.activity-comments [role="alert"] { color: #b32d22; font-size: 13px; }

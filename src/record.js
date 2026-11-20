@@ -1,8 +1,12 @@
+import { validatePropertyValues } from './data.js';
+import { sensitiveValue } from './property-privacy.js';
+import { mountActivityComments } from './activity-comments.js';
 // Generic record page for contacts, companies, deals, tickets and tasks.
 // Layout follows the person's screenshot of their contact page: left column
 // (back link + "Acciones" menu, identity, quick actions, "Acerca de este objeto"),
 // middle column (tabs, summary and recent activity cards), right column (AI summary,
 // lead stage, associations).
+import { mountSubtasks } from './subtasks.js';
 import { boot } from './page.js';
 import { toast, wireMenus, closeMenus, linkHtml, wireLinkTooltips } from './shell.js';
 import {
@@ -452,9 +456,11 @@ function openLogModal(kind, { schedule = false, channel = '' } = {}) {
 function displayValue(f, r) {
   const [key, , kind, options] = f;
   const v = r[key];
+  if (props[key]?.sensitive) return sensitiveValue(v);
   if (kind === 'calc') return esc(typeof options === 'function' ? options(r) : '--'); // calculated (e.g. "Negocios asociados")
   if (key === 'owner' || (props[key] && props[key].kind === 'user')) return ownerHtml(v, 'sm');
   if (v === undefined || v === null || v === '') return EMPTY;
+  if (props[key]?.hubspot?.options.length) return propValue(props[key], v);
   if (kind === 'select') return esc((options.find((o) => String(o[0]) === String(v)) || [v, v])[1]);
   if (kind === 'date' || kind === 'date-ro') return formatDate(v);
   if (key === 'amount' || key === 'revenue') return formatMoney(v, key === 'amount' ? r.deal_currency_code : undefined);
@@ -473,8 +479,10 @@ function editor(f, r) {
   return `<input data-edit="${key}" type="${kind || 'text'}" value="${esc(v)}" />`;
 }
 function propValue(p, v) {
+  if (p?.sensitive) return sensitiveValue(v);
   if (p && p.kind === 'user') return ownerHtml(v, 'sm');
   if (v === undefined || v === null || v === '') return EMPTY;
+  if (p.hubspot?.options.length) return esc((Array.isArray(v) ? v : String(v).split(';')).map(value => p.hubspot.options.find(o => o.value === String(value))?.label ?? value).join('; '));
   if (p.kind === 'currency') return formatMoney(v, type === 'deals' && p.key === 'amount' ? rec.deal_currency_code : undefined);
   if (p.kind === 'percent') return `${v} %`;
   if (p.kind === 'date' || p.kind === 'datetime') return formatDate(v);
@@ -497,6 +505,11 @@ function fieldFor(key) {
   const p = props[key];
   if (!p) return null;
   if (p.system) return [key, p.label, p.kind === 'date' || p.kind === 'datetime' ? 'date-ro' : 'ro'];
+  // Keep semicolon-separated multi-checkbox values intact when editing.
+  if (p.hubspot?.fieldType === 'checkbox') return [key, p.label, 'text'];
+  if (p.hubspot && ['enum', 'bool'].includes(p.kind)) return p.options?.length
+    ? [key, p.label, 'select', [['', '--'], ...p.hubspot.options.filter(o => !o.hidden || o.value === String(rec[key])).map(o => [o.value, o.label])]]
+    : [key, p.label, 'text'];
   if (['enum', 'user', 'bool'].includes(p.kind)) return [key, p.label, 'select', (p.options || []).map((o) => [o, o])];
   if (p.kind === 'date' || p.kind === 'datetime') return [key, p.label, key === 'created' ? 'date-ro' : 'date'];
   if (['number', 'currency', 'percent'].includes(p.kind)) return [key, p.label, 'number'];
@@ -673,6 +686,16 @@ function renderHeader() {
     stagesEl.innerHTML = rec.status === 'done'
       ? `<button class="btn btn--ghost btn--sm" type="button" data-status="todo">Reabrir tarea</button>`
       : `<button class="btn btn--primary btn--sm" type="button" data-status="done">Marcar como completada</button>`;
+    let panel = $('task-subtasks');
+    if (!panel) {
+      panel = document.createElement('section');
+      panel.id = 'task-subtasks';
+      stagesEl.after(panel);
+    }
+    mountSubtasks(panel, rec.id, () => {
+      rec = findRecord('tasks', rec.id);
+      renderAll();
+    });
   }
 }
 
@@ -1428,7 +1451,7 @@ function renderTimeline() {
   const evKey = (ev) => `${ev.id || ''}:${ev.when}:${ev.type}`;
   const item = (ev) => `
     <li class="timeline__item${openEvents.has(evKey(ev)) ? ' is-open' : ''}" data-ev="${esc(evKey(ev))}">
-      <span class="timeline__ico" aria-hidden="true">${ICONS[ev.type] || ACT_ICONS.more}</span>
+      <span class="timeline__ico" aria-hidden="true">${ev.type === 'call' && ev.extra?.direction === 'Entrante' ? '↙' : ICONS[ev.type] || ACT_ICONS.more}</span>
       <div class="timeline__body">
         <button class="timeline__head" type="button" aria-expanded="${openEvents.has(evKey(ev))}">
           <span class="timeline__title">${esc(titleOf(ev))}</span>
@@ -1437,6 +1460,7 @@ function renderTimeline() {
         <div class="timeline__meta"><strong>${esc(ev.who)}</strong> · <span title="${esc(fmtWhen(ev))}">${esc(relativeTimeFine(ev.when))}</span></div>
         <div class="timeline__text">${esc(ev.text)}</div>
         <div class="timeline__detail"><div class="muted">${esc(fmtWhen(ev))}</div>${extraTags(ev)}${callMedia(ev)}</div>
+        <div data-comments-key="${esc(evKey(ev))}"></div>
       </div>
     </li>`;
   $('rec-timeline').innerHTML = events.length ? events.map(item).join('') : '<li class="muted">Sin actividades que coincidan.</li>';
@@ -1467,6 +1491,10 @@ function renderTimeline() {
     });
   }));
   if ($('rec-timeline-short')) $('rec-timeline-short').innerHTML = allEvents().filter((e) => e.type === 'task' || e.type === 'email').slice(0, 2).map(item).join('');
+  document.querySelectorAll('[data-comments-key]').forEach((container) => {
+    const ev = allEvents().find((entry) => evKey(entry) === container.dataset.commentsKey);
+    if (ev) mountActivityComments(container, ev, type, id);
+  });
 }
 function addEvent(ev) {
   addActivity({ ...ev, recordType: type, recordId: id });
@@ -1648,7 +1676,8 @@ function cancelEdit(form) {
   const inPanel = Boolean(form.closest('#allprops-panel'));
   if (inPanel) renderAllPropsPanel(); else renderProps();
 }
-function save(key, value, label) {
+async function save(key, value, label) {
+  try { await validatePropertyValues(type, { [key]: value }, { id: rec.id }); } catch (e) { toast(e.message); return; }
   const from = rec[key];
   setField(type, rec.id, key, value);
   rec = findRecord(type, id);
@@ -1763,7 +1792,7 @@ function runAction(act) {
       break;
     case 'export': {
       const cols = Object.values(props).map((p) => ({ key: p.key, label: p.label, text: (r) => (r[p.key] ?? '') }));
-      download(`${cfg.singular}-${rec.id}.csv`, toCsv([rec], cols));
+      download(`${cfg.singular}-${rec.id}.csv`, toCsv([rec], cols, type));
       toast(`Datos de ${name} exportados a CSV`);
       break;
     }
@@ -2080,6 +2109,7 @@ if (!rec) {
       // Inline editing (card or "Todas las propiedades"): the value becomes an input / dropdown / date picker
       // for its type; Enter or clicking elsewhere saves, Escape cancels. One row at a time.
       const key = btn.dataset.editKey;
+      if (systemProp(key)) return;
       const f = currentFields().find((x) => x[0] === key) || fieldFor(key);
       if (!f) return;
       const inPanel = Boolean(btn.closest('#allprops-panel'));

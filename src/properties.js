@@ -25,8 +25,132 @@ const CHANNELS = ['Correo', 'Formulario', 'Chat', 'Teléfono', 'WhatsApp'];
 
 const g = (title, items) => ({ title, items });
 
+// HubSpot option labels can differ from their stored values; retain both, including hidden options.
+export const HUBSPOT_CUSTOM_METADATA = {
+  contacts: {
+    "tipo_de_cliente": {"type": "enumeration", "fieldType": "radio", "options": [{"label": "Instalador AAA", "value": "Instalador AAA", "displayOrder": 0, "hidden": true}, {"label": "Instalador", "value": "Instalador", "displayOrder": 1, "hidden": false}, {"label": "Arquitecto", "value": "Arquitecto", "displayOrder": 2, "hidden": false}, {"label": "Desarrollador", "value": "Desarrollador", "displayOrder": 3, "hidden": false}, {"label": "Cliente Final", "value": "Cliente Final", "displayOrder": 4, "hidden": false}, {"label": "Fabricante de Ventanas", "value": "Fabricante de Ventanas", "displayOrder": 5, "hidden": true}, {"label": "Proveedor", "value": "Proveedor", "displayOrder": 6, "hidden": false}, {"label": "Gerencia de Proyecto", "value": "Gerencia de Proyecto", "displayOrder": 7, "hidden": false}, {"label": "Ingeniero", "value": "Ingeniero", "displayOrder": 8, "hidden": true}, {"label": "Asesor de ventas", "value": "Vendedor", "displayOrder": 9, "hidden": true}, {"label": "Maquilador ", "value": "Maquilador", "displayOrder": 10, "hidden": true}, {"label": "Mobiliario ", "value": "Mobiliario", "displayOrder": 11, "hidden": true}, {"label": "Herrero", "value": "Herrero", "displayOrder": 12, "hidden": true}, {"label": "Contratista", "value": "Contratista", "displayOrder": 13, "hidden": false}, {"label": "Transporte", "value": "Transporte", "description": "", "displayOrder": 14, "hidden": true}], "readOnly": false},
+    "contacto_con_negocio_en_cierre_ganado": {"type": "enumeration", "fieldType": "booleancheckbox", "options": [{"label": "Sí", "value": "true", "displayOrder": 0, "hidden": false}, {"label": "No", "value": "false", "displayOrder": 1, "hidden": false}], "readOnly": false},
+    "correo_electrnico": {"type": "string", "fieldType": "text", "options": [], "readOnly": false},
+    "ip__sync_extension__external_source_account_id": {"type": "string", "fieldType": "text", "options": [], "readOnly": true},
+    "ip__sync_extension__external_source_app_id": {"type": "string", "fieldType": "text", "options": [], "readOnly": true},
+    "nmero_de_telfono": {"type": "string", "fieldType": "text", "options": [], "readOnly": false},
+    "nombre_y_apellidos": {"type": "string", "fieldType": "text", "options": [], "readOnly": false},
+    "origen_del_contacto": {"type": "bool", "fieldType": "booleancheckbox", "options": [{"label": "Sí", "value": "true", "description": "", "displayOrder": 0, "hidden": false}, {"label": "No", "value": "false", "description": "", "displayOrder": 1, "hidden": false}], "readOnly": false},
+    "origen_del_lead": {"type": "enumeration", "fieldType": "select", "options": [{"label": "Inforte", "value": "Inforte", "description": "", "displayOrder": 0, "hidden": false}, {"label": "Lusha", "value": "Lusha", "description": "", "displayOrder": 1, "hidden": false}, {"label": "Referido", "value": "Referido", "description": "", "displayOrder": 2, "hidden": false}, {"label": "Web/Inbound", "value": "Web/Inbound", "description": "", "displayOrder": 3, "hidden": false}, {"label": "Outbound Directo", "value": "Outbound Directo", "description": "", "displayOrder": 4, "hidden": false}], "readOnly": false},
+    "pagina_web_del_proyecto": {"type": "string", "fieldType": "text", "options": [], "readOnly": false},
+    "pais": {"type": "enumeration", "fieldType": "select", "options": [{"label": "USA", "value": "USA", "displayOrder": 0, "hidden": false}, {"label": "MEXICO", "value": "MEXICO", "displayOrder": 1, "hidden": false}], "readOnly": false},
+    "producto": {"type": "enumeration", "fieldType": "checkbox", "options": [{"label": "Laminated Glass ", "value": "Laminated Glass", "displayOrder": 0, "hidden": false}, {"label": "Tempered Glass", "value": "Tempered Glass", "displayOrder": 1, "hidden": false}, {"label": "Insulating Glass Units", "value": "Insulating Glass Units", "displayOrder": 2, "hidden": false}, {"label": "Digital Printed Glass ", "value": "Digital Printed Glass", "displayOrder": 3, "hidden": false}], "readOnly": false},
+    "que_tipo_de_cliente_eres": {"type": "string", "fieldType": "text", "options": [], "readOnly": false},
+    "rol_del_contacto_en_el_proyecto": {"type": "enumeration", "fieldType": "select", "options": [{"label": "Tomador de decisiones", "value": "Tomador de decisiones", "description": "", "displayOrder": 0, "hidden": false}, {"label": "Compras/Cotizador", "value": "Compras/Cotizador", "description": "", "displayOrder": 1, "hidden": false}, {"label": "Influencer", "value": "Influencer", "description": "", "displayOrder": 2, "hidden": false}, {"label": "Contacto Inicial", "value": "Contacto Inicial", "description": "", "displayOrder": 3, "hidden": false}], "readOnly": false},
+    "satisfaccion_atencion_ventas": {"type": "enumeration", "fieldType": "select", "options": [{"label": "Siempre", "value": "Siempre", "description": "", "displayOrder": 0, "hidden": false}, {"label": "La mayoría de las veces", "value": "La mayoría de las veces", "description": "", "displayOrder": 1, "hidden": false}, {"label": "Pocas veces", "value": "Pocas veces", "description": "", "displayOrder": 2, "hidden": false}, {"label": "No fue satisfactoria", "value": "No fue satisfactoria", "description": "", "displayOrder": 3, "hidden": false}], "readOnly": false},
+    "satisfaccion_beneficio": {"type": "string", "fieldType": "text", "options": [], "readOnly": false},
+    "satisfaccion_comentarios": {"type": "string", "fieldType": "text", "options": [], "readOnly": false},
+    "satisfaccion_detalle_problema": {"type": "string", "fieldType": "text", "options": [], "readOnly": false},
+    "satisfaccion_diferencias_importantes": {"type": "string", "fieldType": "text", "options": [], "readOnly": false},
+    "satisfaccion_fecha_llenado": {"type": "date", "fieldType": "date", "options": [], "readOnly": false},
+    "satisfaccion_hubo_retraso": {"type": "enumeration", "fieldType": "checkbox", "options": [{"label": "Sí", "value": "true", "description": "", "displayOrder": 0, "hidden": false}, {"label": "No", "value": "false", "description": "", "displayOrder": 1, "hidden": false}], "readOnly": false},
+    "satisfaccion_limpieza_instalacion": {"type": "enumeration", "fieldType": "select", "options": [{"label": "Sí, completamente", "value": "Sí, completamente", "description": "", "displayOrder": 0, "hidden": false}, {"label": "Quedaron algunos residuos menores", "value": "Quedaron algunos residuos menores", "description": "", "displayOrder": 1, "hidden": false}, {"label": "No, dejó el área sucia", "value": "No, dejó el área sucia", "description": "", "displayOrder": 2, "hidden": false}], "readOnly": false},
+    "satisfaccion_mejora_sugerida": {"type": "string", "fieldType": "text", "options": [], "readOnly": false},
+    "satisfaccion_nps": {"type": "number", "fieldType": "number", "options": [], "readOnly": false},
+    "satisfaccion_problema_instalacion": {"type": "enumeration", "fieldType": "checkbox", "options": [{"label": "Sí", "value": "true", "description": "", "displayOrder": 0, "hidden": false}, {"label": "No", "value": "false", "description": "", "displayOrder": 1, "hidden": false}], "readOnly": false},
+    "satisfaccion_profesionalismo_instalador": {"type": "enumeration", "fieldType": "select", "options": [{"label": "Muy deficiente", "value": "1", "description": "", "displayOrder": 0, "hidden": false}, {"label": "Deficiente", "value": "2", "description": "", "displayOrder": 1, "hidden": false}, {"label": "Aceptable", "value": "3", "description": "", "displayOrder": 2, "hidden": false}, {"label": "Buena", "value": "4", "description": "", "displayOrder": 3, "hidden": false}, {"label": "Excelente", "value": "5", "description": "", "displayOrder": 4, "hidden": false}], "readOnly": false},
+    "satisfaccion_recomendacion": {"type": "number", "fieldType": "number", "options": [], "readOnly": false},
+    "satisfaccion_tiempo_entrega": {"type": "enumeration", "fieldType": "select", "options": [{"label": "Sí, en tiempo", "value": "Sí, en tiempo", "description": "", "displayOrder": 0, "hidden": false}, {"label": "Se retrasó, pero fue aceptable", "value": "Se retrasó, pero fue aceptable", "description": "", "displayOrder": 1, "hidden": false}, {"label": "No, el retraso fue significativo", "value": "No, el retraso fue significativo", "description": "", "displayOrder": 2, "hidden": false}], "readOnly": false},
+    "satisfaccion_volveria_contratar": {"type": "enumeration", "fieldType": "select", "options": [{"label": "Definitivamente sí", "value": "Definitivamente sí", "description": "", "displayOrder": 0, "hidden": false}, {"label": "Probablemente sí", "value": "Probablemente sí", "description": "", "displayOrder": 1, "hidden": false}, {"label": "No estoy seguro/a", "value": "No estoy seguro/a", "description": "", "displayOrder": 2, "hidden": false}, {"label": "Probablemente no", "value": "Probablemente no", "description": "", "displayOrder": 3, "hidden": false}, {"label": "Definitivamente no", "value": "Definitivamente no", "description": "", "displayOrder": 4, "hidden": false}], "readOnly": false},
+    "tipo_de_envio": {"type": "enumeration", "fieldType": "select", "options": [{"label": "Transporte Terrestre", "value": "Transporte Terrestre", "description": "", "displayOrder": 0, "hidden": false}, {"label": "FTL (Full Truckload)", "value": "FTL (Full Truckload)", "description": "", "displayOrder": 1, "hidden": false}, {"label": "LTL (Less Than Truckload)", "value": "LTL (Less Than Truckload)", "description": "", "displayOrder": 2, "hidden": false}, {"label": "Plataformas (Flatbed)", "value": "Plataformas (Flatbed)", "description": "", "displayOrder": 3, "hidden": false}, {"label": "Hotshot", "value": "Hotshot", "description": "", "displayOrder": 4, "hidden": false}, {"label": "Carga Refrigerada", "value": "Carga Refrigerada", "description": "", "displayOrder": 5, "hidden": false}, {"label": "Materiales Peligrosos (HAZMAT)", "value": "Materiales Peligrosos (HAZMAT)", "description": "", "displayOrder": 6, "hidden": false}, {"label": "Carga marítima", "value": "Carga marítima", "description": "", "displayOrder": 7, "hidden": false}, {"label": "FCL (Contenedor completo)", "value": "FCL (Contenedor completo)", "description": "", "displayOrder": 8, "hidden": false}, {"label": "LCL (Carga consolidada)", "value": "LCL (Carga consolidada)", "description": "", "displayOrder": 9, "hidden": false}, {"label": "Carga aérea", "value": "Carga aérea", "description": "", "displayOrder": 10, "hidden": false}], "readOnly": false},
+    "whathub_last_message_out": {"type": "string", "fieldType": "textarea", "options": [], "readOnly": false},
+    "whathub_last_message_out_agent": {"type": "string", "fieldType": "textarea", "options": [], "readOnly": false},
+    "whathub_last_message_out_date": {"type": "datetime", "fieldType": "date", "options": [], "readOnly": false},
+    "whathub_last_message_synced_agent": {"type": "string", "fieldType": "textarea", "options": [], "readOnly": false},
+    "whathub_last_message_synced_date": {"type": "datetime", "fieldType": "date", "options": [], "readOnly": false},
+    "whathub_last_message_synced_full": {"type": "string", "fieldType": "textarea", "options": [], "readOnly": false},
+    "whathub_sync": {"type": "string", "fieldType": "text", "options": [], "readOnly": false},
+    "whathub_sync_deals": {"type": "string", "fieldType": "textarea", "options": [], "readOnly": false},
+    "zoom_webinar_attendance_average_duration": {"type": "number", "fieldType": "number", "options": [], "readOnly": true},
+    "zoom_webinar_attendance_count": {"type": "number", "fieldType": "number", "options": [], "readOnly": true},
+    "zoom_webinar_joinlink": {"type": "string", "fieldType": "text", "options": [], "readOnly": true},
+    "zoom_webinar_registration_count": {"type": "number", "fieldType": "number", "options": [], "readOnly": true},
+  },
+  deals: {
+    "hubspot_test_archivo": {"type": "string", "fieldType": "file", "options": [], "readOnly": false},
+    "ip__sync_extension__external_source_account_id": {"type": "string", "fieldType": "text", "options": [], "readOnly": true},
+    "ip__sync_extension__external_source_app_id": {"type": "string", "fieldType": "text", "options": [], "readOnly": true},
+    "mapsly": {"type": "string", "fieldType": "textarea", "options": [], "readOnly": false},
+    "metros_cuadrados": {"type": "number", "fieldType": "number", "options": [], "readOnly": false},
+    "monto_de_canceleria": {"type": "number", "fieldType": "number", "options": [], "readOnly": false},
+    "monto_de_inversion": {"type": "number", "fieldType": "number", "options": [], "readOnly": false},
+    "motivo_de_cierre_perdido": {"type": "enumeration", "fieldType": "select", "options": [{"label": "Precio", "value": "Precio", "description": "", "displayOrder": 0, "hidden": false}, {"label": "Flete caro", "value": "Flete caro", "description": "", "displayOrder": 1, "hidden": false}, {"label": "Duplicado", "value": "Duplicado", "description": "", "displayOrder": 2, "hidden": false}, {"label": "El cliente perdió el proyecto", "value": "El cliente perdió el proyecto", "description": "", "displayOrder": 3, "hidden": false}, {"label": "No contesta", "value": "No contesta", "description": "", "displayOrder": 4, "hidden": false}, {"label": "Desconocido", "value": "Desconocido", "description": "", "displayOrder": 5, "hidden": false}, {"label": "Falta de seguimiento", "value": "Falta de seguimiento", "description": "", "displayOrder": 6, "hidden": false}, {"label": "Cotización de ejercicio", "value": "Cotización de ejercicio", "description": "", "displayOrder": 7, "hidden": false}, {"label": "Tiempo de entrega", "value": "Tiempo de entrega", "description": "", "displayOrder": 8, "hidden": false}], "readOnly": false},
+    "niveles": {"type": "number", "fieldType": "number", "options": [], "readOnly": false},
+    "pagina_web_del_proyecto": {"type": "string", "fieldType": "text", "options": [], "readOnly": false},
+    "presupuesto_del_proyecto": {"type": "number", "fieldType": "number", "options": [], "readOnly": false},
+    "representante": {"type": "enumeration", "fieldType": "select", "options": [], "readOnly": false},
+    "superficie_de_obra": {"type": "number", "fieldType": "number", "options": [], "readOnly": false},
+    "superficie_proyectada": {"type": "number", "fieldType": "number", "options": [], "readOnly": false},
+    "tag": {"type": "enumeration", "fieldType": "checkbox", "options": [{"label": "Vidrio Templado", "value": "Vidrio Templado", "displayOrder": 0, "hidden": false}, {"label": "Vidrio laminado", "value": "Vidrio laminado", "displayOrder": 1, "hidden": false}, {"label": "Vidrio Insulado", "value": "Vidrio Insulado", "displayOrder": 2, "hidden": false}, {"label": "Impresión Digital", "value": "Impresión Digital", "displayOrder": 3, "hidden": false}, {"label": "Puertas de Baño", "value": "Puertas de Baño", "displayOrder": 4, "hidden": false}, {"label": "Barandales", "value": "Barandales", "displayOrder": 5, "hidden": false}, {"label": "Cancelería Residencial", "value": "Cancelería Residencial", "displayOrder": 6, "hidden": false}, {"label": "Cancelería Anti-Huracán", "value": "Cancelería Anti-Huracán", "displayOrder": 7, "hidden": false}, {"label": "Fachada con Arañas", "value": "Fachada con Arañas", "displayOrder": 8, "hidden": false}, {"label": "Fachada con sistema stick", "value": "Fachada con sistema stick", "displayOrder": 9, "hidden": false}, {"label": "Fachada Modular", "value": "Fachada Modular", "displayOrder": 10, "hidden": false}, {"label": "Ingeniería  de fachadas", "value": "Ingeniería  de fachadas", "displayOrder": 11, "hidden": false}, {"label": "Vidrio Curvo", "value": "Vidrio Curvo", "displayOrder": 12, "hidden": false}], "readOnly": false},
+    "tipo_de_construccion": {"type": "string", "fieldType": "text", "options": [], "readOnly": false},
+    "tipo_de_loza": {"type": "string", "fieldType": "text", "options": [], "readOnly": false},
+    "tipo_de_muro": {"type": "string", "fieldType": "text", "options": [], "readOnly": false},
+    "tipo_de_obra": {"type": "string", "fieldType": "text", "options": [], "readOnly": false},
+    "tipo_de_planos": {"type": "string", "fieldType": "text", "options": [], "readOnly": false},
+    "tipo_de_proyecto": {"type": "string", "fieldType": "text", "options": [], "readOnly": false},
+    "tipo_de_sistema_constructivo": {"type": "enumeration", "fieldType": "select", "options": [{"label": "Cancelaria", "value": "Cancelaria", "description": "", "displayOrder": 0, "hidden": false}, {"label": "Vidrio", "value": "Vidrio", "description": "", "displayOrder": 1, "hidden": false}], "readOnly": false},
+    "tipo_sugerido": {"type": "string", "fieldType": "text", "options": [], "readOnly": false},
+    "ubicacion_del_proyecto_": {"type": "string", "fieldType": "text", "options": [], "readOnly": false},
+    "url_del_sitio_web": {"type": "string", "fieldType": "text", "options": [], "readOnly": false},
+    "url_google_maps": {"type": "string", "fieldType": "text", "options": [], "readOnly": false},
+    "usuario_creador_easy_glass": {"type": "enumeration", "fieldType": "select", "options": [], "readOnly": false},
+    "valor_del_proyecto": {"type": "number", "fieldType": "number", "options": [], "readOnly": false},
+    "vendedor": {"type": "string", "fieldType": "text", "options": [], "readOnly": false},
+  },
+};
+
 export const PROPERTIES = {
   contacts: [
+    // Real account metadata, GET /crm/v3/properties/contacts (2026-11-19).
+    g('Propiedades personalizadas de HubSpot', [
+      ["tipo_de_cliente","Tipo de Cliente","enum",["Instalador AAA","Instalador","Arquitecto","Desarrollador","Cliente Final","Fabricante de Ventanas","Proveedor","Gerencia de Proyecto","Ingeniero","Vendedor","Maquilador","Mobiliario","Herrero","Contratista","Transporte"]],
+      ["contacto_con_negocio_en_cierre_ganado","Contacto con negocio en cierre ganado","enum",["true","false"]],
+      ["correo_electrnico","Email custom","text"],
+      ["ip__sync_extension__external_source_account_id","Source account ID","text"],
+      ["ip__sync_extension__external_source_app_id","Source app ID","text"],
+      ["nmero_de_telfono","Phone number","text"],
+      ["nombre_y_apellidos","Full name","text"],
+      ["origen_del_contacto","Origen del Contacto","bool",["true","false"]],
+      ["origen_del_lead","Origen del Lead","enum",["Inforte","Lusha","Referido","Web/Inbound","Outbound Directo"]],
+      ["pagina_web_del_proyecto","Pagina Web del proyecto","text"],
+      ["pais","País","enum",["USA","MEXICO"]],
+      ["producto","Product ","enum",["Laminated Glass","Tempered Glass","Insulating Glass Units","Digital Printed Glass"]],
+      ["que_tipo_de_cliente_eres","Que tipo de cliente eres?","text"],
+      ["rol_del_contacto_en_el_proyecto","Rol del Contacto en el Proyecto","enum",["Tomador de decisiones","Compras/Cotizador","Influencer","Contacto Inicial"]],
+      ["satisfaccion_atencion_ventas","Atención del equipo de ventas","enum",["Siempre","La mayoría de las veces","Pocas veces","No fue satisfactoria"]],
+      ["satisfaccion_beneficio","Beneficio","text"],
+      ["satisfaccion_comentarios","Comentarios adicionales","text"],
+      ["satisfaccion_detalle_problema","Descripción del problema","text"],
+      ["satisfaccion_diferencias_importantes","Diferencias importantes","text"],
+      ["satisfaccion_fecha_llenado","Fecha de llenado del formulario","date"],
+      ["satisfaccion_hubo_retraso","Hubo retraso","enum",["true","false"]],
+      ["satisfaccion_limpieza_instalacion","Instalador dejó área limpia","enum",["Sí, completamente","Quedaron algunos residuos menores","No, dejó el área sucia"]],
+      ["satisfaccion_mejora_sugerida","Mejora sugerida","text"],
+      ["satisfaccion_nps","NPS (0–10)","number"],
+      ["satisfaccion_problema_instalacion","Problema durante instalación","enum",["true","false"]],
+      ["satisfaccion_profesionalismo_instalador","Calificación del instalador","enum",["1","2","3","4","5"]],
+      ["satisfaccion_recomendacion","Recomendacion","number"],
+      ["satisfaccion_tiempo_entrega","Tiempo de entrega fue el acordado","enum",["Sí, en tiempo","Se retrasó, pero fue aceptable","No, el retraso fue significativo"]],
+      ["satisfaccion_volveria_contratar","Volvería a contratar","enum",["Definitivamente sí","Probablemente sí","No estoy seguro/a","Probablemente no","Definitivamente no"]],
+      ["tipo_de_envio","Tipo de envio","enum",["Transporte Terrestre","FTL (Full Truckload)","LTL (Less Than Truckload)","Plataformas (Flatbed)","Hotshot","Carga Refrigerada","Materiales Peligrosos (HAZMAT)","Carga marítima","FCL (Contenedor completo)","LCL (Carga consolidada)","Carga aérea"]],
+      ["whathub_last_message_out","Message sent from HubSpot UI","text"],
+      ["whathub_last_message_out_agent","Email of the agent that of the agent involved in the last WhatsApp message sent from the HubSpot UI","text"],
+      ["whathub_last_message_out_date","Date of the last WhatsApp message sent from the HubSpot UI","datetime"],
+      ["whathub_last_message_synced_agent","Email of the agent that of the agent involved in the last WhatsApp conversation synced","text"],
+      ["whathub_last_message_synced_date","Date of the last WhatsApp conversation synced","datetime"],
+      ["whathub_last_message_synced_full","Full JSON payload of the last WhatsApp conversation synced","text"],
+      ["whathub_sync","Sync WhatsÁpp conversations?","text"],
+      ["whathub_sync_deals","Deals where WhatsApp timeline events will be added?","text"],
+      ["zoom_webinar_attendance_average_duration","Average Zoom webinar attendance duration","number"],
+      ["zoom_webinar_attendance_count","Total number of Zoom webinars attended","number"],
+      ["zoom_webinar_joinlink","Last registered Zoom webinar","text"],
+      ["zoom_webinar_registration_count","Total number of Zoom webinar registrations","number"],
+    ]),
     g('Información del contacto', [
       ['first', 'Nombre', 'text'],
       ['last', 'Apellidos', 'text'],
@@ -211,6 +335,38 @@ export const PROPERTIES = {
   ],
 
   deals: [
+    // Real account metadata, GET /crm/v3/properties/deals (2026-11-19).
+    g('Propiedades personalizadas de HubSpot', [
+      ["hubspot_test_archivo","HubSpot test archivo","text"],
+      ["ip__sync_extension__external_source_account_id","Source account ID","text"],
+      ["ip__sync_extension__external_source_app_id","Source app ID","text"],
+      ["mapsly","Mapsly","text"],
+      ["metros_cuadrados","Metros cuadrados","number"],
+      ["monto_de_canceleria","Monto de cancelería","number"],
+      ["monto_de_inversion","Monto de inversión","number"],
+      ["motivo_de_cierre_perdido","Motivo de cierre perdido","enum",["Precio","Flete caro","Duplicado","El cliente perdió el proyecto","No contesta","Desconocido","Falta de seguimiento","Cotización de ejercicio","Tiempo de entrega"]],
+      ["niveles","Niveles","number"],
+      ["pagina_web_del_proyecto","Pagina Web del proyecto","text"],
+      ["presupuesto_del_proyecto","Presupuesto del proyecto","number"],
+      ["representante","Representante","enum"],
+      ["superficie_de_obra","Superficie de obra","number"],
+      ["superficie_proyectada","Superficie proyectada","number"],
+      ["tag","Tag","enum",["Vidrio Templado","Vidrio laminado","Vidrio Insulado","Impresión Digital","Puertas de Baño","Barandales","Cancelería Residencial","Cancelería Anti-Huracán","Fachada con Arañas","Fachada con sistema stick","Fachada Modular","Ingeniería  de fachadas","Vidrio Curvo"]],
+      ["tipo_de_construccion","Tipo de Construcción","text"],
+      ["tipo_de_loza","Tipo de Losa","text"],
+      ["tipo_de_muro","Tipo de Muro","text"],
+      ["tipo_de_obra","Tipo de Obra","text"],
+      ["tipo_de_planos","Tipo de planos","text"],
+      ["tipo_de_proyecto","Tipo de proyecto","text"],
+      ["tipo_de_sistema_constructivo","Tipo de sistema constructivo","enum",["Cancelaria","Vidrio"]],
+      ["tipo_sugerido","Tipo_sugerido","text"],
+      ["ubicacion_del_proyecto_","Ubicación del Proyecto","text"],
+      ["url_del_sitio_web","Pagina del proyecto","text"],
+      ["url_google_maps","URL ubicación de Google Maps","text"],
+      ["usuario_creador_easy_glass","Usuario Creador Easy-Glass","enum"],
+      ["valor_del_proyecto","Valor del proyecto","number"],
+      ["vendedor","Vendedor","text"],
+    ]),
     g('Información del negocio', [
       ['name', 'Nombre del negocio', 'text'],
       ['amount', 'Importe', 'currency'],
@@ -542,10 +698,10 @@ export const customPropertiesLive = () => remote !== null;
 // `visible` is the table's in_form (asked for in the create form).
 export function customPropFromDb(r) {
   const options = Array.isArray(r.options) && r.options.length ? r.options : r.options && Array.isArray(r.options.values) ? r.options.values : undefined;
-  return { key: r.name, label: r.label || r.name, kind: r.type || 'text', options, group: r.group_name || DEFAULT_GROUP, desc: r.description || '', visible: Boolean(r.in_form ?? r.visible), archived: Boolean(r.archived), custom: true };
+  return { ...(r.options?.rules || {}), key: r.name, label: r.label || r.name, kind: r.type || 'text', options, group: r.group_name || DEFAULT_GROUP, desc: r.description || '', visible: Boolean(r.in_form ?? r.visible), archived: Boolean(r.archived), custom: true };
 }
 export function customPropToDb(type, p) {
-  return { objeto: CUSTOM_OBJECT_NAME[type], name: p.key, label: p.label || p.key, type: p.kind || 'text', options: (p.kind === 'enum' || p.kind === 'bool') && Array.isArray(p.options) ? p.options : [], group_name: p.group || DEFAULT_GROUP, description: p.desc || '', in_form: Boolean(p.visible), archived: Boolean(p.archived) };
+  return { objeto: CUSTOM_OBJECT_NAME[type], name: p.key, label: p.label || p.key, type: p.kind || 'text', options: { values: Array.isArray(p.options) ? p.options : [], rules: { required: Boolean(p.required), unique: Boolean(p.unique), sensitive: Boolean(p.sensitive), readOnly: Boolean(p.readOnly), maxLength: p.maxLength || null } }, group_name: p.group || DEFAULT_GROUP, description: p.desc || '', in_form: Boolean(p.visible), archived: Boolean(p.archived) };
 }
 export function loadCustomProperties(rows) {
   remote = Object.fromEntries(Object.keys(CUSTOM_OBJECT_NAME).map((t) => [t, []]));
@@ -569,14 +725,15 @@ export function customProperties(type) {
 }
 export function saveCustomProperties(type, list) {
   if (remote && CUSTOM_OBJECT_NAME[type]) {
-    remote[type] = list.map((p) => ({ ...p }));
-    if (writer) writer(type, remote[type].map((p) => ({ ...p })));
+    const next = list.map((p) => ({ ...p }));
+    if (writer) return Promise.resolve(writer(type, next)).then(() => { remote[type] = next; });
+    remote[type] = next;
     return;
   }
   localStorage.setItem(CUSTOM_KEY(type), JSON.stringify(list));
 }
 // Custom properties flagged for the create form (Crear contacto…), not archived.
-export const formCustomProperties = (type) => customProperties(type).filter((p) => p.visible && !p.archived);
+export const formCustomProperties = (type) => customProperties(type).filter((p) => (p.visible || p.required) && !p.archived);
 export function propertyGroups(type) {
   const base = PROPERTIES[type] || [];
   const custom = customProperties(type).filter((p) => !p.archived);
@@ -613,6 +770,8 @@ const SYSTEM_PATTERNS = [
 const SYSTEM_BY_TYPE = { contacts: ['source'], companies: [], deals: [], tickets: [], tasks: [] };
 export function isSystemProperty(type, key) {
   if (!key) return false;
+  if (HUBSPOT_CUSTOM_METADATA[type]?.[key]?.readOnly) return true;
+  if (customProperties(type).some((p) => p.key === key && p.readOnly)) return true;
   if ((SYSTEM_BY_TYPE[type] || []).includes(key)) return true;
   if (customProperties(type).some((p) => p.key === key)) return false;
   return SYSTEM_PATTERNS.some((re) => re.test(key));
@@ -620,7 +779,7 @@ export function isSystemProperty(type, key) {
 
 export function propertyList(type) {
   const customKeys = new Set(customProperties(type).map((p) => p.key));
-  return propertyGroups(type).flatMap((grp) => grp.items.map(([key, label, kind, options]) => ({ key, label, kind, options, group: grp.title, system: isSystemProperty(type, key), custom: customKeys.has(key) })));
+  return propertyGroups(type).flatMap((grp) => grp.items.map(([key, label, kind, options]) => ({ ...customProperties(type).find((p) => p.key === key), key, label, kind, options, hubspot: HUBSPOT_CUSTOM_METADATA[type]?.[key], group: grp.title, system: isSystemProperty(type, key), custom: customKeys.has(key) })));
 }
 
 export function propertyMap(type) {

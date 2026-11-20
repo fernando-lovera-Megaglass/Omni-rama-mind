@@ -2,7 +2,7 @@
 // When VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are set, records live in
 // Supabase and all edits go to the database. Without them, edits, additions
 // and deletions are kept in localStorage so the demo remembers them.
-import { propertyList, loadCustomProperties, setCustomPropertyWriter, localCustomProperties, clearLocalCustomProperties, customPropToDb, CUSTOM_OBJECT_NAME, SEED_BY_TYPE } from './properties.js';
+import { customProperties, propertyList, loadCustomProperties, setCustomPropertyWriter, localCustomProperties, clearLocalCustomProperties, customPropToDb, CUSTOM_OBJECT_NAME, SEED_BY_TYPE } from './properties.js';
 import { REAL_DEAL_PIPELINES, LEGACY_STAGE_MAP, DEFAULT_PIPELINE_NAME } from './pipelines-seed.js';
 import { supabase, DB_MODE, createAnonProbe } from './supabaseClient.js';
 import { requireSession, signOut, siteRoot } from './auth.js';
@@ -512,7 +512,7 @@ const CAMEL_TO_DB = {
   companies: { lastActivity: 'last_activity', lastActivityType: 'last_activity_type', parentCompanyId: 'parent_company_id', deletedAt: 'deleted_at' },
   deals: { closeDate: 'close_date', companyId: 'company_id', contactId: 'contact_id', lastActivity: 'last_activity', deletedAt: 'deleted_at' },
   tickets: { contactId: 'contact_id', lastActivity: 'last_activity' },
-  tasks: { contactId: 'contact_id', lastActivity: 'last_activity' },
+  tasks: { contactId: 'contact_id', parentId: 'parent_id', lastActivity: 'last_activity' },
 };
 const DB_TO_CAMEL = Object.fromEntries(
   Object.entries(CAMEL_TO_DB).map(([t, m]) => [t, Object.fromEntries(Object.entries(m).map(([a, b]) => [b, a]))])
@@ -522,12 +522,12 @@ const TABLE_COLS = {
   companies: ['id', 'name', 'domain', 'phone', 'owner', 'industry', 'city', 'country', 'employees', 'revenue', 'lifecycle', 'created', 'last_activity', 'last_activity_type', 'parent_company_id', 'deleted_at'],
   deals: ['id', 'name', 'amount', 'stage', 'pipeline', 'close_date', 'owner', 'company_id', 'company', 'contact_id', 'created', 'last_activity', 'priority', 'type', 'deleted_at'],
   tickets: ['id', 'name', 'status', 'priority', 'pipeline', 'owner', 'contact_id', 'source', 'created', 'last_activity', 'description'],
-  tasks: ['id', 'name', 'type', 'status', 'priority', 'owner', 'contact_id', 'contact', 'due', 'created', 'last_activity'],
+  tasks: ['id', 'parent_id', 'name', 'type', 'status', 'priority', 'owner', 'contact_id', 'contact', 'due', 'created', 'last_activity'],
 };
 // Catalog properties (sample decoration) and real columns never go to `extra`;
 // anything else (associations, custom fields) is stored in the extra jsonb column.
 // Numeric/date columns reject empty strings in Postgres; store null instead.
-const EMPTY_AS_NULL = new Set(['company_id', 'contact_id', 'employees', 'revenue', 'amount', 'created', 'last_activity', 'close_date', 'due']);
+const EMPTY_AS_NULL = new Set(['parent_id', 'company_id', 'contact_id', 'employees', 'revenue', 'amount', 'created', 'last_activity', 'close_date', 'due']);
 // Where a record field lives in Supabase: a real column, or inside the `extra` jsonb (the filter panel
 // translates its conditions into the query with this). { column, json } — json true when it is extra->>key.
 export function dbColumnFor(type, key) {
@@ -573,7 +573,9 @@ export function setPageRows(type, rows) {
 // synchronous) and then sent to Supabase in order, in the background.
 let writeQueue = Promise.resolve();
 function dbWrite(fn) {
-  writeQueue = writeQueue.then(fn).catch((e) => reportDbError('escritura', e));
+  const pending = writeQueue.then(fn);
+  writeQueue = pending.catch((e) => reportDbError('escritura', e));
+  return pending;
 }
 const dbRows = {};
 const nextId = {};
@@ -607,7 +609,34 @@ export function setViewStore(type, store) {
   write(K(type, 'views'), store);
 }
 
+// Validate the full catalog, including unique values outside the currently loaded page.
+export async function validatePropertyValues(type, fields, { id = null, client = supabase } = {}) {
+  validatePropertyValuesLocal(type, fields, id);
+  for (const p of customProperties(type).filter((p) => !p.archived && p.unique)) {
+    const value = fields[p.key];
+    if (value === undefined || value === null || String(value).trim() === '') continue;
+    if (client) {
+      let query = client.from(type).select('id').eq(dbColumnFor(type, p.key).column, value);
+      if (id !== null) query = query.neq('id', id);
+      const { data, error } = await query.limit(1);
+      if (error) throw new Error(`No se pudo validar ${p.label}: ${error.message}`);
+      if (data?.length) throw new Error(`${p.label}: ya existe un registro con ese valor. Debe ser único.`);
+    }
+  }
+}
+function validatePropertyValuesLocal(type, fields, id = null) {
+  for (const p of customProperties(type).filter((p) => !p.archived)) {
+    const value = fields[p.key];
+    const empty = value === undefined || value === null || String(value).trim() === '';
+    if (id === null && p.required && empty) throw new Error(`${p.label}: es obligatoria al crear.`);
+    if (id !== null && Object.hasOwn(fields, p.key) && p.readOnly) throw new Error(`${p.label}: es de solo lectura.`);
+    if (!empty && p.kind === 'text' && p.maxLength && Array.from(String(value)).length > p.maxLength) throw new Error(`${p.label}: máximo ${p.maxLength} caracteres.`);
+    if (!empty && p.unique && (ALL[type]?.() || []).some((r) => String(r.id) !== String(id) && String(r[p.key]) === String(value))) throw new Error(`${p.label}: ya existe un registro con ese valor. Debe ser único.`);
+  }
+}
+
 export function setField(type, id, field, value) {
+  validatePropertyValuesLocal(type, { [field]: value }, id);
   if (dbLive) {
     const rec = (dbRows[type] || []).find((r) => Number(r.id) === Number(id));
     if (rec) rec[field] = value;
@@ -641,6 +670,20 @@ const DELETED_AT_KEY = (type) => K(type, 'deletedat'); // local: id → when it 
 export const softDeletes = (type) => SOFT_DELETE.has(type);
 export function deleteRecords(type, ids) {
   const doomed = new Set(ids.map(Number));
+  if (type === 'tasks') {
+    // Match the database cascade in the local and optimistic caches.
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const t of cached('tasks')) {
+        if (doomed.has(Number(t.parentId)) && !doomed.has(Number(t.id))) {
+          doomed.add(Number(t.id));
+          changed = true;
+        }
+      }
+    }
+    ids = [...doomed];
+  }
   if (dbLive) {
     const rows = dbRows[type] || [];
     const stamp = new Date().toISOString();
@@ -767,13 +810,14 @@ export function restoreAll(type) {
 
 // opts.origin: where the record comes from ("Creación manual", "Importación"…), for the timeline entry.
 export function addRecord(type, fields, opts = {}) {
+  validatePropertyValuesLocal(type, fields);
   if (dbLive) {
     const id = nextId[type];
     nextId[type] += 1;
     const rec = { id, created: TODAY.toISOString(), ...fields };
     (dbRows[type] = dbRows[type] || []).unshift(augment(type, { ...rec }));
     bump();
-    dbWrite(async () => {
+    const pending = dbWrite(async () => {
       let payload = toDb(type, rec, true);
       let { error } = await supabase.from(type).insert(payload);
       if (error && error.code === '23505') {
@@ -793,9 +837,10 @@ export function addRecord(type, fields, opts = {}) {
         const i = rows.findIndex((r) => Number(r.id) === Number(rec.id));
         if (i >= 0) rows.splice(i, 1);
         bump();
-        reportDbError(`crear ${type}`, error);
+        throw error;
       }
     });
+    if (opts.waitForSave) return pending.then(() => afterAdd(type, rec, opts));
     return afterAdd(type, rec, opts);
   }
   const extra = getExtra(type);
@@ -811,7 +856,7 @@ export function logSystem(recordType, recordId, text, extra = {}) {
   addActivity({ type: 'system', recordType, recordId: Number(recordId), text, who: SYSTEM_WHO, when: Date.now(), extra });
 }
 const RECORD_WORD = { contacts: 'Contacto', companies: 'Empresa', deals: 'Negocio', tickets: 'Ticket', tasks: 'Tarea' };
-const findIn = (type, id) => (ALL[type] ? ALL[type]() : []).find((r) => Number(r.id) === Number(id));
+const findIn = (type, id) => findRecord(type, id);
 // Rules that run right after a record is created or a field changes (companies by e-mail domain, §2 of the
 // companies specification). They never break the write that triggered them.
 const COMPANY_LINK_FIELDS = new Set(['companyId', 'assoc_companies', 'assoc_labels_companies']);
@@ -1215,7 +1260,9 @@ export const allContacts = () => cached('contacts');
 export const allCompanies = () => cached('companies');
 export const allDeals = () => cached('deals');
 export const allTickets = () => cached('tickets');
-export const allTasks = () => cached('tasks');
+// Lists expose only roots; record lookup and the subtask panel still access children.
+export const allTasks = () => cached('tasks').filter((t) => !t.parentId);
+export const subtasksOf = (id) => cached('tasks').filter((t) => String(t.parentId) === String(id));
 
 export const ALL = {
   contacts: allContacts,
@@ -1226,7 +1273,7 @@ export const ALL = {
 };
 
 export function findRecord(type, id) {
-  return ALL[type]().find((r) => String(r.id) === String(id));
+  return cached(type).find((r) => String(r.id) === String(id));
 }
 
 export function labelOf(list, key) {
@@ -1245,7 +1292,9 @@ export function matches(r, q, keys) {
   return hay.includes(strip(q));
 }
 
-export function toCsv(rows, columns) {
+export function toCsv(rows, columns, type) {
+  const sensitive = new Set((type ? customProperties(type) : Object.keys(ALL).flatMap(customProperties)).filter((p) => p.sensitive).map((p) => p.key));
+  columns = columns.filter((c) => !sensitive.has(c.key));
   const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
   const head = columns.map((c) => esc(c.label)).join(';');
   const body = rows.map((r) => columns.map((c) => esc(c.text ? c.text(r) : r[c.key])).join(';'));
@@ -1423,12 +1472,32 @@ export function activitiesFor(recordType, recordId) {
     .sort((a, b) => b.when - a.when);
 }
 
+// Resolve optimistic and legacy entries before attaching a foreign-key comment.
+export async function activityIdForComment(ev, recordType, recordId, create = true) {
+  if (!DB_MODE) return ev.id || `${recordType}:${recordId}:${ev.type}:${ev.when}:${ev.extra?.callSid || ev.text}`;
+  await writeQueue;
+  if (ev.id) return ev.id;
+  const payload = activityToDb({ ...ev, recordType, recordId });
+  const { data: rows, error } = await supabase.from('activities').select('id')
+    .eq('record_type', recordType).eq('record_id', recordId).eq('type', ev.type)
+    .eq('occurred_at', payload.occurred_at).eq('text', payload.text).limit(1);
+  if (error) throw error;
+  if (rows.length) return rows[0].id;
+  if (!create) return null;
+  const { data, error: insertError } = await supabase.from('activities').insert(payload).select('id').single();
+  if (insertError) throw insertError;
+  activityRows.unshift({ ...ev, id: data.id, recordType, recordId: Number(recordId) });
+  return data.id;
+}
+
 export function addActivity(ev) {
   if (activitiesLive) {
-    activityRows.unshift({ ...ev, recordId: Number(ev.recordId) });
+    const row = { ...ev, recordId: Number(ev.recordId) };
+    activityRows.unshift(row);
     dbWrite(async () => {
-      const { error } = await supabase.from('activities').insert(activityToDb(ev));
+      const { data, error } = await supabase.from('activities').insert(activityToDb(ev)).select('id').single();
       if (error) console.error('[supabase] insert activity', error);
+      else row.id = data.id;
     });
     return;
   }
@@ -1680,7 +1749,7 @@ async function writeCustomProperties(type, list) {
   const rows = list.map((p) => customPropToDb(type, p));
   if (rows.length) {
     const { error } = await supabase.from('custom_properties').upsert(rows, { onConflict: 'objeto,name' });
-    if (error) { console.error('[supabase] upsert custom_properties', error); return; }
+    if (error) throw error;
   }
   let q = supabase.from('custom_properties').delete().eq('objeto', objeto);
   if (rows.length) q = q.not('name', 'in', `(${rows.map((r) => `"${String(r.name).replace(/"/g, '')}"`).join(',')})`);
@@ -1724,7 +1793,7 @@ async function initCustomProperties() {
   const seeded = await ensureSeedProperties(rows);
   if (moved || seeded) rows = await fetchCustomProperties();
   loadCustomProperties(rows);
-  setCustomPropertyWriter((type, list) => { dbWrite(() => writeCustomProperties(type, list)); });
+  setCustomPropertyWriter((type, list) => dbWrite(() => writeCustomProperties(type, list)));
 }
 
 // ---------- Supabase bootstrap ----------

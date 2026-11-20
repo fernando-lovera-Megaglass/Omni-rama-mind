@@ -1,3 +1,4 @@
+import { validatePropertyValues } from './data.js';
 // "Crear negocio" as in the original: a slide-over panel on the right of the Negocios list with the fields in
 // the original's order (Nombre del negocio, Pipeline, Etapa del negocio, Valor with its currency, Fecha de
 // cierre, Propietario, Descripción de la oferta, Fecha de creación), the association sections (Contactos with
@@ -8,7 +9,7 @@
 import { addRecord, setField, addActivity, addLineItems, allContacts, allCompanies, OWNERS, TODAY, strip, dealPipelines, stagesFor, assocLabels, CURRENCY_DEFS, CURRENCY_CODES, homeCurrency, formatMoney, initials } from './data.js';
 import { toast } from './shell.js';
 import { authEnabled, currentUser } from './auth.js';
-import { ownerForUser } from './create-contact.js';
+import { customFieldsHtml, ownerForUser } from './create-contact.js';
 import { enhanceOwnerSelects, refreshOwnerSelects } from './owner-select.js';
 
 // Prefix shown in the amount field (the original shows "MX$" for the Mexican peso).
@@ -68,6 +69,7 @@ export function mountCreateDeal({ root = document.getElementById('list-root') ||
         <label class="field"><span>Propietario del negocio</span><select name="owner">${OWNERS.map((o) => `<option value="${esc(o)}">${esc(o)}</option>`).join('')}</select></label>
         <label class="field"><span>Descripción de la oferta</span><textarea name="description" rows="3"></textarea></label>
         <label class="field"><span>Fecha de creación</span><input name="created" type="date" /></label>
+        ${customFieldsHtml('deals')}
         ${assocSection('contacts', 'Asociar negocio con Contactos', 'Buscar contactos')}
         ${assocSection('companies', 'Empresas', 'Buscar empresas')}
         <section class="cd-section" data-kind="items">
@@ -225,6 +227,7 @@ export function mountCreateDeal({ root = document.getElementById('list-root') ||
     const primary = state.companies.find((c) => c.label === 'Principal') || state.companies[0];
     const first = state.contacts[0];
     return {
+      ...d,
       name: d.name,
       pipeline,
       stage,
@@ -255,7 +258,8 @@ export function mountCreateDeal({ root = document.getElementById('list-root') ||
       const rec = build();
       const nItems = state.items.filter((x) => String(x.name || '').trim()).length;
       // The association entries follow the panel's checkboxes (below), so data.js only logs the creation itself.
-      const made = addRecord('deals', rec, { origin: `Creación manual${nItems ? ` con ${nItems} ${nItems === 1 ? 'elemento' : 'elementos'} de pedido` : ''}`, logAssoc: false });
+      await validatePropertyValues('deals', rec);
+      const made = await addRecord('deals', rec, { waitForSave: true, origin: `Creación manual${nItems ? ` con ${nItems} ${nItems === 1 ? 'elemento' : 'elementos'} de pedido` : ''}`, logAssoc: false });
       const lines = addLineItems(made.id, state.items.map((x) => ({ ...x, currency: rec.deal_currency_code })));
       // The other side of each association: records not covered by the deal's own keys list the deal too.
       const mirror = (kind, c) => {

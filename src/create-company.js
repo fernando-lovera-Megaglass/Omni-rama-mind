@@ -1,3 +1,4 @@
+import { validatePropertyValues } from './data.js';
 // "Crear empresa" as in the original: a slide-over panel on the right of the Empresas list with the fields
 // in the original's order (Nombre de dominio, Nombre de la empresa, Propietario, Estado o región,
 // País/región, Número de teléfono, Sector), Crear / Crear y agregar otro disabled until the name is filled,
@@ -7,7 +8,7 @@ import { addRecord, allCompanies, OWNERS, TODAY, strip, siteDomain } from './dat
 import { supabase } from './supabaseClient.js';
 import { toast } from './shell.js';
 import { authEnabled, currentUser } from './auth.js';
-import { COUNTRIES, ownerForUser } from './create-contact.js';
+import { customFieldsHtml, COUNTRIES, ownerForUser } from './create-contact.js';
 import { enhanceOwnerSelects, refreshOwnerSelects } from './owner-select.js';
 import { enhancePhoneInputs, refreshPhoneInputs } from './phone.js';
 
@@ -83,7 +84,7 @@ export function mountCreateCompany({ root = document.getElementById('list-root')
     <aside class="slideover__panel" role="dialog" aria-modal="true" aria-labelledby="cco-title">
       <header class="slideover__head"><h2 id="cco-title">Crear empresa</h2><button class="slideover__close" type="button" data-cco="cancel" aria-label="Cerrar">×</button></header>
       <form class="slideover__body" id="cco-form" novalidate>
-        ${FIELDS.map(fieldHtml).join('')}
+        ${FIELDS.map(fieldHtml).join('')}<div id="cco-custom">${customFieldsHtml('companies')}</div>
         <section class="cc-dups" id="cco-dups" aria-live="polite"><p class="cc-dups__hint muted">${HINT}</p></section>
       </form>
       <footer class="slideover__foot">
@@ -136,6 +137,7 @@ export function mountCreateCompany({ root = document.getElementById('list-root')
   };
   const reset = () => { form.reset(); hint(); update(); setOwner(); };
   function open(prefill) {
+    el.querySelector('#cco-custom').innerHTML = customFieldsHtml('companies');
     reset();
     Object.entries(prefill || {}).forEach(([k, v]) => { if (form.elements[k] && v !== undefined && v !== null) form.elements[k].value = v; });
     refreshOwnerSelects(form);
@@ -164,7 +166,8 @@ export function mountCreateCompany({ root = document.getElementById('list-root')
         const dup = await findByDomain(d.domain);
         if (dup) { showDomainDup(dup); return; }
       }
-      const rec = addRecord('companies', normalizeCompany(d));
+      await validatePropertyValues('companies', d, { client: searchClient });
+      const rec = await addRecord('companies', normalizeCompany(d), { waitForSave: true });
       toast('Empresa creada');
       if (list && typeof list.render === 'function') list.render();
       if (onCreated) onCreated(rec);

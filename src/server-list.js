@@ -30,6 +30,7 @@ export function buildPageQuery(client, type, spec) {
   const h = helpers(type);
   let q = client.from(type).select('*', { count: 'exact' });
   if (softDeletes(type)) q = spec.trash ? q.not('deleted_at', 'is', null) : q.is('deleted_at', null);
+  if (type === 'tasks') q = q.is('parent_id', null);
   let exact = true;
   if (spec.view) {
     if (spec.view.where) q = spec.view.where(q, h) || q;

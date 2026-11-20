@@ -1,3 +1,6 @@
+import { customFieldsHtml } from './create-contact.js';
+import { validatePropertyValues } from './data.js';
+import { sensitiveValue } from './property-privacy.js';
 // Generic object list: views, filter menus, search, sort, paging, selection,
 // column editor (full property catalog), advanced filters, CSV export/import, create drawer.
 import { wireMenus, closeMenus, toast, linkHtml, wireLinkTooltips } from './shell.js';
@@ -246,6 +249,7 @@ export function mountList(cfg) {
     return '';
   }
   const cellHtml = (c, r) => {
+    if (props[c.key]?.sensitive) return sensitiveValue(r[c.key]);
     if (c.render) return c.render(r);
     const k = kindForLink(c.key);
     const v = r[c.key];
@@ -564,7 +568,7 @@ export function mountList(cfg) {
       <div class="drawer__panel" role="dialog" aria-labelledby="create-title">
         <div class="drawer__head"><h2 id="create-title">${cfg.createLabel}</h2><button class="drawer__close" type="button" data-close="create-drawer" aria-label="Cerrar">×</button></div>
         <form class="drawer__body" id="create-form">
-          ${cfg.createFields.map(fieldHtml).join('')}
+          ${cfg.createFields.map(fieldHtml).join('')}${customFieldsHtml(cfg.type)}
         </form>
         <div class="drawer__foot">
           <button class="btn btn--primary" type="submit" form="create-form">Crear</button>
@@ -1240,7 +1244,7 @@ export function mountList(cfg) {
           ${cols
             .map(
               (c, i) =>
-                `<td class="${c.className || ''}${i === 0 ? ' table__first' : ''}${isEditable(c.key) ? ' cell--editable' : ''}${i > 0 && isSystem(c.key) ? ' cell--locked' : ''}${fzClass(i)}${hlOf(c, r) ? ' cell--hl' : ''}" data-key="${c.key}" data-id="${r.id}" title="${i > 0 && isSystem(c.key) ? 'Valor calculado por el sistema (solo lectura)' : esc(cellText(c, r))}" style="${fzStyle(i)}${hlOf(c, r) ? `background:${hlOf(c, r)};` : ''}">${
+                `<td class="${c.className || ''}${i === 0 ? ' table__first' : ''}${isEditable(c.key) ? ' cell--editable' : ''}${i > 0 && isSystem(c.key) ? ' cell--locked' : ''}${fzClass(i)}${hlOf(c, r) ? ' cell--hl' : ''}" data-key="${c.key}" data-id="${r.id}" title="${props[c.key]?.sensitive ? 'Dato sensible' : i > 0 && isSystem(c.key) ? 'Valor calculado por el sistema (solo lectura)' : esc(cellText(c, r))}" style="${fzStyle(i)}${hlOf(c, r) ? `background:${hlOf(c, r)};` : ''}">${
                   i === 0
                     ? `<div class="firstcell">${state.nested && depthOf.get(Number(r.id)) ? '<span class="hier__mark" aria-hidden="true">↳</span>' : ''}<div class="firstcell__content">${cellHtml(c, r)}</div><button class="preview-btn" type="button" data-preview="${r.id}" aria-label="Vista previa"><span class="preview-btn__tip">Vista previa</span>▭</button></div>`
                     : `${cellHtml(c, r)}${isEditable(c.key) ? '<span class="cell__pen" aria-hidden="true">✎</span>' : isSystem(c.key) ? '<span class="cell__lock" aria-hidden="true"></span>' : ''}`
@@ -1909,6 +1913,7 @@ export function mountList(cfg) {
   }
   function openCellEditor(td) {
     const key = td.dataset.key;
+    if (isSystem(key)) return;
     const r = recordById(td.dataset.id);
     if (!r) return;
     const c = col(key);
@@ -1978,11 +1983,14 @@ export function mountList(cfg) {
     document.querySelectorAll('td.is-editing').forEach((x) => x.classList.remove('is-editing'));
     cell = null;
   }
-  function saveCell() {
+  async function saveCell() {
     if (!cell || !validate()) return;
     const r = recordById(cell.id);
     const value = currentValue();
     const from = r[cell.key];
+    const editing = cell;
+    try { await validatePropertyValues(cfg.type, { [cell.key]: value }, { id: cell.id }); } catch (e) { toast(e.message); return; }
+    if (cell !== editing) return;
     setField(cfg.type, cell.id, cell.key, value);
     if (cell.key === 'name' && cfg.type === 'contacts') {
       const [first, ...rest] = String(value).split(' ');
@@ -2092,7 +2100,7 @@ export function mountList(cfg) {
           if (c.startsWith('pcard-') && pvLayout.cards && pvLayout.cards[c]) {
             // Custom property card created in the preview editor.
             const card = pvLayout.cards[c];
-            const rows = (card.props || []).map((key) => { const col0 = col(key); const label = col0 ? col0.label : props[key] ? props[key].label : key; const v = col0 ? cellText(col0, r) : r[key]; const isUser = key === 'owner' || (props[key] && props[key].kind === 'user'); return `<div class="props__row"><dt>${esc(label)}</dt><dd>${isUser ? ownerHtml(v, 'sm') : v === '' || v === undefined || v === null ? '<span class="muted">--</span>' : kindForLink(key) ? linkHtml(kindForLink(key), String(r[key] ?? v)) : esc(v)}</dd></div>`; }).join('');
+            const rows = (card.props || []).map((key) => { const col0 = col(key); const label = col0 ? col0.label : props[key] ? props[key].label : key; const v = col0 ? cellText(col0, r) : r[key]; const isUser = key === 'owner' || (props[key] && props[key].kind === 'user'); return `<div class="props__row"><dt>${esc(label)}</dt><dd>${props[key]?.sensitive ? sensitiveValue(r[key]) : isUser ? ownerHtml(v, 'sm') : v === '' || v === undefined || v === null ? '<span class="muted">--</span>' : kindForLink(key) ? linkHtml(kindForLink(key), String(r[key] ?? v)) : esc(v)}</dd></div>`; }).join('');
             return `<section class="pvcard"><h3 class="pvcard__title">${esc(card.label)}</h3><dl class="props">${rows || '<p class="muted">Sin propiedades.</p>'}</dl></section>`;
           }
           return '';
@@ -2105,7 +2113,7 @@ export function mountList(cfg) {
         const label = Array.isArray(f) ? f[1] : c ? c.label : key;
         const v = c ? cellText(c, r) : r[key];
         const isUser = key === 'owner' || (props[key] && props[key].kind === 'user');
-        return `<div class="props__row"><dt>${label}</dt><dd>${isUser ? ownerHtml(v, 'sm') : v === '' || v === undefined || v === null ? '<span class="muted">--</span>' : esc(v)}</dd></div>`;
+        return `<div class="props__row"><dt>${label}</dt><dd>${props[key]?.sensitive ? sensitiveValue(r[key]) : isUser ? ownerHtml(v, 'sm') : v === '' || v === undefined || v === null ? '<span class="muted">--</span>' : esc(v)}</dd></div>`;
       })
       .join('');
     $('pv-open').href = `./record/?id=${r.id}`;
@@ -2153,7 +2161,7 @@ export function mountList(cfg) {
         toast('Registro eliminado. Puedes restaurarlo desde ⋮ › Restaurar registros eliminados.');
       }
     } else if (a === 'export') {
-      download(`${cfg.singular}-${r.id}.csv`, toCsv([r], visibleColumns()));
+      download(`${cfg.singular}-${r.id}.csv`, toCsv([r], visibleColumns(), cfg.type));
       toast('Exportado a CSV');
     } else if (['note', 'email', 'call', 'task', 'meeting'].includes(a)) {
       location.href = `./record/?id=${r.id}#${a}`;
@@ -2496,7 +2504,7 @@ export function mountList(cfg) {
     const skip = new Set(['name', 'email', 'first', 'last', 'created', 'hs_object_id', 'hs_import_ids', 'domain', 'hs_additional_emails', 'hs_additional_domains', ...(cfg.readOnly || [])]);
     const kinds = new Set(['text', 'enum', 'user', 'phone', 'number', 'priority', 'status', 'stage', 'url', 'bool', 'currency']);
     const out = [];
-    Object.keys(cfg.editors || {}).forEach((key) => { if (!skip.has(key)) out.push({ key, label: (props[key] && props[key].label) || (cfg.columns.find((c) => c.key === key) || { label: key }).label, kind: 'enum', options: cfg.editors[key] }); });
+    Object.keys(cfg.editors || {}).forEach((key) => { if (!skip.has(key) && !isSystem(key)) out.push({ key, label: (props[key] && props[key].label) || (cfg.columns.find((c) => c.key === key) || { label: key }).label, kind: 'enum', options: cfg.editors[key] }); });
     Object.values(props).forEach((p) => {
       if (skip.has(p.key) || out.some((x) => x.key === p.key) || !kinds.has(p.kind) || p.system || isSystem(p.key)) return;
       const options = Array.isArray(p.options) && p.options.length ? p.options.map((o) => (Array.isArray(o) ? [o[0], o[1]] : [o, o])) : p.kind === 'bool' ? [['Sí', 'Sí'], ['No', 'No']] : null;
@@ -2524,11 +2532,16 @@ export function mountList(cfg) {
     const close = () => { m.classList.remove('is-open'); m.setAttribute('aria-hidden', 'true'); bulkOnOk = null; bulkOnChange = null; };
     m.addEventListener('click', (e) => { if (e.target.closest('[data-bm="close"]')) { e.preventDefault(); close(); } });
     m.querySelector('#bulk-form').addEventListener('change', (e) => { if (e.target.dataset.bm && bulkOnChange) bulkOnChange(m.querySelector('#bulk-form')); });
-    m.querySelector('#bulk-form').addEventListener('submit', (e) => {
+    m.querySelector('#bulk-form').addEventListener('submit', async (e) => {
       e.preventDefault();
-      const d = Object.fromEntries(new FormData(e.target).entries());
-      const keep = bulkOnOk ? bulkOnOk(d) === false : false;
-      if (!keep) close();
+      const button = m.querySelector('#bulk-ok');
+      if (button.disabled) return;
+      button.disabled = true;
+      try {
+        const d = Object.fromEntries(new FormData(e.target).entries());
+        const keep = bulkOnOk ? (await bulkOnOk(d)) === false : false;
+        if (!keep) close();
+      } catch (error) { toast(error.message); } finally { button.disabled = false; }
     });
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && m.classList.contains('is-open')) close(); });
     return m;
@@ -2647,11 +2660,12 @@ export function mountList(cfg) {
   }
 
   // ---------- create ----------
-  $('create-form').addEventListener('submit', (e) => {
+  $('create-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const data = Object.fromEntries(new FormData(e.target).entries());
     if (pendingCreate) Object.entries(pendingCreate).forEach(([k, v]) => { if (!data[k]) data[k] = v; });
     pendingCreate = null;
+    try { await validatePropertyValues(cfg.type, data); } catch (error) { toast(error.message); return; }
     const rec = addRecord(cfg.type, cfg.normalize ? cfg.normalize(data) : data);
     e.target.reset();
     closeDrawer('create-drawer');
@@ -2834,7 +2848,7 @@ export function mountList(cfg) {
       // Exports cover the whole view: with server-side paging the full table is loaded first.
       (a === 'export' ? ensureFull() : Promise.resolve(false)).then(() => {
         const list = filtered().filter((r) => a === 'export' || state.selected.has(Number(r.id)));
-        download(`${cfg.type}-${TODAY.toISOString().slice(0, 10)}.csv`, toCsv(list, visibleColumns()));
+        download(`${cfg.type}-${TODAY.toISOString().slice(0, 10)}.csv`, toCsv(list, visibleColumns(), cfg.type));
         toast(`${list.length} registro(s) exportados a CSV`);
       });
     } else if (a === 'delete') {
@@ -2886,10 +2900,12 @@ export function mountList(cfg) {
         body: `<label class="field"><span>Propiedad</span><select name="key" data-bm="prop">${choices.map((p) => `<option value="${esc(p.key)}">${esc(p.label)}</option>`).join('')}</select></label>${valueField(choices[0] && choices[0].key)}<p class="muted">El valor se aplica a todos los ${n === 1 ? bulkNoun.singular : bulkNoun.plural} seleccionados.</p>`,
         okLabel: 'Actualizar',
         onChange: (form) => { const wrap = form.querySelector('#bulk-value-wrap'); if (wrap) wrap.outerHTML = valueField(form.elements.key.value); },
-        onOk: (d) => {
+        onOk: async (d) => {
           const p = choices.find((x) => x.key === d.key);
           if (!p) return false;
           const value = p.kind === 'number' ? Number(d.value) : d.value;
+          if (props[p.key]?.unique && n > 1 && String(value).trim()) throw new Error(`${p.label}: un valor único no se puede asignar a varios registros.`);
+          for (const id of state.selected) await validatePropertyValues(cfg.type, { [p.key]: value }, { id });
           state.selected.forEach((id) => setField(cfg.type, id, p.key, value));
           toast(`"${p.label}" actualizada en ${n} ${n === 1 ? bulkNoun.singular : bulkNoun.plural}`);
           state.selected.clear();

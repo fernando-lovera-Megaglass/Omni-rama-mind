@@ -98,5 +98,31 @@
   "roadmap.sql": {
     "status": "aplicada",
     "at": "2026-11-17T17:15:42.147Z"
+  },
+  "twilio-incoming.sql": {
+    "status": "aplicada",
+    "at": "2026-11-19T17:36:03-0600"
+  },
+  "reports.sql": {
+    "status": "aplicada",
+    "at": "2026-11-19T17:44:43-0600"
+  },
+  "task_subtasks.sql": {
+    "status": "aplicada",
+    "at": "2026-11-19T17:57:59-0600"
+  },
+  "activity_comments.sql": {
+    "status": "aplicada",
+    "at": "2026-11-19T18:02:30-0600"
+  },
+  "activities.sql": {
+    "status": "aplicada",
+    "at": "2026-11-19T18:22:40-0600",
+    "nota": "ya existía de la aplicación manual original"
+  },
+  "segments.sql": {
+    "status": "aplicada",
+    "at": "2026-11-19T18:22:40-0600",
+    "nota": "ya existía de la aplicación manual original"
   }
 }

@@ -4,7 +4,7 @@
 // password yet), reset ("¿Olvidaste tu contraseña?") and recovery (the link of the reset e-mail). There is
 // no public sign-up: an e-mail without invitation is refused by the database and told to ask the
 // administrator. Without Supabase the page stays open: "Continuar" enters directly.
-import { authEnabled, getSession, signIn, signInWithOtp, resetPassword, updatePassword, onAuthChange, authMessage, isNotInvitedError, INVITE_MESSAGE, safeNext, goTo } from './auth.js';
+import { authEnabled, mfaStatus, verifyTotp, getSession, signIn, signInWithOtp, resetPassword, updatePassword, onAuthChange, authMessage, isNotInvitedError, INVITE_MESSAGE, safeNext, goTo } from './auth.js';
 
 const banner = document.getElementById('cookie-banner');
 const hideBanner = () => {
@@ -90,6 +90,7 @@ function links(html) {
 export function render() {
   removeField('password');
   removeField('password2');
+  removeField('mfa-code');
   const emailLabel = form.querySelector('label[for="username"]');
   input.hidden = false;
   if (emailLabel) emailLabel.hidden = false;
@@ -104,6 +105,15 @@ export function render() {
       submit.textContent = 'Continuar';
       links('');
     }
+  } else if (state.mode === 'mfa') {
+    title.textContent = 'Verificación en dos pasos';
+    alt.textContent = 'Introduce el código de tu aplicación de autenticación.';
+    input.hidden = true;
+    if (emailLabel) emailLabel.hidden = true;
+    const code = field('mfa-code', 'Código de 6 dígitos', 'one-time-code');
+    code.type = 'text'; code.inputMode = 'numeric'; code.pattern = '[0-9]{6}'; code.maxLength = 6; code.placeholder = '000000';
+    submit.textContent = 'Verificar';
+    links('');
   } else if (state.mode === 'magic') {
     title.textContent = 'Entrar con enlace mágico';
     alt.innerHTML = 'Te enviamos un enlace por correo; sin contraseña · <a href="#" id="to-login">usar contraseña</a>';
@@ -159,7 +169,10 @@ if (form) {
         if (state.step === 1) { go('login', 2); return; }
         if (!pw) { fail('Escribe tu contraseña.'); return; }
         await signIn(email, pw);
-        goTo(next);
+        await finishLogin();
+      } else if (state.mode === 'mfa') {
+        await verifyTotp(state.factorId, $('mfa-code').value);
+        await finishLogin();
       } else if (state.mode === 'magic') {
         if (!EMAIL_RE.test(email)) { fail('Escribe un correo válido.'); return; }
         await signInWithOtp(email);
@@ -174,7 +187,7 @@ if (form) {
         if (pw !== pw2) { fail('Las contraseñas no coinciden.'); return; }
         await updatePassword(pw);
         setAlert('ok', 'Contraseña guardada', 'Ya puedes usar tu contraseña nueva.');
-        goTo(next);
+        await finishLogin();
       }
     } catch (err) {
       failWith(err);
@@ -184,10 +197,22 @@ if (form) {
   });
 }
 
+async function finishLogin() {
+  const status = await mfaStatus();
+  if (status.required) {
+    if (!status.factors.length) throw new Error('No hay un factor TOTP disponible para esta cuenta.');
+    state.factorId = status.factors[0].id;
+    go('mfa');
+    setAlert('', '', '');
+    return;
+  }
+  goTo(next);
+}
+
 // With Supabase: an existing session goes straight in; the link of a reset e-mail opens the new-password form.
 if (authEnabled()) {
   const recovery = params.get('recovery') === '1' || /type=recovery/.test(location.hash);
   if (recovery) go('recovery');
-  else getSession().then((session) => { if (session) goTo(next); });
+  else getSession().then(async (session) => { if (session) await finishLogin(); }).catch(failWith);
   onAuthChange((event) => { if (event === 'PASSWORD_RECOVERY') go('recovery'); });
 }

@@ -1,3 +1,4 @@
+import { mountMfaSettings, ssoUnavailable } from './mfa-settings.js';
 // Account settings (the gear in the top bar): a full settings tree with a pane per section.
 import { boot } from './page.js';
 import { toast, wireMenus, closeMenus } from './shell.js';
@@ -173,7 +174,7 @@ function tabCorreo() {
   ])}`;
 }
 emailsReady.then(() => { if (state.section === 'prefs-general' && state.generalTab === 'correo') render(); });
-twilioReady.then(() => { if (state.section === 'prefs-general' && state.generalTab === 'llamadas') render(); });
+twilioReady.then(() => { if (state.section === 'tools-calling' || (state.section === 'prefs-general' && state.generalTab === 'llamadas')) render(); });
 inboxSettingsReady.then(() => { if (state.section.startsWith('ib-')) render(); });
 dealTagsReady.then(() => { if (state.section === 'data-objects' && state.objectsObject === 'deals' && state.objectsTab === 'pipelines') render(); });
 function tabLlamadas() {
@@ -206,14 +207,13 @@ function tabTareas() {
     ${switchRow('general-tareas', 'digest', 'Resumen diario de tareas', 'Un correo cada mañana con las tareas del día.', s.digest)}`;
 }
 function tabSeguridad() {
-  const s = load('crm:security', { twofa: false });
   return `<h3 class="gh">Seguridad</h3>
     <form class="gform" data-save="password">
       <div class="gfield"><label>Contraseña actual</label><input class="ginput" name="current" type="password" required /></div>
       <div class="gfield"><label>Nueva contraseña</label><input class="ginput" name="next" type="password" minlength="8" required /></div>
       <div class="sform__btns"><button class="btn btn--primary" type="submit">Actualizar contraseña</button></div>
     </form>
-    <label class="srow"><span><strong>Autenticación en dos pasos</strong><small>Añade una segunda comprobación al iniciar sesión.</small></span><input type="checkbox" class="switch" data-security="twofa" ${s.twofa ? 'checked' : ''} /></label>
+    <div data-mfa-settings></div>
     <h3>Sesiones activas</h3>${simpleTable(['Dispositivo', 'Ubicación', 'Último acceso', ''], [['Este navegador', 'Miami, FL', 'Ahora', '<span class="muted">Sesión actual</span>'], ['iPhone', 'Ciudad de México', 'Ayer', toastBtn('Cerrar sesión', 'Sesión cerrada en iPhone', 'link-btn')]])}`;
 }
 function tabAutomatizacion() {
@@ -494,7 +494,7 @@ function panePrivacy() {
   const row = (k, l, d) => `<label class="srow"><span><strong>${l}</strong><small>${d}</small></span><input type="checkbox" class="switch" data-privacy="${k}" ${p[k] ? 'checked' : ''} /></label>`;
   return `<h2>Privacidad y consentimiento</h2>${row('consent', 'Registrar consentimiento de comunicación', 'Guarda la base legal de cada contacto para enviarle correos.')}${row('gdpr', 'Funciones RGPD', 'Permite eliminar contactos de forma permanente y gestionar solicitudes.')}${row('cookieBanner', 'Aviso de cookies en formularios', 'Muestra el aviso en los formularios incrustados.')}`;
 }
-const paneAccountSecurity = () => togglePane('account-security', 'Seguridad', 'Políticas de acceso para toda la cuenta.', [['force2fa', 'Exigir autenticación en dos pasos', 'Todos los usuarios deberán activarla.', false], ['sso', 'Inicio de sesión único (SSO)', 'Permite entrar con la identidad de la empresa.', false], ['session', 'Cerrar sesiones inactivas a las 8 horas', 'Protege los equipos compartidos.', true]], infoList('Actividad de seguridad reciente', [['Inicio de sesión', 'Fernando L. · Miami · hoy'], ['Cambio de contraseña', 'Sofía R. · hace 3 días'], ['Nuevo usuario', 'Laura M. · hace 2 semanas']]));
+const paneAccountSecurity = () => `<h2>Seguridad</h2><p>Protege el acceso de tu usuario.</p><div data-mfa-settings></div>${ssoUnavailable}`;
 const paneAI = () => togglePane('account-ai', 'IA', 'Funciones del asistente en la cuenta.', [['assistant', 'Asistente activado', 'Resúmenes y redacción en fichas y correos.', true], ['summaries', 'Resúmenes automáticos de registros', 'Genera el resumen al abrir una ficha.', true], ['training', 'Permitir usar mis datos para mejorar sugerencias', 'Solo dentro de esta cuenta.', false]]);
 const panePayments = () => `<h2>Cuenta de pagos</h2><p class="muted">Cobra facturas y cotizaciones en línea.</p><div class="plan"><div><span class="muted">Procesador</span><h3>Stripe (no conectado)</h3><p>Conecta tu cuenta para aceptar pagos con tarjeta y transferencia.</p></div>${toastBtn('Conectar Stripe', 'Redirigiendo a Stripe… (demostración)', 'btn btn--primary')}</div>${infoList('Monedas aceptadas', [['Principal', 'EUR'], ['Adicionales', 'USD, MXN']])}`;
 function paneBilling() {
@@ -1278,7 +1278,7 @@ const paneSvTickets = () => `<h2>Tickets</h2><p class="muted">Pipeline de soport
 const paneSvInbox = () => togglePane('sv-inbox', 'Bandeja de entrada', 'Bandeja compartida del equipo.', [['assign', 'Asignación automática por turnos', 'Reparte las conversaciones nuevas.', true], ['away', 'Respuesta automática fuera de horario', 'L–V 9:00–18:00.', true], ['chat', 'Chat en el sitio web', 'Widget de chat conectado a la bandeja.', false]], infoList('Canales conectados', [['Correo', 'soporte@megaglass.us'], ['WhatsApp', '+52 712 690 1001'], ['Formulario', 'Contacto web']]));
 const paneSvSurveys = () => `<h2>Encuestas de feedback</h2>${simpleTable(['Encuesta', 'Tipo', 'Respuestas', 'Estado'], [['<strong>Satisfacción tras ticket</strong>', 'CSAT', '42', '<span class="tag tag--done">Activa</span>'], ['<strong>Recomendación anual</strong>', 'NPS', '118', '<span class="tag tag--done">Activa</span>'], ['<strong>Instalación completada</strong>', 'CES', '9', '<span class="tag tag--none">Borrador</span>']])}`;
 const paneSvKb = () => togglePane('sv-kb', 'Base de conocimientos', 'Centro de ayuda público.', [['public', 'Publicada', 'Visible en ayuda.megaglass.us.', true], ['feedback', 'Permitir valorar artículos', 'Pulgar arriba o abajo al final de cada artículo.', true]], infoList('Contenido', [['Artículos', '24'], ['Categorías', 'Instalación, Mantenimiento, Garantía']]));
-const paneCalling = () => togglePane('tools-calling', 'Llamadas', 'Ajustes de llamadas para toda la cuenta.', [['record', 'Grabar llamadas', 'Con aviso al inicio de la llamada.', true], ['transcribe', 'Transcribir llamadas', 'Texto y resumen en la actividad.', false], ['inbound', 'Llamadas entrantes', 'Recibe llamadas al número de la cuenta.', true]], infoList('Números', [['Principal', '+52 712 690 1001'], ['Estados Unidos', '+1 305 753 0007']]));
+const paneCalling = () => `<h2>Llamadas</h2>${twilioPaneHtml()}`;
 
 const PANES = {
   'prefs-general': paneGeneral, 'prefs-notif': paneNotif, 'org-accounts': paneOrgAccounts, 'org-copy': paneOrgCopy,
@@ -1325,6 +1325,7 @@ function render() {
     </div>
     ${state.logicEdit && (state.logicEdit.lifecycle || state.pipeEdit !== null) ? logicHtml() : ''}
     <div class="drawer drawer--modal" id="s-modal" aria-hidden="true"><div class="drawer__panel drawer__panel--dialog" role="dialog" aria-labelledby="s-modal-title"><div class="drawer__head drawer__head--light"><h2 id="s-modal-title">—</h2><button class="drawer__close" type="button" data-close aria-label="Cerrar">×</button></div><div class="drawer__body" id="s-modal-body"></div><div class="drawer__foot" id="s-modal-foot"></div></div></div>`;
+  root.querySelectorAll('[data-mfa-settings]').forEach((el) => { void mountMfaSettings(el); });
   wireMenus(root);
   const cem = document.getElementById('cem');
   if (cem) mountConnectedEmails(cem);
@@ -1368,19 +1369,26 @@ function propertyForm(type, existing) {
       <label class="field"><span>Tipo de campo</span><select name="kind" id="prop-kind">${PROP_KINDS.map(([k, l]) => `<option value="${k}" ${existing && existing.kind === k ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
       <label class="field" id="prop-options-field" ${existing && existing.kind === 'enum' ? '' : 'hidden'}><span>Opciones (una por línea)</span><textarea name="options" rows="4">${esc(existing && existing.options ? existing.options.join('\n') : '')}</textarea></label>
       <label class="field"><span>Descripción</span><input name="desc" value="${esc(existing ? existing.desc || '' : '')}" /></label>
+      <fieldset><legend>Reglas de validación</legend>
+      ${[['required', 'Obligatoria al crear'], ['unique', 'Valor único']].map(([key, label]) => `<label class="ocheck"><input type="checkbox" name="${key}" ${existing?.[key] ? 'checked' : ''} /><span>${label}</span></label>`).join('')}
+      <label class="field" id="prop-max-field" ${existing && !['text', 'textarea'].includes(existing.kind) ? 'hidden' : ''}><span>Longitud máxima</span><input name="maxLength" type="number" min="1" step="1" value="${existing?.maxLength || ''}" /></label></fieldset>
+      <fieldset><legend>Datos sensibles y control de acceso</legend>
+      ${[['sensitive', 'Dato sensible (oculto en CSV)'], ['readOnly', 'Solo lectura en fichas y listas']].map(([key, label]) => `<label class="ocheck"><input type="checkbox" name="${key}" ${existing?.[key] ? 'checked' : ''} /><span>${label}</span></label>`).join('')}</fieldset>
       <label class="ocheck ocheck--sm"><input type="checkbox" name="visible" ${existing && existing.visible ? 'checked' : ''} /><span><strong>Mostrar en el formulario de creación</strong><small>La propiedad se pide también al crear un registro desde el panel «Crear».</small></span></label>
     </form>`;
 }
-function saveProperty(type, existingKey) {
-  const d = Object.fromEntries(new FormData(document.getElementById('prop-form')).entries());
+async function saveProperty(type, existingKey) {
+  const form = document.getElementById('prop-form');
+  if (!form.reportValidity()) return;
+  const d = Object.fromEntries(new FormData(form).entries());
   if (!d.label.trim()) return;
   const list = customProperties(type);
   const key = existingKey || `custom_${slug(d.label)}_${Date.now().toString(36)}`;
   const previous = list.find((p) => p.key === key);
-  const prop = { key, label: d.label.trim(), group: d.group, kind: d.kind === 'textarea' ? 'text' : d.kind, options: d.kind === 'enum' ? d.options.split('\n').map((s) => s.trim()).filter(Boolean) : d.kind === 'bool' ? ['Sí', 'No'] : undefined, desc: d.desc, visible: d.visible === 'on', archived: Boolean(previous && previous.archived) };
+  const prop = { required: d.required === 'on', unique: d.unique === 'on', sensitive: d.sensitive === 'on', readOnly: d.readOnly === 'on', maxLength: ['text', 'textarea'].includes(d.kind) && d.maxLength ? Number(d.maxLength) : null, key, label: d.label.trim(), group: d.group, kind: d.kind === 'textarea' ? 'text' : d.kind, options: d.kind === 'enum' ? d.options.split('\n').map((s) => s.trim()).filter(Boolean) : d.kind === 'bool' ? ['Sí', 'No'] : undefined, desc: d.desc, visible: d.visible === 'on', archived: Boolean(previous && previous.archived) };
   const i = list.findIndex((p) => p.key === key);
   if (i >= 0) list[i] = prop; else list.push(prop);
-  saveCustomProperties(type, list);
+  try { await saveCustomProperties(type, list); } catch (e) { toast(`No se pudo guardar: ${e.message}`); return; }
   closeModal();
   render();
   toast(existingKey ? 'Propiedad actualizada' : `Propiedad "${prop.label}" creada. Ya puedes añadirla como columna o a las tarjetas.`);
@@ -1469,7 +1477,6 @@ root.addEventListener('change', (e) => {
   const t = e.target;
   if (t.dataset.setting) { const s = setting(t.dataset.setting, {}); s[t.dataset.key] = t.checked; save(`crm:settings:${t.dataset.setting}`, s); toast('Ajuste guardado'); if (t.dataset.key === 'connected') render(); }
   else if (t.dataset.notif) { const n = notif(); n[t.dataset.notif] = t.checked; save('crm:notif', n); toast('Preferencia guardada'); }
-  else if (t.dataset.security) { save('crm:security', { ...load('crm:security', {}), [t.dataset.security]: t.checked }); toast(t.checked ? 'Autenticación en dos pasos activada' : 'Autenticación en dos pasos desactivada'); }
   else if (t.dataset.privacy) { save('crm:privacy', { ...load('crm:privacy', {}), [t.dataset.privacy]: t.checked }); toast('Ajuste guardado'); }
   else if (t.dataset.integration !== undefined) { const list = integrations(); list[Number(t.dataset.integration)].on = t.checked; save('crm:integrations', list); render(); toast(t.checked ? 'Integración conectada' : 'Integración desconectada'); }
   else if (t.dataset.userTeam !== undefined || t.dataset.userRole !== undefined) { const us = users(); const i = Number(t.dataset.userTeam ?? t.dataset.userRole); if (t.dataset.userTeam !== undefined) us[i].team = t.value; else us[i].role = t.value; save('crm:users', us); toast('Usuario actualizado'); }
@@ -1505,7 +1512,7 @@ root.addEventListener('change', (e) => {
   else if (t.hasAttribute('data-rv-check')) { if (t.checked) state.rvSel.add(t.dataset.rvCheck); else state.rvSel.delete(t.dataset.rvCheck); render(); }
   else if (t.hasAttribute('data-props-check-all')) { root.querySelectorAll('[data-props-check]').forEach((c) => { if (t.checked) state.propsSel.add(c.dataset.propsCheck); else state.propsSel.delete(c.dataset.propsCheck); }); render(); }
   else if (t.hasAttribute('data-props-check')) { if (t.checked) state.propsSel.add(t.dataset.propsCheck); else state.propsSel.delete(t.dataset.propsCheck); render(); }
-  else if (t.id === 'prop-kind') { document.getElementById('prop-options-field').hidden = t.value !== 'enum'; }
+  else if (t.id === 'prop-kind') { document.getElementById('prop-options-field').hidden = t.value !== 'enum'; document.getElementById('prop-max-field').hidden = !['text', 'textarea'].includes(t.value); }
   else if (t.id === 'pf-theme') { setTheme(t.value); }
   else if (t.id === 'pf-region') { const s = REGIONS[t.value]; document.getElementById('pf-sample').textContent = `Formato: ${s[0]}, ${s[1]}, ${s[2]} y ${s[3]}`; }
   else if (t.id === 'avatar-file') {

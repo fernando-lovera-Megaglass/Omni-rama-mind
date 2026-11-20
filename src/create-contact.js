@@ -1,3 +1,4 @@
+import { validatePropertyValues } from './data.js';
 // "Crear contacto" as in the original: a slide-over panel on the right of the Contactos list (no page
 // change) with the fields in the original's order, Crear / Crear y agregar otro disabled until Nombre and
 // Apellidos are filled, duplicate detection while typing (Supabase ilike, or the local records), a warning
@@ -89,7 +90,7 @@ function fieldHtml([name, label, kind, required]) {
 // Custom properties flagged "visible" in Configuración › Propiedades are asked for after the standard fields.
 const INPUT_TYPE = { number: 'number', currency: 'number', date: 'date', datetime: 'datetime-local', email: 'email', phone: 'tel', url: 'url' };
 function customFieldHtml(p) {
-  const lab = `<span>${esc(p.label)}</span>`;
+  const lab = `<span>${esc(p.label)}${p.required ? ' *' : ''}</span>`;
   if (p.kind === 'enum' || p.kind === 'bool') return `<label class="field" data-custom="${esc(p.key)}">${lab}<select name="${esc(p.key)}"><option value="">--</option>${(p.options || (p.kind === 'bool' ? ['Sí', 'No'] : [])).map((o) => `<option value="${esc(o)}">${esc(o)}</option>`).join('')}</select></label>`;
   return `<label class="field" data-custom="${esc(p.key)}">${lab}<input name="${esc(p.key)}" type="${INPUT_TYPE[p.kind] || 'text'}" ${p.kind === 'number' || p.kind === 'currency' ? 'step="any"' : ''} autocomplete="off" /></label>`;
 }
@@ -196,7 +197,8 @@ export function mountCreateContact({ root = document.getElementById('list-root')
         const dup = await findByEmail(d.email);
         if (dup) { showEmailDup(dup); return; }
       }
-      const rec = addRecord('contacts', normalizeContact(d));
+      await validatePropertyValues('contacts', d);
+      const rec = await addRecord('contacts', normalizeContact(d), { waitForSave: true });
       toast('Contacto creado');
       if (list && typeof list.render === 'function') list.render();
       if (onCreated) onCreated(rec);

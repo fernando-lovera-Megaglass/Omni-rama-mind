@@ -508,3 +508,9 @@
 ## Historial anterior (git)
 - `9cc9403` Importación igual para contactos, empresas, negocios, tickets y tareas.
 - Sesiones previas sin `PROGRESO.md`: ver `git log`.
+
+### Editor de propiedades — Parte B (2026-11-19)
+- Verificada la implementación existente de obligatoria al crear, valor único consultando Supabase (`extra->>campo` para personalizadas), longitud máxima, persistencia de reglas, enmascarado con ojo y exclusión de CSV.
+- Completada la edición masiva: excluye campos de solo lectura incluso en editores predefinidos; valida antes de modificar; rechaza asignar un mismo valor único a varios registros. El modal espera la validación y muestra errores.
+- Smoke reproducible: `node scripts/smoke-property-rules.mjs`. Ejercita el formulario real de empresas en JSDOM con RFC único+sensible, duplicado remoto fuera de la lista local, error de consulta, creación válida, obligatorio, longitud, edición del propio registro, solo lectura, revelar/ocultar y CSV.
+- La consulta remota se prueba con un cliente Supabase simulado; no se modificaron reglas ni registros en una instancia remota. Sin despliegue a producción.

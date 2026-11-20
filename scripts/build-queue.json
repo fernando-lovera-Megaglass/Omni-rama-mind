@@ -344,10 +344,12 @@
     },
     {
       "id": "gap-configuraci-n-y-propiedades-editor-completo-de-propiedades-reglas-se",
-      "status": "pending",
+      "status": "done",
       "instruction": "Editor de propiedades PARTE B (reglas de validación, datos sensibles, control de acceso) — pendiente verificado por el análisis.\n\nCambio pedido en Configuración › Propiedades › editar propiedad:\n1. Reglas: obligatoria al crear, valor único (validar contra Supabase), y para texto: longitud máxima.\n2. Marca «dato sensible»: se muestra enmascarada (•••) hasta pulsar el ojo, y no sale en exportaciones CSV.\n3. Control de acceso visual: solo lectura para propiedades marcadas (respeta en ficha y listas).\n4. Prueba smoke: marcar RFC como único+sensible; crear empresa con RFC duplicado falla con mensaje; el valor se enmascara. No despliegues a producción.",
       "createdAt": "2026-11-19T17:12:33-06:00",
-      "lane": "codex"
+      "lane": "codex",
+      "completedAt": "2026-11-19T18:21:48-0600",
+      "completedBy": "codex"
     },
     {
       "id": "gap-tickets-propiedades-personalizadas-reales-de-tic",
@@ -358,10 +360,12 @@
     },
     {
       "id": "custom-props-cobertura",
-      "status": "pending",
+      "status": "done",
       "instruction": "Cobertura de propiedades personalizadas reales: contactos 22/61 (36%), negocios 25/51 (49%).\n\nPasos: GET /crm/v3/properties/contacts y /crm/v3/properties/deals con el token de app/.hubspot-token; para cada propiedad NO hubspotDefined que falte en src/properties.js, agrégala con etiqueta, tipo y opciones reales (prioriza las que tengan valor en la cuenta real: verifícalo con un par de registros vía API). Objetivo: contactos y negocios ≥80% de cobertura. Prueba smoke: la ficha muestra las nuevas propiedades en «Ver todas las propiedades». No despliegues a producción.",
       "createdAt": "2026-11-19T17:12:33-06:00",
-      "lane": "codex"
+      "lane": "codex",
+      "completedAt": "2026-11-19T18:32:09-0600",
+      "completedBy": "codex"
     },
     {
       "id": "gap-importaci-n-importaci-n-multiarchivo-con-asociacione",
@@ -372,10 +376,12 @@
     },
     {
       "id": "gap-autenticaci-n-mfa-sso-real",
-      "status": "pending",
+      "status": "done",
       "instruction": "MFA real (hoy el interruptor de Ajustes › Seguridad es decorativo).\n\nCambio pedido: TOTP con supabase.auth.mfa: alta (QR con otpauth url, verify del primer código), estado «activo» real, reto de segundo factor al iniciar sesión si está activo, y baja pidiendo código. SSO: si no hay proveedor configurado, el interruptor debe mostrar «próximamente» honesto en vez de simular. Prueba smoke: smoke-auth con flujo de enrolamiento simulado. No despliegues a producción.",
       "createdAt": "2026-11-19T17:12:33-06:00",
-      "lane": "codex"
+      "lane": "codex",
+      "completedAt": "2026-11-19T18:37:15-0600",
+      "completedBy": "codex"
     },
     {
       "id": "gap-autenticaci-n-rls-por-usuario-activo-paso-2",

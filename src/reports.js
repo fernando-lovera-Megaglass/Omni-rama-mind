@@ -2,6 +2,7 @@
 // set when there is no connection): every number is a count or a sum over the selected date range, and
 // the "frente al periodo anterior" deltas compare with the same length of time just before it.
 import { mountShell, wireMenus, closeMenus, toast } from './shell.js';
+import { mountReportBuilder } from './report-builder.js';
 import { ownerHtml } from './owner.js';
 import {
   allContacts, allCompanies, allDeals, allTickets, allTasks, allActivities,
@@ -351,7 +352,6 @@ const MESSAGES = {
   share: 'Enlace copiado (solo en esta demostración).',
   clone: 'El panel se ha clonado como "Copia de panel" (solo en esta demostración).',
   export: 'Exportación en preparación: recibirás un correo cuando esté lista.',
-  'add-report': 'La biblioteca de informes estará disponible en la próxima versión.',
   fullscreen: 'La vista a pantalla completa estará disponible en la próxima versión.',
 };
 document.addEventListener('click', (e) => {
@@ -370,3 +370,5 @@ document.addEventListener('click', (e) => {
 wireMenus();
 render();
 export { state, render };
+
+export const customReports = mountReportBuilder({ root: document.querySelector('main'), dashboard: document.getElementById('grid') });
