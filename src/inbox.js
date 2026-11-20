@@ -26,7 +26,7 @@ root.innerHTML = `
   <div class="inbox">
     <aside class="inbox__list" aria-label="Conversaciones">
       <div class="inbox__listhead">
-        <h1>Bandeja de entrada</h1>
+        <h1 class="page-title">Bandeja de entrada</h1>
         <div class="inbox__headbtns"><button class="btn btn--secondary btn--sm inbox__sync" type="button" data-inbox="sync" hidden title="Traer los últimos correos de tu cuenta de Gmail">Sincronizar Gmail</button><button class="btn btn--primary btn--sm inbox__new" type="button" data-inbox="new" aria-label="Nueva conversación" title="Nueva conversación">+</button></div>
       </div>
       <div class="inbox__tabs" role="tablist" aria-label="Asignación">

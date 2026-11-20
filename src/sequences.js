@@ -23,7 +23,7 @@ const fullDate = (iso) => { const d = new Date(iso); return `${formatDate(d)} ${
 root.innerHTML = `
   <div class="tpls seqs">
     <header class="tpls__head">
-      <h1>Secuencias <span class="tpls__count" id="seq-count"></span></h1>
+      <h1 class="page-title page-title--with-count">Secuencias <span class="tpls__count" id="seq-count"></span></h1>
       <div class="tpls__actions">
         <div class="menu"><button class="btn btn--secondary" type="button" aria-haspopup="true">Acciones <span class="caret"></span></button><div class="menu__panel"><button class="menu__item" type="button" data-ta="export">Exportar</button><button class="menu__item" type="button" data-ta="trash">Papelera <span class="muted" id="seq-trash-n"></span></button></div></div>
         <a class="btn btn--primary" href="create/" data-ta="create">Crear secuencia</a>

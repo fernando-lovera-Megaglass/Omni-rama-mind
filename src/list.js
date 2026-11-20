@@ -331,7 +331,7 @@ export function mountList(cfg) {
     <div class="lpage">
     <div class="page-head page-head--list">
       <div class="menu">
-        <button class="ltitle" type="button" aria-haspopup="true" aria-expanded="false"><h1>${cfg.title}</h1> <span class="caret caret--lg"></span></button>
+        <button class="ltitle" type="button" aria-haspopup="true" aria-expanded="false"><h1 class="page-title">${cfg.title}</h1> <span class="caret caret--lg"></span></button>
         <div class="menu__panel">
           ${OBJECTS.map(([k, l]) => `<a class="menu__item${k === cfg.type ? ' is-current' : ''}" href="../${k}/">${l}</a>`).join('')}
         </div>

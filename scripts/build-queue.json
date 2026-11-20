@@ -556,10 +556,12 @@
     },
     {
       "id": "gap-ui-titulos-pagina-inconsistentes",
-      "status": "pending",
+      "status": "done",
       "createdAt": "2026-11-20T03:25:00-06:00",
       "lane": "codex",
-      "instruction": "El título H1 de cada módulo tiene un tamaño y peso distinto: las listas de Contactos/Empresas/Negocios/Tickets/Tareas usan .ltitle h1 a 26px peso 400 (src/app.css ~6763), Plantillas/Secuencias/Automatización usan .tpls__head h1 a 24px peso 600 (~14130; src/templates.js ~44, src/sequences.js ~26, src/automation.js ~30), Llamadas .calls__title a 22px (~18822; src/calls.js ~157) y la Bandeja de entrada .inbox__listhead h1 a 18px (~5753; src/inbox.js ~29). En HubSpot todas las páginas de índice comparten el mismo estilo de título (≈22px, semibold) con el selector de objeto integrado. Cómo debe verse: un solo estilo de título de página para todos los módulos (unifica en una clase común, p. ej. que .tpls__head h1, .calls__title e .inbox__listhead h1 hereden el tamaño/peso del .ltitle h1 de las listas o del patrón elegido, con el mismo margin y line-height); conserva el menú desplegable de objeto donde exista. Criterio de aceptación: los títulos de Contactos, Plantillas, Secuencias, Workflows, Llamadas y Bandeja de entrada miden lo mismo en px y peso computados; no quedan reglas h1 sueltas por módulo. No despliegues nada a producción; solo código local."
+      "instruction": "El título H1 de cada módulo tiene un tamaño y peso distinto: las listas de Contactos/Empresas/Negocios/Tickets/Tareas usan .ltitle h1 a 26px peso 400 (src/app.css ~6763), Plantillas/Secuencias/Automatización usan .tpls__head h1 a 24px peso 600 (~14130; src/templates.js ~44, src/sequences.js ~26, src/automation.js ~30), Llamadas .calls__title a 22px (~18822; src/calls.js ~157) y la Bandeja de entrada .inbox__listhead h1 a 18px (~5753; src/inbox.js ~29). En HubSpot todas las páginas de índice comparten el mismo estilo de título (≈22px, semibold) con el selector de objeto integrado. Cómo debe verse: un solo estilo de título de página para todos los módulos (unifica en una clase común, p. ej. que .tpls__head h1, .calls__title e .inbox__listhead h1 hereden el tamaño/peso del .ltitle h1 de las listas o del patrón elegido, con el mismo margin y line-height); conserva el menú desplegable de objeto donde exista. Criterio de aceptación: los títulos de Contactos, Plantillas, Secuencias, Workflows, Llamadas y Bandeja de entrada miden lo mismo en px y peso computados; no quedan reglas h1 sueltas por módulo. No despliegues nada a producción; solo código local.",
+      "completedAt": "2026-11-20T10:41:04-0600",
+      "completedBy": "codex"
     },
     {
       "id": "gap-ui-estados-vacios-sin-ilustracion",

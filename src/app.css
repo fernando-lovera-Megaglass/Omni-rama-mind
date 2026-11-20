@@ -151,6 +151,14 @@ h1 {
   line-height: 28px;
 }
 
+/* Shared title for module index pages. */
+.page-title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 28px;
+}
+
 /* ---------- Icons (simple shapes, no brand artwork) ---------- */
 .ico {
   display: inline-block;
@@ -5750,11 +5758,6 @@ td.cell--hl .cell__pen {
   padding: var(--sp-16) var(--sp-16) var(--sp-8);
 }
 
-.inbox__listhead h1 {
-  margin: 0;
-  font-size: 18px;
-}
-
 .inbox__new {
   width: 32px;
   height: 32px;
@@ -6758,12 +6761,6 @@ td.cell--hl .cell__pen {
   background: transparent;
   color: var(--c-text);
   padding: 0;
-}
-
-.ltitle h1 {
-  font-size: 26px;
-  line-height: 32px;
-  font-weight: 400;
 }
 
 .caret--lg {
@@ -14127,10 +14124,7 @@ body.has-slideover {
   margin-bottom: var(--sp-16);
 }
 
-.tpls__head h1 {
-  margin: 0;
-  font-size: 24px;
-  font-weight: 600;
+.page-title--with-count {
   display: flex;
   align-items: baseline;
   gap: var(--sp-10);
@@ -18819,7 +18813,6 @@ td[data-key="deal_tags"] .dtag {
 /* Página CRM › Llamadas */
 .calls { padding: 20px 24px; max-width: 1400px; }
 .calls__head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
-.calls__title { margin: 0; font-size: 22px; }
 .calls__views { display: flex; gap: 4px; border-bottom: 1px solid var(--border, #e3e8ee); margin-bottom: 12px; }
 .calls__view {
   background: none;

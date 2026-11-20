@@ -27,7 +27,7 @@ const statusHtml = (w) => `<span class="wfl__status wfl__status--${esc(w.status)
 
 root.innerHTML = `
   <div class="tpls wfl">
-    <header class="tpls__head"><h1>Automatización</h1></header>
+    <header class="tpls__head"><h1 class="page-title">Automatización</h1></header>
     <nav class="seqs__tabs" role="tablist" aria-label="Secciones">${TABS.map(([k, l]) => `<button class="seqs__tab${state.tab === k ? ' is-active' : ''}" type="button" role="tab" data-tab="${k}" aria-selected="${state.tab === k}">${l}</button>`).join('')}</nav>
     <div id="wf-tab"></div>
   </div>`;

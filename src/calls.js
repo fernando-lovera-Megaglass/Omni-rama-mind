@@ -154,7 +154,7 @@ function render() {
   root.innerHTML = `
     <div class="calls">
       <div class="calls__head">
-        <h1 class="calls__title">Llamadas</h1>
+        <h1 class="page-title">Llamadas</h1>
         <div class="calls__head-actions">
           <button class="btn btn--ghost" type="button" id="calls-export" ${total ? '' : 'disabled'}>Exportar</button>
         </div>

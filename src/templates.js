@@ -41,7 +41,7 @@ function renderPage() {
   page.innerHTML = `
     <div class="tpls">
       <header class="tpls__head">
-        <h1>Plantillas de mensaje <span class="tpls__count" id="tpl-count"></span></h1>
+        <h1 class="page-title page-title--with-count">Plantillas de mensaje <span class="tpls__count" id="tpl-count"></span></h1>
         <div class="tpls__actions">
           <button class="btn btn--secondary" type="button" data-ta="new-folder">Nueva carpeta</button>
           <button class="btn btn--secondary" type="button" data-ta="analyze">Analizar</button>
