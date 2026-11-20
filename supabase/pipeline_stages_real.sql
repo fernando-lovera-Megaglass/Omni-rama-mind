@@ -121,36 +121,36 @@ insert into public.pipeline_stages (pipeline_id, clave, nombre, probabilidad, or
 on conflict (pipeline_id, clave) do update set nombre = excluded.nombre, orden = excluded.orden, descripcion = excluded.descripcion;
 
 -- ===== Tickets guardados con los pipelines / estados de muestra → los reales =====
-update public.tickets set pipeline = 'Cotizaciones Proyectos', status = case status
-    when 'new' then 'sin_contactar'
-    when 'waiting' then 'primer_contacto'
-    when 'progress' then 'asignado_vendedor'
-    when 'closed' then 'cerrado'
-    when 'sin_contactar', 'primer_contacto', 'asignado_vendedor', 'generacion_cotizacion', 'instalacion_saca', 'generacion_negocio', 'cerrado' then status
+update public.tickets set pipeline = 'Cotizaciones Proyectos', status = case
+    when status = 'new' then 'sin_contactar'
+    when status = 'waiting' then 'primer_contacto'
+    when status = 'progress' then 'asignado_vendedor'
+    when status = 'closed' then 'cerrado'
+    when status in ('sin_contactar', 'primer_contacto', 'asignado_vendedor', 'generacion_cotizacion', 'instalacion_saca', 'generacion_negocio', 'cerrado') then status
     else 'sin_contactar' end
   where pipeline = 'Pipeline de soporte';
-update public.tickets set pipeline = 'Cotizaciones SACA', status = case status
-    when 'new' then 'sin_contactar'
-    when 'waiting' then 'asignado_vendedor'
-    when 'progress' then 'generacion_cotizacion'
-    when 'closed' then 'cerrado'
-    when 'sin_contactar', 'asignado_vendedor', 'generacion_cotizacion', 'envio_cotizacion', 'analisis_costos', 'envio_analisis', 'generacion_negocio', 'cerrado' then status
+update public.tickets set pipeline = 'Cotizaciones SACA', status = case
+    when status = 'new' then 'sin_contactar'
+    when status = 'waiting' then 'asignado_vendedor'
+    when status = 'progress' then 'generacion_cotizacion'
+    when status = 'closed' then 'cerrado'
+    when status in ('sin_contactar', 'asignado_vendedor', 'generacion_cotizacion', 'envio_cotizacion', 'analisis_costos', 'envio_analisis', 'generacion_negocio', 'cerrado') then status
     else 'sin_contactar' end
   where pipeline = 'Cotizaciones';
-update public.tickets set pipeline = 'Cotizaciones Acristala', status = case status
-    when 'new' then 'recepcion_informacion'
-    when 'waiting' then 'asignacion_cotizador'
-    when 'progress' then 'generacion_cotizacion'
-    when 'closed' then 'modificacion_cotizacion'
-    when 'recepcion_informacion', 'asignacion_cotizador', 'generacion_cotizacion', 'espera_informacion', 'cotizacion_materiales', 'modificacion_cotizacion', 'analisis_costos', 'envio_cotizacion' then status
+update public.tickets set pipeline = 'Cotizaciones Acristala', status = case
+    when status = 'new' then 'recepcion_informacion'
+    when status = 'waiting' then 'asignacion_cotizador'
+    when status = 'progress' then 'generacion_cotizacion'
+    when status = 'closed' then 'modificacion_cotizacion'
+    when status in ('recepcion_informacion', 'asignacion_cotizador', 'generacion_cotizacion', 'espera_informacion', 'cotizacion_materiales', 'modificacion_cotizacion', 'analisis_costos', 'envio_cotizacion') then status
     else 'recepcion_informacion' end
   where pipeline = 'Garantías';
-update public.tickets set pipeline = 'Cotizaciones Kafer', status = case status
-    when 'new' then 'solicitud_cotizacion'
-    when 'waiting' then 'vendedor_asignado'
-    when 'progress' then 'cotizacion_realizada'
-    when 'closed' then 'cotizacion_enviada'
-    when 'solicitud_cotizacion', 'vendedor_asignado', 'cotizacion_realizada', 'cotizacion_enviada' then status
+update public.tickets set pipeline = 'Cotizaciones Kafer', status = case
+    when status = 'new' then 'solicitud_cotizacion'
+    when status = 'waiting' then 'vendedor_asignado'
+    when status = 'progress' then 'cotizacion_realizada'
+    when status = 'closed' then 'cotizacion_enviada'
+    when status in ('solicitud_cotizacion', 'vendedor_asignado', 'cotizacion_realizada', 'cotizacion_enviada') then status
     else 'solicitud_cotizacion' end
   where pipeline = 'Instalaciones';
 

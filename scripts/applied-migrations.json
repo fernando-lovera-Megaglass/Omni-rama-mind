@@ -136,5 +136,9 @@
   "workflow_runs.sql": {
     "status": "aplicada",
     "at": "2026-11-20T17:45:42.402Z"
+  },
+  "pipeline_stages_real.sql": {
+    "status": "aplicada",
+    "at": "2026-11-20T17:47:19.233Z"
   }
 }
