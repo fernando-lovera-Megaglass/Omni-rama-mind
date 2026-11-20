@@ -1,3 +1,5 @@
+import { taskQueues, loadTaskQueues, saveTaskQueue, deleteTaskQueue } from './task-queues.js';
+import { assignTaskQueue } from './data.js';
 import { boot } from './page.js';
 import { mountList, tag, link, ownerHtml } from './list.js';
 import { toast } from './shell.js';
@@ -8,6 +10,10 @@ boot({ root: '../', active: 'crm', sub: 'Tareas', title: 'Tareas' });
 
 const $ = (id) => document.getElementById(id);
 const pending = (r) => r.status !== 'done';
+let selectedQueue = '';
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+let queuesError = '';
+try { await loadTaskQueues(); } catch (e) { queuesError = 'No se pudieron cargar las colas. Comprueba la migración task_queues y tus permisos.'; }
 let queueable = []; // pending tasks of the current view, in its order: what "Iniciar N tareas" works through
 
 const list = mountList({
@@ -50,11 +56,11 @@ const list = mountList({
     owner: OWNERS.map((o) => [o, o]),
     type: TASK_TYPES.map((t) => [t, t]),
   },
-  readOnly: ['done', 'contact'],
-  previewFields: ['status', 'type', 'due', 'priority', 'contact', 'owner', 'hs_queue_membership_ids', 'created'],
+  readOnly: ['done', 'contact', 'queueId', 'hs_queue_membership_ids'],
+  previewFields: ['status', 'type', 'due', 'priority', 'contact', 'owner', 'queueId', 'created'],
   searchPlaceholder: 'Buscar tarea, contacto...',
   searchKeys: ['name', 'contact', 'owner', 'type'],
-  rows: allTasks,
+  rows: () => allTasks().filter(r => !selectedQueue || (selectedQueue === 'none' ? !r.queueId : r.queueId === selectedQueue)),
   defaultSort: { key: 'due', dir: 1 },
   views: [
     { key: 'all', label: 'Todas las tareas' },
@@ -71,6 +77,7 @@ const list = mountList({
     { key: 'status', label: 'Estado', options: TASK_STATUSES.map(([k, l]) => [k, l]), test: (r, v) => r.status === v },
   ],
   columns: [
+    { key: 'queueId', label: 'Cola', text: r => taskQueues().find(q => q.id === r.queueId)?.name || 'Sin cola', render: r => esc(taskQueues().find(q => q.id === r.queueId)?.name || 'Sin cola') },
     { key: 'done', label: 'Hecha', text: (r) => (r.status === 'done' ? 'Sí' : 'No'), render: (r) => `<input type="checkbox" class="task-done" data-id="${r.id}" ${r.status === 'done' ? 'checked' : ''} aria-label="Marcar como completada" />` },
     { key: 'name', label: 'Título', render: (r) => `<a href="./record/?id=${r.id}" class="${r.status === 'done' ? 'is-done' : ''}">${r.name}</a>` },
     { key: 'contact', label: 'Contacto asociado', render: (r) => (r.contact ? link(`../contacts/record/?id=${r.contactId}`, r.contact) : '<span class="muted">—</span>') },
@@ -109,7 +116,7 @@ const list = mountList({
     if (a === 'start-queue') {
       if (!queueable.length) { toast('No hay tareas pendientes en esta vista'); return; }
       const tab = document.querySelector('.views__tab.is-active');
-      const q = startQueue(queueable.map((r) => r.id), tab ? tab.textContent.trim() : 'Tareas');
+      const q = startQueue(queueable.map((r) => r.id), taskQueues().find(q => q.id === selectedQueue)?.name || (tab ? tab.textContent.trim() : 'Tareas'));
       renderQueueBanner();
       goTo(targetFor(queueTask(q), '../'));
     } else if (a === 'queue-continue') {
@@ -133,8 +140,8 @@ function renderQueueBanner() {
   const t = queueTask(q);
   el.hidden = false;
   el.innerHTML = queueFinished(q)
-    ? `<span class="tq-banner__text"><strong>Cola terminada</strong> · ${queueSummary(q)} (${q.label}).</span><button class="link-btn" type="button" data-action="queue-exit">Cerrar</button>`
-    : `<span class="tq-banner__text"><strong>Cola en curso:</strong> tarea ${queueSummary(q)} (${q.label}). Siguiente: ${t ? `<a href="../tasks/record/?id=${t.id}">${t.name}</a> · <span class="${dueClass(t)}">${dueText(t)}</span>` : '—'}</span>
+    ? `<span class="tq-banner__text"><strong>Cola terminada</strong> · ${queueSummary(q)} (${esc(q.label)}).</span><button class="link-btn" type="button" data-action="queue-exit">Cerrar</button>`
+    : `<span class="tq-banner__text"><strong>Cola en curso:</strong> tarea ${queueSummary(q)} (${esc(q.label)}). Siguiente: ${t ? `<a href="../tasks/record/?id=${t.id}">${t.name}</a> · <span class="${dueClass(t)}">${dueText(t)}</span>` : '—'}</span>
        <button class="btn btn--primary btn--sm" type="button" data-action="queue-continue">Continuar la cola</button>
        <button class="link-btn" type="button" data-action="queue-exit">Salir de la cola</button>`;
 }
@@ -147,3 +154,53 @@ document.getElementById('rows').addEventListener('change', (e) => {
   toast(cb.checked ? 'Tarea completada' : 'Tarea reabierta');
   list.render();
 });
+
+// Queue controls stay outside the generic list so names can change without a reload.
+const controls = document.createElement('section');
+controls.className = 'tq-banner';
+controls.setAttribute('aria-label', 'Colas de tareas');
+$('views-bar').before(controls);
+function renderQueueControls() {
+  controls.innerHTML = queuesError ? `<p role="alert">${esc(queuesError)}</p>` : `
+    <label>Cola <select id="named-queue-filter"><option value="">Todas las colas</option><option value="none">Sin cola</option>${taskQueues().map(q => `<option value="${q.id}" ${selectedQueue === q.id ? 'selected' : ''}>${esc(q.name)}</option>`).join('')}</select></label>
+    <form id="queue-name-form"><label>Nombre <input name="queueName" maxlength="100" required aria-label="Nombre de cola" value="${esc(taskQueues().find(q => q.id === selectedQueue)?.name || '')}"></label>
+    <button class="btn btn--sm" type="submit">Crear cola</button>
+    <button class="btn btn--sm" type="button" id="rename-queue" ${!taskQueues().some(q => q.id === selectedQueue) ? 'disabled' : ''}>Renombrar</button></form>
+    <button class="btn btn--sm" id="delete-named-queue" ${!taskQueues().some(q => q.id === selectedQueue) ? 'disabled' : ''}>Eliminar cola</button>
+    <button class="btn btn--sm" id="assign-named-queue" ${!selectedQueue ? 'disabled' : ''}>${selectedQueue === 'none' ? 'Quitar cola de seleccionadas' : 'Asignar seleccionadas a esta cola'}</button>`;
+  if (selectedQueue === 'none') controls.querySelector('select').value = 'none';
+}
+async function queueAction(action) {
+  controls.querySelectorAll('button').forEach(b => { b.disabled = true; });
+  try { await action(); list.state.selected.clear(); list.state.page = 1; list.render(); }
+  catch (e) { toast(e.message || 'No se pudo guardar la cola'); }
+  finally { renderQueueControls(); }
+}
+controls.addEventListener('change', e => {
+  if (e.target.id !== 'named-queue-filter') return;
+  selectedQueue = e.target.value;
+  // Keep selected tasks so they can be assigned to a newly chosen queue.
+  list.state.page = 1;
+  list.render();
+  renderQueueControls();
+});
+controls.addEventListener('submit', e => {
+  e.preventDefault();
+  const name = controls.querySelector('input').value;
+  queueAction(async () => { await saveTaskQueue(name); toast('Cola creada'); });
+});
+controls.addEventListener('click', e => {
+  const id = e.target.id;
+  if (id === 'rename-queue') {
+    const name = controls.querySelector('input').value;
+    queueAction(async () => { await saveTaskQueue(name, selectedQueue); toast('Cola renombrada'); });
+  } else if (id === 'delete-named-queue') {
+    if (!window.confirm('¿Eliminar esta cola? Sus tareas se conservarán sin cola.')) return;
+    queueAction(async () => { await deleteTaskQueue(selectedQueue); selectedQueue = ''; toast('Cola eliminada'); });
+  } else if (id === 'assign-named-queue') {
+    const ids = [...list.state.selected];
+    if (!ids.length) { toast('Selecciona primero las tareas en la lista'); return; }
+    queueAction(async () => { await assignTaskQueue(ids, selectedQueue === 'none' ? null : selectedQueue); toast('Cola asignada'); });
+  }
+});
+renderQueueControls();

@@ -535,7 +535,7 @@ const CAMEL_TO_DB = {
   companies: { lastActivity: 'last_activity', lastActivityType: 'last_activity_type', parentCompanyId: 'parent_company_id', deletedAt: 'deleted_at' },
   deals: { closeDate: 'close_date', companyId: 'company_id', contactId: 'contact_id', lastActivity: 'last_activity', deletedAt: 'deleted_at' },
   tickets: { contactId: 'contact_id', lastActivity: 'last_activity' },
-  tasks: { contactId: 'contact_id', parentId: 'parent_id', lastActivity: 'last_activity' },
+  tasks: { queueId: 'queue_id', contactId: 'contact_id', parentId: 'parent_id', lastActivity: 'last_activity' },
 };
 const DB_TO_CAMEL = Object.fromEntries(
   Object.entries(CAMEL_TO_DB).map(([t, m]) => [t, Object.fromEntries(Object.entries(m).map(([a, b]) => [b, a]))])
@@ -545,12 +545,12 @@ const TABLE_COLS = {
   companies: ['id', 'name', 'domain', 'phone', 'owner', 'industry', 'city', 'country', 'employees', 'revenue', 'lifecycle', 'created', 'last_activity', 'last_activity_type', 'parent_company_id', 'deleted_at'],
   deals: ['id', 'name', 'amount', 'stage', 'pipeline', 'close_date', 'owner', 'company_id', 'company', 'contact_id', 'created', 'last_activity', 'priority', 'type', 'deleted_at'],
   tickets: ['id', 'name', 'status', 'priority', 'pipeline', 'owner', 'contact_id', 'source', 'created', 'last_activity', 'description'],
-  tasks: ['id', 'parent_id', 'name', 'type', 'status', 'priority', 'owner', 'contact_id', 'contact', 'due', 'created', 'last_activity'],
+  tasks: ['id', 'queue_id', 'parent_id', 'name', 'type', 'status', 'priority', 'owner', 'contact_id', 'contact', 'due', 'created', 'last_activity'],
 };
 // Catalog properties (sample decoration) and real columns never go to `extra`;
 // anything else (associations, custom fields) is stored in the extra jsonb column.
 // Numeric/date columns reject empty strings in Postgres; store null instead.
-const EMPTY_AS_NULL = new Set(['parent_id', 'parent_company_id', 'company_id', 'contact_id', 'employees', 'revenue', 'amount', 'created', 'last_activity', 'close_date', 'due']);
+const EMPTY_AS_NULL = new Set(['queue_id', 'parent_id', 'parent_company_id', 'company_id', 'contact_id', 'employees', 'revenue', 'amount', 'created', 'last_activity', 'close_date', 'due']);
 // Where a record field lives in Supabase: a real column, or inside the `extra` jsonb (the filter panel
 // translates its conditions into the query with this). { column, json } — json true when it is extra->>key.
 export function dbColumnFor(type, key) {
@@ -2103,4 +2103,26 @@ async function initFromSupabase() {
 // here guarantees the records are ready before the UI is painted.
 if (dbLive) {
   await initFromSupabase();
+}
+
+// Queue assignments are confirmed by the database before updating the visible cache.
+export async function assignTaskQueue(ids, queueId) {
+  if (dbLive) {
+    const { data, error } = await supabase.from('tasks').update({ queue_id: queueId }).in('id', ids).select('id');
+    if (error) throw error;
+    const saved = new Set(data.map(r => String(r.id)));
+    for (const r of dbRows.tasks || []) if (saved.has(String(r.id))) r.queueId = queueId;
+    bump();
+    if (saved.size !== ids.length) throw new Error('No se pudieron asignar todas las tareas. Actualiza la lista.');
+  } else {
+    for (const id of ids) setField('tasks', id, 'queueId', queueId);
+  }
+}
+export function clearDeletedTaskQueue(id) {
+  if (dbLive) {
+    for (const r of dbRows.tasks || []) if (r.queueId === id) r.queueId = null;
+    bump();
+  } else {
+    for (const r of cached('tasks')) if (r.queueId === id) setField('tasks', r.id, 'queueId', null);
+  }
 }

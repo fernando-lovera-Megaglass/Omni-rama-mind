@@ -671,7 +671,6 @@ export const PROPERTIES = {
       ['owner', 'Asignada a', 'user', OWNER_OPTS],
       ['due', 'Fecha de vencimiento', 'datetime'],
       ['hs_task_reminders', 'Recordatorio', 'datetime'],
-      ['hs_queue_membership_ids', 'Cola de tareas', 'enum', ['Seguimientos', 'Presupuestos', 'Sin cola']],
       ['hs_task_body', 'Notas', 'text'],
       ['created', 'Fecha de creación', 'datetime'],
       ['hs_lastmodifieddate', 'Fecha de última modificación', 'datetime'],

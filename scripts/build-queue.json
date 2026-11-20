@@ -318,10 +318,12 @@
     },
     {
       "id": "gap-tareas-colas-con-nombre-guardadas",
-      "status": "pending",
+      "status": "done",
       "instruction": "Colas de tareas con nombre reales (hoy «cola» es solo una propiedad de texto).\n\nCambio pedido: tabla task_queues en Supabase; Ajustes o página de Tareas permite crear/renombrar/eliminar colas y asignar tareas a una cola; filtro por cola en la lista; el botón «Iniciar N tareas» trabaja sobre la cola elegida. Prueba smoke: crear cola «Cobranza», asignar 3 tareas, filtrar por ella. No despliegues a producción.",
       "createdAt": "2026-11-19T17:12:33-06:00",
-      "lane": "codex"
+      "lane": "codex",
+      "completedAt": "2026-11-20T12:12:46-0600",
+      "completedBy": "codex"
     },
     {
       "id": "gap-actividades-y-cronolog-a-comentarios-en-actividades",
