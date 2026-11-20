@@ -1601,9 +1601,11 @@ let settingsMap = null; // key → { value, scope } once the table has been read
 let settingsUserId = GLOBAL_USER;
 export const settingsLive = () => settingsMap !== null;
 async function fetchUserSettings(uid) {
-  const { data, error } = await supabase.from('user_settings').select('*').in('user_id', [...new Set([GLOBAL_USER, uid])]).order('updated_at');
+  const { data, error } = await supabase.from('user_settings').select('*').eq('user_id', uid).eq('scope', 'user').order('updated_at');
   if (error) throw error;
-  const map = new Map();
+  const globalResult = await supabase.from('account_settings').select('*');
+  if (globalResult.error) throw globalResult.error;
+  const map = new Map((globalResult.data || []).map((r) => [r.key, { value: r.value, scope: 'global' }]));
   (data || []).forEach((r) => { if (r.user_id === GLOBAL_USER) map.set(r.key, { value: r.value, scope: 'global' }); });
   (data || []).forEach((r) => { if (r.user_id !== GLOBAL_USER) map.set(r.key, { value: r.value, scope: 'user' }); });
   return map;
@@ -1618,9 +1620,9 @@ export function setSetting(key, value, { scope } = {}) {
   if (!settingsMap) return false;
   const useGlobal = scope === 'global' || settingsUserId === GLOBAL_USER;
   settingsMap.set(key, { value, scope: useGlobal ? 'global' : 'user' });
-  const row = { user_id: useGlobal ? GLOBAL_USER : settingsUserId, key, value, updated_at: new Date().toISOString() };
+  const row = { ...(useGlobal ? {} : { user_id: settingsUserId }), scope: useGlobal ? 'account' : 'user', key, value, updated_at: new Date().toISOString() };
   dbWrite(async () => {
-    const { error } = await supabase.from('user_settings').upsert(row, { onConflict: 'user_id,key' });
+    const { error } = await supabase.from(useGlobal ? 'account_settings' : 'user_settings').upsert(row, { onConflict: useGlobal ? 'key' : 'user_id,key' });
     if (error) console.error('[supabase] user_settings upsert', error);
   });
   return true;

@@ -1,3 +1,5 @@
+import { supabase } from './supabaseClient.js';
+import { createSettingsStore, managedSetting } from './settings-store.js';
 import { FORECAST_CATEGORIES, stageForecastCategory } from './data.js';
 import { ACT_ICONS } from './action-icons.js';
 import { integrationsPaneHtml, mountIntegrations } from './settings-integrations.js';
@@ -28,8 +30,23 @@ boot({ root: '../', active: 'none', sub: '', title: 'Configuración' });
 document.body.classList.add('app--settings-page');
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
-const load = (k, fb) => { try { return JSON.parse(localStorage.getItem(k)) ?? fb; } catch { return fb; } };
-const save = (k, v) => localStorage.setItem(k, JSON.stringify(v));
+const settingsStore = createSettingsStore({ client: supabase, storage: localStorage,
+  onError: () => toast('Ajustes sin sincronizar. Revisa tu conexión o permisos.') });
+await settingsStore.ready;
+await settingsStore.flush();
+if (supabase) {
+  const { data } = await supabase.auth.getSession();
+  const settingsUserId = data?.session?.user?.id;
+  supabase.auth.onAuthStateChange((_event, session) => {
+    if (session?.user?.id !== settingsUserId) location.reload();
+  });
+}
+window.addEventListener('online', () => { void settingsStore.flush(); });
+const load = (k, fb) => {
+  if (managedSetting(k)) return settingsStore.load(k, fb);
+  try { return JSON.parse(localStorage.getItem(k)) ?? fb; } catch { return fb; }
+};
+const save = (k, v) => managedSetting(k) ? settingsStore.save(k, v) : localStorage.setItem(k, JSON.stringify(v));
 const root = document.getElementById('settings-root');
 const OBJECTS = [['contacts', 'Contactos'], ['companies', 'Empresas'], ['deals', 'Negocios'], ['tickets', 'Tickets'], ['tasks', 'Tareas']];
 const slug = (s) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
@@ -1313,7 +1330,7 @@ function navItem(it) {
 }
 // The settings menu can be collapsed to a slim rail; the choice is remembered.
 const SNAV_KEY = 'crm:settings:navcollapsed';
-state.navCollapsed = localStorage.getItem(SNAV_KEY) === '1';
+state.navCollapsed = Boolean(load(SNAV_KEY, false));
 let unmountIntegrations;
 function render() {
   unmountIntegrations?.();
@@ -1819,7 +1836,7 @@ root.addEventListener('click', (e) => {
     const inp = root.querySelector(`[data-stage-label="${key}"]`); if (inp) { inp.focus(); inp.select(); }
   }
   else if (a === 'clone-pipeline') openPipelinePanel('clone');
-  else if (a === 'snav-toggle') { state.navCollapsed = !state.navCollapsed; localStorage.setItem(SNAV_KEY, state.navCollapsed ? '1' : '0'); render(); }
+  else if (a === 'snav-toggle') { state.navCollapsed = !state.navCollapsed; save(SNAV_KEY, state.navCollapsed); render(); }
   else if (a === 'ix-columns') openIndexPicker('columns', act.dataset.type);
   else if (a === 'ix-filters') openIndexPicker('filters', act.dataset.type);
   else if (a === 'ix-board') openIndexPicker('board', act.dataset.type);

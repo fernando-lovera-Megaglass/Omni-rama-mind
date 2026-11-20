@@ -470,10 +470,12 @@
     },
     {
       "id": "gap-config-persistencia-real",
-      "status": "pending",
+      "status": "done",
       "lane": "codex",
       "createdAt": "2026-11-19T22:30:41-06:00",
-      "instruction": "La configuración de Omni se guarda en localStorage (crm:settings:*, crm:profile, crm:notif, crm:account, etc. en src/settings.js), así que no sigue al usuario entre dispositivos ni aplica a toda la cuenta como en HubSpot.\n\nPasos:\n1. Crea una migración supabase/user_settings.sql: tabla user_settings (user_id, scope, key, value jsonb, updated_at) con RLS por usuario y una tabla account_settings para ajustes de cuenta (solo admins escriben).\n2. En src/settings.js sustituye load()/save() de localStorage por lectura/escritura a Supabase (con caché en memoria y escritura optimista), manteniendo localStorage solo como respaldo offline.\n3. Aplica a: perfil, notificaciones, valores de cuenta, integraciones activadas, toggles de las secciones.\n4. Prueba smoke: cambiar un toggle, recargar en otra sesión/navegador y ver el mismo valor.\nNo despliegues nada a producción; solo código local."
+      "instruction": "La configuración de Omni se guarda en localStorage (crm:settings:*, crm:profile, crm:notif, crm:account, etc. en src/settings.js), así que no sigue al usuario entre dispositivos ni aplica a toda la cuenta como en HubSpot.\n\nPasos:\n1. Crea una migración supabase/user_settings.sql: tabla user_settings (user_id, scope, key, value jsonb, updated_at) con RLS por usuario y una tabla account_settings para ajustes de cuenta (solo admins escriben).\n2. En src/settings.js sustituye load()/save() de localStorage por lectura/escritura a Supabase (con caché en memoria y escritura optimista), manteniendo localStorage solo como respaldo offline.\n3. Aplica a: perfil, notificaciones, valores de cuenta, integraciones activadas, toggles de las secciones.\n4. Prueba smoke: cambiar un toggle, recargar en otra sesión/navegador y ver el mismo valor.\nNo despliegues nada a producción; solo código local.",
+      "completedAt": "2026-11-20T13:02:33-0600",
+      "completedBy": "codex"
     },
     {
       "id": "gap-config-integraciones-reales",
