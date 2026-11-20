@@ -1544,6 +1544,9 @@ h1 {
 }
 
 /* Shared action glyph size across records, boards, queues and call direction. */
+.seqstep__ico svg,
+.seqed__startico svg,
+.wfe__minirow svg,
 .quick__ico svg,
 .timeline__ico svg,
 .kcard__pill-ico svg,
@@ -17069,6 +17072,89 @@ body.has-slideover {
 .wfe__log {
   font-size: var(--fs-xs);
   white-space: normal;
+}
+
+/* task reminder bubbles (src/task-reminders.js): bottom-right, newest on top, at most three */
+.rbubbles {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 210;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+  width: min(380px, calc(100vw - 32px));
+}
+
+.rbub {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-10);
+  padding: 12px 14px;
+  background: var(--c-white);
+  color: var(--c-text);
+  border: 1px solid var(--c-border);
+  border-left: 4px solid #ff7a59;
+  border-radius: var(--r-md);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+  animation: rbub-in 0.25s ease;
+}
+
+@keyframes rbub-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: none; }
+}
+
+.rbub__ico {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.rbub__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.rbub__title {
+  font-size: var(--fs-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--c-muted);
+}
+
+.rbub__link {
+  font-weight: 600;
+  color: #0091ae;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.rbub__link:hover {
+  text-decoration: underline;
+}
+
+.rbub__meta {
+  font-size: var(--fs-sm);
+  color: var(--c-muted);
+}
+
+.rbub__perm {
+  align-self: flex-start;
+  margin-top: 2px;
+  font-size: var(--fs-xs);
+}
+
+.rbub__close {
+  padding: 0 2px;
+  border: 0;
+  background: transparent;
+  font-size: 18px;
+  line-height: 1;
+  color: var(--c-muted);
+  cursor: pointer;
 }
 
 /* workflow runs: inscritos activos + historial de acciones (editor modal) */

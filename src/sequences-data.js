@@ -1,3 +1,4 @@
+import { ACT_ICONS } from './action-icons.js';
 // Secuencias: the sequences / sequence_steps / sequence_enrollments / sequence_folders tables with Supabase
 // (localStorage otherwise), the six pre-built sequences, the step types, the business-day maths, the
 // enrolment of a contact (first step scheduled, task created, timeline entry) and the analytics computed
@@ -15,12 +16,12 @@ const clone = (x) => JSON.parse(JSON.stringify(x));
 
 // ---------- catalogue ----------
 export const STEP_TYPES = {
-  auto_email: { label: 'Correo automatizado', hint: 'Enviar automáticamente un correo por mí', icon: '✉', auto: true, email: true },
-  manual_email: { label: 'Tarea de correo manual', hint: 'Crear una tarea para enviar un correo yo mismo', icon: '✉', auto: false, email: true },
-  call: { label: 'Tarea de llamada', hint: 'Crear una tarea para llamar al contacto', icon: '☏', auto: false, email: false },
-  task: { label: 'Tarea general', hint: 'Crear una tarea de seguimiento', icon: '☑', auto: false, email: false },
-  inmail: { label: 'Tarea de InMail', hint: 'Crear una tarea para enviar un InMail de LinkedIn', icon: 'in', auto: false, email: false },
-  connection: { label: 'Tarea de solicitud de conexión', hint: 'Crear una tarea para enviar una solicitud de conexión en LinkedIn', icon: '⤳', auto: false, email: false },
+  auto_email: { label: 'Correo automatizado', hint: 'Enviar automáticamente un correo por mí', icon: ACT_ICONS.email, auto: true, email: true },
+  manual_email: { label: 'Tarea de correo manual', hint: 'Crear una tarea para enviar un correo yo mismo', icon: ACT_ICONS.email, auto: false, email: true },
+  call: { label: 'Tarea de llamada', hint: 'Crear una tarea para llamar al contacto', icon: ACT_ICONS.call, auto: false, email: false },
+  task: { label: 'Tarea general', hint: 'Crear una tarea de seguimiento', icon: ACT_ICONS.task, auto: false, email: false },
+  inmail: { label: 'Tarea de InMail', hint: 'Crear una tarea para enviar un InMail de LinkedIn', icon: ACT_ICONS.linkedin, auto: false, email: false },
+  connection: { label: 'Tarea de solicitud de conexión', hint: 'Crear una tarea para enviar una solicitud de conexión en LinkedIn', icon: ACT_ICONS.linkedin, auto: false, email: false },
 };
 export const EXCLUSION_CRITERIA = [
   ['replied', 'Cancelar la inscripción cuando el contacto responde'],

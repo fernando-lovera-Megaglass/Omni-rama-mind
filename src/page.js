@@ -9,8 +9,11 @@ export function boot({ root, active, sub, title }) {
   mountShell({ root, active, sub });
   // Unread conversations on the side navigation (the inbox page refreshes it after every change).
   inboxReady.then(() => setNavBadge('inbox', unreadCount())).catch(() => {});
-  // The workflow checker (src/workflow-engine.js): once the page is up, processes the due runs (delays that
-  // ended) and keeps doing it every minute while Omni stays open. Loaded after the page so it never delays it.
-  const t = setTimeout(() => { import('./workflow-engine.js').then((m) => m.startWorkflowChecker()).catch((e) => console.error('[workflows] verificador', e)); }, 1500);
+  // The checkers, loaded after the page so they never delay it: the workflow engine (src/workflow-engine.js)
+  // processes the due runs every minute; the task reminders (src/task-reminders.js) fire every 30 s.
+  const t = setTimeout(() => {
+    import('./workflow-engine.js').then((m) => m.startWorkflowChecker()).catch((e) => console.error('[workflows] verificador', e));
+    import('./task-reminders.js').then((m) => m.startReminderChecker()).catch((e) => console.error('[recordatorios] verificador', e));
+  }, 1500);
   if (t && typeof t.unref === 'function') t.unref();
 }

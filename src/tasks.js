@@ -6,6 +6,9 @@ import { mountList, tag, link, ownerHtml } from './list.js';
 import { toast } from './shell.js';
 import { allTasks, allContacts, TASK_STATUSES, TASK_TYPES, PRIORITIES, OWNERS, formatDate, labelOf, classOf, TODAY } from './data.js';
 import { startQueue, activeQueue, endQueue, queueTask, queueFinished, queueSummary, targetFor, goTo, dueMatches, dueText, dueClass, DUE_OPTIONS, dayDiff, completeTask } from './task-queue.js';
+import { REMINDER_OPTIONS, defaultReminderOption, reminderFromDue, reminderText } from './task-reminders.js';
+// «Recordatorio» of the create drawer: the default from Ajustes first, the other presets, or a custom date-time.
+const reminderChoices = () => { const def = defaultReminderOption(); return [[def, `${def} (predeterminado)`], ...REMINDER_OPTIONS.filter((o) => o !== def).map((o) => [o, o]), ['custom', 'Fecha y hora personalizadas']]; };
 
 boot({ root: '../', active: 'crm', sub: 'Tareas', title: 'Tareas' });
 
@@ -57,7 +60,7 @@ const list = mountList({
     owner: OWNERS.map((o) => [o, o]),
     type: TASK_TYPES.map((t) => [t, t]),
   },
-  readOnly: ['done', 'contact', 'queueId', 'hs_queue_membership_ids'],
+  readOnly: ['done', 'contact', 'queueId', 'hs_queue_membership_ids', 'reminderAt'],
   previewFields: ['status', 'type', 'due', 'priority', 'contact', 'owner', 'queueId', 'created'],
   searchPlaceholder: 'Buscar tarea, contacto...',
   searchKeys: ['name', 'contact', 'owner', 'type'],
@@ -87,23 +90,31 @@ const list = mountList({
     { key: 'status', label: 'Estado', text: (r) => labelOf(TASK_STATUSES, r.status), render: (r) => tag(labelOf(TASK_STATUSES, r.status), classOf(TASK_STATUSES, r.status)) },
     { key: 'owner', label: 'Asignada a', render: (r) => ownerHtml(r.owner) },
     { key: 'queueId', label: 'Cola', text: r => taskQueues().find(q => q.id === r.queueId)?.name || 'Sin cola', render: r => esc(taskQueues().find(q => q.id === r.queueId)?.name || 'Sin cola') },
+    { key: 'reminderAt', label: 'Recordatorio', default: false, text: (r) => (r.reminderAt ? `${reminderText(r.reminderAt)}${r.reminderFiredAt ? ' · avisado' : ''}` : '—'), sortValue: (r) => (r.reminderAt ? new Date(r.reminderAt).getTime() : 0) },
     { key: 'created', label: 'Fecha de creación', default: false, text: (r) => formatDate(r.created), sortValue: (r) => new Date(r.created).getTime() },
   ],
   createFields: [
     { name: 'name', label: 'Título', required: true },
     { name: 'type', label: 'Tipo de tarea', type: 'select', options: TASK_TYPES.map((t) => [t, t]) },
     { name: 'due', label: 'Fecha de vencimiento', type: 'date' },
+    { name: 'reminder', label: 'Recordatorio', type: 'select', options: reminderChoices() },
+    { name: 'reminderAt', label: 'Recordatorio personalizado (fecha y hora)', type: 'datetime-local' },
     { name: 'priority', label: 'Prioridad', type: 'select', options: PRIORITIES.map(([k, l]) => [k, l]) },
     { name: 'contactId', label: 'Contacto asociado', type: 'select', options: [['', 'Ninguno'], ...allContacts().slice(0, 30).map((c) => [c.id, c.name])] },
     { name: 'owner', label: 'Asignada a', type: 'select', options: OWNERS.map((o) => [o, o]) },
   ],
-  normalize: (d) => ({
-    ...d,
-    status: 'todo',
-    contact: (allContacts().find((c) => String(c.id) === String(d.contactId)) || {}).name || '',
-    due: d.due ? new Date(d.due).toISOString() : TODAY.toISOString(),
-    lastActivity: TODAY.toISOString(),
-  }),
+  normalize: ({ reminder, reminderAt, ...d }) => {
+    const due = d.due ? new Date(d.due).toISOString() : TODAY.toISOString();
+    return {
+      ...d,
+      status: 'todo',
+      contact: (allContacts().find((c) => String(c.id) === String(d.contactId)) || {}).name || '',
+      due,
+      // The reminder's date-time is stored on the task: a preset relative to the due date, or the custom pick.
+      reminderAt: reminder === 'custom' ? (reminderAt ? new Date(reminderAt).toISOString() : '') : reminderFromDue(due, reminder || defaultReminderOption()),
+      lastActivity: TODAY.toISOString(),
+    };
+  },
   onRender: (rows) => {
     queueable = rows.filter(pending);
     const b = $('start-queue');

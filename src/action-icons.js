@@ -12,6 +12,7 @@ export const ACT_ICONS = {
   chat: ico('<path d="M20 15a2 2 0 0 1-2 2H9l-5 4V5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2zM8 8h8M8 12h5"/>'),
   form: ico('<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h8M8 11h8M8 15h3M8 18h5"/>'),
   swap: ico('<path d="M4 7h16l-4-4M20 17H4l4 4M20 7l-4 4M4 17l4-4"/>'),
+  lightning: ico('<path d="M13 3L4 14h7l-1 7 10-12h-8l1-6z"/>'),
   delay: ico('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'),
   goto: ico('<path d="M4 18v-6a5 5 0 0 1 5-5h11M15 2l5 5-5 5"/>'),
 

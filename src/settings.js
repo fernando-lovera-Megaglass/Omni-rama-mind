@@ -25,6 +25,7 @@ import { tagsForPipeline, ready as dealTagsReady } from './deal-tags.js';
 import { twilioPaneHtml, mountTwilioPane, twilioReady } from './twilio-ui.js';
 import { getTheme, setTheme } from './theme.js';
 import { ready as emailsReady } from './connected-emails.js';
+import { notificationPermission, requestNotificationPermission } from './task-reminders.js';
 
 boot({ root: '../', active: 'none', sub: '', title: 'Configuración' });
 document.body.classList.add('app--settings-page');
@@ -217,6 +218,8 @@ function tabTareas() {
       <div class="gfield"><label>Vista predeterminada de tareas</label><select class="ginput" name="view">${['Todas las tareas', 'Para hoy', 'Atrasadas', 'Próximas'].map((o) => `<option ${s.view === o ? 'selected' : ''}>${o}</option>`).join('')}</select></div>
       <div class="sform__btns"><button class="btn btn--primary" type="submit">Guardar</button></div>
     </form>
+    <h3 class="gh">Avisos de recordatorio</h3><p class="muted">El recordatorio se guarda en cada tarea nueva (fecha y hora, según este valor o el que elijas al crearla). Con Omni abierta, un verificador los revisa cada 30 segundos y, al vencer, muestra una burbuja con sonido y enlace a la tarea, un aviso en la campana y una notificación del navegador.</p>
+    ${(() => { const p = notificationPermission(); const label = { granted: 'Permitidas por el navegador', denied: 'Bloqueadas en el navegador (cámbialo en los permisos del sitio)', default: 'Todavía no has dado permiso', unsupported: 'Este navegador no las admite' }[p] || p; return `<div class="srow" id="notif-perm-row"><span><strong>Notificaciones del navegador</strong><small id="notif-perm-state">${label}</small></span><button class="btn btn--secondary btn--sm" type="button" data-action="notif-permission" ${p === 'default' ? '' : 'disabled'}>${p === 'granted' ? 'Permitidas' : p === 'denied' ? 'Bloqueadas' : 'Permitir'}</button></div>`; })()}
     ${switchRow('general-tareas', 'followup', 'Proponer tarea de seguimiento al enviar correos', 'Marca la casilla de seguimiento por defecto en el redactor de correo.', s.followup)}
     ${switchRow('general-tareas', 'digest', 'Resumen diario de tareas', 'Un correo cada mañana con las tareas del día.', s.digest)}`;
 }
@@ -1569,6 +1572,8 @@ root.addEventListener('input', (e) => {
 });
 root.addEventListener('click', (e) => {
   if (e.target.closest('[data-close]') || e.target === document.getElementById('s-modal')) { closeModal(); return; }
+  const np = e.target.closest('[data-action="notif-permission"]');
+  if (np) { np.disabled = true; requestNotificationPermission().then((p) => { toast(p === 'granted' ? 'Notificaciones del navegador permitidas' : p === 'denied' ? 'El navegador bloqueó las notificaciones' : 'Permiso pendiente'); render(); }); return; }
   const tp = e.target.closest('[data-toggle-parent]');
   if (tp) { const id = tp.dataset.toggleParent; if (state.open.has(id)) state.open.delete(id); else state.open.add(id); render(); return; }
   const gt = e.target.closest('[data-general-tab]');

@@ -35,6 +35,7 @@ import { sendSms, hasTwilio } from './twilio.js';
 import { openCallMenu, playRecording, openCallReview, attachInlinePlayer } from './call.js';
 import { loadLayout, saveLayout, cardCatalog } from './layout-defaults.js';
 import { mountQueueBar, dueText, dueClass, completeTask } from './task-queue.js';
+import { datetimeInput, reminderText } from './task-reminders.js';
 
 const type = document.body.dataset.type;
 const root = '../../';
@@ -123,10 +124,10 @@ const CONFIG = {
     label: 'Tareas', singular: 'tarea', sub: 'Tareas', listHref: `${root}tasks/`,
     title: (r) => r.name, subtitle: (r) => `${r.type} · vence ${formatDate(r.due)}`, mail: () => '',
     fields: [
-      ['status', 'Estado', 'select', opt(TASK_STATUSES.map(([k, l]) => [k, l]))], ['type', 'Tipo de tarea', 'select', opt(TASK_TYPES)], ['due', 'Fecha de vencimiento', 'date'],
+      ['status', 'Estado', 'select', opt(TASK_STATUSES.map(([k, l]) => [k, l]))], ['type', 'Tipo de tarea', 'select', opt(TASK_TYPES)], ['due', 'Fecha de vencimiento', 'date'], ['reminderAt', 'Recordatorio', 'datetime'],
       ['priority', 'Prioridad', 'select', opt(PRIORITIES.map(([k, l]) => [k, l]))], ['owner', 'Asignada a', 'select', ownerOpts], ['created', 'Fecha de creación', 'date-ro'],
     ],
-    highlights: (r) => [['Vence', formatDate(r.due)], ['Estado', labelOf(TASK_STATUSES, r.status)], ['Prioridad', labelOf(PRIORITIES, r.priority)], ['Tipo', r.type]],
+    highlights: (r) => [['Vence', formatDate(r.due)], ['Estado', labelOf(TASK_STATUSES, r.status)], ['Prioridad', labelOf(PRIORITIES, r.priority)], ['Recordatorio', r.reminderAt ? `${reminderText(r.reminderAt)}${r.reminderFiredAt ? ' · avisado' : ''}` : '--']],
     assoc: (r) => [['Contactos', r.contactId ? [byId(allContacts(), r.contactId)].filter(Boolean) : [], 'contacts']],
   },
 };
@@ -465,6 +466,7 @@ function displayValue(f, r) {
   if (props[key]?.hubspot?.options.length) return propValue(props[key], v);
   if (kind === 'select') return esc((options.find((o) => String(o[0]) === String(v)) || [v, v])[1]);
   if (kind === 'date' || kind === 'date-ro') return formatDate(v);
+  if (kind === 'datetime') return esc(reminderText(v) || formatDate(v));
   if (key === 'amount' || key === 'revenue') return formatMoney(v, key === 'amount' ? r.deal_currency_code : undefined);
   if (kind === 'email' || key === 'email' || key === 'alt_email' || (props[key] && props[key].kind === 'email')) return linkHtml('email', v);
   if (kind === 'url' || key === 'domain' || key === 'website' || (props[key] && props[key].kind === 'url')) return linkHtml('url', v);
@@ -478,6 +480,7 @@ function editor(f, r) {
   if (kind === 'select') return `<select data-edit="${key}"${key === 'owner' || (props[key] && props[key].kind === 'user') ? ' data-owner-select' : ''}>${options.map((o) => `<option value="${esc(o[0])}" ${String(o[0]) === String(v) ? 'selected' : ''}>${esc(o[1])}</option>`).join('')}</select>`;
   if (kind === 'textarea') return `<textarea data-edit="${key}" rows="3">${esc(v)}</textarea>`;
   if (kind === 'date') return `<input data-edit="${key}" type="date" value="${dateInput(v)}" />`;
+  if (kind === 'datetime') return `<input data-edit="${key}" type="datetime-local" value="${datetimeInput(v)}" />`;
   return `<input data-edit="${key}" type="${kind || 'text'}" value="${esc(v)}" />`;
 }
 function propValue(p, v) {
@@ -513,7 +516,7 @@ function fieldFor(key) {
     ? [key, p.label, 'select', [['', '--'], ...p.hubspot.options.filter(o => !o.hidden || o.value === String(rec[key])).map(o => [o.value, o.label])]]
     : [key, p.label, 'text'];
   if (['enum', 'user', 'bool'].includes(p.kind)) return [key, p.label, 'select', (p.options || []).map((o) => [o, o])];
-  if (p.kind === 'date' || p.kind === 'datetime') return [key, p.label, key === 'created' ? 'date-ro' : 'date'];
+  if (p.kind === 'date' || p.kind === 'datetime') return [key, p.label, key === 'created' ? 'date-ro' : p.kind === 'datetime' ? 'datetime' : 'date'];
   if (['number', 'currency', 'percent'].includes(p.kind)) return [key, p.label, 'number'];
   if (p.kind === 'phone') return [key, p.label, 'tel'];
   if (p.kind === 'email') return [key, p.label, 'email'];
@@ -1669,8 +1672,9 @@ function commitEdit(form) {
   let value = el.value;
   if (el.type === 'number') value = value === '' ? '' : Number(value) || 0;
   if (el.type === 'date') value = value ? new Date(`${value}T12:00:00`).toISOString() : '';
+  if (el.type === 'datetime-local') value = value ? new Date(value).toISOString() : '';
   const before = rec[key] ?? '';
-  const same = el.type === 'date' ? dateInput(before) === dateInput(value) : String(before) === String(value);
+  const same = el.type === 'date' ? dateInput(before) === dateInput(value) : el.type === 'datetime-local' ? datetimeInput(before) === datetimeInput(value) : String(before) === String(value);
   if (same) { cancelEdit(form); return; }
   save(key, value);
 }
@@ -1683,6 +1687,8 @@ async function save(key, value, label) {
   try { await validatePropertyValues(type, { [key]: value }, { id: rec.id }); } catch (e) { toast(e.message); return; }
   const from = rec[key];
   setField(type, rec.id, key, value);
+  // A reminder set again (after it was shown) must fire again: the checker in src/task-reminders.js watches it.
+  if (type === 'tasks' && key === 'reminderAt' && rec.reminderFiredAt) setField(type, rec.id, 'reminderFiredAt', '');
   // A ticket moved to another pipeline takes that pipeline's statuses (first open one if its status is not there).
   if (type === 'tickets' && key === 'pipeline') {
     const statuses = ticketStatusesFor(value);

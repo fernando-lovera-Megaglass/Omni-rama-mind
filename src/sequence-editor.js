@@ -1,3 +1,4 @@
+import { ACT_ICONS } from './action-icons.js';
 // Crear / editar secuencia (sequences/create/): the dark top bar, the left panel (start from scratch, dynamic
 // sequence, the six pre-built sequences — or the settings when editing) and the "Vista previa" with its live
 // metrics and the vertical flow of expandable step cards, connectors with "+" and editable delays, and the
@@ -65,7 +66,7 @@ function render() {
 function startHtml() {
   return `
     <button class="seqed__start${state.templateKey === '' && state.steps.length === 0 ? ' is-active' : ''}" type="button" data-se="blank"><span class="seqed__startico" aria-hidden="true">＋</span><div><strong>Empezar de cero</strong><p class="muted">Crea una secuencia en blanco y añade los pasos uno a uno.</p></div></button>
-    <button class="seqed__start${state.templateKey === 'dynamic' ? ' is-active' : ''}" type="button" data-se="dynamic"><span class="seqed__startico" aria-hidden="true">⚡</span><div><strong>Crear una secuencia dinámica</strong><p class="muted">Correos automatizados al principio y, cuando los contactos interactúan, tareas manuales para que tomes el relevo.</p></div></button>
+    <button class="seqed__start${state.templateKey === 'dynamic' ? ' is-active' : ''}" type="button" data-se="dynamic"><span class="seqed__startico" aria-hidden="true">${ACT_ICONS.lightning}</span><div><strong>Crear una secuencia dinámica</strong><p class="muted">Correos automatizados al principio y, cuando los contactos interactúan, tareas manuales para que tomes el relevo.</p></div></button>
     <h3 class="seqed__listh">Comienza con una secuencia preelaborada</h3>
     <div class="seqed__prebuilt">${PREBUILT.map((p) => `<button class="seqed__tpl${state.templateKey === p.key ? ' is-active' : ''}" type="button" data-prebuilt="${p.key}"><strong>${esc(p.name)}</strong><p class="muted">${esc(p.description)}</p><span class="seqed__tplmeta muted">${p.steps().length} pasos · ${stats(p.steps(), p.exclusion).days} días</span></button>`).join('')}</div>`;
 }

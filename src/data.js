@@ -843,8 +843,37 @@ export function restoreAll(type) {
   write(K(type, 'deleted'), []);
 }
 
+// ---------- task reminders (Ajustes › General › Tareas › «Recordatorio predeterminado») ----------
+// A task carries reminderAt (ISO date-time, '' = none) and reminderFiredAt once the checker in
+// src/task-reminders.js has shown it. New tasks without an explicit reminder get the default one.
+export const REMINDER_OPTIONS = ['Sin recordatorio', 'El día de vencimiento a las 9:00', '1 hora antes', '1 día antes'];
+export const DEFAULT_REMINDER = 'El día de vencimiento a las 9:00';
+export function defaultReminderOption() {
+  try { const s = JSON.parse(localStorage.getItem('crm:settings:general-tareas')) || {}; return REMINDER_OPTIONS.includes(s.reminder) ? s.reminder : DEFAULT_REMINDER; } catch { return DEFAULT_REMINDER; }
+}
+// The moment a task is due: its own time, or 9:00 of its day when the due date carries no time (a date-only
+// pick is stored as midnight, UTC from the date inputs or local from the seeds).
+export function dueMoment(due) {
+  if (!due) return null;
+  const d = new Date(due);
+  if (Number.isNaN(d.getTime())) return null;
+  if (d.getUTCHours() === 0 && d.getUTCMinutes() === 0 && d.getUTCSeconds() === 0) return new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 9, 0, 0, 0);
+  if (d.getHours() === 0 && d.getMinutes() === 0 && d.getSeconds() === 0) return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 9, 0, 0, 0);
+  return d;
+}
+export function reminderFromDue(due, option = defaultReminderOption()) {
+  const d = dueMoment(due);
+  if (!d || !option || option === 'Sin recordatorio') return '';
+  if (option === 'El día de vencimiento a las 9:00') return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 9, 0, 0, 0).toISOString();
+  if (option === '1 hora antes') return new Date(d.getTime() - 3600000).toISOString();
+  if (option === '1 día antes') return new Date(d.getTime() - DAY).toISOString();
+  return '';
+}
+
 // opts.origin: where the record comes from ("Creación manual", "Importación"…), for the timeline entry.
 export function addRecord(type, fields, opts = {}) {
+  // A new task without an explicit reminder gets the default one from Ajustes (none for completed ones).
+  if (type === 'tasks' && fields && fields.reminderAt === undefined && fields.status !== 'done') fields = { ...fields, reminderAt: reminderFromDue(fields.due) };
   validatePropertyValuesLocal(type, fields);
   if (dbLive) {
     const id = nextId[type];
@@ -1106,11 +1135,13 @@ const PROP_CACHE = {};
 function augment(type, r) {
   const props = PROP_CACHE[type] || (PROP_CACHE[type] = propertyList(type));
   for (const p of props) {
-    if (p.custom) continue; // custom properties (the account's own) only ever show real values
+    if (p.custom || REAL_ONLY.has(p.key)) continue; // custom properties and the real-only ones never get sample values
     if (r[p.key] === undefined || r[p.key] === null) r[p.key] = sampleValue(p, r, type);
   }
   return r;
 }
+// Properties the app really drives: a sample value would be acted upon (a fake reminder would fire).
+const REAL_ONLY = new Set(['reminderAt', 'reminderFiredAt']);
 
 // ---------- generators ----------
 function daysAgo(n) {

@@ -1,3 +1,4 @@
+import { ACT_ICONS } from './action-icons.js';
 // Workflow editor (automation/editor/?id=): dark top bar (name, ACTIVADA/BORRADOR badge, Comenzar/Guardar,
 // Publicar/Desactivar switch), the Archivo/Editar/Configuración/Visualización/Ayuda menus, Prueba and
 // Historial del rendimiento, the canvas controls (undo/redo, zoom, minimap), the trigger card with its OR
@@ -70,7 +71,7 @@ function triggerHtml() {
   const selected = state.selected && state.selected.kind === 'trigger';
   return `
     <article class="wfn wfn--trigger${selected ? ' is-selected' : ''}" data-node="trigger">
-      <div class="wfn__head"><span class="wfn__ico" aria-hidden="true">⚡</span><div class="wfn__text"><strong>Activar la inscripción para ${esc(OBJECT_PLURAL[w.objectType])}</strong><small class="muted">Solo inscribir ${esc(OBJECT_PLURAL[w.objectType])} que cumplan estas condiciones</small></div></div>
+      <div class="wfn__head"><span class="wfn__ico" aria-hidden="true">${ACT_ICONS.lightning}</span><div class="wfn__text"><strong>Activar la inscripción para ${esc(OBJECT_PLURAL[w.objectType])}</strong><small class="muted">Solo inscribir ${esc(OBJECT_PLURAL[w.objectType])} que cumplan estas condiciones</small></div></div>
       <div class="wfn__body">${groups.length ? groups.map((g, i) => `${i ? '<div class="wfn__or">o</div>' : ''}<div class="wfn__group"><div class="wfn__grouph">Grupo ${i + 1}</div>${(g.conditions || []).length ? (g.conditions || []).map((c, j) => `${j ? '<div class="wfn__and">y</div>' : ''}<div class="wfn__cond">${esc(conditionText(w.objectType, c))}</div>`).join('') : '<div class="muted">Sin condiciones</div>'}</div>`).join('') : '<div class="muted">Añade condiciones para decidir qué registros se inscriben.</div>'}</div>
       <div class="wfn__foot"><button type="button" data-we="trigger-clear" title="Vaciar condiciones" aria-label="Vaciar condiciones">🗑</button><button class="wfn__reenroll" type="button" data-we="reenroll" title="Reinscribir cuando vuelva a cumplir las condiciones">${w.trigger && w.trigger.reenroll ? 'Reinscripción activada' : 'Reinscripción desactivada'}</button><button class="link-btn wfn__details" type="button" data-we="select-trigger">Detalles</button></div>
     </article>`;
@@ -101,14 +102,18 @@ function render() {
       </nav>
       <div class="wfe__work">
         <div class="wfe__controls"><button type="button" data-we="undo" ${state.undo.length ? '' : 'disabled'} aria-label="Deshacer" title="Deshacer">↶</button><button type="button" data-we="redo" ${state.redo.length ? '' : 'disabled'} aria-label="Rehacer" title="Rehacer">↷</button><span class="wfe__sep"></span><button type="button" data-we="zoom-out" aria-label="Alejar">−</button><span class="wfe__zoom" id="wfe-zoom">${state.zoom} %</span><button type="button" data-we="zoom-in" aria-label="Acercar">+</button><span class="wfe__sep"></span><button type="button" data-we="minimap" aria-pressed="${state.minimap}">Mostrar panel de minimapa</button></div>
-        <div class="wfe__canvaswrap"><div class="wfe__canvas" id="wfe-canvas" style="transform: scale(${state.zoom / 100})">${triggerHtml()}${flowHtml(null, '', numbers)}<div class="wfn wfn--end" id="wfe-end">${numbers.total + 1}. Fin</div></div>${state.minimap ? `<div class="wfe__minimap" id="wfe-minimap"><strong>Minimapa</strong>${['⚡ Desencadenante', ...state.wf.actions.map((a) => `${numbers.map[a.id]}. ${ACTION_DEFS[a.type] ? ACTION_DEFS[a.type].label : a.type}`), `${numbers.total + 1}. Fin`].map((t) => `<div class="wfe__minirow">${esc(t)}</div>`).join('')}</div>` : ''}</div>
+        <div class="wfe__canvaswrap"><div class="wfe__canvas" id="wfe-canvas" style="transform: scale(${state.zoom / 100})">${triggerHtml()}${flowHtml(null, '', numbers)}<div class="wfn wfn--end" id="wfe-end">${numbers.total + 1}. Fin</div></div>${state.minimap ? `<div class="wfe__minimap" id="wfe-minimap"><strong>Minimapa</strong>${minimapRows(numbers)}</div>` : ''}</div>
         <aside class="wfe__panel" id="wfe-panel" ${state.panel ? '' : 'hidden'}>${panelHtml()}</aside>
       </div>
     </div>`;
   wireMenus(root);
   if (state.editingName) { const i = $('wfe-name'); if (i) { i.focus(); i.select(); } }
 }
-function renderCanvas() { const numbers = numbering(); $('wfe-canvas').innerHTML = `${triggerHtml()}${flowHtml(null, '', numbers)}<div class="wfn wfn--end" id="wfe-end">${numbers.total + 1}. Fin</div>`; const mm = $('wfe-minimap'); if (mm) mm.outerHTML = `<div class="wfe__minimap" id="wfe-minimap"><strong>Minimapa</strong>${['⚡ Desencadenante', ...state.wf.actions.map((a) => `${numbers.map[a.id]}. ${ACTION_DEFS[a.type] ? ACTION_DEFS[a.type].label : a.type}`), `${numbers.total + 1}. Fin`].map((t) => `<div class="wfe__minirow">${esc(t)}</div>`).join('')}</div>`; }
+function minimapRows(numbers) {
+  const labels = [...state.wf.actions.map((a) => `${numbers.map[a.id]}. ${ACTION_DEFS[a.type] ? ACTION_DEFS[a.type].label : a.type}`), `${numbers.total + 1}. Fin`];
+  return `<div class="wfe__minirow">${ACT_ICONS.lightning} Desencadenante</div>${labels.map((label) => `<div class="wfe__minirow">${esc(label)}</div>`).join('')}`;
+}
+function renderCanvas() { const numbers = numbering(); $('wfe-canvas').innerHTML = `${triggerHtml()}${flowHtml(null, '', numbers)}<div class="wfn wfn--end" id="wfe-end">${numbers.total + 1}. Fin</div>`; const mm = $('wfe-minimap'); if (mm) mm.outerHTML = `<div class="wfe__minimap" id="wfe-minimap"><strong>Minimapa</strong>${minimapRows(numbers)}</div>`; }
 function renderPanel() { const p = $('wfe-panel'); p.hidden = !state.panel; p.innerHTML = panelHtml(); wireMenus(p); enhanceOwnerSelects(p); }
 
 // ---------- panel ----------
