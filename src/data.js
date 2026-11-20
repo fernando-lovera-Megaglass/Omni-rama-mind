@@ -550,7 +550,7 @@ const TABLE_COLS = {
 // Catalog properties (sample decoration) and real columns never go to `extra`;
 // anything else (associations, custom fields) is stored in the extra jsonb column.
 // Numeric/date columns reject empty strings in Postgres; store null instead.
-const EMPTY_AS_NULL = new Set(['parent_id', 'company_id', 'contact_id', 'employees', 'revenue', 'amount', 'created', 'last_activity', 'close_date', 'due']);
+const EMPTY_AS_NULL = new Set(['parent_id', 'parent_company_id', 'company_id', 'contact_id', 'employees', 'revenue', 'amount', 'created', 'last_activity', 'close_date', 'due']);
 // Where a record field lives in Supabase: a real column, or inside the `extra` jsonb (the filter panel
 // translates its conditions into the query with this). { column, json } — json true when it is extra->>key.
 export function dbColumnFor(type, key) {
@@ -1126,18 +1126,34 @@ const STATES_BY_COUNTRY = {
   Colombia: ['Cundinamarca', 'Antioquia', 'Valle del Cauca', 'Atlántico'],
   Portugal: ['Lisboa', 'Oporto', 'Algarve', 'Braga'],
 };
+// Preserve the first occurrence of each demo email; later formula cycles get a stable suffix.
+const CONTACT_EMAILS = (() => {
+  const seen = new Set();
+  return Array.from({ length: COUNTS.contacts }, (_, i) => {
+    const first = FIRST[(i * 7) % FIRST.length];
+    const last = LAST[(i * 11 + 3) % LAST.length];
+    const noCompany = i % 9 === 8;
+    const companyIdx = (i * 3) % COMPANY_NAMES.length;
+    const domain = noCompany ? ['gmail.com', 'hotmail.com', 'outlook.es', 'yahoo.com'][i % 4] : `${strip(COMPANY_NAMES[companyIdx]).replace(/[^a-z0-9]/g, '')}.com`;
+    const email = i % 11 === 10 ? '' : `${strip(first).replace(/\s+/g, '.')}.${strip(last).split(' ')[0]}@${domain}`;
+    if (!email) return '';
+    const unique = seen.has(email) ? email.replace('@', `+seed${i + 1}@`) : email;
+    seen.add(email);
+    return unique;
+  });
+})();
+
 function buildContact(i) {
   const first = FIRST[(i * 7) % FIRST.length];
   const last = LAST[(i * 11 + 3) % LAST.length];
   const noCompany = i % 9 === 8;
   const companyIdx = (i * 3) % COMPANY_NAMES.length;
-  const domain = noCompany ? ['gmail.com', 'hotmail.com', 'outlook.es', 'yahoo.com'][i % 4] : `${strip(COMPANY_NAMES[companyIdx]).replace(/[^a-z0-9]/g, '')}.com`;
   return {
     id: i + 1,
     first,
     last,
     name: `${first} ${last}`,
-    email: i % 11 === 10 ? '' : `${strip(first).replace(/\s+/g, '.')}.${strip(last).split(' ')[0]}@${domain}`,
+    email: CONTACT_EMAILS[i],
     phone: i % 7 === 6 ? '' : phoneFor(i, 'p'),
     mobilephone: i % 5 === 0 ? '' : phoneFor(i, 'm'),
     owner: OWNERS[(i * 3) % OWNERS.length],
@@ -1864,16 +1880,18 @@ export async function refreshTable(type) {
   return true;
 }
 
+export function buildDemoSeedPayload() {
+  return Object.fromEntries(Object.keys(BUILDERS).map((type) => [type,
+    Array.from({ length: COUNTS[type] }, (_, i) => toDb(type, BUILDERS[type](i))),
+  ]));
+}
+
 async function seedAll() {
-  // First run with an empty database: load the sample dataset so the CRM
-  // looks exactly like the demo, but now persisted in Supabase.
-  for (const type of ['companies', 'contacts', 'deals', 'tickets', 'tasks']) {
-    const rows = Array.from({ length: COUNTS[type] }, (_, i) => toDb(type, BUILDERS[type](i)));
-    for (let j = 0; j < rows.length; j += 200) {
-      const { error } = await supabase.from(type).insert(rows.slice(j, j + 200));
-      if (error) console.error('[supabase] seed', type, error);
-    }
-  }
+  // The database checks emptiness while holding locks and inserts all tables atomically.
+  // Never fall back to client-side inserts when the RPC/migration is unavailable.
+  const payload = buildDemoSeedPayload();
+  const { error } = await supabase.rpc('bootstrap_demo_v1', { payload });
+  if (error) throw error;
 }
 
 // Which pages load light: the four record lists download their own table one page at a time (src/server-list.js)
