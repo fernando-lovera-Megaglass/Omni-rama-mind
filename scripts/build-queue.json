@@ -515,10 +515,12 @@
     },
     {
       "id": "gap-backend-mgmt-token-expirado",
-      "status": "pending",
+      "status": "done",
       "instruction": "OPERATIVO BLOQUEANTE. El token de Supabase Management guardado en app/.supabase-mgmt-token (45 bytes, modificado el 12 nov) está expirado/inválido: scripts/mgmt-sql.mjs devuelve HTTP 401 {\"message\":\"Invalid access token\"} y `supabase functions list --project-ref xysgvxnieigpaxtmxiui` con SUPABASE_ACCESS_TOKEN de ese archivo devuelve el mismo 401. Impacto: scripts/apply-migration.mjs NO puede aplicar migraciones (bloquea p. ej. workflow_runs.sql, pendiente del ítem del motor de workflows), y la auditoría de backend no puede leer la base viva ni verificar integridad de datos. La renovación del token es manual del usuario (supabase.com/dashboard/account/tokens → nuevo token → guardarlo en app/.supabase-mgmt-token), pero el código local sí puede mejorar: mgmt-sql.mjs y apply-migration.mjs deben detectar HTTP 401 y salir con un mensaje accionable ('token de gestión expirado: renuévalo en https://supabase.com/dashboard/account/tokens y guárdalo en app/.supabase-mgmt-token') en lugar del error crudo, y docs/ debe documentar el procedimiento. Criterio de aceptación: con token inválido los scripts imprimen la guía de renovación y salen con código != 0; con token válido una consulta `select 1` funciona. No despliegues nada a producción; solo código local.",
       "createdAt": "2026-11-20T00:55:00-06:00",
-      "lane": "codex"
+      "lane": "codex",
+      "completedAt": "2026-11-20T10:06:30-0600",
+      "completedBy": "codex"
     },
     {
       "id": "gap-backend-pipeline-stages-real-registro",
