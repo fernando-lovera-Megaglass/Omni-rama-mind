@@ -25,7 +25,8 @@ import { openCompose, editSignature } from './compose.js';
 import { renderTokens, contextFromRecord } from './tokens.js';
 import { attachSnippetAutocomplete } from './snippet-autocomplete.js';
 import { openEnrollDialog } from './sequence-enroll.js';
-import { workflows, enrollRecord as enrollWorkflow } from './workflows-data.js';
+import { workflows } from './workflows-data.js';
+import { enroll as enrollInWorkflow, activeRun as activeWorkflowRun, whenText as workflowWhenText } from './workflow-engine.js';
 import { ownerHtml } from './owner.js';
 import { enhanceOwnerSelects } from './owner-select.js';
 import { enhancePhoneInputs, focusPhoneInput, displayPhone, phoneHref } from './phone.js';
@@ -1610,13 +1611,14 @@ function runMore(kind, sub) {
       break;
     }
     case 'workflow': {
-      // Automatización › Workflows: the real workflows of this object; the actions run on this record.
+      // Automatización › Workflows: the real workflows of this object; the engine (src/workflow-engine.js)
+      // creates the run, executes the steps now and schedules the delays.
       const list = workflows().filter((w) => w.objectType === type && w.actions.length);
       openModal(
         'Inscribir en un workflow',
         list.length
-          ? `<label class="field"><span>Workflow</span><select id="wf-name">${list.map((w) => `<option value="${esc(w.id)}">${esc(w.name)} (${w.actions.length} ${w.actions.length === 1 ? 'acción' : 'acciones'}${w.status === 'published' ? '' : ' · sin publicar'})</option>`).join('')}</select></label>
-           <p class="muted">Las acciones del workflow se ejecutan ahora sobre este registro y quedan en la cronología.</p>`
+          ? `<label class="field"><span>Workflow</span><select id="wf-name">${list.map((w) => `<option value="${esc(w.id)}">${esc(w.name)} (${w.actions.length} ${w.actions.length === 1 ? 'acción' : 'acciones'}${w.status === 'published' ? '' : ' · sin publicar'}${activeWorkflowRun(w.id, type, rec.id) ? ' · ya inscrito' : ''})</option>`).join('')}</select></label>
+           <p class="muted">Se crea la inscripción: las acciones se ejecutan ahora (correo desde la cuenta conectada, tareas, propiedades), las esperas se programan y cada paso queda en la cronología.</p>`
           : `<p class="muted">No hay workflows para ${cfg.singular}s todavía. Créalos en Automatización › Workflows.</p>`,
         `${list.length ? '<button class="btn btn--primary" type="button" data-confirm="workflow">Inscribir</button>' : ''}<button class="btn btn--ghost" type="button" data-close>Cancelar</button>`,
       );
@@ -1957,11 +1959,16 @@ $('rec-modal').addEventListener('click', async (e) => {
     closeModal();
     toast(schedule ? 'Reunión programada' : 'Actividad registrada');
   } else if (what === 'workflow') {
-    const r = enrollWorkflow($('wf-name').value, type, rec);
+    b.disabled = true;
+    b.textContent = 'Inscribiendo…';
+    const r = await enrollInWorkflow($('wf-name').value, type, rec);
     closeModal();
-    if (!r) { toast('No se pudo inscribir el registro en el workflow.'); return; }
+    if (!r || !r.ok) { toast(r && r.reason ? r.reason : 'No se pudo inscribir el registro en el workflow.'); return; }
     renderTimeline();
-    toast(`Inscrito en el workflow · ${r.steps.length} ${r.steps.length === 1 ? 'acción ejecutada' : 'acciones ejecutadas'}`);
+    renderAssoc();
+    const done = r.steps.filter((s) => !s.pending).length;
+    const waiting = r.run.estado === 'waiting' ? ` · continúa el ${workflowWhenText(r.run.proximaEjecucion)}` : '';
+    toast(`Inscrito en «${r.workflow.name}» · ${done} ${done === 1 ? 'acción ejecutada' : 'acciones ejecutadas'}${waiting}`);
   } else if (what === 'list') {
     addEvent({ type: 'stage', when: Date.now(), who: 'Tú', text: `Agregado a la lista "${$('list-name').value}".` });
     closeModal();
@@ -2244,6 +2251,8 @@ if (!rec) {
   if (noteBox) wireNoteBox(noteBox);
   // An enrolment made from the e-mail composer's Secuencias tab also lands in this timeline.
   document.addEventListener('crm:enrolled', () => renderTimeline());
+  // A workflow run advancing on this record (the checker finished a delay, a step ran) refreshes the timeline.
+  document.addEventListener('crm:workflow', (e) => { if (e.detail && e.detail.recordType === type && Number(e.detail.recordId) === Number(id)) { renderTimeline(); renderAssoc(); } });
 
   mount.addEventListener('submit', (e) => {
     const form = e.target.closest('.props__form');

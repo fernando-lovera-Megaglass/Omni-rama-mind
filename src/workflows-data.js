@@ -76,7 +76,8 @@ export function valueOf(type, r, key) {
 }
 export const labelOfValue = (type, key, value) => { const p = propertyDef(type, key); const o = p && p.options ? p.options.find((x) => String(x[0]) === String(value)) : null; return o ? o[1] : String(value ?? ''); };
 export const operatorLabel = (op) => (OPERATORS.find((o) => o[0] === op) || [op, op])[1];
-const empty = (v) => v === undefined || v === null || v === '' || (Array.isArray(v) && !v.length);
+// «Sin asignar» is an unknown owner (the condition «Propietario no se conoce» must match it).
+const empty = (v) => v === undefined || v === null || v === '' || v === 'Sin asignar' || (Array.isArray(v) && !v.length);
 export function evalCondition(type, r, c) {
   const v = valueOf(type, r, c.property);
   const values = Array.isArray(c.value) ? c.value.map(String) : String(c.value ?? '').split('|').map((s) => s.trim()).filter(Boolean);

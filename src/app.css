@@ -17029,6 +17029,52 @@ body.has-slideover {
   white-space: normal;
 }
 
+/* workflow runs: inscritos activos + historial de acciones (editor modal) */
+.wfr__h {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-8);
+  margin: 16px 0 var(--sp-4);
+}
+
+.wfr__h h4,
+.wfr__title {
+  margin: 0;
+  font-size: var(--fs-sm);
+}
+
+.wfr__title {
+  margin: 16px 0 var(--sp-8);
+}
+
+/* The modal body is a column flexbox with a max height: a scrollable table wrapper would shrink to its
+   header; the wrappers keep their size and the body scrolls instead. */
+.wfr__wrap {
+  flex: none;
+}
+
+.wfr__table {
+  min-width: 0;
+}
+
+.wfr__table td {
+  vertical-align: top;
+  font-size: var(--fs-sm);
+}
+
+.wfr__table .tag {
+  white-space: nowrap;
+}
+
+.wfr__ok {
+  color: #1f9a63;
+}
+
+.wfr__ko {
+  color: #d94c53;
+}
+
 /* notifications bell */
 .notif {
   display: block;

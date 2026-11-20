@@ -9,7 +9,7 @@ import { addActivity, dbIsLive, formatDate } from './data.js';
 import { supabase } from './supabaseClient.js';
 import { reportDbError } from './db-report.js';
 import { renderTokens, contextFromRecord } from './tokens.js';
-import { activeAccounts, signatureById } from './connected-emails.js';
+import { ready as emailsReady, activeAccounts, signatureById } from './connected-emails.js';
 import { sendMail } from './gmail.js';
 import { ready as workflowsReady, workflowById, recordsOf, recordName, recipientEmailOf, childrenOf, evaluateTrigger, conditionText, applyAction, matchingRecords, markPublished, registerRunSource, ACTION_DEFS, ENROLL_CAP, OBJECT_LABEL, ME } from './workflows-data.js';
 
@@ -26,6 +26,8 @@ const clone = (x) => JSON.parse(JSON.stringify(x));
 const iso = (t) => new Date(t).toISOString();
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const timeStr = (d) => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+// «por Fernando L.» already ends with a dot: no double period at the end of the sentence.
+const sentence = (s) => (/[.!?]$/.test(s) ? s : `${s}.`);
 export const whenText = (value) => { if (!value) return ''; const d = new Date(value); return `${formatDate(d)} a las ${timeStr(d)}`; };
 
 // ---------- storage ----------
@@ -50,6 +52,8 @@ async function loadLive() {
 }
 export const ready = (async () => {
   await workflowsReady;
+  // «Enviar correo» needs the connected accounts (Ajustes › General › Correo) to know the sender.
+  try { await emailsReady; } catch { /* the step reports the missing account */ }
   if (live) {
     try { await loadLive(); } catch (e) { live = false; console.error('[supabase] tabla workflow_runs no disponible (supabase/workflow_runs.sql); inscripciones en localStorage.', e); loadLocal(); }
   } else loadLocal();
@@ -240,7 +244,7 @@ export async function enroll(workflowId, type, record, { by = ME, source = 'manu
   const run = { id: uuid(), workflowId, recordType: type, recordId: Number(record.id), recordName: recordName(type, record), stepActual: 0, estado: 'active', proximaEjecucion: null, log: [], jumps: 0, enrolledBy: by, startedAt: iso(now), updatedAt: iso(now), finishedAt: null };
   rows.unshift(run);
   persist(run);
-  note(w, run, source === 'manual' ? `Inscrito en el workflow «${w.name}» por ${by}.` : `Inscrito en el workflow «${w.name}» (cumple el desencadenante).`, { when: now });
+  note(w, run, source === 'manual' ? sentence(`Inscrito en el workflow «${w.name}» por ${by}`) : `Inscrito en el workflow «${w.name}» (cumple el desencadenante).`, { when: now });
   await advance(run, now);
   return { ok: true, run: out(run), steps: clone(run.log), workflow: w };
 }
@@ -272,7 +276,7 @@ export function cancelRun(id, { by = ME, now = Date.now() } = {}) {
   run.proximaEjecucion = null;
   run.finishedAt = iso(now);
   persist(run);
-  if (w) note(w, run, `Inscripción en el workflow «${w.name}» cancelada por ${by}.`, { when: now });
+  if (w) note(w, run, sentence(`Inscripción en el workflow «${w.name}» cancelada por ${by}`), { when: now });
   emit(run);
   return out(run);
 }

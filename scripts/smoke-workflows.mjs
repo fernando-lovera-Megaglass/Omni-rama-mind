@@ -44,7 +44,9 @@ useDom('<!doctype html><body class="app"><aside id="sidenav"></aside><header id=
 const data = await import(resolve(here, '../src/data.js'));
 const N = await import(resolve(here, '../src/notifications.js'));
 const W = await import(resolve(here, '../src/workflows-data.js'));
+const E = await import(resolve(here, '../src/workflow-engine.js'));
 await W.ready;
+await E.ready;
 await import(resolve(here, '../src/automation.js'));
 const rows = () => qa('#wf-rows tr[data-id]');
 if (W.workflowsLive()) fail('the test must run in local mode (no Supabase env)');
@@ -110,6 +112,7 @@ if (W.workflowById(deals.id).status !== 'off' || !text(rows().find((r) => r.data
 click(rows().find((r) => r.dataset.id === deals.id).querySelector('[data-act="publish"]'));
 if (!text($('wf-modal-body')).includes('cumplen las condiciones') && !text($('wf-modal-body')).includes('cumple las condiciones')) fail('publish dialog');
 click(q('[data-wm="confirm-publish"]'));
+await wait(80); // publishing creates the runs through the engine (asynchronous)
 if (W.workflowById(deals.id).status !== 'published') fail('publish from list');
 click(q('[data-wa="new-template"]'));
 if (qa('[data-wm="use-template"]').length !== 4) fail('templates');
@@ -247,6 +250,7 @@ $('wfe-publish').checked = true;
 change($('wfe-publish'));
 if (!text($('wfe-modal-body')).includes(`${matched.length}`) || !q('[data-wm="confirm-publish"]')) fail('publish dialog');
 click(q('[data-wm="confirm-publish"]'));
+await wait(150);
 const expected = Math.min(matched.length, W.ENROLL_CAP);
 if (W.workflowById(created.id).status !== 'published' || text(q('.wfe__badge')) !== 'ACTIVADA' || !$('wfe-publish').checked || !text(q('.wfe__publish')).includes('Desactivar')) fail('published state');
 const perf = W.performance(created.id);
@@ -256,7 +260,9 @@ if (data.allDeals().find((d) => Number(d.id) === Number(matched[0].id)).priority
 if (N.unreadCount() < unreadBefore + expected) fail('bell notifications must be added');
 click(q('[data-we="history"]'));
 const hist = text($('wfe-modal-body'));
-if (!hist.includes('INSCRIPCIONES TOTALES') || !hist.includes(String(expected)) || qa('#wfe-hist tbody tr').length !== expected || !hist.includes('Completada')) fail(`history: ${hist.slice(0, 160)}`);
+// The workflow ends with a 3-day delay: every run is waiting (the engine schedules the next execution).
+if (!hist.includes('INSCRIPCIONES TOTALES') || !hist.includes(String(expected)) || qa('#wfe-hist tbody tr').length !== expected || !hist.includes('En espera') || qa('#wfe-runs tbody tr[data-run]').length !== expected || !hist.includes('Historial de acciones ejecutadas')) fail(`history: ${hist.slice(0, 160)}`);
+if (!E.runsOf(created.id).every((r) => r.estado === 'waiting' && r.proximaEjecucion && r.log.some((l) => l.type === 'delay' && l.pending))) fail('published runs must wait for the delay');
 click(q('#wfe-modal [data-bm="close"]'));
 $('wfe-publish').checked = false;
 change($('wfe-publish'));
@@ -271,8 +277,8 @@ click(q('[data-wm="confirm-delete"]'));
 if (!W.workflowById(created.id).deletedAt) fail('delete from editor');
 const lead = W.workflows().find((w) => w.objectType === 'contacts');
 const contact = data.allContacts()[0];
-const manual = W.enrollRecord(lead.id, 'contacts', contact);
-if (!manual || manual.steps.length < 3 || data.allContacts()[0].owner !== 'Sofía R.') fail('manual enrolment must run the actions');
+const manual = await E.enroll(lead.id, 'contacts', contact);
+if (!manual.ok || manual.steps.length < 3 || data.allContacts()[0].owner !== 'Sofía R.') fail('manual enrolment must run the actions');
 log('clone + delete from the editor, manual enrolment from a record');
 
 console.log('[workflows] OK');
