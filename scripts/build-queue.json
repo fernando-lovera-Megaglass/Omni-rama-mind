@@ -522,10 +522,12 @@
     },
     {
       "id": "gap-backend-call-status-updates-mudos",
-      "status": "pending",
+      "status": "done",
       "instruction": "FIABILIDAD. supabase/functions/twilio-call-status/index.ts traga errores de base: línea 43 (update de recording_url) y línea 56 (update de status/ended_at/duration_sec) hacen `await service.from('call_logs').update(...)` sin revisar el `error` devuelto. Si el update falla (columna renombrada, RLS, red), la función responde 200 a Twilio, que NO reintenta → llamadas que se quedan en 'ringing'/'in-progress' para siempre, duraciones en 0 y grabaciones perdidas sin dejar rastro (falla silenciosa exactamente como la teme la auditoría). Compara con twilio-incoming/index.ts líneas 40-42 y 60-67, que sí propagan updateError/insertError. Corrección: capturar el error de ambos updates; si falla, devolver HTTP 500 para que Twilio reintente el callback y que el error quede en los logs de la función (o registrarlo en una tabla de errores). Criterio de aceptación: un update fallido provoca respuesta no-2xx (reintento de Twilio) y un log visible; los updates correctos siguen devolviendo 200. No despliegues nada a producción; solo código local.",
       "createdAt": "2026-11-20T00:55:00-06:00",
-      "lane": "codex"
+      "lane": "codex",
+      "completedAt": "2026-11-20T13:06:02-0600",
+      "completedBy": "codex"
     },
     {
       "id": "gap-backend-mgmt-token-expirado",

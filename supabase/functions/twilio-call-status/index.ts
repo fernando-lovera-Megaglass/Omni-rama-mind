@@ -51,7 +51,8 @@ Deno.serve(handle(async (req) => {
   if (params.RecordingSid && params.RecordingUrl) {
     if (!twilioRecordingUrlValid(params.RecordingUrl, conn.account_sid)) return fail('URL de grabación inválida', 400);
     const recordingUrl = `${params.RecordingUrl}.mp3`;
-    await service.from('call_logs').update({ recording_url: recordingUrl }).eq('id', log.id);
+    const { error: updateError } = await service.from('call_logs').update({ recording_url: recordingUrl }).eq('id', log.id);
+    if (updateError) throw updateError;
     // Transcripción automática (Whisper) si hay OPENAI_API_KEY: corre en segundo plano.
     if (!log.transcript) background(transcribeCallLog(service, { id: log.id, connection_id: log.connection_id!, recording_url: recordingUrl, transcript: null }));
     return new Response('<Response></Response>', { headers: { 'Content-Type': 'text/xml' } });
@@ -64,6 +65,7 @@ Deno.serve(handle(async (req) => {
     const dur = Number(params.DialCallDuration || params.CallDuration || 0);
     if (dur > 0) update.duration_sec = dur;
   }
-  await service.from('call_logs').update(update).eq('id', log.id);
+  const { error: updateError } = await service.from('call_logs').update(update).eq('id', log.id);
+  if (updateError) throw updateError;
   return new Response('<Response></Response>', { headers: { 'Content-Type': 'text/xml' } });
 }));
