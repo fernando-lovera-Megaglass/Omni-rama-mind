@@ -8,7 +8,8 @@
     "build": "vite build",
     "test:workflow-engine": "node scripts/smoke-workflow-engine.mjs",
     "test:sequence-process": "node scripts/smoke-sequence-process.mjs",
-    "test:task-queues": "node scripts/smoke-named-task-queues.mjs"
+    "test:task-queues": "node scripts/smoke-named-task-queues.mjs",
+    "test:import-multifile": "node scripts/smoke-import-multifile.mjs"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.17",

@@ -670,7 +670,7 @@ function validatePropertyValuesLocal(type, fields, id = null) {
   }
 }
 
-export function setField(type, id, field, value) {
+export function setField(type, id, field, value, opts = {}) {
   validatePropertyValuesLocal(type, { [field]: value }, id);
   if (dbLive) {
     const rec = (dbRows[type] || []).find((r) => Number(r.id) === Number(id));
@@ -689,13 +689,13 @@ export function setField(type, id, field, value) {
         if (error) console.error('[supabase] update extra', type, error);
       }
     });
-    afterSet(type, id, field, value);
+    afterSet(type, id, field, value, opts);
     return;
   }
   const o = getOverrides(type);
   o[id] = { ...(o[id] || {}), [field]: value };
   write(K(type, 'overrides'), o);
-  afterSet(type, id, field, value);
+  afterSet(type, id, field, value, opts);
 }
 
 // ---------- papelera (soft-delete): contacts, companies and deals keep their rows with deleted_at ----------
@@ -906,13 +906,13 @@ function afterAdd(type, rec, opts = {}) {
       if (rec.companyId) logSystem('companies', rec.companyId, `${word} «${rec.name}» creado y asociado a esta empresa.`, { [type]: rec.id });
     }
   } catch (e) { console.error('[cronología]', e); }
-  if (type === 'contacts') { try { autoAssociateCompany(rec); } catch (e) { console.error('[empresas automáticas]', e); } }
+  if (type === 'contacts' && !opts.skipAutoCompany) { try { autoAssociateCompany(rec); } catch (e) { console.error('[empresas automáticas]', e); } }
   if (type === 'contacts' && (rec.companyId || (rec.assoc_companies || []).length)) { try { syncContactCompanies(rec.id); } catch (e) { console.error('[contact_companies]', e); } }
   if (type === 'tickets') { try { autoAssociateTicketCompany(rec); } catch (e) { console.error('[tickets: empresa del contacto]', e); } }
   return rec;
 }
-function afterSet(type, id, field, value) {
-  if (type === 'contacts' && (field === 'email' || field === 'website') && value) { try { autoAssociateCompany(id); } catch (e) { console.error('[empresas automáticas]', e); } }
+function afterSet(type, id, field, value, opts = {}) {
+  if (!opts.skipAutoCompany && type === 'contacts' && (field === 'email' || field === 'website') && value) { try { autoAssociateCompany(id); } catch (e) { console.error('[empresas automáticas]', e); } }
   if (type === 'contacts' && COMPANY_LINK_FIELDS.has(field)) { try { syncContactCompanies(id); } catch (e) { console.error('[contact_companies]', e); } }
   if (type === 'tickets' && field === 'contactId' && value) { try { autoAssociateTicketCompany(id); } catch (e) { console.error('[tickets: empresa del contacto]', e); } }
   try {

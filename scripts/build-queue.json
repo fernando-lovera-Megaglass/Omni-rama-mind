@@ -377,10 +377,12 @@
     },
     {
       "id": "gap-importaci-n-importaci-n-multiarchivo-con-asociacione",
-      "status": "pending",
+      "status": "done",
       "instruction": "Importación multiarchivo con asociaciones cruzadas (hoy: un objeto por archivo).\n\nCambio pedido: el asistente de importación acepta 2+ archivos (p.ej. contactos.csv + empresas.csv + negocios.csv), detecta columnas de cruce (correo, dominio, nombre de empresa) y crea las asociaciones entre registros importados en la misma corrida; resumen final con creados/actualizados/asociados por objeto. Prueba smoke: importar contactos+empresas y ver la empresa asociada en la ficha del contacto. No despliegues a producción.",
       "createdAt": "2026-11-19T17:12:33-06:00",
-      "lane": "codex"
+      "lane": "codex",
+      "completedAt": "2026-11-20T12:29:08-0600",
+      "completedBy": "codex"
     },
     {
       "id": "gap-autenticaci-n-mfa-sso-real",

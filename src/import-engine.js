@@ -34,6 +34,7 @@ export const stateLabel = (s) => STATES[s] || STATES.DONE;
 // ---------- error catalogue: code → [meaning, impact] ----------
 export const ERRORS = {
   AMBIGUOUS_ENUMERATION_OPTION: ['El valor coincide con más de una opción de la lista.', 'Registro importado, propiedad vacía.'],
+  AMBIGUOUS_ASSOCIATION: ['La clave coincide con varios registros importados.', 'Datos importados, sin asociar.'],
   ASSOCIATION_RECORD_NOT_FOUND: ['No existe ningún registro con ese identificador para asociar.', 'Datos importados, sin asociar.'],
   MULTIPLE_COMPANIES_WITH_DOMAIN: ['El dominio coincide con varias empresas.', 'Empresa no actualizada.'],
   OWNER_NOT_FOUND: ['No hay ningún usuario con ese nombre o correo.', 'Registro importado, propietario vacío.'],
@@ -480,7 +481,7 @@ export function planImport(table, mapping, options = {}) {
     const duplicateOf = fileDup && !keptForKey ? 'file' : match ? 'existing' : fileDup ? 'file' : null;
     // association by company (contacts and deals): name or domain of an existing company
     const companyText = data.company !== undefined ? data.company : data.associatedcompany; // "Empresa" or "Nombre de la empresa" columns
-    if (!dropCode && companies && companyText !== undefined) {
+    if (!options.deferAssociations && !dropCode && companies && companyText !== undefined) {
       const key = strip(companyText);
       const found = companies.byName.get(key) || companies.byDomain.get(normalizeDomain(companyText) || '') || [];
       if (found.length === 1) { data.companyId = found[0].id; data.company = found[0].name; }
@@ -613,11 +614,11 @@ export async function runImport(id, plan, { onProgress, isCanceled, chunk = 40, 
   const marketing = Boolean(plan.marketing) && type === 'contacts';
   const result = { created: 0, updated: 0, associations: 0, autoCompanies: 0, failed: plan.records.filter((r) => r.action === 'skip').length, createdIds: [] };
   try {
-    setState(id, 'PROCESSING');
+    if (!plan.batch) setState(id, 'PROCESSING');
     const todo = plan.records.filter((r) => r.action === 'create' || r.action === 'update'); // merged rows travel inside the row they were merged into
     for (let i = 0; i < todo.length; i += chunk) {
       if (isCanceled && isCanceled()) { setState(id, 'CANCELED', `Cancelada por el usuario tras ${result.created + result.updated} registros.`); updateImport(id, { newRecords: result.created, updated: result.updated, associations: result.associations }); return { ...result, state: 'CANCELED' }; }
-      todo.slice(i, i + chunk).forEach((r) => {
+      for (const r of todo.slice(i, i + chunk)) {
         const stamp = { hs_import_ids: String(id) };
         if (marketing) stamp.hs_marketable_status = 'Contacto de marketing';
         if (r.data.companyId) result.associations += 1;
@@ -625,18 +626,20 @@ export async function runImport(id, plan, { onProgress, isCanceled, chunk = 40, 
           const defaults = newRecordDefaults(type, r.data);
           const data = { ...defaults, ...r.data, ...stamp };
           Object.keys(data).forEach((k) => { if (data[k] === undefined) delete data[k]; });
-          const rec = addRecord(type, data, { origin: 'Importación' });
+          const rec = await addRecord(type, data, { origin: 'Importación', waitForSave: true, skipAutoCompany: plan.batch });
+          r.importedId = rec.id;
           result.created += 1;
           result.createdIds.push(rec.id);
           // a company found or created from the e-mail domain (companies specification §2) counts as an association
           if (type === 'contacts' && rec.companyId && !data.companyId) { result.associations += 1; result.autoCompanies += 1; }
         } else {
+          r.importedId = r.matchId;
           const current = ALL[type]().find((c) => Number(c.id) === Number(r.matchId));
           Object.entries(r.data).forEach(([k, v]) => {
             if (v === undefined || v === null || v === '') return;
             if (noOverwrite.has(k) && current && current[k] !== undefined && current[k] !== null && current[k] !== '') return;
             if (k === 'hs_additional_emails' || k === 'hs_additional_domains') { if (current && current[k]) v = [...new Set([...String(current[k]).split(';'), ...String(v).split(';')].filter(Boolean))].join(';'); }
-            setField(type, r.matchId, k, v);
+            setField(type, r.matchId, k, v, { skipAutoCompany: plan.batch });
           });
           if (type === 'contacts' && (r.data.first || r.data.last)) { const c2 = ALL[type]().find((c) => Number(c.id) === Number(r.matchId)); if (c2) setField(type, r.matchId, 'name', [c2.first, c2.last].filter(Boolean).join(' ') || c2.name); }
           const prev = current ? String(current.hs_import_ids || '') : '';
@@ -644,13 +647,13 @@ export async function runImport(id, plan, { onProgress, isCanceled, chunk = 40, 
           if (marketing) setField(type, r.matchId, 'hs_marketable_status', 'Contacto de marketing');
           result.updated += 1;
         }
-      });
-      updateImport(id, { newRecords: result.created, updated: result.updated, associations: result.associations });
+      }
+      if (!plan.batch) updateImport(id, { newRecords: result.created, updated: result.updated, associations: result.associations });
       if (onProgress) onProgress({ done: Math.min(i + chunk, todo.length), total: todo.length, ...result });
       if (i + chunk < todo.length) await wait(pause);
     }
-    setState(id, 'DONE');
-    updateImport(id, { newRecords: result.created, updated: result.updated, associations: result.associations, errors: plan.errors.length });
+    if (!plan.batch) setState(id, 'DONE');
+    if (!plan.batch) updateImport(id, { newRecords: result.created, updated: result.updated, associations: result.associations, errors: plan.errors.length });
     if (plan.createSegment) createSegment(type, id, plan.segmentName);
     return { ...result, state: 'DONE' };
   } catch (e) {
@@ -676,15 +679,16 @@ const csvCell = (v) => { const s = String(v ?? ''); return /[",\n;]/.test(s) ? `
 const maskRow = (headers, mapping, cells) => cells.map((c, i) => { const m = (mapping || []).find((x) => x.index === i); return m && SENSITIVE_KEYS.has(m.key) && c ? 'ELIMINADO' : c; });
 export function errorsCsv(detail, type = 'contacts') {
   const label = objectDef(type).singular;
-  const lines = ['Código de error,Tipo de objeto,Razón,Impacto,Fila,Columna,Valores'];
+  const lines = ['Código de error,Tipo de objeto,Razón,Impacto,Fila,Columna,Valores,Archivo'];
   (detail.errors || []).forEach((e) => {
     const failed = (detail.failedRows || []).find((r) => r.row === e.row);
     const values = failed ? maskRow(detail.headers, detail.mapping, failed.cells).join(' | ') : '';
-    lines.push([e.code, label.charAt(0).toUpperCase() + label.slice(1), errorMeaning(e.code), e.impact, e.row || '', e.column, values].map(csvCell).join(','));
+    lines.push([e.code, e.object ? objectDef(e.object).label : label.charAt(0).toUpperCase() + label.slice(1), errorMeaning(e.code), e.impact, e.row || '', e.column, values, e.file || ''].map(csvCell).join(','));
   });
   return lines.join('\n');
 }
 export function failedRowsCsv(detail) {
+  if ((detail.failedRows || []).some((r) => r.file)) return ['Archivo,Fila,Código de error,Valores', ...detail.failedRows.map((r) => [r.file, r.row, r.code, r.cells.map((v, i) => `${r.headers[i]}: ${v}`).join(' | ')].map(csvCell).join(','))].join('\n');
   const headers = ['Fila', 'Código de error', ...(detail.headers || [])];
   const lines = [headers.map(csvCell).join(',')];
   (detail.failedRows || []).forEach((r) => lines.push([r.row, r.code, ...maskRow(detail.headers, detail.mapping, r.cells)].map(csvCell).join(',')));
@@ -728,4 +732,110 @@ export function zipFiles(files) {
 }
 export function estimateSeconds(rows) {
   return Math.max(1, Math.round(rows / 40) * 0.06 + 1);
+}
+
+// Cross-file keys are explicit mapping choices, separate from object properties.
+export const CROSS_KEYS = {
+  __company_domain: 'Asociar empresa por dominio',
+  __company_name: 'Asociar empresa por nombre',
+  __contact_email: 'Asociar contacto por correo',
+};
+export function detectObject(table, fallback = 'contacts') {
+  const name = strip(table.fileName || '');
+  for (const [type, pattern] of Object.entries({ companies: /empresas|companies/, contacts: /contactos|contacts/, deals: /negocios|deals/, tickets: /tickets/, tasks: /tareas|tasks/ })) if (pattern.test(name)) return type;
+  const headers = table.headers.map(strip).join('|');
+  if (/pipeline|etapa del negocio|deal stage/.test(headers)) return 'deals';
+  if (/correo|email|e-mail/.test(headers)) return 'contacts';
+  if (/dominio|domain/.test(headers)) return 'companies';
+  return fallback;
+}
+export function autoMapBatch(table, language, type) {
+  return autoMap(table.headers, language, type).map((m) => {
+    const h = strip(m.header);
+    let key = m.key;
+    if (type !== 'companies' && /dominio|domain/.test(h)) key = '__company_domain';
+    else if (type !== 'companies' && /^(empresa|nombre de (la )?empresa|nombre de empresa|company( name)?|associated company|empresa asociada)$/.test(h)) key = '__company_name';
+    else if (type !== 'contacts' && /correo|email|e-mail/.test(h)) key = '__contact_email';
+    return { ...m, key, skip: !key };
+  });
+}
+export function planBatch(files, options = {}) {
+  const parts = files.map((file) => ({ ...file, plan: planImport(file.table, file.mapping.filter((m) => !CROSS_KEYS[m.key]), { ...options, uniqueKey: objectDef(file.object).defaultUnique, object: file.object, deferAssociations: true }) }));
+  const summary = { rows: 0, toCreate: 0, toUpdate: 0, skipped: 0 };
+  parts.forEach(({ plan }) => Object.keys(summary).forEach((key) => { summary[key] += plan.summary[key]; }));
+  return { object: parts[0].object, parts, summary, records: [], errors: [], mode: options.mode || 'create_update', uniqueKey: 'por objeto', options };
+}
+export async function runBatchImport(id, batch, hooks = {}) {
+  const byObject = Object.fromEntries(batch.parts.map((f) => [f.object, { created: 0, updated: 0, associated: 0 }]));
+  const touched = [];
+  const associated = new Set();
+  const errors = [];
+  const failedRows = [];
+  let done = 0;
+  const publish = () => { saveDetail(id, { ...importDetail(id), errors, failedRows, byObject }); return updateImport(id, { byObject, newRecords: Object.values(byObject).reduce((n, s) => n + s.created, 0), updated: Object.values(byObject).reduce((n, s) => n + s.updated, 0), associations: associated.size, errors: errors.length }); };
+  setState(id, 'PROCESSING');
+  try {
+    for (const file of batch.parts) {
+      if (hooks.isCanceled?.()) { setState(id, 'CANCELED'); return publish(); }
+      // Re-plan each file so repeated keys across files see the preceding writes.
+      const plan = planImport(file.table, file.mapping.filter((m) => !CROSS_KEYS[m.key]), { ...batch.options, object: file.object, uniqueKey: objectDef(file.object).defaultUnique, deferAssociations: true });
+      const result = await runImport(id, { ...plan, batch: true, noOverwrite: file.mapping.filter((m) => m.noOverwrite).map((m) => m.key), marketing: batch.options.marketing }, { ...hooks, onProgress: undefined });
+      byObject[file.object].created += result.created;
+      byObject[file.object].updated += result.updated;
+      failedRows.push(...plan.records.filter((r) => r.action === 'skip').map((r) => ({ row: r.rowNumber, code: r.code, cells: maskRow(file.table.headers, file.mapping, r.cells), file: file.table.fileName, headers: file.table.headers })));
+      errors.push(...plan.errors.map((e) => ({ ...e, object: file.object, file: file.table.fileName })));
+      touched.push(...plan.records.filter((r) => r.importedId).map((r) => ({ ...r, file })));
+      publish();
+      if (result.state !== 'DONE') return result;
+      done += file.table.rows.length;
+      hooks.onProgress?.({ done, total: batch.summary.rows });
+    }
+    const imported = (type) => {
+      const ids = new Set(touched.filter((r) => r.file.object === type).map((r) => Number(r.importedId)));
+      return ALL[type]().filter((r) => ids.has(Number(r.id)));
+    };
+    const companies = imported('companies');
+    const contacts = imported('contacts');
+    for (const row of touched) {
+      if (hooks.isCanceled?.()) { setState(id, 'CANCELED'); return publish(); }
+      const type = row.file.object;
+      const current = ALL[type]().find((r) => Number(r.id) === Number(row.importedId));
+      const keys = row.file.mapping.filter((m) => CROSS_KEYS[m.key] && !m.skip && row.cells[m.index]);
+      // A contact's email domain can cross with the company file without a separate column.
+      if (type === 'contacts' && !keys.some((m) => m.key.startsWith('__company_')) && current.email) keys.push({ key: '__company_domain', value: current.email.split('@')[1], inferred: true });
+      for (const key of keys) {
+        const value = key.value || applyReplacement(key, row.cells[key.index]);
+        if (!value) continue;
+        const targetType = key.key === '__contact_email' ? 'contacts' : 'companies';
+        if (targetType === type) continue;
+        const targets = targetType === 'contacts' ? contacts : companies;
+        const hits = targets.filter((r) => key.key === '__contact_email' ? normalizeEmail(r.email) === normalizeEmail(value) : key.key === '__company_domain' ? normalizeDomain(r.domain) && normalizeDomain(r.domain) === normalizeDomain(value) : strip(r.name) === strip(value));
+        if (hits.length !== 1) {
+          if (!key.inferred || hits.length > 1) errors.push({ row: row.rowNumber, file: row.file.table.fileName, object: type, column: key.header || 'Correo electrónico', code: hits.length > 1 ? 'AMBIGUOUS_ASSOCIATION' : 'ASSOCIATION_RECORD_NOT_FOUND', impact: 'Datos importados, sin asociar.' });
+          continue;
+        }
+        const target = hits[0];
+        const field = targetType === 'companies' ? 'companyId' : 'contactId';
+        const token = `${type}:${current.id}:${targetType}:${target.id}`;
+        if (associated.has(token)) continue;
+        if (Number(current[field]) !== Number(target.id)) {
+          if (type === 'companies' && targetType === 'contacts') {
+            setField('contacts', target.id, 'companyId', current.id);
+            setField('contacts', target.id, 'company', current.name);
+          } else {
+            setField(type, current.id, field, target.id);
+            setField(type, current.id, targetType === 'companies' ? 'company' : 'contact', target.name);
+          }
+        }
+        associated.add(token);
+        byObject[type].associated += 1;
+        byObject[targetType].associated += 1;
+      }
+    }
+    if (batch.options.createSegment) for (const type of Object.keys(byObject)) createSegment(type, id, `Importación ${id}: ${objectDef(type).label}`);
+    saveDetail(id, { ...importDetail(id), errors, files: batch.parts.map((f) => ({ name: f.table.fileName, object: f.object })), byObject });
+    publish();
+    setState(id, 'DONE');
+    return { state: 'DONE', byObject };
+  } catch (error) { publish(); setState(id, 'FAILED', error.message); return { state: 'FAILED', error }; }
 }
