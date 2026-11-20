@@ -107,7 +107,7 @@ applyPipelineOverrides();
 // Deal pipelines: the account's real ones (src/pipelines-seed.js), editable in Configuración › Objetos ›
 // Negocios › Pipelines. With Supabase they live in the pipelines / pipeline_stages tables (read at start-up,
 // written on every change); without the tables they stay in localStorage. A definition is
-// { id, name, desc, labels, stages: [[key, label, prob, desc?]], rules?, required?, automation?, logic?, labelList?, access? }.
+// { id, name, desc, labels, stages: [[key, label, prob, desc?, forecastCategory?]], rules?, required?, automation?, logic?, labelList?, access? }.
 export const DEAL_PIPELINES_KEY = 'crm:pipelines:deals';
 const clonePipe = (p) => ({ ...p, stages: p.stages.map((s) => [...s]) });
 export const DEFAULT_DEAL_PIPELINES = REAL_DEAL_PIPELINES.map(clonePipe);
@@ -156,22 +156,34 @@ function syncDealStagesFromDefault() {
 }
 // ---- pipelines / pipeline_stages tables ----
 // pipelines: { id, objeto, nombre, orden, descripcion, extra } · pipeline_stages: { id, pipeline_id, clave, nombre, probabilidad, orden, descripcion }
+// Per-stage categories are stored in pipelines.extra.forecastCategories, keyed by stage key.
+// This uses the existing JSON column and needs no schema migration.
+export const FORECAST_CATEGORIES = [['pipeline', 'Pipeline'], ['best_case', 'Mejor caso'], ['committed', 'Comprometido'], ['won', 'Ganado'], ['lost', 'Perdido']];
+export function stageForecastCategory(stage) {
+  if (FORECAST_CATEGORIES.some(([key]) => key === stage?.[4])) return stage[4];
+  return stage?.[0] === 'won' ? 'won' : isClosedStage(stage?.[0]) ? 'lost' : 'pipeline';
+}
+export function dealForecastLabel(deal) {
+  const stage = stagesFor(deal.pipeline).find((s) => s[0] === deal.stage);
+  return stage ? FORECAST_CATEGORIES.find(([key]) => key === stageForecastCategory(stage))[1] : '—';
+}
 export function pipelineDefsFromRows(pipes, stages, objeto = 'deal') {
   return (pipes || [])
     .filter((p) => p.objeto === objeto)
     .sort((a, b) => (a.orden - b.orden) || (a.id - b.id))
     .map((p) => {
       const extra = p.extra && typeof p.extra === 'object' ? p.extra : {};
-      const { publicId, ...rest } = extra;
+      const { publicId, forecastCategories, ...rest } = extra;
       const st = (stages || []).filter((s) => Number(s.pipeline_id) === Number(p.id)).sort((a, b) => (a.orden - b.orden) || (a.id - b.id))
         .map((s) => (s.descripcion ? [s.clave, s.nombre, Number(s.probabilidad) || 0, s.descripcion] : [s.clave, s.nombre, Number(s.probabilidad) || 0]));
+      st.forEach((s) => { if (FORECAST_CATEGORIES.some(([key]) => key === forecastCategories?.[s[0]])) { s[3] ||= ''; s[4] = forecastCategories[s[0]]; } });
       return { ...rest, id: publicId || p.id, dbId: p.id, name: p.nombre, desc: p.descripcion || '', labels: rest.labels || 0, stages: st };
     });
 }
 export function pipelineRowsFromDefs(defs, objeto = 'deal') {
   return defs.map((p, i) => {
     const { id, dbId, name, desc, stages, ...rest } = p;
-    return { pipeline: { objeto, nombre: name, orden: i, descripcion: desc || '', extra: { ...rest, publicId: id } }, stages: stages.map((s, j) => ({ clave: s[0], nombre: s[1], probabilidad: Number(s[2]) || 0, orden: j, descripcion: s[3] || '' })) };
+    return { pipeline: { objeto, nombre: name, orden: i, descripcion: desc || '', extra: { ...rest, publicId: id, ...(objeto === 'deal' ? { forecastCategories: Object.fromEntries(stages.filter((s) => s[4]).map((s) => [s[0], stageForecastCategory(s)])) } : {}) } }, stages: stages.map((s, j) => ({ clave: s[0], nombre: s[1], probabilidad: Number(s[2]) || 0, orden: j, descripcion: s[3] || '' })) };
   });
 }
 async function fetchPipelineTables() {

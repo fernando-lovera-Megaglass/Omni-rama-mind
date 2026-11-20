@@ -343,10 +343,12 @@
     },
     {
       "id": "gap-negocios-y-pipelines-categor-as-de-previsi-n-por-etapa",
-      "status": "pending",
+      "status": "done",
       "instruction": "Categorías de previsión por etapa en el editor de pipelines (HubSpot: cada etapa tiene categoría de previsión: Pipeline, Mejor caso, Comprometido, Ganado/Perdido).\n\nCambio pedido: en Configuración › Objetos › Negocios › edición de pipeline, selector de categoría por etapa persistido en Supabase; úsalo en la vista de previsión si existe o muéstralo como columna en la lista de negocios. Prueba smoke: cambiar la categoría de una etapa y verla persistida tras recargar. No despliegues a producción.",
       "createdAt": "2026-11-19T17:12:33-06:00",
-      "lane": "codex"
+      "lane": "codex",
+      "completedAt": "2026-11-20T12:16:36-0600",
+      "completedBy": "codex"
     },
     {
       "id": "gap-configuraci-n-y-propiedades-editor-completo-de-propiedades-reglas-se",

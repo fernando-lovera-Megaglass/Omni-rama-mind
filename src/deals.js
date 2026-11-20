@@ -1,3 +1,4 @@
+import { dealForecastLabel } from './data.js';
 import { boot } from './page.js';
 import { mountList, tag, link } from './list.js';
 import { ownerHtml, ownerAvatarHtml } from './owner.js';
@@ -225,6 +226,7 @@ const list = mountList({
     { key: 'name', label: 'Nombre del negocio', render: (r) => link(`./record/?id=${r.id}`, r.name) },
     { key: 'stage', label: 'Etapa del negocio', text: stageLabel, render: stageCell },
     { key: 'pipeline', label: 'Pipeline' },
+    { key: 'stage_forecast_category', label: 'Categoría de previsión', editable: false, serverSort: false, text: dealForecastLabel },
     { key: 'amount', label: 'Valor', text: money, sortValue: home },
     { key: 'deal_currency_code', label: 'Moneda', default: false, text: (r) => r.deal_currency_code || HOME },
     { key: 'amount_in_home_currency', label: `Importe en moneda de la empresa (${HOME})`, default: false, editable: false, text: (r) => formatMoney(home(r)), sortValue: home },
