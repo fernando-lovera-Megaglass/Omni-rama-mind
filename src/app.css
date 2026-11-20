@@ -14040,15 +14040,20 @@ body.has-slideover {
 }
 
 .allf__ico {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   flex: none;
   min-width: 28px;
   padding: 1px 4px;
   border-radius: 4px;
   background: #eaf0f6;
   color: var(--c-muted);
-  font-size: 10px;
-  font-weight: 700;
-  text-align: center;
+}
+
+.allf__ico svg {
+  width: 18px;
+  height: 18px;
 }
 
 .allf__ico--date {

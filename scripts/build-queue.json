@@ -699,10 +699,12 @@
     },
     {
       "id": "gap-ui-filtros-iconos-tipo-propiedad",
-      "status": "pending",
+      "status": "done",
       "createdAt": "2026-11-20T13:33:46-06:00",
       "lane": "codex",
-      "instruction": "El popover «+ Agregar filtro» / «Todos los filtros» usa glifos de texto y emoji para el tipo de propiedad: src/list.js 2371 define KIND_ICON = date '📅', number '#', bool '☑', enum '≡', texto 'Abc', pintados dentro de .allf__ico (src/app.css 14028-14052). Mientras tanto Ajustes > Propiedades ya usa los iconos de línea SVG de FIELD_ICONS (src/action-icons.js ~47-65) para los mismos tipos: mismo significado, dos estilos, y uno de ellos es emoji (quedó fuera del alcance de gap-ui-emoji-sueltos-fuera-de-objetos). Cómo debe verse: los tipos de propiedad usan los mismos SVG lineales en ambos sitios, igual que se unificaron los iconos de actividad con ACT_ICONS en gap-ui-iconos-actividad-unificados; si falta algún tipo en FIELD_ICONS (p. ej. fecha), se añade con el mismo trazo. Criterio de aceptación: KIND_ICON deja de devolver emoji/caracteres sueltos y el popover de filtros muestra los mismos iconos SVG que Ajustes > Propiedades; no queda ningún emoji en .allf__ico. No despliegues nada a producción; solo código local."
+      "instruction": "El popover «+ Agregar filtro» / «Todos los filtros» usa glifos de texto y emoji para el tipo de propiedad: src/list.js 2371 define KIND_ICON = date '📅', number '#', bool '☑', enum '≡', texto 'Abc', pintados dentro de .allf__ico (src/app.css 14028-14052). Mientras tanto Ajustes > Propiedades ya usa los iconos de línea SVG de FIELD_ICONS (src/action-icons.js ~47-65) para los mismos tipos: mismo significado, dos estilos, y uno de ellos es emoji (quedó fuera del alcance de gap-ui-emoji-sueltos-fuera-de-objetos). Cómo debe verse: los tipos de propiedad usan los mismos SVG lineales en ambos sitios, igual que se unificaron los iconos de actividad con ACT_ICONS en gap-ui-iconos-actividad-unificados; si falta algún tipo en FIELD_ICONS (p. ej. fecha), se añade con el mismo trazo. Criterio de aceptación: KIND_ICON deja de devolver emoji/caracteres sueltos y el popover de filtros muestra los mismos iconos SVG que Ajustes > Propiedades; no queda ningún emoji en .allf__ico. No despliegues nada a producción; solo código local.",
+      "completedAt": "2026-11-20T16:45:48-0600",
+      "completedBy": "codex"
     },
     {
       "id": "gap-ui-editor-enlace-imagen-emoji",

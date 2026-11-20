@@ -5,7 +5,7 @@ import { sensitiveValue } from './property-privacy.js';
 // Generic object list: views, filter menus, search, sort, paging, selection,
 // column editor (full property catalog), advanced filters, CSV export/import, create drawer.
 import { wireMenus, closeMenus, toast, linkHtml, wireLinkTooltips } from './shell.js';
-import { ACT_ICONS } from './action-icons.js';
+import { ACT_ICONS, FIELD_ICONS } from './action-icons.js';
 import { ownerHtml } from './owner.js';
 import { enhanceOwnerSelects, refreshOwnerSelects } from './owner-select.js';
 import { enhancePhoneInputs, displayPhone } from './phone.js';
@@ -2368,14 +2368,18 @@ export function mountList(cfg) {
       }).join('')
       : '<p class="muted allf__none">Sin filtros de asociación.</p>';
   }
-  const KIND_ICON = (kind) => { const g = kindGroup(kind); return g === 'date' ? ['📅', 'date', 'Fecha'] : g === 'number' ? ['#', 'number', 'Número'] : g === 'bool' ? ['☑', 'bool', 'Casilla'] : g === 'enum' ? ['≡', 'enum', 'Lista'] : ['Abc', 'text', 'Texto']; };
+  const KIND_ICON = (kind) => {
+    const group = kindGroup(kind);
+    const title = { date: 'Fecha', number: 'Número', bool: 'Casilla', enum: 'Lista', text: 'Texto' }[group];
+    return [FIELD_ICONS[kind] || FIELD_ICONS[group] || FIELD_ICONS.text, group, title];
+  };
   function renderPropPop(q = '') {
     const listEl = $('allf-pop-list');
     if (!listEl) return;
     const needle = strip(q);
     const groups = propertyGroups(cfg.type).map((g) => ({ title: g.title, items: g.items.filter(([k, l]) => !needle || strip(l).includes(needle) || strip(k).includes(needle)) })).filter((g) => g.items.length);
     listEl.innerHTML = groups.length
-      ? groups.map((g) => `<div class="allf__cat">${esc(g.title)}</div>${g.items.map(([k, l]) => { const [glyph, cls, title] = KIND_ICON(ownKind(k)); return `<button class="allf__prop" type="button" data-allf-prop="${esc(k)}"><span class="allf__ico allf__ico--${cls}" title="${title}">${glyph}</span><span>${esc(l)}</span></button>`; }).join('')}`).join('')
+      ? groups.map((g) => `<div class="allf__cat">${esc(g.title)}</div>${g.items.map(([k, l]) => { const [icon, cls, title] = KIND_ICON(ownKind(k)); return `<button class="allf__prop" type="button" data-allf-prop="${esc(k)}"><span class="allf__ico allf__ico--${cls}" title="${title}">${icon}</span><span>${esc(l)}</span></button>`; }).join('')}`).join('')
       : '<p class="muted allf__empty">Ninguna propiedad coincide con la búsqueda.</p>';
   }
   function togglePropPop(open) {
