@@ -16,10 +16,11 @@
     },
     {
       "id": "probabilidades-etapas-reales",
-      "status": "pending",
+      "status": "done",
       "lane": "claude",
       "createdAt": "2026-11-19T18:02:41-06:00",
-      "instruction": "Alinear las probabilidades de las etapas de negocios con las REALES del HubSpot del usuario (la auditoría de hoy detectó diferencias en 6 de 8 pipelines).\n\nPasos:\n1. Lee el token de app/.hubspot-token y consulta GET https://api.hubapi.com/crm/v3/pipelines/deals → cada etapa trae su probability real (metadata.probability o campo equivalente).\n2. Actualiza las probabilidades en el seed/config de Omni (src/data.js stagesFor / tabla de etapas en Supabase) para que coincidan EXACTAMENTE: p. ej. SACA SUMINISTRO real 20/60/70/90 (Omni tiene 25/40/50/75), SACA Instalaciones real 10 % en todas sus etapas (Omni tiene escalera 20-90), Proyectos Nacionales, Ventas Extranjero, JFC (Envío 40 % real vs 50 % Omni) y Acristala obras (10/25/40/80/90 real).\n3. El monto ponderado del kanban debe recalcular con las nuevas probabilidades.\n4. Corrige también la etiqueta real «Contacto concretado (llamada, coreo, visita)» que aparece truncada en Omni (verifica ortografía exacta «coreo» vs «correo» contra la API).\n5. Prueba smoke: las probabilidades de cada etapa coinciden con la API.\nNo despliegues nada a producción; solo código local."
+      "instruction": "Alinear las probabilidades de las etapas de negocios con las REALES del HubSpot del usuario (la auditoría de hoy detectó diferencias en 6 de 8 pipelines).\n\nPasos:\n1. Lee el token de app/.hubspot-token y consulta GET https://api.hubapi.com/crm/v3/pipelines/deals → cada etapa trae su probability real (metadata.probability o campo equivalente).\n2. Actualiza las probabilidades en el seed/config de Omni (src/data.js stagesFor / tabla de etapas en Supabase) para que coincidan EXACTAMENTE: p. ej. SACA SUMINISTRO real 20/60/70/90 (Omni tiene 25/40/50/75), SACA Instalaciones real 10 % en todas sus etapas (Omni tiene escalera 20-90), Proyectos Nacionales, Ventas Extranjero, JFC (Envío 40 % real vs 50 % Omni) y Acristala obras (10/25/40/80/90 real).\n3. El monto ponderado del kanban debe recalcular con las nuevas probabilidades.\n4. Corrige también la etiqueta real «Contacto concretado (llamada, coreo, visita)» que aparece truncada en Omni (verifica ortografía exacta «coreo» vs «correo» contra la API).\n5. Prueba smoke: las probabilidades de cada etapa coinciden con la API.\nNo despliegues nada a producción; solo código local.",
+      "completedAt": "2026-11-19T20:25:15-0600"
     },
     {
       "id": "cola-tareas",
@@ -424,12 +425,10 @@
     },
     {
       "id": "gap-ui-vista-previa-etiquetas-cortadas",
-      "status": "done",
+      "status": "pending",
       "createdAt": "2026-11-19T19:37:10-06:00",
       "instruction": "La vista previa de las listas (panel lateral que se abre con el botón ▭ de una tarjeta o al pulsar una fila) muestra las acciones rápidas con las etiquetas cortadas a mano: «Corr…», «Llam…», «Reu…» (src/list.js ~539-543, los botones .quick del .preview__quick). En la ficha del registro los mismos botones llevan el texto completo (Nota, Correo, Llamada, Tarea, Reunión), y así es en HubSpot: la palabra no se trunca, el botón se adapta.\n\nCómo debe verse: las etiquetas completas «Nota», «Correo», «Llamada», «Tarea», «Reunión», «Más» en los seis botones; si el ancho del panel no da, se reduce el gap/padding o se permite que los botones encajen con el mismo estilo .quick de la ficha, nunca con puntos suspensivos quemados en el texto.\n\nCriterio de aceptación: al abrir la vista previa de un contacto, empresa, negocio o ticket se leen las seis etiquetas completas sin «…»; los botones siguen abriendo su acción (nota, correo, llamada, tarea, reunión, menú Más). No despliegues nada a producción; solo código local.",
-      "lane": "codex",
-      "completedAt": "2026-11-19T20:00:51-0600",
-      "completedBy": "codex"
+      "lane": "codex"
     },
     {
       "id": "gap-ui-llamadas-filtros-chip",
@@ -440,12 +439,10 @@
     },
     {
       "id": "gap-ui-menus-ancho-base",
-      "status": "done",
+      "status": "pending",
       "createdAt": "2026-11-19T19:39:10-06:00",
       "instruction": "Todos los menús desplegables de la app fuerzan min-width: 260px (src/app.css .menu__panel ~1204-1216), con excepciones repartidas: --picker 340px (~765), --wide 320px (~3463), --actions 300px (~7830) y .ptable 200px (~11611). Resultado: menús de dos o tres opciones cortas (p. ej. «Nueva plantilla» Desde cero/Biblioteca, «Insertar» Token/Fragmento, el ⋮ de cada fila de propiedades, el ⋮ de cada informe en Paneles) se renderizan con una franja vacía a la derecha y tamaños distintos según el módulo. En HubSpot estos menús abrazan el contenido (~180-220px según la opción más larga) con el mismo padding en todas partes.\n\nCómo debe verse: un único menú base con min-width ~200px y width: max-content (con max-width razonable, p. ej. 320px, y las opciones largas con wrap o elipsis), conservando las variantes que de verdad necesitan más ancho (buscadores, --picker) pero revisando que --actions y .ptable hereden la base; mismo padding de ítem en todos los módulos.\n\nCriterio de aceptación: el menú «Nueva plantilla» y el ⋮ de una fila de Ajustes › Propiedades miden lo justo para su texto más largo (sin franja vacía de 60+ px), y los menús de acciones de ficha/lista comparten el mismo ancho mínimo y padding. No despliegues nada a producción; solo código local.",
-      "lane": "codex",
-      "completedAt": "2026-11-19T20:06:48-0600",
-      "completedBy": "codex"
+      "lane": "codex"
     },
     {
       "id": "gap-ui-ajustes-iconos-objetos-emoji",
