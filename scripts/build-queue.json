@@ -716,10 +716,12 @@
     },
     {
       "id": "gap-ui-cotizacion-icono-pago",
-      "status": "pending",
+      "status": "done",
       "createdAt": "2026-11-20T13:33:46-06:00",
       "lane": "codex",
-      "instruction": "En el menú «Más» de la ficha de registro, «Crear cotización» usa el icono equivocado: src/record.js 341 tiene ['quote', ACT_ICONS.paylink, 'Crear cotización'], es decir, el icono de tarjeta de pago, idéntico al de «Crear enlace de pago» de la línea 342. Dos acciones distintas con el mismo icono y la cotización sin su icono propio: ACT_ICONS.quote existe en src/action-icons.js 27 pero no se usa ahí. En HubSpot cada acción del menú tiene su icono distintivo. Cómo debe verse: «Crear cotización» con ACT_ICONS.quote y «Crear enlace de pago» con ACT_ICONS.paylink. Criterio de aceptación: en el menú «Más» de la ficha las dos entradas muestran iconos distintos, y el de cotización es el icono de cotización; no se rompe nada más del menú. No despliegues nada a producción; solo código local."
+      "instruction": "En el menú «Más» de la ficha de registro, «Crear cotización» usa el icono equivocado: src/record.js 341 tiene ['quote', ACT_ICONS.paylink, 'Crear cotización'], es decir, el icono de tarjeta de pago, idéntico al de «Crear enlace de pago» de la línea 342. Dos acciones distintas con el mismo icono y la cotización sin su icono propio: ACT_ICONS.quote existe en src/action-icons.js 27 pero no se usa ahí. En HubSpot cada acción del menú tiene su icono distintivo. Cómo debe verse: «Crear cotización» con ACT_ICONS.quote y «Crear enlace de pago» con ACT_ICONS.paylink. Criterio de aceptación: en el menú «Más» de la ficha las dos entradas muestran iconos distintos, y el de cotización es el icono de cotización; no se rompe nada más del menú. No despliegues nada a producción; solo código local.",
+      "completedAt": "2026-11-20T17:09:52-0600",
+      "completedBy": "codex"
     },
     {
       "id": "gap-ui-tablero-tarjetas-oscuro",
