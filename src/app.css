@@ -19016,3 +19016,7 @@ td[data-key="deal_tags"] .dtag {
 .activity-comments form { display: grid; gap: 8px; justify-items: start; }
 .activity-comments textarea { width: 100%; box-sizing: border-box; resize: vertical; padding: 8px; border: 1px solid #cbd6e2; border-radius: 3px; font: inherit; }
 .activity-comments [role="alert"] { color: #b32d22; font-size: 13px; }
+
+/* Inline unavailable settings use the shared construction artwork. */
+.settings-construction { padding: 40px 24px; text-align: center; }
+.settings-construction__brand { display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 24px; font-size: 24px; }

@@ -5,11 +5,15 @@
 // token chips, recipient in green, footer tools), if/then branches, the Fin node and the right-hand config panel.
 import { toast, wireMenus, closeMenus } from './shell.js';
 import { OWNERS, relativeTimeFine, formatDate } from './data.js';
-import { ready, workflowById, saveWorkflow, cloneWorkflow, deleteWorkflows, publish, unpublish, performance, simulate, matchingRecords, recordsOf, recordName, conditionProperties, propertyDef, conditionText, OPERATORS, OBJECT_TYPES, OBJECT_LABEL, OBJECT_PLURAL, ACTION_CATALOG, ACTION_DEFS, childrenOf, newAction, insertAction, removeAction, moveAction, describeAction, problemsOf, ENROLL_CAP, ME } from './workflows-data.js';
+import { ready, workflowById, saveWorkflow, cloneWorkflow, deleteWorkflows, unpublish, performance, simulate, matchingRecords, recordsOf, recordName, conditionProperties, propertyDef, conditionText, OPERATORS, OBJECT_TYPES, OBJECT_LABEL, OBJECT_PLURAL, ACTION_CATALOG, ACTION_DEFS, childrenOf, newAction, insertAction, removeAction, moveAction, describeAction, problemsOf, ENROLL_CAP, ME } from './workflows-data.js';
+import { ready as engineReady, publishWorkflow, activeRunsOf, runsOf, actionHistory, cancelRun, processDueRuns, startWorkflowChecker, stepLabel, whenText, ESTADO_LABELS } from './workflow-engine.js';
 import { markersToChips, openTokenPicker, OBJECTS as TOKEN_OBJECTS } from './tokens.js';
 import { enhanceOwnerSelects } from './owner-select.js';
 
 await ready;
+await engineReady;
+// The editor has no shell: start the checker here so due runs (ended delays) advance while it is open.
+startWorkflowChecker();
 const root = document.getElementById('wfe-root');
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const $ = (id) => document.getElementById(id);
@@ -92,6 +96,7 @@ function render() {
         <div class="menu"><button type="button" aria-haspopup="true">Ayuda</button><div class="menu__panel"><button class="menu__item" type="button" data-we="help">Cómo funcionan los workflows</button><button class="menu__item" type="button" data-we="shortcuts">Atajos de teclado</button></div></div>
         <span class="wfe__spacer"></span>
         <button class="btn btn--secondary btn--sm" type="button" data-we="test">Prueba</button>
+        <button class="btn btn--secondary btn--sm" type="button" data-we="runs">Inscritos activos${activeRunsOf(w.id).length ? ` (${activeRunsOf(w.id).length})` : ''}</button>
         <button class="btn btn--secondary btn--sm" type="button" data-we="history">Historial del rendimiento</button>
       </nav>
       <div class="wfe__work">

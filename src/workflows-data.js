@@ -1,7 +1,8 @@
 // Workflows (Automatización › Workflows): the workflows / workflow_actions / workflow_enrollments tables with
 // Supabase (localStorage otherwise), the trigger condition engine (OR between groups, AND inside), the action
-// catalogue, the step-by-step simulation ("Prueba") and the real execution on publish — matching records are
-// enrolled and the actions really change Omni's data (property edits, tasks, bell notifications).
+// catalogue, the step-by-step simulation ("Prueba") and the real effect of each action (property edits, tasks,
+// bell notifications). The runs themselves — enrolling, waiting, resuming, the e-mail through the connected
+// Gmail — live in src/workflow-engine.js, which registers its runs here so the history and analytics see them.
 import { allContacts, allCompanies, allDeals, allTickets, addRecord, setField, addActivity, dbIsLive, OWNERS, PRIORITIES, dealPipelines, stagesFor, allTicketStatuses, formatDate, TODAY } from './data.js';
 import { propertyList } from './properties.js';
 import { reportDbError } from './db-report.js';
@@ -18,7 +19,7 @@ export const OPERATORS = [['is_any_of', 'es cualquiera de'], ['eq', 'es igual a'
 export const STATUS_LABELS = { published: 'Publicado', off: 'Retirado', draft: 'Borrador' };
 export const ENROLL_CAP = 25;
 export const ACTION_CATALOG = [
-  ['Comunicación', [['notify_email', 'Enviar notificación interna por correo', '✉'], ['notify_app', 'Enviar notificación en la app', '🔔'], ['marketing_email', 'Enviar correo de marketing', '📣']]],
+  ['Comunicación', [['send_email', 'Enviar correo', '📧'], ['notify_email', 'Enviar notificación interna por correo', '✉'], ['notify_app', 'Enviar notificación en la app', '🔔'], ['marketing_email', 'Enviar correo de marketing', '📣']]],
   ['CRM', [['create_record', 'Crear registro', '＋'], ['edit_record', 'Editar registro', '✎'], ['assign_owner', 'Asignar propietario', '👤'], ['copy_property', 'Copiar propiedad entre objetos asociados', '⇄']]],
   ['Flujo', [['delay', 'Retraso', '⏱'], ['branch', 'Rama if/then', '⑂'], ['goto', 'Ir a otra acción', '↪']]],
   ['Tareas', [['create_task', 'Crear tarea', '☑']]],
@@ -30,6 +31,15 @@ const clone = (x) => JSON.parse(JSON.stringify(x));
 const LISTS = { contacts: allContacts, companies: allCompanies, deals: allDeals, tickets: allTickets };
 export const recordsOf = (type) => (LISTS[type] ? LISTS[type]() : []);
 export const recordName = (type, r) => r.name || `${r.first || ''} ${r.last || ''}`.trim() || `#${r.id}`;
+// The e-mail address «Enviar correo» writes to: the contact's own, the company's (or its first contact with
+// one), the associated contact of a deal or ticket.
+export function recipientEmailOf(type, r) {
+  if (!r) return '';
+  if (type === 'contacts') return String(r.email || '').trim();
+  if (type === 'companies') { if (r.email) return String(r.email).trim(); const c = allContacts().find((x) => Number(x.companyId) === Number(r.id) && x.email); return c ? String(c.email).trim() : ''; }
+  const c = r.contactId ? allContacts().find((x) => Number(x.id) === Number(r.contactId)) : null;
+  return c && c.email ? String(c.email).trim() : '';
+}
 
 // ---------- properties available to conditions ----------
 const VIRTUAL = {
@@ -107,7 +117,6 @@ const enrFromDb = (r) => ({ id: r.id, workflowId: r.workflow_id, objectType: r.o
 const enrToDb = (e) => ({ id: e.id, workflow_id: e.workflowId, object_type: e.objectType, record_id: e.recordId == null ? null : Number(e.recordId), record_name: e.recordName, status: e.status, actions_run: e.actionsRun, log: e.log, enrolled_at: e.enrolledAt });
 const saveLocal = () => { localStorage.setItem(LS.wf, JSON.stringify(rows)); localStorage.setItem(LS.enr, JSON.stringify(enrollRows)); };
 const persistWf = (w) => { if (live) enqueue(async () => { const { error } = await supabase.from('workflows').upsert(wfToDb(w), { onConflict: 'id' }); if (error) throw error; const { error: e2 } = await supabase.from('workflow_actions').delete().eq('workflow_id', w.id); if (e2) throw e2; if (w.actions.length) { const { error: e3 } = await supabase.from('workflow_actions').insert(w.actions.map((a) => actToDb(w.id, a))); if (e3) throw e3; } }); else saveLocal(); };
-const persistEnr = (list) => { if (!list.length) return; if (live) enqueue(async () => { const { error } = await supabase.from('workflow_enrollments').insert(list.map(enrToDb)); if (error) throw error; }); else saveLocal(); };
 
 const act = (type, config, extra = {}) => ({ id: uuid(), parentId: null, branch: '', position: 0, type, config, ...extra });
 const withPositions = (actions) => { const groups = {}; actions.forEach((a) => { const k = `${a.parentId || ''}|${a.branch || ''}`; (groups[k] = groups[k] || []).push(a); }); Object.values(groups).forEach((list) => list.forEach((a, i) => { a.position = i; })); return actions; };
@@ -175,13 +184,18 @@ export const ready = (async () => {
   } else loadLocal();
 })();
 export const workflowsLive = () => live;
+// The engine (src/workflow-engine.js) registers its runs in the enrolment shape so history, performance and
+// analytics count them next to the seeded history; nothing here imports the engine (no cycle).
+let runSource = () => [];
+export const registerRunSource = (fn) => { runSource = typeof fn === 'function' ? fn : () => []; };
+const allEnrollments = () => [...enrollRows, ...runSource()];
 
 // ---------- reads ----------
 const out = (w) => clone(w);
 export const workflows = () => rows.filter((w) => !w.deletedAt).map(out).sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
 export const deletedWorkflows = () => rows.filter((w) => w.deletedAt).map(out);
 export const workflowById = (id) => { const w = rows.find((x) => x.id === id); return w ? out(w) : null; };
-export const enrollmentsOf = (id) => enrollRows.filter((e) => e.workflowId === id).map(out).sort((a, b) => new Date(b.enrolledAt) - new Date(a.enrolledAt));
+export const enrollmentsOf = (id) => allEnrollments().filter((e) => e.workflowId === id).map(out).sort((a, b) => new Date(b.enrolledAt) - new Date(a.enrolledAt));
 export const creators = () => [...new Set(rows.filter((w) => !w.deletedAt).map((w) => w.createdBy).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es'));
 const readJson = (k, fb) => { try { return JSON.parse(localStorage.getItem(k)) ?? fb; } catch { return fb; } };
 export const folders = () => [...new Set([...readJson(LS.folders, []), ...rows.filter((w) => !w.deletedAt).map((w) => w.folder).filter(Boolean)])].sort((a, b) => a.localeCompare(b, 'es'));
@@ -196,7 +210,7 @@ export function problemsOf(w) {
   if (!groups.length || groups.every((g) => !(g.conditions || []).length)) p.push('El desencadenante no tiene condiciones: ningún registro se inscribirá.');
   groups.forEach((g) => (g.conditions || []).forEach((c) => { if (!propertyDef(w.objectType, c.property)) p.push(`La condición usa una propiedad que ya no existe (${c.property}).`); if (!['known', 'unknown'].includes(c.operator) && empty(c.value)) p.push(`La condición «${conditionText(w.objectType, c)}» no tiene valor.`); }));
   if (!w.actions.length) p.push('El workflow no tiene acciones.');
-  w.actions.forEach((a) => { if (a.type === 'branch' && !((a.config.groups || []).some((g) => (g.conditions || []).length))) p.push('Una rama if/then no tiene condiciones.'); if (a.type === 'goto' && !w.actions.some((x) => x.id === a.config.target)) p.push('Una acción «Ir a otra acción» apunta a una acción que no existe.'); if (a.type === 'edit_record' && !a.config.property) p.push('Una acción «Editar registro» no indica la propiedad.'); });
+  w.actions.forEach((a) => { if (a.type === 'branch' && !((a.config.groups || []).some((g) => (g.conditions || []).length))) p.push('Una rama if/then no tiene condiciones.'); if (a.type === 'goto' && !w.actions.some((x) => x.id === a.config.target)) p.push('Una acción «Ir a otra acción» apunta a una acción que no existe.'); if (a.type === 'edit_record' && !a.config.property) p.push('Una acción «Editar registro» no indica la propiedad.'); if (a.type === 'send_email' && !String(a.config.subject || '').trim()) p.push('Una acción «Enviar correo» no tiene asunto.'); });
   return p;
 }
 export const needsReview = (w) => problemsOf(w).length > 0 && w.status !== 'draft';
@@ -210,9 +224,10 @@ export function performance(id) {
 export function analytics() {
   const list = workflows();
   const since = TODAY.getTime() - 30 * DAY;
-  const recent = enrollRows.filter((e) => new Date(e.enrolledAt).getTime() >= since);
-  const byObject = OBJECT_TYPES.map(([k, l]) => ({ type: k, label: l, workflows: list.filter((w) => w.objectType === k).length, enrollments: enrollRows.filter((e) => e.objectType === k).length }));
-  return { workflows: list.length, published: list.filter((w) => w.status === 'published').length, enrollments30: recent.length, actionsRun: enrollRows.reduce((a, e) => a + (Number(e.actionsRun) || 0), 0), failed: enrollRows.filter((e) => e.status === 'failed').length, byObject, perWorkflow: list.map((w) => ({ ...w, ...performance(w.id) })) };
+  const all = allEnrollments();
+  const recent = all.filter((e) => new Date(e.enrolledAt).getTime() >= since);
+  const byObject = OBJECT_TYPES.map(([k, l]) => ({ type: k, label: l, workflows: list.filter((w) => w.objectType === k).length, enrollments: all.filter((e) => e.objectType === k).length }));
+  return { workflows: list.length, published: list.filter((w) => w.status === 'published').length, enrollments30: recent.length, actionsRun: all.reduce((a, e) => a + (Number(e.actionsRun) || 0), 0), failed: all.filter((e) => e.status === 'failed').length, byObject, perWorkflow: list.map((w) => ({ ...w, ...performance(w.id) })) };
 }
 export const health = () => workflows().map((w) => { const p = problemsOf(w); const perf = performance(w.id); return { ...w, problems: p, lastRun: perf.rows[0] ? perf.rows[0].enrolledAt : null, enrollments: perf.enrollments, state: w.status !== 'published' ? 'off' : p.length ? 'review' : 'ok' }; });
 
@@ -256,7 +271,9 @@ export const childrenOf = (actions, parentId = null, branch = '') => actions.fil
 export function defaultConfig(type, objectType) {
   const tok = TOKEN_OBJECT[objectType] || 'contacto';
   const nameTok = objectType === 'contacts' ? '{{contacto.nombre_completo}}' : objectType === 'tickets' ? '{{ticket.asunto}}' : `{{${tok}.nombre}}`;
+  const greet = objectType === 'contacts' ? 'Hola {{contacto.nombre}},' : 'Hola,';
   return {
+    send_email: { subject: objectType === 'contacts' ? 'Hola {{contacto.nombre}}' : `Sobre ${nameTok}`, body: `${greet}\n\nGracias por tu interés en Megaglass. En breve nos ponemos en contacto contigo.\n\nUn saludo` },
     notify_email: { to: ME, subject: `Aviso sobre ${nameTok}`, body: `Revisa el registro ${nameTok}.` },
     notify_app: { to: ME, title: `Aviso: ${nameTok}`, text: 'Revisa este registro.' },
     marketing_email: { email: 'Boletín mensual' },
@@ -300,6 +317,7 @@ export const describeAction = (w, a) => {
   const c = a.config || {};
   const t = w.objectType;
   switch (a.type) {
+    case 'send_email': return { text: `Asunto: «${c.subject || ''}»`, to: `al correo del ${OBJECT_LABEL[t] ? OBJECT_LABEL[t].toLowerCase() : 'registro'}` };
     case 'notify_email': return { text: `Asunto: «${c.subject || ''}»`, to: c.to || '' };
     case 'notify_app': return { text: `${c.title || ''}${c.text ? ` — ${c.text}` : ''}`, to: c.to || '' };
     case 'marketing_email': return { text: `Correo «${c.email || ''}»`, to: '' };
@@ -324,13 +342,17 @@ function associated(type, r, toObject) {
   if (toObject === 'tickets') { if (type === 'tickets') return r; return allTickets().find((d) => type === 'contacts' && Number(d.contactId) === Number(r.id)) || null; }
   return null;
 }
-function runAction(w, a, r, ctx, apply) {
+// One action on one record. apply=false only describes what would happen («Prueba»); apply=true changes
+// Omni's data and writes the record's timeline entry (`extra` adds the run id when the engine runs it).
+// «Enviar correo» is described here but sent by the engine (src/workflow-engine.js), which is asynchronous.
+function runAction(w, a, r, ctx, apply, extra = {}) {
   const type = w.objectType;
   const c = a.config || {};
   const tok = (s) => renderTokens(String(s || ''), ctx);
   const name = recordName(type, r);
-  const note = (text) => { if (apply) addActivity({ type: 'system', when: Date.now(), who: 'Workflow', text: `Workflow «${w.name}»: ${text}`, recordType: type, recordId: r.id, extra: { workflowId: w.id, subject: `Workflow: ${w.name}` } }); };
+  const note = (text, kind = 'system') => { if (apply) addActivity({ type: kind, when: Date.now(), who: 'Workflow', text: `Workflow «${w.name}»: ${text}`, recordType: type, recordId: r.id, extra: { workflowId: w.id, subject: `Workflow: ${w.name}`, ...extra } }); };
   switch (a.type) {
+    case 'send_email': { const to = recipientEmailOf(type, r); const subject = tok(c.subject) || '(sin asunto)'; if (!to) return { ok: false, result: `El ${OBJECT_LABEL[type] ? OBJECT_LABEL[type].toLowerCase() : 'registro'} no tiene correo electrónico` }; return { ok: true, result: `Correo «${subject}» a ${to} (desde la cuenta de correo conectada)` }; }
     case 'notify_email': { const subject = tok(c.subject); if (apply) addNotification({ kind: 'email', title: `Correo interno para ${c.to || ME}: ${subject}`, text: tok(c.body), href: link(type, r.id) }); note(`notificación interna por correo a ${c.to || ME}: «${subject}».`); return { ok: true, result: `Correo interno «${subject}» enviado a ${c.to || ME}` }; }
     case 'notify_app': { const title = tok(c.title); if (apply) addNotification({ kind: 'app', title, text: tok(c.text), href: link(type, r.id) }); note(`notificación en la app a ${c.to || ME}: «${title}».`); return { ok: true, result: `Notificación «${title}» mostrada a ${c.to || ME}` }; }
     case 'marketing_email': { note(`correo de marketing «${c.email || ''}» enviado.`); return { ok: true, result: `Correo de marketing «${c.email || ''}» enviado a ${name}` }; }
@@ -341,17 +363,19 @@ function runAction(w, a, r, ctx, apply) {
         else if (c.objectType === 'tickets') addRecord('tickets', { name: n, status: 'new', priority: 'medium', pipeline: 'Pipeline de soporte', owner: ME, contactId: type === 'contacts' ? r.id : r.contactId || null, source: 'Workflow' });
         else if (c.objectType === 'deals') addRecord('deals', { name: n, amount: 0, pipeline: dealPipelines()[0], stage: (stagesFor(dealPipelines()[0])[0] || [''])[0], owner: ME, contactId: type === 'contacts' ? r.id : r.contactId || null, companyId: r.companyId || null, company: r.company || '' });
       }
-      note(`${c.objectType === 'tasks' ? 'tarea' : c.objectType === 'tickets' ? 'ticket' : 'negocio'} «${n}» creado.`);
+      note(`${c.objectType === 'tasks' ? 'tarea' : c.objectType === 'tickets' ? 'ticket' : 'negocio'} «${n}» creado.`, c.objectType === 'tasks' ? 'task' : 'system');
       return { ok: true, result: `${c.objectType === 'tasks' ? 'Tarea' : c.objectType === 'tickets' ? 'Ticket' : 'Negocio'} «${n}» creado` };
     }
     case 'edit_record': { if (!c.property) return { ok: false, result: 'La acción no indica qué propiedad editar' }; const p = propertyDef(type, c.property); if (apply) setField(type, r.id, c.property, c.value); note(`propiedad «${p ? p.label : c.property}» cambiada a «${labelOfValue(type, c.property, c.value)}».`); return { ok: true, result: `${p ? p.label : c.property} = ${labelOfValue(type, c.property, c.value)}` }; }
     case 'assign_owner': { if (apply) setField(type, r.id, 'owner', c.owner || ME); note(`propietario asignado: ${c.owner || ME}.`); return { ok: true, result: `Propietario: ${c.owner || ME}` }; }
     case 'copy_property': { const target = associated(type, r, c.toObject); if (!target) return { ok: false, result: `No hay ${OBJECT_LABEL[c.toObject] ? OBJECT_LABEL[c.toObject].toLowerCase() : 'registro'} asociado` }; if (!c.from || !c.to) return { ok: false, result: 'Faltan las propiedades de origen o destino' }; const v = valueOf(type, r, c.from); if (apply) setField(c.toObject, target.id, c.to, v); note(`propiedad «${c.from}» copiada a ${OBJECT_LABEL[c.toObject].toLowerCase()} «${recordName(c.toObject, target)}».`); return { ok: true, result: `${c.to} de «${recordName(c.toObject, target)}» = ${v ?? ''}` }; }
     case 'delay': return { ok: true, result: `Retraso de ${c.amount || 0} ${c.unit === 'hours' ? 'horas' : 'días'} (simulado: continúa)` };
-    case 'create_task': { const title = tok(c.title) || `Seguimiento con ${name}`; if (apply) addRecord('tasks', { name: title, type: c.taskType || 'Tarea', status: 'todo', priority: 'medium', owner: c.assignee || ME, contactId: type === 'contacts' ? r.id : r.contactId || '', contact: type === 'contacts' ? name : r.contact || '', due: new Date(Date.now() + (Number(c.dueDays) || 0) * DAY).toISOString(), lastActivity: new Date().toISOString() }); note(`tarea «${title}» creada para ${c.assignee || ME}.`); return { ok: true, result: `Tarea «${title}» creada para ${c.assignee || ME}` }; }
+    case 'create_task': { const title = tok(c.title) || `Seguimiento con ${name}`; const due = new Date(Date.now() + (Number(c.dueDays) || 0) * DAY); if (apply) addRecord('tasks', { name: title, type: c.taskType || 'Tarea', status: 'todo', priority: 'medium', owner: c.assignee || ME, contactId: type === 'contacts' ? r.id : r.contactId || '', contact: type === 'contacts' ? name : r.contact || '', due: due.toISOString(), lastActivity: new Date().toISOString() }); note(`tarea «${title}» creada para ${c.assignee || ME}, vence el ${formatDate(due)}.`, 'task'); return { ok: true, result: `Tarea «${title}» creada para ${c.assignee || ME}` }; }
     default: return { ok: false, result: 'Acción desconocida' };
   }
 }
+// The engine applies one action for real (same code as the simulation, apply=true).
+export const applyAction = (w, a, r, ctx, extra = {}) => runAction(w, a, r, ctx, true, extra);
 // Walks the actions for one record: branches follow their Sí/No children, "Ir a" jumps, delays are logged.
 export function simulate(w, r, { apply = false } = {}) {
   const type = w.objectType;
@@ -391,37 +415,14 @@ export function simulate(w, r, { apply = false } = {}) {
   walk(null, '');
   return { enrolled: true, trigger, steps };
 }
-// Publishes: the matching records (up to ENROLL_CAP) are enrolled and the actions really run.
-export function publish(id) {
+// Marks the workflow as published; the engine's publishWorkflow() enrols the matching records (up to ENROLL_CAP)
+// as real runs before calling this.
+export function markPublished(id) {
   const w = rows.find((x) => x.id === id);
   if (!w) return null;
-  const matched = matchingRecords(w);
-  const already = new Set(enrollRows.filter((e) => e.workflowId === id).map((e) => String(e.recordId)));
-  const candidates = matched.filter((r) => w.trigger.reenroll || !already.has(String(r.id))).slice(0, ENROLL_CAP);
-  const created = [];
-  candidates.forEach((r) => {
-    const sim = simulate(w, r, { apply: true });
-    const failed = sim.steps.some((s) => !s.ok);
-    created.push({ id: uuid(), workflowId: id, objectType: w.objectType, recordId: r.id, recordName: recordName(w.objectType, r), status: failed ? 'failed' : sim.steps.some((s) => s.type === 'delay') ? 'completed' : 'completed', actionsRun: sim.steps.length, log: sim.steps.map((s) => ({ action: s.type, title: s.title, ok: s.ok, result: s.result })), enrolledAt: new Date().toISOString() });
-    addActivity({ type: 'system', when: Date.now(), who: 'Workflow', text: `Inscrito en el workflow «${w.name}» (${sim.steps.length} ${sim.steps.length === 1 ? 'acción ejecutada' : 'acciones ejecutadas'}).`, recordType: w.objectType, recordId: r.id, extra: { workflowId: id, subject: `Workflow: ${w.name}` } });
-  });
-  enrollRows.unshift(...created);
-  persistEnr(created);
   w.status = 'published'; w.publishedAt = new Date().toISOString(); w.updatedAt = w.publishedAt;
   persistWf(w);
-  return { workflow: out(w), matched: matched.length, enrolled: created.length, capped: matched.length > created.length };
-}
-// Enrols one record by hand (Más › Inscribir en un workflow); the trigger is not required.
-export function enrollRecord(id, type, r) {
-  const w = rows.find((x) => x.id === id);
-  if (!w || w.objectType !== type || !r) return null;
-  const forced = { ...out(w), trigger: { groups: [{ id: 'manual', conditions: [{ id: 'm', property: 'id', operator: 'known', value: '' }] }], reenroll: true } };
-  const sim = simulate(forced, r, { apply: true });
-  const e = { id: uuid(), workflowId: id, objectType: type, recordId: r.id, recordName: recordName(type, r), status: sim.steps.some((s) => !s.ok) ? 'failed' : 'completed', actionsRun: sim.steps.length, log: sim.steps.map((s) => ({ action: s.type, title: s.title, ok: s.ok, result: s.result })), enrolledAt: new Date().toISOString() };
-  enrollRows.unshift(e);
-  persistEnr([e]);
-  addActivity({ type: 'system', when: Date.now(), who: 'Workflow', text: `Inscrito manualmente en el workflow «${w.name}» (${sim.steps.length} ${sim.steps.length === 1 ? 'acción ejecutada' : 'acciones ejecutadas'}).`, recordType: type, recordId: r.id, extra: { workflowId: id, subject: `Workflow: ${w.name}` } });
-  return { enrollment: out(e), steps: sim.steps };
+  return out(w);
 }
 // Pre-built templates for "Crear workflow › Desde plantilla".
 export const TEMPLATES = [

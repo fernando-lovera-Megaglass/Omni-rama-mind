@@ -474,10 +474,12 @@
     },
     {
       "id": "gap-config-secciones-demo",
-      "status": "pending",
+      "status": "done",
       "lane": "codex",
       "createdAt": "2026-11-19T22:30:41-06:00",
-      "instruction": "Muchas secciones de Configuración son maquetas con datos inventados y botones que solo muestran un toast «(demostración)»: Múltiples cuentas (~235), Clave de API (~481), Descargas del mercado (~487), Dominios (~490), Cuenta de pagos (~499), Productos (~1231), Objetos personalizados (~1232), Sincronización de datos (~1243), Anuncios (~1259), Redes sociales (~1260), Base de conocimientos (~1280).\n\nPasos:\n1. Para cada sección: o se implementa de verdad, o se reemplaza por la página «en construcción» con la ilustración y logo de Omini (la que ya se usa en otras páginas vacías).\n2. Prioridad de implementación real: Productos (se usa en cotizaciones/negocios), luego Objetos personalizados; el resto a «en construcción» para no mentir al usuario.\n3. Elimina TODOS los toastBtn con texto «(demostración)» de src/settings.js.\n4. Criterio: ningún botón de Configuración simula una acción que no ocurre.\nNo despliegues nada a producción; solo código local."
+      "instruction": "Muchas secciones de Configuración son maquetas con datos inventados y botones que solo muestran un toast «(demostración)»: Múltiples cuentas (~235), Clave de API (~481), Descargas del mercado (~487), Dominios (~490), Cuenta de pagos (~499), Productos (~1231), Objetos personalizados (~1232), Sincronización de datos (~1243), Anuncios (~1259), Redes sociales (~1260), Base de conocimientos (~1280).\n\nPasos:\n1. Para cada sección: o se implementa de verdad, o se reemplaza por la página «en construcción» con la ilustración y logo de Omini (la que ya se usa en otras páginas vacías).\n2. Prioridad de implementación real: Productos (se usa en cotizaciones/negocios), luego Objetos personalizados; el resto a «en construcción» para no mentir al usuario.\n3. Elimina TODOS los toastBtn con texto «(demostración)» de src/settings.js.\n4. Criterio: ningún botón de Configuración simula una acción que no ocurre.\nNo despliegues nada a producción; solo código local.",
+      "completedAt": "2026-11-19T22:42:12-0600",
+      "completedBy": "codex"
     },
     {
       "id": "gap-config-perfil-foto-real",

@@ -125,7 +125,15 @@ function togglePane(id, title, desc, rows, extra = '') {
 const infoList = (title, items) => `<h3>${title}</h3><table class="mini-table stable"><tbody>${items.map(([k, v]) => `<tr><td><strong>${esc(k)}</strong></td><td>${v}</td></tr>`).join('')}</tbody></table>`;
 const simpleTable = (head, rows) => `<table class="mini-table stable"><thead><tr>${head.map((h) => `<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
 const cardGrid = (items) => `<div class="igrid">${items.map(([n, d, btn]) => `<div class="icard"><div class="icard__logo">${esc(n[0])}</div><div class="icard__text"><strong>${esc(n)}</strong><small>${esc(d)}</small></div>${btn}</div>`).join('')}</div>`;
-const toastBtn = (label, msg, cls = 'btn btn--ghost btn--sm') => `<button class="${cls}" type="button" data-act="toast" data-msg="${esc(msg)}">${label}</button>`;
+// Unavailable sections share the existing construction artwork and Omni branding.
+const constructionPane = (title) => `<section class="settings-construction" aria-label="${esc(title)}">
+  <div class="settings-construction__brand"><img src="../favicon.svg" alt="" width="32" height="32" /><strong>Omni</strong></div>
+  <img class="soon__img" src="../en-construccion.png" alt="Ilustración: página en construcción" />
+  <h2>${esc(title)}</h2>
+  <h3 class="soon__title">Esta página aún está en construcción</h3>
+  <p class="soon__text">Esta función todavía no está disponible en Omni.</p>
+</section>`;
+const unavailableButton = (label, cls = 'btn btn--ghost btn--sm') => `<button class="${cls}" type="button" disabled title="En construcción">${label} · En construcción</button>`;
 
 // ---------- panes: preferences (General with tabs) ----------
 function paneGeneral() {
@@ -181,17 +189,7 @@ function tabLlamadas() {
     ${switchRow('general-llamadas', 'record', 'Grabar llamadas', 'Las grabaciones se guardan en la actividad de la llamada.', s.record)}
     ${switchRow('general-llamadas', 'voicemail', 'Buzón de voz', 'Desvía al buzón cuando no contestas.', s.voicemail)}`;
 }
-function tabCalendario() {
-  const s = setting('general-calendario', { from: '09:00', to: '18:00', tz: 'America/Mexico_City', connected: true, buffer: '15 minutos' });
-  return `<h3 class="gh">Calendario</h3><p class="muted">Tu calendario conectado y tu disponibilidad para reuniones.</p>
-    <div class="icard"><div class="icard__logo">G</div><div class="icard__text"><strong>Google Calendar</strong><small>${s.connected ? 'Conectado · fernando-lovera@megaglass.us' : 'No conectado'}</small></div><label class="switchwrap"><input type="checkbox" class="switch" data-setting="general-calendario" data-key="connected" ${s.connected ? 'checked' : ''} /><span>${s.connected ? 'Conectado' : 'Desconectado'}</span></label></div>
-    <form class="gform" data-save="general-calendario">
-      <div class="gfield"><label>Zona horaria</label><select class="ginput" name="tz">${['America/Mexico_City', 'Europe/Madrid', 'America/New_York', 'America/Bogota'].map((o) => `<option ${s.tz === o ? 'selected' : ''}>${o}</option>`).join('')}</select></div>
-      <div class="gfield gfield--row"><label>Disponible de</label><input class="ginput" type="time" name="from" value="${esc(s.from)}" /><label>a</label><input class="ginput" type="time" name="to" value="${esc(s.to)}" /></div>
-      <div class="gfield"><label>Margen entre reuniones</label><select class="ginput" name="buffer">${['Sin margen', '15 minutos', '30 minutos'].map((o) => `<option ${s.buffer === o ? 'selected' : ''}>${o}</option>`).join('')}</select></div>
-      <div class="sform__btns"><button class="btn btn--primary" type="submit">Guardar</button></div>
-    </form>`;
-}
+function tabCalendario() { return constructionPane('Calendario'); }
 function tabTareas() {
   const s = setting('general-tareas', { reminder: 'El día de vencimiento a las 9:00', view: 'Para hoy', followup: true, digest: true });
   return `<h3 class="gh">Tareas</h3><p class="muted">Valores predeterminados al crear tareas.</p>
@@ -204,14 +202,8 @@ function tabTareas() {
     ${switchRow('general-tareas', 'digest', 'Resumen diario de tareas', 'Un correo cada mañana con las tareas del día.', s.digest)}`;
 }
 function tabSeguridad() {
-  return `<h3 class="gh">Seguridad</h3>
-    <form class="gform" data-save="password">
-      <div class="gfield"><label>Contraseña actual</label><input class="ginput" name="current" type="password" required /></div>
-      <div class="gfield"><label>Nueva contraseña</label><input class="ginput" name="next" type="password" minlength="8" required /></div>
-      <div class="sform__btns"><button class="btn btn--primary" type="submit">Actualizar contraseña</button></div>
-    </form>
-    <div data-mfa-settings></div>
-    <h3>Sesiones activas</h3>${simpleTable(['Dispositivo', 'Ubicación', 'Último acceso', ''], [['Este navegador', 'Miami, FL', 'Ahora', '<span class="muted">Sesión actual</span>'], ['iPhone', 'Ciudad de México', 'Ayer', toastBtn('Cerrar sesión', 'Sesión cerrada en iPhone', 'link-btn')]])}`;
+  return `<h3 class="gh">Seguridad</h3><div data-mfa-settings></div>
+    <p class="muted">El cambio de contraseña y la gestión de sesiones están en construcción.</p>`;
 }
 function tabAutomatizacion() {
   return `<h3 class="gh">Automatización</h3><p class="muted">Acciones automáticas sobre tus registros.</p>${togglePane('general-automatizacion', '', '', [
@@ -229,10 +221,8 @@ function paneNotif() {
 }
 
 // ---------- panes: organisation & account ----------
-const paneOrgAccounts = () => `<h2>Múltiples cuentas</h2><p class="muted">Cuentas a las que tienes acceso con este usuario.</p>${simpleTable(['Cuenta', 'ID', 'Rol', ''], [['<strong>Megaglass</strong>', '5417939', 'Superadministrador', '<span class="tag tag--done">Actual</span>'], ['Megaglass México', '8821004', 'Usuario', toastBtn('Cambiar', 'Cambiando de cuenta… (demostración)', 'link-btn')]])}<p>${toastBtn('Solicitar acceso a otra cuenta', 'Solicitud enviada al administrador.', 'btn btn--ghost')}</p>`;
-const paneOrgCopy = () => `<h2>Copia de recursos</h2><p class="muted">Copia propiedades, pipelines, plantillas o vistas a otra cuenta.</p>
-  <form class="sform" data-save="copy"><div class="sform__row"><label class="field"><span>Recurso</span><select name="res">${['Propiedades personalizadas', 'Pipelines', 'Plantillas de correo', 'Vistas guardadas', 'Diseño de la página de registro'].map((o) => `<option>${o}</option>`).join('')}</select></label><label class="field"><span>Cuenta de destino</span><select name="to"><option>Megaglass México (8821004)</option></select></label></div><div class="sform__btns"><button class="btn btn--primary" type="submit">Copiar</button></div></form>
-  <h3>Historial</h3>${simpleTable(['Fecha', 'Recurso', 'Destino', 'Estado'], load('crm:copies', []).map((c) => [esc(c.when), esc(c.res), esc(c.to), '<span class="tag tag--done">Completada</span>']))}`;
+const paneOrgAccounts = () => constructionPane('Múltiples cuentas');
+const paneOrgCopy = () => constructionPane('Copia de recursos');
 function paneDefaults() {
   const a = account();
   return `<h2>Valores predeterminados de la cuenta</h2>
@@ -321,7 +311,7 @@ function seatsTabHtml() {
   const used = { core: all.filter((u) => u.seat === 'core' && u.status !== 'Desactivado').length, view: all.filter((u) => u.seat === 'view' && u.status !== 'Desactivado').length, sales: all.filter((u) => (u.addons || []).includes('sales')).length, service: all.filter((u) => (u.addons || []).includes('service')).length };
   const DESC = { core: 'Acceso completo a las herramientas incluidas en tu suscripción.', view: 'Puede ver registros e informes, pero no editarlos.', sales: 'Herramientas de ventas: secuencias, cotizaciones, previsión.', service: 'Herramientas de servicio: tickets, bandeja compartida, encuestas.' };
   return `<p class="muted">Cada usuario necesita una licencia principal o de solo lectura. Las licencias de Sales Hub y Service Hub se añaden a la principal. <a href="#" onclick="return false">Comprar más licencias ↗</a></p>
-    <div class="seats">${Object.entries(SEATS).map(([k, l]) => { const pct = totals[k] ? Math.min(100, Math.round((used[k] / totals[k]) * 100)) : 0; return `<div class="seat${state.uFilter.seat === k ? ' is-active' : ''}"><div class="seat__head"><strong>${l}</strong><span class="muted">${used[k]} de ${totals[k]} asignadas</span></div><p class="muted">${DESC[k]}</p><div class="seat__bar"><i style="width:${pct}%"></i></div><div class="seat__foot"><button class="btn btn--ghost btn--sm" type="button" data-seatfilter="${k}">${state.uFilter.seat === k ? 'Ver todos' : 'Administrar'}</button><button class="link-btn" type="button" data-act="seats-buy" data-seat="${k}">Añadir licencias</button></div></div>`; }).join('')}</div>
+    <div class="seats">${Object.entries(SEATS).map(([k, l]) => { const pct = totals[k] ? Math.min(100, Math.round((used[k] / totals[k]) * 100)) : 0; return `<div class="seat${state.uFilter.seat === k ? ' is-active' : ''}"><div class="seat__head"><strong>${l}</strong><span class="muted">${used[k]} de ${totals[k]} asignadas</span></div><p class="muted">${DESC[k]}</p><div class="seat__bar"><i style="width:${pct}%"></i></div><div class="seat__foot"><button class="btn btn--ghost btn--sm" type="button" data-seatfilter="${k}">${state.uFilter.seat === k ? 'Ver todos' : 'Administrar'}</button>${unavailableButton('Añadir licencias', 'link-btn')}</div></div>`; }).join('')}</div>
     <h3>Asignación de licencias</h3>
     <table class="mini-table stable proptable utable"><thead><tr><th>Usuario</th><th>Licencia principal</th><th>Sales Hub</th><th>Service Hub</th><th>Estado</th></tr></thead><tbody>
       ${all.map((u, i) => ({ ...u, i })).filter((u) => !state.uFilter.seat || u.seat === state.uFilter.seat || (u.addons || []).includes(state.uFilter.seat)).map((u) => `<tr class="${u.status === 'Desactivado' ? 'is-off' : ''}"><td><div class="uname"><span class="avatar avatar--sm" style="background:${['#006162', '#0091ae', '#6a78d1', '#f2547d', '#00a4bd'][u.i % 5]}">${esc(initialsOf(u.name))}</span><div><strong>${esc(u.name)}</strong><br /><span class="muted">${esc(u.email)}</span></div></div></td><td><select class="ginput ginput--sm" data-user-seat="${u.i}"><option value="core" ${u.seat === 'core' ? 'selected' : ''}>${SEATS.core}</option><option value="view" ${u.seat === 'view' ? 'selected' : ''}>${SEATS.view}</option></select></td><td><label class="lcswitch"><input type="checkbox" class="switch" data-user-addon="sales" data-i="${u.i}" ${(u.addons || []).includes('sales') ? 'checked' : ''} ${u.seat === 'view' ? 'disabled' : ''} /></label></td><td><label class="lcswitch"><input type="checkbox" class="switch" data-user-addon="service" data-i="${u.i}" ${(u.addons || []).includes('service') ? 'checked' : ''} ${u.seat === 'view' ? 'disabled' : ''} /></label></td><td><span class="tag ${u.status === 'Activo' ? 'tag--done' : u.status === 'Desactivado' ? 'tag--high' : 'tag--open'}">${esc(u.status)}</span></td></tr>`).join('')}
@@ -471,20 +461,14 @@ function presetModal(i) {
 }
 const paneUpdates = () => `<h2>Actualizaciones de productos</h2><p class="muted">Novedades recientes de la plataforma.</p><ul class="updates">${[['Noviembre 2026', 'Vista de panel (Kanban) para contactos y empresas.'], ['Octubre 2026', 'Editor de tarjetas de asociación con vista previa.'], ['Septiembre 2026', 'Nuevo redactor de correo con asistente.'], ['Agosto 2026', 'Edición en línea en las tablas.']].map(([d, t]) => `<li><span class="muted">${d}</span><strong>${t}</strong></li>`).join('')}</ul>`;
 const paneIntegrations = integrationsPaneHtml;
-const panePrivateApps = () => {
-  const apps = load('crm:privateapps', [{ name: 'Integración ERP', scopes: 'crm.objects.contacts.read, crm.objects.deals.write', created: '12 mar 2026' }]);
-  return `<div class="shead"><h2>Aplicaciones privadas</h2><button class="btn btn--primary" type="button" data-act="new-app">Crear aplicación privada</button></div><p class="muted">Tokens de acceso para tus propias integraciones.</p>${simpleTable(['Nombre', 'Permisos', 'Creada', ''], apps.map((a, i) => [`<strong>${esc(a.name)}</strong>`, `<span class="muted">${esc(a.scopes)}</span>`, esc(a.created), `${toastBtn('Ver token', `Token: pat-na1-••••••••-${i}42 (copiado)`, 'link-btn')} <button class="link-btn" type="button" data-app-rm="${i}">Eliminar</button>`]))}`;
-};
-const paneApiKey = () => `<h2>Clave de API</h2><p class="muted">Las claves de API heredadas están desactivadas; usa aplicaciones privadas.</p><div class="sform"><p><code>••••••••-••••-••••-••••-5417939</code> ${toastBtn('Regenerar', 'Clave regenerada (demostración)')}</p><p class="muted">Última utilización: nunca.</p></div>`;
-const paneWebhooks = () => {
-  const hooks = load('crm:webhooks', []);
-  return `<div class="shead"><h2>Webhooks</h2><button class="btn btn--primary" type="button" data-act="new-webhook">Crear suscripción</button></div><p class="muted">Avisa a una URL cuando cambian tus registros.</p>${simpleTable(['Evento', 'URL', 'Estado', ''], hooks.map((h, i) => [esc(h.event), `<span class="muted">${esc(h.url)}</span>`, '<span class="tag tag--done">Activa</span>', `<button class="link-btn" type="button" data-hook-rm="${i}">Eliminar</button>`]))}`;
-};
-const paneEmailIntegrations = () => togglePane('int-email', 'Integraciones de correo', 'Bandejas conectadas y extensiones.', [['gmail', 'Extensión de Gmail', 'Registra y rastrea correos desde Gmail.', true], ['outlook', 'Complemento de Outlook', 'Lo mismo para Outlook y Office 365.', false], ['shared', 'Bandeja compartida ventas@megaglass.us', 'Conversaciones del equipo en una sola bandeja.', true]]);
-const paneMarketplace = () => `<h2>Descargas del mercado</h2><p class="muted">Recursos instalados desde el marketplace.</p>${cardGrid([['Plantilla de cotización Pro', 'Plantilla', toastBtn('Actualizar', 'Actualizado a la última versión.')], ['Tema web Cristal', 'Tema', toastBtn('Actualizar', 'Actualizado a la última versión.')], ['Workflow de bienvenida', 'Workflow', toastBtn('Actualizar', 'Actualizado a la última versión.')], ['Panel de ventas avanzado', 'Panel', toastBtn('Actualizar', 'Actualizado a la última versión.')]])}`;
-const paneTrackCode = () => `<h2>Código de seguimiento</h2><p class="muted">Pega este código antes de la etiqueta de cierre del cuerpo en tu sitio web.</p><pre class="codebox">&lt;script type="text/javascript" id="hs-script-loader" async defer src="//js.hs-scripts.com/5417939.js"&gt;&lt;/script&gt;</pre><p><button class="btn btn--primary" type="button" data-copy="&lt;script src=&quot;//js.hs-scripts.com/5417939.js&quot;&gt;&lt;/script&gt;">Copiar código</button></p>${togglePane('track-code', '', '', [['consent', 'Esperar el consentimiento de cookies', 'No rastrea visitantes hasta que acepten.', true], ['crossdomain', 'Seguimiento entre dominios', 'Reconoce al visitante en todos tus dominios.', false]])}`;
-const paneTrackAnalytics = () => `<h2>Analíticas de tráfico</h2><p class="muted">Cómo se clasifican las visitas.</p>${infoList('Fuentes', [['Búsqueda orgánica', 'Google, Bing, DuckDuckGo'], ['Redes sociales', 'LinkedIn, Facebook, Instagram'], ['Referencias', 'Cualquier otro dominio'], ['Tráfico directo', 'Sin referencia']])}<p>${toastBtn('Excluir IP de la oficina', 'Las IP de la oficina se excluirán del tráfico.', 'btn btn--ghost')}</p>`;
-const paneTrackDomains = (title = 'Dominios') => `<h2>${title}</h2>${simpleTable(['Dominio', 'Uso', 'Estado'], [['<strong>megaglass.com.mx</strong>', 'Sitio web', '<span class="tag tag--done">Conectado</span>'], ['<strong>info.megaglass.us</strong>', 'Landing pages', '<span class="tag tag--done">Conectado</span>'], ['<strong>mail.megaglass.us</strong>', 'Correo', '<span class="tag tag--done">Verificado</span>']])}<p>${toastBtn('Conectar un dominio', 'Asistente de conexión de dominio (demostración).', 'btn btn--primary')}</p>`;
+const panePrivateApps = () => constructionPane('Aplicaciones privadas');
+const paneApiKey = () => constructionPane('Clave de API');
+const paneWebhooks = () => constructionPane('Webhooks');
+const paneEmailIntegrations = () => constructionPane('Integraciones de correo');
+const paneMarketplace = () => constructionPane('Descargas del mercado');
+const paneTrackCode = () => constructionPane('Código de seguimiento');
+const paneTrackAnalytics = () => constructionPane('Analíticas de tráfico');
+const paneTrackDomains = (title = 'Dominios') => constructionPane(title);
 const paneTrackUtm = () => `<h2>Parámetros UTM</h2><p class="muted">Cómo se atribuyen las campañas.</p>${infoList('Parámetros reconocidos', [['utm_source', 'Fuente'], ['utm_medium', 'Medio'], ['utm_campaign', 'Campaña'], ['utm_content', 'Contenido'], ['utm_term', 'Término']])}`;
 function panePrivacy() {
   const p = load('crm:privacy', { consent: true, gdpr: false, cookieBanner: true });
@@ -492,14 +476,9 @@ function panePrivacy() {
   return `<h2>Privacidad y consentimiento</h2>${row('consent', 'Registrar consentimiento de comunicación', 'Guarda la base legal de cada contacto para enviarle correos.')}${row('gdpr', 'Funciones RGPD', 'Permite eliminar contactos de forma permanente y gestionar solicitudes.')}${row('cookieBanner', 'Aviso de cookies en formularios', 'Muestra el aviso en los formularios incrustados.')}`;
 }
 const paneAccountSecurity = () => `<h2>Seguridad</h2><p>Protege el acceso de tu usuario.</p><div data-mfa-settings></div>${ssoUnavailable}`;
-const paneAI = () => togglePane('account-ai', 'IA', 'Funciones del asistente en la cuenta.', [['assistant', 'Asistente activado', 'Resúmenes y redacción en fichas y correos.', true], ['summaries', 'Resúmenes automáticos de registros', 'Genera el resumen al abrir una ficha.', true], ['training', 'Permitir usar mis datos para mejorar sugerencias', 'Solo dentro de esta cuenta.', false]]);
-const panePayments = () => `<h2>Cuenta de pagos</h2><p class="muted">Cobra facturas y cotizaciones en línea.</p><div class="plan"><div><span class="muted">Procesador</span><h3>Stripe (no conectado)</h3><p>Conecta tu cuenta para aceptar pagos con tarjeta y transferencia.</p></div>${toastBtn('Conectar Stripe', 'Redirigiendo a Stripe… (demostración)', 'btn btn--primary')}</div>${infoList('Monedas aceptadas', [['Principal', 'EUR'], ['Adicionales', 'USD, MXN']])}`;
-function paneBilling() {
-  const counts = OBJECTS.map(([k, l]) => `<li>${l}: <strong>${ALL[k]().length}</strong></li>`).join('');
-  return `<h2>Cuenta y facturación</h2><div class="plan"><div><span class="muted">Plan actual</span><h3>CRM Suite Professional</h3><p>Renovación el 1 de enero de 2027 · 5 usuarios de pago</p></div>${toastBtn('Cambiar plan', 'Te contactará un asesor para cambiar de plan.', 'btn btn--primary')}</div>
-    <h3>Uso</h3><ul class="bullets">${counts}<li>Contactos de marketing: <strong>${ALL.contacts().filter((c) => c.hs_marketable_status === 'Contacto de marketing').length}</strong> de 2.000</li></ul>
-    <h3>Historial de facturas</h3>${simpleTable(['Fecha', 'Concepto', 'Importe', ''], ['1 nov 2026', '1 oct 2026', '1 sep 2026'].map((d) => [d, 'Suscripción mensual', formatMoney(890), toastBtn('PDF', 'Descargando factura…', 'link-btn')]))}`;
-}
+const paneAI = () => constructionPane('IA');
+const panePayments = () => constructionPane('Cuenta de pagos');
+function paneBilling() { return constructionPane('Cuenta y facturación'); }
 
 // ---------- panes: data management ----------
 const KINDS = { text: 'Texto de una línea', number: 'Número', currency: 'Número (moneda)', percent: 'Número (porcentaje)', date: 'Selector de fecha', datetime: 'Fecha y hora', enum: 'Selección desplegable', bool: 'Casilla de verificación', user: 'Usuario', email: 'Texto (correo)', phone: 'Número de teléfono', url: 'Texto (URL)', id: 'Identificador', stage: 'Etapa', status: 'Estado', priority: 'Prioridad' };
@@ -555,7 +534,7 @@ function paneProperties() {
       </div>`;
   } else if (state.propsTab === 'logic') {
     const rules = type === 'deals' ? dealPipelineDefs().flatMap((p) => Object.entries(p.logic || {}).filter(([, l]) => l.props && l.props.length).map(([k, l]) => ({ pipe: p.name, stage: labelOfStage(p, k), props: l.props }))) : [];
-    body = `<div class="shead"><div><h3>Lógica condicional</h3><p class="muted">Muestra o exige propiedades según el valor de otra. Las reglas de las etapas de negocio se crean desde Objetos › Negocios › Pipelines.</p></div>${type === 'deals' ? '<a class="btn btn--primary" href="#obj-deals:pipelines">Crear regla de lógica</a>' : toastBtn('Crear regla de lógica', 'La lógica condicional para este objeto estará disponible próximamente.', 'btn btn--primary')}</div>
+    body = `<div class="shead"><div><h3>Lógica condicional</h3><p class="muted">Muestra o exige propiedades según el valor de otra. Las reglas de las etapas de negocio se crean desde Objetos › Negocios › Pipelines.</p></div>${type === 'deals' ? '<a class="btn btn--primary" href="#obj-deals:pipelines">Crear regla de lógica</a>' : unavailableButton('Crear regla de lógica', 'btn btn--primary')}</div>
       ${rules.length ? simpleTable(['Propiedad de control', 'Valor', 'Propiedades dependientes', 'Pipeline'], rules.map((r) => ['Etapa del negocio', esc(r.stage), r.props.map((x) => `${esc(x.name)}${x.required ? ' <em class="req">*</em>' : ''}`).join(', '), esc(r.pipe)])) : '<p class="pempty">Todavía no hay reglas de lógica condicional para este objeto.</p>'}`;
   } else if (state.propsTab === 'groups') {
     const counts = Object.fromEntries(groups.map((g) => [g, all.filter((p) => p.group === g).length]));
@@ -565,7 +544,7 @@ function paneProperties() {
     body = `<h3>Propiedades archivadas</h3><p class="muted">Las propiedades archivadas dejan de verse en las fichas y listas. Se eliminan definitivamente a los 90 días.</p>
       ${archived.length ? simpleTable(['Nombre', 'Tipo', 'Grupo', ''], archived.map((p) => [`<strong>${esc(p.label)}</strong>`, esc(KINDS[p.kind] || p.kind), esc(p.group), `<button class="link-btn" type="button" data-prop-restore="${esc(p.key)}">Restaurar</button> <button class="link-btn" type="button" data-prop-rm="${esc(p.key)}">Eliminar</button>`])) : '<p class="pempty">No hay propiedades archivadas.</p>'}`;
   }
-  return `<div class="shead"><h2>Propiedades</h2><div class="phead__actions">${toastBtn('✦ Agente de datos', 'El agente de datos revisa tus propiedades y sugiere limpiezas.', 'link-btn')}${toastBtn('🔒 Calidad de los datos', 'La monitorización de la calidad de los datos no está incluida en tu plan.', 'link-btn')}<button class="btn btn--ghost" type="button" data-act="props-export">Exportar propiedades</button></div></div>
+  return `<div class="shead"><h2>Propiedades</h2><div class="phead__actions">${unavailableButton('✦ Agente de datos', 'link-btn')}${'<a class="link-btn" href="#data-quality">Calidad de los datos</a>'}<button class="btn btn--ghost" type="button" data-act="props-export">Exportar propiedades</button></div></div>
     <p class="odesc">Las propiedades se usan para reunir y almacenar información acerca de tus registros en Omni. Por ejemplo, un contacto podría tener propiedades como Nombre o Estado del lead.</p>
     <div class="objsel objsel--props"><strong>Selecciona un objeto:</strong><span class="objsel__pick"><select class="ginput" data-props-object aria-label="Objeto">${OBJECTS.map(([k, l]) => `<option value="${k}" ${type === k ? 'selected' : ''}>Propiedades de ${PROP_SINGULAR[k]}</option>`).join('')}</select></span><a class="objsel__link" href="#obj-${type}">Ir a la configuración de ${plural}</a></div>
     <div class="otabs"><div class="otabs__tabs">${tabs.map(([k, l]) => `<button type="button" class="${state.propsTab === k ? 'is-active' : ''}" data-props-tab="${k}">${l}</button>`).join('')}</div></div>
@@ -1225,19 +1204,19 @@ function paneObjects() {
     ${simple ? '' : `<div class="otabs"><div class="otabs__tabs">${tabs.map(([k, l]) => `<button type="button" class="${state.objectsTab === k ? 'is-active' : ''}" data-objects-tab="${k}">${l}</button>`).join('')}</div><a class="otabs__ext" href="../${type}/">Ver ${m.p} en el modelo de datos ↗</a></div>`}
     <div class="obody">${body}</div>`;
 }
-const paneProducts = () => `<h2>Productos</h2><p class="muted">Biblioteca de productos para cotizaciones y negocios.</p>${simpleTable(['Producto', 'Precio', 'Unidad'], [['<strong>Vidrio templado 10 mm</strong>', formatMoney(85), 'm²'], ['<strong>Vidrio laminado 6+6</strong>', formatMoney(120), 'm²'], ['<strong>Mampara de baño a medida</strong>', formatMoney(650), 'ud'], ['<strong>Instalación</strong>', formatMoney(45), 'hora']])}<p>${toastBtn('Crear producto', 'Alta de producto (demostración).', 'btn btn--primary')}</p>`;
-const paneCustomObjects = () => `<h2>Objetos personalizados</h2><p class="muted">Crea objetos propios cuando contactos, empresas, negocios y tickets no bastan.</p><div class="plan"><div><h3>Proyectos de obra</h3><p>Ejemplo de objeto personalizado con propiedades: Nombre, Superficie, Fecha de entrega.</p></div>${toastBtn('Crear objeto', 'La creación de objetos personalizados requiere el plan Enterprise.', 'btn btn--primary')}</div>`;
+const paneProducts = () => constructionPane('Productos');
+const paneCustomObjects = () => constructionPane('Objetos personalizados');
 function paneImport() {
   const log = exportsLog();
-  return `<div class="shead"><h2>Importar y exportar</h2><span class="ad-foot__btns"><a class="btn btn--ghost" href="../contacts/">Importar</a><button class="btn btn--primary" type="button" data-act="export-all">Exportar todos los datos</button></span></div><p class="muted">Las importaciones se hacen desde cada lista con "Importar". Aquí queda el historial.</p>${simpleTable(['Fecha', 'Tipo', 'Objeto', 'Registros'], log.map((e) => [esc(e.when), esc(e.kind), esc(e.object), String(e.count)]))}${log.length ? '' : '<p class="muted">Todavía no hay importaciones ni exportaciones registradas.</p>'}`;
+  return `<div class="shead"><h2>Importar y exportar</h2><span class="ad-foot__btns"><a class="btn btn--ghost" href="../contacts/">Importar</a>${unavailableButton('Exportar todos los datos', 'btn btn--primary')}</span></div><p class="muted">Las importaciones se hacen desde cada lista con "Importar". Aquí queda el historial.</p>${simpleTable(['Fecha', 'Tipo', 'Objeto', 'Registros'], log.map((e) => [esc(e.when), esc(e.kind), esc(e.object), String(e.count)]))}${log.length ? '' : '<p class="muted">Todavía no hay importaciones ni exportaciones registradas.</p>'}`;
 }
 function paneQuality() {
   const c = ALL.contacts();
   const kpi = (l, v) => `<div class="kpi"><span class="kpi__label">${l}</span><span class="kpi__value">${v}</span></div>`;
   return `<h2>Calidad de los datos</h2><p class="muted">Problemas detectados en tus registros.</p><div class="kpis">${kpi('Contactos sin correo', c.filter((r) => !r.email).length)}${kpi('Sin teléfono', c.filter((r) => !r.phone && !r.mobilephone).length)}${kpi('Sin empresa', c.filter((r) => !r.company).length)}${kpi('Posibles duplicados', c.length - new Set(c.map((r) => r.name.toLowerCase())).size)}</div>${togglePane('data-quality', '', '', [['autofix', 'Corregir formato automáticamente', 'Mayúsculas en nombres y formato de teléfonos.', true], ['dedupe', 'Sugerir fusiones de duplicados', 'Muestra duplicados en la ficha del registro.', true]])}`;
 }
-const paneEnrich = () => togglePane('data-enrich', 'Enriquecimiento de datos', 'Completa automáticamente datos de empresas y contactos.', [['companies', 'Enriquecer empresas', 'Sector, tamaño, dirección y web a partir del dominio.', true], ['contacts', 'Enriquecer contactos', 'Cargo y redes a partir del correo.', false]], infoList('Créditos', [['Usados este mes', '128 de 1.000'], ['Última ejecución', 'hoy 06:00']]));
-const paneSync = () => `<h2>Sincronización de datos</h2><p class="muted">Sincroniza registros con otras herramientas en dos direcciones.</p>${cardGrid([['Google Contacts', 'Sincronizando contactos', toastBtn('Configurar', 'Configuración de sincronización (demostración)')], ['Mailchimp', 'No configurado', toastBtn('Conectar', 'Conectando con Mailchimp… (demostración)')], ['Shopify', 'No configurado', toastBtn('Conectar', 'Conectando con Shopify… (demostración)')], ['QuickBooks', 'No configurado', toastBtn('Conectar', 'Conectando con QuickBooks… (demostración)')]])}`;
+const paneEnrich = () => constructionPane('Enriquecimiento de datos');
+const paneSync = () => constructionPane('Sincronización de datos');
 function paneAudit() {
   const entries = [];
   try {
@@ -1251,15 +1230,15 @@ function paneAudit() {
 }
 
 // ---------- panes: tools ----------
-const paneMkEmail = () => togglePane('mk-email', 'Correo de marketing', 'Ajustes de los envíos masivos.', [['footer', 'Pie de página legal', 'Añade la dirección física y el enlace de baja a cada correo.', true], ['doubleopt', 'Doble confirmación de suscripción', 'Pide confirmar el correo antes de enviar campañas.', false], ['sendtime', 'Hora de envío inteligente', 'Envía cuando cada contacto suele abrir.', true]], infoList('Remitente predeterminado', [['Nombre', 'Megaglass'], ['Dirección', 'noticias@megaglass.us'], ['Dirección física', 'Brickell AVE STE 950976, Miami, FL']]));
-const paneMkForms = () => togglePane('mk-forms', 'Formularios', 'Comportamiento de los formularios incrustados.', [['create', 'Crear contactos desde envíos', 'Cada envío crea o actualiza un contacto.', true], ['notify', 'Avisar al propietario', 'Notificación por correo en cada envío.', true], ['captcha', 'Protección contra spam', 'Añade una comprobación invisible.', true]]);
-const paneMkAds = () => `<h2>Anuncios</h2><p class="muted">Cuentas publicitarias conectadas.</p>${cardGrid([['Google Ads', 'Conectada', toastBtn('Desconectar', 'Cuenta desconectada (demostración)')], ['Meta Ads', 'Conectada', toastBtn('Desconectar', 'Cuenta desconectada (demostración)')], ['LinkedIn Ads', 'No conectada', toastBtn('Conectar', 'Conectando… (demostración)')]])}`;
-const paneMkSocial = () => `<h2>Redes sociales</h2>${simpleTable(['Cuenta', 'Red', 'Estado'], [['<strong>@megaglass</strong>', 'Instagram', '<span class="tag tag--done">Conectada</span>'], ['<strong>Megaglass</strong>', 'LinkedIn', '<span class="tag tag--done">Conectada</span>'], ['<strong>Megaglass MX</strong>', 'Facebook', '<span class="tag tag--done">Conectada</span>']])}<p>${toastBtn('Conectar cuenta', 'Selecciona la red para conectar (demostración).', 'btn btn--primary')}</p>`;
-const paneCtPages = () => togglePane('ct-pages', 'Páginas', 'Ajustes del editor de páginas.', [['drafts', 'Guardar borradores automáticamente', 'Cada 30 segundos.', true], ['amp', 'Versiones AMP', 'Genera versiones rápidas para móvil.', false]]);
-const paneCtBlog = () => togglePane('ct-blog', 'Blog', 'Ajustes del blog corporativo.', [['comments', 'Permitir comentarios', 'Con moderación previa.', true], ['rss', 'Fuente RSS pública', 'Para lectores de noticias.', true]], infoList('Blog', [['Título', 'Blog de Megaglass'], ['URL', 'megaglass.com.mx/blog'], ['Autor predeterminado', 'Fernando Lovera Colin']]));
+const paneMkEmail = () => constructionPane('Correo de marketing');
+const paneMkForms = () => constructionPane('Formularios');
+const paneMkAds = () => constructionPane('Anuncios');
+const paneMkSocial = () => constructionPane('Redes sociales');
+const paneCtPages = () => constructionPane('Páginas');
+const paneCtBlog = () => constructionPane('Blog');
 const paneSlDeals = () => `<h2>Negocios</h2><p class="muted">Pipeline, etapas y reglas al crear negocios.</p><div class="spanel">${objectPipelineHtml('deals')}</div>${togglePane('sl-deals', '', '', [['requireAmount', 'Exigir importe al crear', 'No permite negocios sin importe.', false], ['autoClose', 'Fecha de cierre automática', 'A 30 días si no se indica.', true]])}`;
-const paneSlQuotes = () => togglePane('sl-quotes', 'Cotizaciones', 'Plantillas y firma electrónica.', [['esign', 'Firma electrónica', 'El cliente firma la cotización en línea.', true], ['pay', 'Pago desde la cotización', 'Requiere la cuenta de pagos.', false], ['approval', 'Aprobación interna', 'Las cotizaciones mayores de 20.000 € requieren aprobación.', true]], infoList('Numeración', [['Siguiente número', `COT-${Number(localStorage.getItem('crm:counter:COT') || 1040) + 1}`], ['Validez', '30 días']]));
-const paneSlMeetings = () => `<h2>Reuniones</h2><p class="muted">Tus enlaces de reserva.</p>${simpleTable(['Enlace', 'Duración', ''], [['megaglass.us/reunion/fernando', '30 minutos'], ['megaglass.us/reunion/visita-tecnica', '60 minutos'], ['megaglass.us/reunion/equipo-ventas', '15 minutos (rotativo)']].map(([l, d]) => [`<strong>${l}</strong>`, d, `<button class="copy" type="button" data-copy="https://${l}" aria-label="Copiar">⧉</button>`]))}<p><a class="link-btn" href="#prefs-general" data-general="calendario">Configurar mi disponibilidad</a></p>`;
+const paneSlQuotes = () => constructionPane('Cotizaciones');
+const paneSlMeetings = () => constructionPane('Reuniones');
 function paneSlTemplates() {
   const s = getSignature();
   return `<h2>Plantillas y firma</h2><h3>Firma de correo</h3>
@@ -1273,8 +1252,8 @@ function paneSlTemplates() {
 }
 const paneSvTickets = () => `<h2>Tickets</h2><p class="muted">Pipeline de soporte y reglas de los tickets.</p><div class="spanel">${objectPipelineHtml('tickets')}</div>${togglePane('sv-tickets', '', '', [['fromEmail', 'Crear ticket desde cada correo entrante', 'Convierte los correos de la bandeja compartida en tickets.', true], ['survey', 'Encuesta de satisfacción al cerrar', 'Envía una encuesta cuando un ticket se cierra.', false]])}${infoList('Acuerdos de nivel de servicio', [['Primera respuesta', '4 horas laborables'], ['Resolución', '2 días laborables']])}`;
 const paneSvInbox = () => togglePane('sv-inbox', 'Bandeja de entrada', 'Bandeja compartida del equipo.', [['assign', 'Asignación automática por turnos', 'Reparte las conversaciones nuevas.', true], ['away', 'Respuesta automática fuera de horario', 'L–V 9:00–18:00.', true], ['chat', 'Chat en el sitio web', 'Widget de chat conectado a la bandeja.', false]], infoList('Canales conectados', [['Correo', 'soporte@megaglass.us'], ['WhatsApp', '+52 712 690 1001'], ['Formulario', 'Contacto web']]));
-const paneSvSurveys = () => `<h2>Encuestas de feedback</h2>${simpleTable(['Encuesta', 'Tipo', 'Respuestas', 'Estado'], [['<strong>Satisfacción tras ticket</strong>', 'CSAT', '42', '<span class="tag tag--done">Activa</span>'], ['<strong>Recomendación anual</strong>', 'NPS', '118', '<span class="tag tag--done">Activa</span>'], ['<strong>Instalación completada</strong>', 'CES', '9', '<span class="tag tag--none">Borrador</span>']])}`;
-const paneSvKb = () => togglePane('sv-kb', 'Base de conocimientos', 'Centro de ayuda público.', [['public', 'Publicada', 'Visible en ayuda.megaglass.us.', true], ['feedback', 'Permitir valorar artículos', 'Pulgar arriba o abajo al final de cada artículo.', true]], infoList('Contenido', [['Artículos', '24'], ['Categorías', 'Instalación, Mantenimiento, Garantía']]));
+const paneSvSurveys = () => constructionPane('Encuestas de feedback');
+const paneSvKb = () => constructionPane('Base de conocimientos');
 const paneCalling = () => `<h2>Llamadas</h2>${twilioPaneHtml()}`;
 
 const PANES = {
@@ -1415,7 +1394,6 @@ root.addEventListener('submit', (e) => {
     toast('Tipos de cambio guardados');
     render();
   }
-  else if (what === 'password') { form.reset(); toast('Contraseña actualizada'); }
   else if (what === 'signature') { setSignature(d); toast('Firma guardada'); }
   else if (what === 'invite') {
     const s = inv();
@@ -1442,7 +1420,6 @@ root.addEventListener('submit', (e) => {
     if (name && !list.includes(name)) { saveTicketPipelines([...list, name]); toast(`Pipeline "${name}" creado`); } else toast('Ese pipeline ya existe');
     render();
   }
-  else if (what === 'copy') { const log = load('crm:copies', []); log.unshift({ when: formatDate(new Date()), res: d.res, to: d.to }); save('crm:copies', log); render(); toast(`"${d.res}" copiado a ${d.to}`); }
   else if (what === 'lifecycle') {
     const def = collectLifecycle(lifecycleDef());
     const names = def.stages.map((s) => s[1].toLowerCase());
@@ -1743,8 +1720,7 @@ root.addEventListener('click', (e) => {
   if (!act) return;
   const a = act.dataset.act;
   closeMenus();
-  if (a === 'toast') toast(act.dataset.msg);
-  else if (a === 'tpipe-back') { state.tpipeEdit = null; render(); }
+  if (a === 'tpipe-back') { state.tpipeEdit = null; render(); }
   else if (a === 'tstage-add') {
     const defs = ticketPipelineDefs(); const p = collectTicketPipeline(defs[state.tpipeEdit]);
     if (!p) return;
@@ -1863,9 +1839,6 @@ root.addEventListener('click', (e) => {
   else if (a === 'ubulk-role') promptModal('Cambiar permisos', [['role', 'Nivel de acceso', 'select', ROLES]], 'Aplicar', (d) => { const us = userRows(); us.forEach((u) => { if (state.uSel.has(u.email)) u.role = d.role; }); saveUsers(us); state.uSel = new Set(); toast('Permisos actualizados'); });
   else if (a === 'ubulk-off') { const us = userRows(); let n = 0; us.forEach((u) => { if (state.uSel.has(u.email) && u.status !== 'Desactivado' && u.role !== 'Superadministrador') { u.status = 'Desactivado'; n += 1; } }); saveUsers(us); state.uSel = new Set(); render(); toast(`${n} usuario${n === 1 ? '' : 's'} desactivado${n === 1 ? '' : 's'}`); }
   else if (a === 'ubulk-clear') { state.uSel = new Set(); render(); }
-  else if (a === 'seats-buy') { const totals = SEAT_TOTALS(); totals[act.dataset.seat] = (totals[act.dataset.seat] || 0) + 1; save('crm:seats', totals); save('crm:seatlog', [{ when: new Date().toISOString(), text: `Se añadió una licencia de ${SEATS[act.dataset.seat]}` }, ...seatLog()].slice(0, 30)); render(); toast(`Licencia de ${SEATS[act.dataset.seat]} añadida`); }
-  else if (a === 'new-app') promptModal('Crear aplicación privada', [['name', 'Nombre'], ['scopes', 'Permisos', 'text', 'crm.objects.contacts.read']], 'Crear', (d) => { const apps = load('crm:privateapps', []); apps.push({ ...d, created: formatDate(new Date()) }); save('crm:privateapps', apps); toast('Aplicación creada: copia el token ahora'); });
-  else if (a === 'new-webhook') promptModal('Crear suscripción de webhook', [['event', 'Evento', 'select', ['contact.creation', 'contact.propertyChange', 'deal.creation', 'deal.propertyChange', 'ticket.creation']], ['url', 'URL de destino', 'url']], 'Crear', (d) => { const hooks = load('crm:webhooks', []); hooks.push(d); save('crm:webhooks', hooks); toast('Suscripción creada'); });
   else if (a === 'save-pipeline') {
     const ov = {};
     root.querySelectorAll('[data-stage-label]').forEach((inp) => { ov[inp.dataset.stageLabel] = { ...(ov[inp.dataset.stageLabel] || {}), label: inp.value.trim() }; });
@@ -1873,13 +1846,7 @@ root.addEventListener('click', (e) => {
     save(PIPELINE_KEY(act.dataset.type), ov);
     toast('Pipeline guardado. Los cambios se ven al recargar las listas.');
   } else if (a === 'reset-pipeline') { localStorage.removeItem(PIPELINE_KEY(act.dataset.type)); toast('Pipeline restablecido. Recarga para ver los nombres originales.'); }
-  else if (a === 'export-all') {
-    const log = exportsLog();
-    OBJECTS.forEach(([k, l]) => log.unshift({ when: formatDate(new Date()), kind: 'Exportación', object: l, count: ALL[k]().length }));
-    save('crm:exports', log.slice(0, 50));
-    render();
-    toast('Exportación completa en preparación: recibirás un correo con el archivo.');
-  }
+
 });
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
 

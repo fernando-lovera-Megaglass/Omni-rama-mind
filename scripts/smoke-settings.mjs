@@ -1,3 +1,4 @@
+import assert from 'node:assert/strict';
 // DOM smoke test for the settings page.
 import { JSDOM } from 'jsdom';
 import { fileURLToPath } from 'node:url';
@@ -23,6 +24,20 @@ const click = (el) => el.dispatchEvent(new dom.window.MouseEvent('click', { bubb
 const log = (...a) => console.log('[settings]', ...a);
 
 log('nav groups:', document.querySelectorAll('.snav__group').length, '| items:', document.querySelectorAll('.snav__item').length, '| parents:', document.querySelectorAll('.snav__parent').length, '| active:', document.querySelector('.snav__item.is-active').textContent, '| rows:', document.querySelectorAll('.spane tbody tr').length);
+// Both navigation and deep links must show the unavailable state without fake actions.
+for (const section of ['org-accounts', 'org-copy', 'int-api', 'int-private', 'int-webhooks',
+  'account-marketplace', 'track-domains', 'ct-domains', 'account-payments', 'tools-payments',
+  'account-billing', 'sl-products', 'obj-products', 'obj-products:record', 'obj-custom',
+  'obj-custom:index', 'data-sync', 'mk-ads', 'mk-social', 'sv-kb']) {
+  location.hash = `#${section}`;
+  window.dispatchEvent(new dom.window.Event('hashchange'));
+  const pane = document.querySelector('.settings-construction');
+  assert.ok(pane, `${section}: construction page`);
+  assert.ok(pane.querySelector('img[src="../en-construccion.png"]'));
+  assert.ok(pane.querySelector('.settings-construction__brand'));
+  assert.equal(pane.querySelectorAll('button, input, form').length, 0, `${section}: no simulated actions`);
+  assert.equal(document.querySelector('[data-act="toast"]'), null);
+}
 // General page tabs
 location.hash = '#prefs-general';
 window.dispatchEvent(new dom.window.Event('hashchange'));
@@ -35,7 +50,7 @@ pf.querySelector('[name="first"]').value = 'Fer';
 pf.dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true }));
 log('profile saved:', JSON.parse(mem['crm:profile']).first, JSON.parse(mem['crm:profile']).region);
 click(document.querySelector('[data-general-tab="calendario"]'));
-log('calendario tab:', document.querySelector('.gh').textContent, '| has time inputs:', document.querySelectorAll('input[type="time"]').length);
+log('calendario tab:', document.querySelector('.spane h2').textContent, '| has time inputs:', document.querySelectorAll('input[type="time"]').length);
 // every pane renders
 let rendered = 0;
 for (const a of [...document.querySelectorAll('.snav__item[href^="#"]')].map((x) => x.getAttribute('href').slice(1))) {
@@ -44,14 +59,11 @@ for (const a of [...document.querySelectorAll('.snav__item[href^="#"]')].map((x)
   if (document.querySelector('.spane h2')) rendered += 1;
 }
 log('panes rendered:', rendered);
-// collapsible parent + webhook creation
+// Unavailable integrations must not create pretend subscriptions.
 location.hash = '#int-webhooks';
 window.dispatchEvent(new dom.window.Event('hashchange'));
-log('integraciones parent open:', document.querySelector('[data-parent="account-integrations"]').classList.contains('is-open'));
-click(document.querySelector('[data-act="new-webhook"]'));
-document.querySelector('#pm-form [name="url"]').value = 'https://megaglass.us/hook';
-document.getElementById('pm-form').dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true }));
-log('webhooks:', JSON.parse(mem['crm:webhooks']).length);
+assert.ok(document.querySelector('.settings-construction'));
+assert.equal(document.querySelector('[data-act="new-webhook"]'), null);
 location.hash = '#data-properties';
 window.dispatchEvent(new dom.window.Event('hashchange'));
 // create a custom property
