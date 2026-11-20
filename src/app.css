@@ -17308,21 +17308,6 @@ body.has-slideover {
 .calls-play:hover { background: var(--c-bg, #f3f6f9); }
 .calls-audio { height: 28px; vertical-align: middle; margin-left: 8px; }
 
-/* Responsable con avatar (como la columna «Actividad asignada a» del original) */
-.calls-owner { display: inline-flex; align-items: center; gap: 8px; }
-.calls-owner__avatar {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: var(--c-link);
-  color: #fff;
-  font-size: 12px;
-  font-weight: 600;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
 /* Transcripción desplegable bajo la llamada */
 .calls-transcript-row td { padding: 0 12px 12px; border-top: 0; }
 .calls-transcript {

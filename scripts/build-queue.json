@@ -408,10 +408,12 @@
     },
     {
       "id": "gap-ui-re-propietario-avatar-llamadas",
-      "status": "pending",
+      "status": "done",
       "createdAt": "2026-11-19T19:35:10-06:00",
       "instruction": "El fix «propietario-avatar-consistente» (ownerHtml con avatar de dos iniciales y color por persona) no llegó a la página de Llamadas: la columna «Actividad asignada a» sigue dibujando su propio avatar (src/calls.js ~198, .calls-owner__avatar en src/app.css ~17313) con UNA sola letra y el mismo fondo teal (var(--c-link)) para todo el mundo, sin el color derivado del nombre. En HubSpot esa columna muestra el mismo avatar + nombre que el resto del CRM.\n\nCómo debe verse: la celda usa ownerHtml(r.owner) de src/owner.js (avatar xs con las dos iniciales y el color de la persona, «Sin asignar» con el avatar gris cuando no hay responsable), igual que las columnas de propietario de Contactos, Negocios, Tickets y Tareas; se borran .calls-owner y .calls-owner__avatar del CSS si no quedan usos.\n\nCriterio de aceptación: en CRM › Llamadas dos responsables distintos muestran iniciales y colores distintos, idénticos a los que esas mismas personas tienen en la lista de Contactos; sin owner se ve «Sin asignar» con el avatar gris. No despliegues nada a producción; solo código local.",
-      "lane": "codex"
+      "lane": "codex",
+      "completedAt": "2026-11-19T19:56:27-0600",
+      "completedBy": "codex"
     },
     {
       "id": "gap-ui-etapa-negocio-sin-pipeline",

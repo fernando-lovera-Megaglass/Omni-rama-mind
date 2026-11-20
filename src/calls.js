@@ -7,6 +7,7 @@ import { toast } from './shell.js';
 import { allContacts, allActivities, OWNERS, toCsv, download, dbIsLive } from './data.js';
 import { supabase } from './supabaseClient.js';
 import { displayPhone } from './phone.js';
+import { ownerHtml } from './owner.js';
 
 boot({ root: '../', active: 'crm', sub: 'Llamadas', title: 'Llamadas' });
 
@@ -195,7 +196,7 @@ function render() {
               <tbody>
                 ${slice.map((r) => `<tr data-callrow="${esc(r.id)}"${r.contactId ? ` data-contact="${esc(r.contactId)}"` : ''}>
                   <td><span class="calls-table__title">${esc(r.title)}</span>${r.recording ? ` <button class="calls-play" type="button" data-play="${esc(r.callSid)}" title="Escuchar la grabación">▶ Grabación</button>` : ''}${r.transcript ? ` <button class="calls-play" type="button" data-transcript="${esc(r.id)}" title="Ver la transcripción">${state.openTranscripts.has(r.id) ? '▾' : '▸'} Transcripción</button>` : r.recording ? ` <button class="calls-play" type="button" data-transcribe="${esc(r.callSid)}" title="Transcribir con IA">Transcribir</button>` : ''}</td>
-                  <td>${r.owner ? `<span class="calls-owner"><span class="calls-owner__avatar">${esc((r.owner || '?').trim().charAt(0).toUpperCase())}</span>${esc(r.owner)}</span>` : '—'}</td>
+                  <td>${ownerHtml(r.owner)}</td>
                   <td>${esc(fmtDuration(r.durationSec))}</td>
                   <td>${esc(fmtWhen(r.when))}</td>
                   <td><span class="tag">${esc(r.status || '—')}</span></td>
