@@ -1,5 +1,15 @@
 # Progreso — Omni CRM
 
+## 2026-11-20 (sesión 6) · Categoría «Eventos» del editor de segmentos con criterios reales
+
+La categoría «Eventos» del selector de categoría (Propiedades / Afiliaciones / Eventos) era una opción deshabilitada. Ahora ofrece **«Actividades, llamadas y correos (cronología)»** con criterios sobre la tabla `activities` (lo que muestra la cronología de cada registro) y los registros de llamadas de Twilio (`call_logs`):
+
+- **Actividad**: «Última actividad registrada» (fecha: «es de hace menos de N días», «es de hace más de», «es desconocido»…, contando notas, correos, llamadas, reuniones, tareas y mensajes, no las entradas del sistema) y «Número de actividades».
+- **Llamadas**: «Última llamada», «Número de llamadas», «Tiene llamada grabada» (Sí/No: la marca de grabación de la actividad o la grabación del registro Twilio) y «Último resultado de llamada» (Conectado, Sin respuesta, No contesta, Ocupado, Dejé/Dejó mensaje de voz, Dejó mensaje en directo, Número equivocado; el de la llamada más reciente). Un registro Twilio ya anotado en la cronología (mismo `callSid`) solo aporta grabación y resultado; los que no están anotados cuentan como llamadas.
+- **Correos**: «Último correo», «Número de correos», «Tiene correo abierto» y «Tiene correo sin abrir» (Sí/No según la marca `opened` de cada correo enviado; los recibidos no cuentan como «sin abrir»). Los envíos de correo de marketing reparten sus aperturas simuladas entre los destinatarios (`extra.opened` por contacto), coherentes con las métricas del envío.
+- `src/event-filters.js` construye un índice por registro (una pasada por todas las actividades + registros de llamadas) y evalúa con los mismos operadores y grupos Y/O del editor; funciona para contactos, empresas, negocios y tickets (los registros Twilio solo para contactos). Las páginas de segmentos esperan a `ensureEventData()` (todas las actividades y los registros de llamadas) antes de contar, así que la **vista previa**, «Guardar y procesar» y el tamaño en la lista coinciden. Los criterios de eventos no consumen el límite de 60 filtros por asociación y el resumen los indica («· N por eventos»).
+- Prueba: `scripts/smoke-segment-events.mjs` (segmento «Contactos con llamada en últimos 30 días» con llamadas registradas a 10, 20, 45 y 60 días y un registro Twilio a 4 días → exactamente los 3 esperados en motor, vista previa, guardado/procesado, reapertura y lista; llamada grabada, último resultado, actividad en 7 días, correo abierto/sin abrir, recuentos, Y/O y mezcla con propiedades, empresas; el envío de marketing marca las aperturas por contacto).
+
 ## 2026-11-20 (sesión 6) · Recordatorios de tareas que se disparan
 
 Antes, «Recordatorio predeterminado» (Ajustes › General › Tareas) era solo un ajuste guardado. Ahora:

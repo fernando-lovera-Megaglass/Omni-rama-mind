@@ -2784,6 +2784,12 @@ h1 {
   background: #eef0fb;
 }
 
+/* «Eventos» conditions (timeline: activities, calls, e-mails) */
+.advc--event {
+  border-color: #f3cdb9;
+  background: #fdf3ec;
+}
+
 .advg__tools {
   margin-left: auto;
   display: inline-flex;

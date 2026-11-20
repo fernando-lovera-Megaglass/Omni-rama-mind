@@ -4,9 +4,11 @@
 import { boot } from './page.js';
 import { wireMenus, closeMenus, toast } from './shell.js';
 import { formatDate } from './data.js';
-import { segments, folders, saveFolders, updateSegment, removeSegments, segmentSize, cloneSegment, convertToStatic, matchesSearch, objectLabel, SEGMENT_OBJECTS, TYPE_LABELS } from './segments-data.js';
+import { segments, folders, saveFolders, updateSegment, removeSegments, segmentSize, cloneSegment, convertToStatic, matchesSearch, objectLabel, SEGMENT_OBJECTS, TYPE_LABELS, ensureEventData } from './segments-data.js';
 
 boot({ root: '../', active: 'crm', sub: 'Segmentos', title: 'Segmentos' });
+// Segment sizes with «Eventos» criteria count activities and call logs: load them before the first render.
+await ensureEventData();
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
 const root = document.getElementById('seg-root');

@@ -1,13 +1,18 @@
 // Shared filter editor and evaluator: groups of conditions (Y inside a group, O between groups) on the
-// record's own properties, on linked records (association filters) or on segment membership
-// (Afiliaciones). Used by the lists' "Filtros avanzados" (list.js) and by the segment editor.
+// record's own properties, on linked records (association filters), on segment membership (Afiliaciones)
+// or on the record's timeline (Eventos: activities, calls, e-mails — event-filters.js). Used by the lists'
+// "Filtros avanzados" (list.js) and by the segment editor.
 // Operators and value conversion come from filter-ops.js; associations from assoc-filters.js.
 import { propertyGroups, propertyMap } from './properties.js';
 import { associationsFor, associationLabelOptions, assocPropertyGroups, assocValueOptions, assocConditionMatches, assocKindGroup, assocText, SINGULAR } from './assoc-filters.js';
 import { opsFor, kindGroup, normalizeOp, evalCondition, conditionValues, NO_VALUE_OPS, TWO_VALUE_OPS, MULTI_OPS, DAYS_OPS } from './filter-ops.js';
+import { EVENTS_ASSOC, EVENTS_LABEL, eventPropertyGroups, eventValueOptions, eventKindGroup, eventMatcher } from './event-filters.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
 export const SEGMENT_ASSOC = '__segment';
+export { EVENTS_ASSOC };
+// Categories that are not associations with another object (they do not count toward the 60 associated filters).
+const isCategory = (assoc) => assoc === SEGMENT_ASSOC || assoc === EVENTS_ASSOC;
 export const LIMITS = { conditions: 250, associated: 60 };
 const DATE_KEYS = new Set(['created', 'lastActivity', 'closeDate', 'due', 'closedate']);
 
@@ -52,6 +57,7 @@ export function matcherFor(type, conditions, { fallbackKind, textOf, segmentMemb
       const negate = cond.op === 'noneof' || cond.op === 'nin' || cond.op === 'not';
       return (r) => { const inAny = ids.some((sid) => memberSets.get(sid).has(Number(r.id))); return negate ? !inAny : inAny; };
     }
+    if (cond.assoc === EVENTS_ASSOC) return eventMatcher(type, cond);
     if (cond.assoc) return (r) => assocConditionMatches(type, cond, r);
     const group = kindGroup(ownKindOf(type, cond.key, fallbackKind));
     return (r) => {
@@ -67,15 +73,16 @@ export function matcherFor(type, conditions, { fallbackKind, textOf, segmentMemb
 export function recordMatches(type, conditions, r, opts = {}) {
   return matcherFor(type, conditions, opts)(r);
 }
-export const countConditions = (conditions) => ({ total: conditions.filter((c) => c.key).length, associated: conditions.filter((c) => c.key && c.assoc && c.assoc !== SEGMENT_ASSOC).length });
+export const countConditions = (conditions) => ({ total: conditions.filter((c) => c.key).length, associated: conditions.filter((c) => c.key && c.assoc && !isCategory(c.assoc)).length, events: conditions.filter((c) => c.key && c.assoc === EVENTS_ASSOC).length });
 
 // The editor: renders into `container`, keeps the conditions through get/set, calls onChange after edits.
 export function createFilterEditor({ type, container, summary, get, set, onChange, ownValueOptions, fallbackKind, extraProperties, singular, segmentOptions, showCategories }) {
   const groups = propertyGroups(type);
   const assocs = associationsFor(type);
   const valueOptions = (key) => (ownValueOptions ? ownValueOptions(key) : null) || ownValueOptionsOf(type, key);
-  const condGroup = (c) => (c.key ? (c.assoc === SEGMENT_ASSOC ? 'enum' : c.assoc ? assocKindGroup(c.assoc, c.key) : kindGroup(ownKindOf(type, c.key, fallbackKind))) : 'text');
-  const condChoices = (c) => (c.key ? (c.assoc === SEGMENT_ASSOC ? (segmentOptions ? segmentOptions() : []) : c.assoc ? assocValueOptions(c.assoc, c.key) : valueOptions(c.key)) : null);
+  const condGroup = (c) => (c.key ? (c.assoc === SEGMENT_ASSOC ? 'enum' : c.assoc === EVENTS_ASSOC ? eventKindGroup(c.key) : c.assoc ? assocKindGroup(c.assoc, c.key) : kindGroup(ownKindOf(type, c.key, fallbackKind))) : 'text');
+  const condChoices = (c) => (c.key ? (c.assoc === SEGMENT_ASSOC ? (segmentOptions ? segmentOptions() : []) : c.assoc === EVENTS_ASSOC ? eventValueOptions(c.key) : c.assoc ? assocValueOptions(c.assoc, c.key) : valueOptions(c.key)) : null);
+  const eventPropertyOptions = (selected) => eventPropertyGroups().map((grp) => `<optgroup label="${esc(grp.title)}">${grp.items.map(([k, l]) => `<option value="${k}" ${selected === k ? 'selected' : ''}>${esc(l)}</option>`).join('')}</optgroup>`).join('');
   const propertyOptions = (selected) => {
     const grouped = groups.map((grp) => `<optgroup label="${esc(grp.title)}">${grp.items.map(([k, l]) => `<option value="${k}" ${selected === k ? 'selected' : ''}>${esc(l)}</option>`).join('')}</optgroup>`).join('');
     const extra = (extraProperties || []).filter(([k]) => !propertyMap(type)[k]);
@@ -85,8 +92,9 @@ export function createFilterEditor({ type, container, summary, get, set, onChang
   const summaryText = (conds) => {
     const live = conds.filter((c) => c.key);
     const liveGroups = new Set(live.map((c) => c.group)).size;
-    const assocCount = live.filter((c) => c.assoc && c.assoc !== SEGMENT_ASSOC).length;
-    return live.length ? `${live.length} ${live.length === 1 ? 'condición' : 'condiciones'} en ${liveGroups} grupo${liveGroups === 1 ? '' : 's'}${assocCount ? ` · ${assocCount} por asociación` : ''}` : 'Sin condiciones todavía. Elige una propiedad del registro o de un registro asociado.';
+    const assocCount = live.filter((c) => c.assoc && !isCategory(c.assoc)).length;
+    const eventCount = live.filter((c) => c.assoc === EVENTS_ASSOC).length;
+    return live.length ? `${live.length} ${live.length === 1 ? 'condición' : 'condiciones'} en ${liveGroups} grupo${liveGroups === 1 ? '' : 's'}${assocCount ? ` · ${assocCount} por asociación` : ''}${eventCount ? ` · ${eventCount} por eventos` : ''}` : 'Sin condiciones todavía. Elige una propiedad del registro o de un registro asociado.';
   };
   const valueHtml = (c) => {
     const grp = condGroup(c);
@@ -110,24 +118,25 @@ export function createFilterEditor({ type, container, summary, get, set, onChang
   const rowHtml = (c, i) => {
     const a = assocs.find((x) => x.key === c.assoc);
     const isSeg = c.assoc === SEGMENT_ASSOC;
+    const isEvent = c.assoc === EVENTS_ASSOC;
     const ops = isSeg ? [['anyof', 'es miembro de'], ['noneof', 'no es miembro de']] : opsFor(condGroup(c));
     const value = valueHtml(c);
     const wide = value.startsWith('<div class="advc__multi"');
     const labels = associationLabelOptions();
     return `
-      <div class="advc${a ? ' advc--assoc' : ''}${isSeg ? ' advc--seg' : ''}" data-i="${i}">
+      <div class="advc${a ? ' advc--assoc' : ''}${isSeg ? ' advc--seg' : ''}${isEvent ? ' advc--event' : ''}" data-i="${i}">
         <div class="advc__top">
           <select data-k="assoc" aria-label="Objeto o categoría">
             ${showCategories ? '<optgroup label="Propiedades">' : ''}
             <option value="">${esc(singular || SINGULAR[type] || type)} (este registro)</option>
             ${assocs.map((x) => `<option value="${x.key}" ${c.assoc === x.key ? 'selected' : ''}>${esc(x.label)}</option>`).join('')}
-            ${showCategories ? `</optgroup><optgroup label="Afiliaciones"><option value="${SEGMENT_ASSOC}" ${isSeg ? 'selected' : ''}>Afiliación a segmentos</option></optgroup><optgroup label="Eventos"><option value="" disabled>Interacciones con CTA (no disponible en esta versión)</option></optgroup>` : ''}
+            ${showCategories ? `</optgroup><optgroup label="Afiliaciones"><option value="${SEGMENT_ASSOC}" ${isSeg ? 'selected' : ''}>Afiliación a segmentos</option></optgroup><optgroup label="Eventos"><option value="${EVENTS_ASSOC}" ${isEvent ? 'selected' : ''}>${esc(EVENTS_LABEL)}</option></optgroup>` : ''}
           </select>
           ${a && a.labels ? `<select data-k="label" aria-label="Etiqueta de asociación"><option value="">Cualquier registro asociado</option>${labels.map((l) => `<option value="${esc(l)}" ${c.label === l ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>` : ''}
           <button class="icon-btn advc__remove" type="button" data-remove aria-label="Quitar condición">×</button>
         </div>
         <div class="advc__row${wide ? ' advc__row--wide' : ''}">
-          ${isSeg ? '<input type="hidden" data-k="key" value="membership" /><span class="advc__fixed">Pertenencia</span>' : `<select data-k="key" aria-label="Propiedad"><option value="">Propiedad…</option>${a ? assocPropertyOptions(a.key, c.key) : propertyOptions(c.key)}</select>`}
+          ${isSeg ? '<input type="hidden" data-k="key" value="membership" /><span class="advc__fixed">Pertenencia</span>' : `<select data-k="key" aria-label="Propiedad"><option value="">Propiedad…</option>${isEvent ? eventPropertyOptions(c.key) : a ? assocPropertyOptions(a.key, c.key) : propertyOptions(c.key)}</select>`}
           <select data-k="op" aria-label="Condición" ${c.key ? '' : 'disabled'}>${ops.map(([v, l]) => `<option value="${v}" ${c.op === v ? 'selected' : ''}>${l}</option>`).join('')}</select>
           ${value}
         </div>
@@ -179,7 +188,7 @@ export function createFilterEditor({ type, container, summary, get, set, onChang
     const k = e.target.dataset.k;
     c[k] = e.target.value;
     if (k === 'assoc') {
-      if (c.assoc && c.assoc !== SEGMENT_ASSOC && countConditions(conds).associated > LIMITS.associated) { c.assoc = ''; }
+      if (c.assoc && !isCategory(c.assoc) && countConditions(conds).associated > LIMITS.associated) { c.assoc = ''; }
       c.key = c.assoc === SEGMENT_ASSOC ? 'membership' : ''; c.op = c.assoc === SEGMENT_ASSOC ? 'anyof' : ''; c.value = ''; c.value2 = ''; c.label = '';
     }
     if (k === 'key') { c.op = opsFor(condGroup(c))[0][0]; c.value = ''; c.value2 = ''; }

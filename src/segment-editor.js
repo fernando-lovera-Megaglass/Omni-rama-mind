@@ -7,7 +7,7 @@ import { boot } from './page.js';
 import { wireMenus, closeMenus, toast } from './shell.js';
 import { ALL, formatDate } from './data.js';
 import { createFilterEditor, suggestConditions, newCondition } from './filter-editor.js';
-import { segments, segmentById, folders, saveFolders, addSegment, updateSegment, processSegment, segmentMembers, segmentSize, addStaticMembers, removeStaticMembers, describeSegment, filterCounts, objectLabel, objectPlural, SEGMENT_OBJECTS, TYPE_LABELS, CAMPAIGNS, LIMITS, ME } from './segments-data.js';
+import { segments, segmentById, folders, saveFolders, addSegment, updateSegment, processSegment, segmentMembers, segmentSize, addStaticMembers, removeStaticMembers, describeSegment, filterCounts, objectLabel, objectPlural, SEGMENT_OBJECTS, TYPE_LABELS, CAMPAIGNS, LIMITS, ME, ensureEventData } from './segments-data.js';
 
 const params = new URLSearchParams(location.search);
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
@@ -233,5 +233,7 @@ root.addEventListener('change', (e) => {
 });
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
 
+// The «Eventos» criteria need every activity and the call logs before the preview can count.
+await ensureEventData();
 render();
 export { state, render, saveAndProcess, openSave };

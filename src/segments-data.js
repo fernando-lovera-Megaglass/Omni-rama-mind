@@ -4,6 +4,9 @@
 // table `segments` (supabase/segments.sql) with a localStorage fallback and a sample set on first run.
 import { ALL, TODAY, strip, listSegments, saveAllSegments, insertSegment, patchSegment, deleteSegments, seedSegments, segmentsAreLive, logSystem } from './data.js';
 import { matcherFor, countConditions, LIMITS } from './filter-editor.js';
+import { ensureEventData } from './event-filters.js';
+// The «Eventos» criteria read every activity and the call logs: pages await this before counting segments.
+export { ensureEventData };
 
 export const FOLDERS_KEY = 'crm:segments:folders';
 export const ME = 'Fernando Lovera Colin';

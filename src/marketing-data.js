@@ -154,7 +154,11 @@ export function sendEmail(id, { at, by = ME, rnd } = {}) {
   const people = recipientsOf(e);
   const metrics = simulateMetrics(people.length, rnd);
   const sent = updateEmail(id, { estado: 'enviado', enviadoAt: now.toISOString(), programadoPara: null, enviados: people.length, ...metrics }, { by });
-  addActivities(people.map((c) => ({ type: 'email', recordType: 'contacts', recordId: Number(c.id), text: `Correo de marketing: ${e.nombre}`, who: 'Marketing', when: now.getTime(), extra: { subject: e.asunto, marketingEmailId: e.id, channel: 'Correo de marketing' } })));
+  // The simulated opens are spread over the recipients, so each contact's timeline (and the segment criteria
+  // «Tiene correo abierto / sin abrir») knows whether this one opened it.
+  const step = metrics.aperturas ? people.length / metrics.aperturas : 0;
+  const opened = new Set(Array.from({ length: metrics.aperturas }, (_, k) => Math.min(people.length - 1, Math.floor(k * step))));
+  addActivities(people.map((c, i) => ({ type: 'email', recordType: 'contacts', recordId: Number(c.id), text: `Correo de marketing: ${e.nombre}`, who: 'Marketing', when: now.getTime(), extra: { subject: e.asunto, marketingEmailId: e.id, channel: 'Correo de marketing', opened: opened.has(i) } })));
   return sent;
 }
 // "Enviar prueba": only a log line and a confirmation; the test e-mail is not delivered anywhere.
