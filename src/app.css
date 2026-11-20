@@ -546,8 +546,8 @@ h1 {
 }
 
 .avatar--empty {
-  background: #e3e9ef;
-  color: #7c98b6;
+  background: var(--c-head);
+  color: var(--c-muted);
   font-size: 13px;
 }
 
@@ -19057,3 +19057,13 @@ td[data-key="deal_tags"] .dtag {
 .filter-chip > .menu__panel { max-height: 360px; overflow-y: auto; }
 .filter-chip .menu__item[hidden] { display: none; }
 .filter-chip .osel__opt { display: flex; align-items: center; gap: 8px; }
+
+/* Shared line icons in workflow actions, channels, access and AI controls. */
+.avatar--empty svg { width: 70%; height: 70%; flex: none; }
+.acc__ico { display: inline-flex; align-items: center; }
+.acc__ico svg,
+.ai-box__foot svg,
+.ai-feedback svg { width: 18px; height: 18px; flex: none; vertical-align: middle; }
+.ai-box__foot .src { display: inline-flex; align-items: center; gap: var(--sp-4); }
+.wfn__ico svg,
+.ibs__cardico svg { width: 22px; height: 22px; flex: none; vertical-align: middle; }

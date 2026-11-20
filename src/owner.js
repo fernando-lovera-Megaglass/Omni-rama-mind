@@ -1,3 +1,4 @@
+import { ACT_ICONS } from './action-icons.js';
 // Owners and user-type properties look the same everywhere, like in the original: a round avatar with the
 // person's initials (its colour derives from the name, so the same person always gets the same one) to the
 // left of the name; «Sin asignar» gets the grey placeholder. Sizes: xs in tables, chips and bars, sm in cards
@@ -15,7 +16,7 @@ export function ownerColor(name) {
 }
 // Avatar only (e.g. the foot of a board card); with `titled` it carries the name as tooltip and label.
 export function ownerAvatarHtml(name, size = 'xs', { titled = false } = {}) {
-  if (isUnassigned(name)) return `<span class="avatar avatar--${size} avatar--empty" ${titled ? 'title="Sin asignar" aria-label="Propietario sin asignar"' : 'aria-hidden="true"'}>👤</span>`;
+  if (isUnassigned(name)) return `<span class="avatar avatar--${size} avatar--empty" ${titled ? 'title="Sin asignar" aria-label="Propietario sin asignar"' : 'aria-hidden="true"'}>${ACT_ICONS.user}</span>`;
   return `<span class="avatar avatar--${size}" style="background:${ownerColor(name)}" ${titled ? `title="${esc(name)}" aria-label="Propietario: ${esc(name)}"` : 'aria-hidden="true"'}>${esc(ownerInitials(name))}</span>`;
 }
 // Avatar + name (the standard rendering of an owner wherever it is displayed).

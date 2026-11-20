@@ -1,3 +1,4 @@
+import { ACT_ICONS } from './action-icons.js';
 // Inbox settings (Ajustes › Herramientas › Bandeja de entrada): the channels, the configured inboxes
 // (channels, ANS/SLA, team views, access), the users' availability (which drives the automatic assignment of
 // incoming conversations) and the spam allow/deny lists. One JSON per key in Supabase `inbox_settings`,
@@ -11,12 +12,12 @@ export const USERS = OWNERS.filter((o) => o !== 'Sin asignar');
 export const TEAM_OF = { 'Fernando L.': 'Gerentes', 'Sofía R.': 'Ventas en el Extranjero', 'Diego G.': 'SACA', 'Laura M.': 'Sistemas' };
 export const ALL_TEAMS = TEAMS;
 export const CHANNEL_DEFS = {
-  chat: { label: 'Chat', group: 'web', icon: '💬', desc: 'Chat en directo y bots en tu sitio web.' },
-  forms: { label: 'Formulario', group: 'web', icon: '📝', desc: 'Los envíos de formularios llegan como conversaciones.' },
-  teamEmail: { label: 'Correo del equipo', group: 'team', icon: '✉', desc: 'Direcciones compartidas como ventas@ o soporte@.' },
-  calls: { label: 'Llamadas', group: 'team', icon: '☏', desc: 'Llamadas entrantes y salientes desde la bandeja.' },
-  whatsapp: { label: 'WhatsApp', group: 'team', icon: '🟢', desc: 'Mensajes de tu número de WhatsApp Business.' },
-  messenger: { label: 'Facebook Messenger', group: 'team', icon: '💠', desc: 'Mensajes de tus páginas de Facebook.' },
+  chat: { label: 'Chat', group: 'web', icon: ACT_ICONS.chat, desc: 'Chat en directo y bots en tu sitio web.' },
+  forms: { label: 'Formulario', group: 'web', icon: ACT_ICONS.form, desc: 'Los envíos de formularios llegan como conversaciones.' },
+  teamEmail: { label: 'Correo del equipo', group: 'team', icon: ACT_ICONS.email, desc: 'Direcciones compartidas como ventas@ o soporte@.' },
+  calls: { label: 'Llamadas', group: 'team', icon: ACT_ICONS.call, desc: 'Llamadas entrantes y salientes desde la bandeja.' },
+  whatsapp: { label: 'WhatsApp', group: 'team', icon: ACT_ICONS.whatsapp, desc: 'Mensajes de tu número de WhatsApp Business.' },
+  messenger: { label: 'Facebook Messenger', group: 'team', icon: ACT_ICONS.chat, desc: 'Mensajes de tus páginas de Facebook.' },
 };
 export const SAMPLE_FORMS = [['contacto-web', 'Contacto web'], ['cotizacion', 'Solicitud de cotización'], ['catalogo', 'Descarga de catálogo']];
 export const SAMPLE_PAGES = [['megaglass', 'Megaglass'], ['megaglass-mx', 'Megaglass México'], ['acristala', 'Acristala']];

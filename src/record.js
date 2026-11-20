@@ -722,7 +722,7 @@ function renderAi() {
   const html = `
     <div class="ai-box__meta">Generado ${s.when} <button class="icon-btn icon-btn--xs" type="button" data-act="summarize" aria-label="Regenerar">↻</button></div>
     ${s.lines.map((l, i) => `<p>${i === 1 ? '<strong>Tarea pendiente:</strong> ' : ''}${esc(l)} ${i === 1 ? '<span class="src-badge">1</span>' : ''}</p>`).join('')}
-    <div class="ai-box__foot"><span class="src">🔗 2 Fuentes</span><button type="button" data-act="fb-up" aria-label="Útil">👍</button><button type="button" data-act="fb-down" aria-label="No útil">👎</button><button type="button" data-act="copy-summary" aria-label="Copiar">⧉</button></div>
+    <div class="ai-box__foot"><span class="src">${ACT_ICONS.link} 2 Fuentes</span><button type="button" data-act="fb-up" aria-label="Útil">${ACT_ICONS.thumbsUp}</button><button type="button" data-act="fb-down" aria-label="No útil">${ACT_ICONS.thumbsDown}</button><button type="button" data-act="copy-summary" aria-label="Copiar">${ACT_ICONS.copy}</button></div>
     <button class="btn btn--pill btn--sm" type="button" data-act="ask">✦ Hacer una pregunta</button>`;
   if ($('ai-summary')) $('ai-summary').innerHTML = html;
   if ($('ai-right')) $('ai-right').innerHTML = html;
@@ -1012,7 +1012,7 @@ function middleCardHtml(id) {
       return `<div class="card"><div class="card__head"><h3 class="card__title">Actividades recientes</h3><span class="card__tools"><span class="ai-badge">✦ AI</span></span></div>
         <div class="recent" id="recent-box"></div>
         <div class="recent__split"><div class="recent__col recent__col--empty"><div class="recent__art" aria-hidden="true"></div><p>No hay actividad entrante en este registro.</p></div><div class="recent__col"><h4>Salientes</h4><ul class="timeline timeline--compact" id="rec-timeline-short"></ul></div></div>
-        <div class="ai-feedback"><button type="button" data-act="fb-up" aria-label="Útil">👍</button><button type="button" data-act="fb-down" aria-label="No útil">👎</button></div></div>`;
+        <div class="ai-feedback"><button type="button" data-act="fb-up" aria-label="Útil">${ACT_ICONS.thumbsUp}</button><button type="button" data-act="fb-down" aria-label="No útil">${ACT_ICONS.thumbsDown}</button></div></div>`;
     case 'highlights':
       return `<div class="card"><h3 class="card__title">${esc(label)}</h3><div class="highlights" id="rec-highlights"></div></div>`;
     case 'sentiment': {
@@ -1988,7 +1988,7 @@ $('rec-modal').addEventListener('click', async (e) => {
     const q = $('ask-q').value.trim();
     const last = allEvents()[0];
     $('ask-a').innerHTML = q
-      ? `<p><strong>Respuesta:</strong> La actividad más reciente de ${esc(cfg.title(rec))} fue el ${formatDate(new Date(last.when))}: ${esc(last.text)}</p><div class="ai-box__foot"><span class="src">🔗 1 Fuente</span></div>`
+      ? `<p><strong>Respuesta:</strong> La actividad más reciente de ${esc(cfg.title(rec))} fue el ${formatDate(new Date(last.when))}: ${esc(last.text)}</p><div class="ai-box__foot"><span class="src">${ACT_ICONS.link} 1 Fuente</span></div>`
       : '<p class="muted">Escribe una pregunta.</p>';
   }
 });

@@ -1,3 +1,4 @@
+import { ACT_ICONS } from './action-icons.js';
 // Workflows (Automatización › Workflows): the workflows / workflow_actions / workflow_enrollments tables with
 // Supabase (localStorage otherwise), the trigger condition engine (OR between groups, AND inside), the action
 // catalogue, the step-by-step simulation ("Prueba") and the real effect of each action (property edits, tasks,
@@ -19,10 +20,10 @@ export const OPERATORS = [['is_any_of', 'es cualquiera de'], ['eq', 'es igual a'
 export const STATUS_LABELS = { published: 'Publicado', off: 'Retirado', draft: 'Borrador' };
 export const ENROLL_CAP = 25;
 export const ACTION_CATALOG = [
-  ['Comunicación', [['send_email', 'Enviar correo', '📧'], ['notify_email', 'Enviar notificación interna por correo', '✉'], ['notify_app', 'Enviar notificación en la app', '🔔'], ['marketing_email', 'Enviar correo de marketing', '📣']]],
-  ['CRM', [['create_record', 'Crear registro', '＋'], ['edit_record', 'Editar registro', '✎'], ['assign_owner', 'Asignar propietario', '👤'], ['copy_property', 'Copiar propiedad entre objetos asociados', '⇄']]],
-  ['Flujo', [['delay', 'Retraso', '⏱'], ['branch', 'Rama if/then', '⑂'], ['goto', 'Ir a otra acción', '↪']]],
-  ['Tareas', [['create_task', 'Crear tarea', '☑']]],
+  ['Comunicación', [['send_email', 'Enviar correo', ACT_ICONS.email], ['notify_email', 'Enviar notificación interna por correo', ACT_ICONS.email], ['notify_app', 'Enviar notificación en la app', ACT_ICONS.bell], ['marketing_email', 'Enviar correo de marketing', ACT_ICONS.megaphone]]],
+  ['CRM', [['create_record', 'Crear registro', ACT_ICONS.created], ['edit_record', 'Editar registro', ACT_ICONS.note], ['assign_owner', 'Asignar propietario', ACT_ICONS.user], ['copy_property', 'Copiar propiedad entre objetos asociados', ACT_ICONS.swap]]],
+  ['Flujo', [['delay', 'Retraso', ACT_ICONS.delay], ['branch', 'Rama if/then', ACT_ICONS.workflow], ['goto', 'Ir a otra acción', ACT_ICONS.goto]]],
+  ['Tareas', [['create_task', 'Crear tarea', ACT_ICONS.task]]],
 ];
 export const ACTION_DEFS = Object.fromEntries(ACTION_CATALOG.flatMap(([group, items]) => items.map(([type, label, icon]) => [type, { type, label, icon, group }])));
 const DAY = 86400000;

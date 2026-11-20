@@ -1,3 +1,4 @@
+import { ACT_ICONS } from './action-icons.js';
 import { integrationsPaneHtml, mountIntegrations } from './settings-integrations.js';
 import { mountMfaSettings, ssoUnavailable } from './mfa-settings.js';
 // Account settings (the gear in the top bar): a full settings tree with a pane per section.
@@ -876,7 +877,7 @@ function openAccessDrawer(i) {
       <div class="acc__pick">
         <div class="acc__search"><input type="search" id="acc-q" placeholder="Buscar" value="${esc(q)}" aria-label="Buscar usuarios y equipos" /><span class="caret" aria-hidden="true"></span></div>
         <div class="acc__tabs"><button type="button" class="${tab === 'teams' ? 'is-active' : ''}" data-acc-tab="teams">Equipos${draft.teams.length ? ` (${draft.teams.length})` : ''}</button><button type="button" class="${tab === 'users' ? 'is-active' : ''}" data-acc-tab="users">Usuarios${draft.users.length ? ` (${draft.users.length})` : ''}</button></div>
-        <ul class="acc__list">${items.length ? items.map((n) => `<li><label><input type="checkbox" data-acc-item="${esc(n)}" ${sel.includes(n) ? 'checked' : ''} /><span class="acc__ico" aria-hidden="true">${tab === 'teams' ? '👥' : '👤'}</span><span>${esc(n)}</span></label></li>`).join('') : '<li class="muted">Sin resultados</li>'}</ul>
+        <ul class="acc__list">${items.length ? items.map((n) => `<li><label><input type="checkbox" data-acc-item="${esc(n)}" ${sel.includes(n) ? 'checked' : ''} /><span class="acc__ico" aria-hidden="true">${tab === 'teams' ? ACT_ICONS.users : ACT_ICONS.user}</span><span>${esc(n)}</span></label></li>`).join('') : '<li class="muted">Sin resultados</li>'}</ul>
       </div>` : ''}
     </div>`;
   };
@@ -1614,7 +1615,7 @@ root.addEventListener('click', (e) => {
     if (!v) return;
     if (d.rvRename !== undefined) promptModal('Cambiar nombre de la vista', [['name', 'Nombre de la vista', 'text', v.name]], 'Guardar', (f) => { const name = f.name.trim(); if (!name) return; state.rvSel.delete(v.name); v.name = name; stamp(v); saveRecordViews(type, list); toast('Nombre guardado'); });
     else if (d.rvTeams !== undefined) {
-      openModal(`Asignar equipos: ${esc(v.name)}`, `<p class="muted">Los usuarios de estos equipos verán esta vista al abrir un ${OBJ_META[type].s.toLowerCase()}.</p><ul class="acc__list" id="rvt-list">${teams().map((t) => `<li><label><input type="checkbox" value="${esc(t.name)}" ${v.teams.includes(t.name) ? 'checked' : ''} /><span class="acc__ico" aria-hidden="true">👥</span><span>${esc(t.name)}</span></label></li>`).join('')}</ul>`, `<button class="btn btn--primary" type="button" id="rvt-save">Guardar</button><button class="btn btn--ghost" type="button" data-close>Cancelar</button>`);
+      openModal(`Asignar equipos: ${esc(v.name)}`, `<p class="muted">Los usuarios de estos equipos verán esta vista al abrir un ${OBJ_META[type].s.toLowerCase()}.</p><ul class="acc__list" id="rvt-list">${teams().map((t) => `<li><label><input type="checkbox" value="${esc(t.name)}" ${v.teams.includes(t.name) ? 'checked' : ''} /><span class="acc__ico" aria-hidden="true">${ACT_ICONS.users}</span><span>${esc(t.name)}</span></label></li>`).join('')}</ul>`, `<button class="btn btn--primary" type="button" id="rvt-save">Guardar</button><button class="btn btn--ghost" type="button" data-close>Cancelar</button>`);
       document.getElementById('rvt-save').onclick = () => { v.teams = [...document.querySelectorAll('#rvt-list input:checked')].map((i) => i.value); stamp(v); saveRecordViews(type, list); closeModal(); render(); toast('Equipos asignados'); };
     } else if (d.rvClone !== undefined) { const copy = { ...v, name: `${v.name} (copia)`, teams: [] }; stamp(copy); list.push(copy); saveRecordViews(type, list); render(); toast(`Vista "${copy.name}" creada`); }
     else if (d.rvRm !== undefined) { if (window.confirm(`¿Eliminar la vista "${v.name}"?`)) { list.splice(list.indexOf(v), 1); state.rvSel.delete(v.name); saveRecordViews(type, list); render(); toast('Vista eliminada'); } }
