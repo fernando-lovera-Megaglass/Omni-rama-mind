@@ -633,10 +633,12 @@
     },
     {
       "id": "gap-ui-preview-nombre-sin-corte",
-      "status": "pending",
+      "status": "done",
       "createdAt": "2026-11-20T03:25:00-06:00",
       "lane": "codex",
-      "instruction": "En la vista previa de las listas (panel lateral .preview, 410px, overflow:hidden — src/app.css ~7661-7676) el nombre del registro (.preview__name, 24px, ~7694-7699) no tiene overflow-wrap ni ellipsis: un nombre largo de una sola palabra (una empresa con dominio pegado, un negocio tipo «COTIZACION-ACRISTALA-2026-0042») queda cortado a mitad de glifo por el borde del panel, sin «…». Lo mismo con el correo: .preview__mail (~7705-7710) es flex sin min-width:0 en los hijos, así que un correo largo empuja el contenido o se corta feo. Nota: gap-ui-vista-previa-etiquetas-cortadas (done) corrigió las etiquetas de los botones rápidos de este mismo panel; esto es distinto: el título y el correo. En HubSpot el título de la vista previa se trunca con elipsis o ajusta en dos líneas sin cortar caracteres. Cómo debe verse: .preview__name con overflow-wrap:anywhere (o ellipsis de una línea con title), y .preview__mail con min-width:0 + ellipsis en el enlace; nada se corta a mitad de letra. Criterio de aceptación: con un contacto de nombre larguísimo sin espacios y correo largo, el título y el correo se truncan con «…» o ajustan sin salirse ni cortar glifos; el botón de copiar sigue visible. No despliegues nada a producción; solo código local."
+      "instruction": "En la vista previa de las listas (panel lateral .preview, 410px, overflow:hidden — src/app.css ~7661-7676) el nombre del registro (.preview__name, 24px, ~7694-7699) no tiene overflow-wrap ni ellipsis: un nombre largo de una sola palabra (una empresa con dominio pegado, un negocio tipo «COTIZACION-ACRISTALA-2026-0042») queda cortado a mitad de glifo por el borde del panel, sin «…». Lo mismo con el correo: .preview__mail (~7705-7710) es flex sin min-width:0 en los hijos, así que un correo largo empuja el contenido o se corta feo. Nota: gap-ui-vista-previa-etiquetas-cortadas (done) corrigió las etiquetas de los botones rápidos de este mismo panel; esto es distinto: el título y el correo. En HubSpot el título de la vista previa se trunca con elipsis o ajusta en dos líneas sin cortar caracteres. Cómo debe verse: .preview__name con overflow-wrap:anywhere (o ellipsis de una línea con title), y .preview__mail con min-width:0 + ellipsis en el enlace; nada se corta a mitad de letra. Criterio de aceptación: con un contacto de nombre larguísimo sin espacios y correo largo, el título y el correo se truncan con «…» o ajustan sin salirse ni cortar glifos; el botón de copiar sigue visible. No despliegues nada a producción; solo código local.",
+      "completedAt": "2026-11-20T15:16:04-0600",
+      "completedBy": "codex"
     },
     {
       "id": "gap-backend-secuencias-sin-procesador",
@@ -662,6 +664,55 @@
       "instruction": "RENDIMIENTO (BAJA). La tabla contacts no tiene índice por email pese a ser la columna de búsqueda más frecuente: dedupe de importación (dedupe-importacion), el matcher de gmail-sync (supabase/functions/gmail-sync/index.ts línea 58: from('contacts').select('id, email').or(...)), las búsquedas de listas y el alta de contactos consultan por email. Evidencia estática: grep 'create index' en todos los supabase/*.sql solo muestra índices en tasks, activities, sequences, workflows, conversations, twilio, gmail, segments, reports, pipelines, contact_companies y deal_tags; ninguno toca contacts(email) (schema.sql línea 40 define la columna, sin índice, y schema.sql está 'saltada_destructiva' en applied-migrations.json). Hoy son 423 filas, pero cada importación/dedupe hace scan completo. Cómo corregirlo: migración nueva con create index if not exists contacts_email_idx on public.contacts (lower(email)) where deleted_at is null (y considerar índices análogos en deals.contact_id/company_id si se confirma que faltan), registrándola en scripts/applied-migrations.json tras aplicarla. Criterio de aceptación: la migración es idempotente (re-ejecutable sin error) y EXPLAIN de una búsqueda por email usa el índice. No despliegues nada a producción; solo código local.",
       "completedAt": "2026-11-20T11:45:54-0600",
       "completedBy": "codex"
+    },
+    {
+      "id": "gap-ui-tareas-primera-columna-cola",
+      "status": "pending",
+      "createdAt": "2026-11-20T13:33:46-06:00",
+      "lane": "codex",
+      "instruction": "En CRM > Tareas la primera columna de la tabla es «Cola» (src/tasks.js ~79: columns empieza con queueId, luego done, luego name) en vez del título de la tarea. El sistema de listas trata la columna 0 como la principal: src/list.js ~1236-1239 le pone la clase .table__first, el envoltorio .firstcell y el botón de vista previa ▭, y el menú de columna «Inmovilizar columna» (src/list.js ~1202) congela esa primera columna. Resultado visible: el botón ▭ de vista previa queda sobre la celda «Cola» (textos como «Sin cola»), el título de la tarea queda en tercera posición detrás del checkbox «Hecha», e inmovilizar congela la cola en vez del título. Además el render del título (src/tasks.js ~82) interpola `${r.name}` SIN escapar con esc(), así que un título con `<`, `>` o `&` rompe el HTML de la celda. Cómo debe verse según HubSpot: en el índice de tareas el nombre de la tarea es la primera columna (el checkbox de completar va dentro o junto al nombre), y la vista previa/inmovilización actúan sobre él. Reordena columns en src/tasks.js para que name sea la primera columna (escapando con esc()), luego done y el resto, y queueId más adelante; o integra el checkbox de completar dentro de la celda del título. Criterio de aceptación: la primera columna visible de Tareas es «Título», el botón ▭ de vista previa aparece sobre el título, «Inmovilizar columna» congela el título, y una tarea llamada `a <b> & c` se muestra literal sin romper la celda. No despliegues nada a producción; solo código local."
+    },
+    {
+      "id": "gap-ui-tema-oscuro-fondos-claros",
+      "status": "pending",
+      "createdAt": "2026-11-20T13:33:46-06:00",
+      "lane": "claude",
+      "instruction": "El tema oscuro quedó a medias fuera de Llamadas (gap-ui-llamadas-tema-oscuro solo cubrió llamadas/dialer/callmenu): [data-theme=\"dark\"] solo redefine las variables --c-* (src/app.css 48-64) y unas 29 reglas puntuales (66-112, 6841, 18572-18574). Quedan fondos claros quemados que en oscuro se ven como parches blancos: Bandeja de entrada (.inbox__list/.inbox__side #f5f8fa, src/app.css 5747-5756; .inbox__itembtn:hover #eaf0f6, 5859), el banner y barra de colas de Tareas (.tq-banner #fff8f6/#fcd9cf, 13340; .tq__bar #eaf0f6, 13252), duplicados (.dupes__group, 6090), el drawer de crear negocio (.cd-amount__prefix, 6351; .cd-assoc__row, 6453), la vista previa de objetos en Ajustes (.opreview, 10347; .opreview__card, 10376), la ficha de registro (.rvpin, 11458), el editor de lógica de workflows (.logic__right, 11910; .lcond, 11942) y el icono de tipo en el popover de filtros (.allf__ico, 14028). El propio comentario de src/app.css 93-95 admite que son colores «quemados» del diseño original. Cómo debe verse: en tema oscuro toda superficie usa var(--c-white)/var(--c-head) o su equivalente oscuro; lo mejor es sustituir los colores fijos por variables, y donde no se pueda, añadir overrides [data-theme=\"dark\"] para cada clase citada. Criterio de aceptación: con el tema oscuro activo, Bandeja, Tareas (banner y barra de cola), Negocios (drawer de creación), Ajustes > Objetos (vista previa), ficha de registro y editor de workflows no muestran ningún panel con fondo claro. No despliegues nada a producción; solo código local."
+    },
+    {
+      "id": "gap-ui-tareas-banner-colas",
+      "status": "pending",
+      "createdAt": "2026-11-20T13:33:46-06:00",
+      "lane": "codex",
+      "instruction": "La gestión de colas de Tareas es una franja permanente y cruda: src/tasks.js ~158-170 inyecta un <section class=\"tq-banner\"> antes de #views-bar con un label «Cola» + <select> nativo, un form con input «Nombre» y cuatro botones seguidos (Crear cola / Renombrar / Eliminar cola / Asignar seleccionadas a esta cola), todo en una fila con fondo #fff8f6 quemado (src/app.css 13340-13349). La funcionalidad ya existe (gap-tareas-colas-con-nombre-guardadas), lo que está mal es la presentación: rompe el patrón de las demás listas (barra de vistas + barra de herramientas), mezcla un select nativo con botones .btn--sm y ocupa altura siempre. Cómo debe verse según HubSpot: la cola se elige desde un desplegable de la barra de herramientas (un chip con caret como los filtros, patrón filterChip de src/calls.js 173-182 o src/filter-chip.js), y la administración de colas (crear/renombrar/eliminar) vive en un menú o modal; «Asignar seleccionadas» solo debería aparecer con selección activa, como la barra .bulk. Criterio de aceptación: no hay franja .tq-banner permanente; elegir cola es un chip .qchip de la barra de filtros que muestra el valor activo; crear/renombrar/eliminar cola están dentro de un menú o modal; el fondo #fff8f6 desaparece; el flujo crear cola > asignar tareas > filtrar sigue funcionando igual. No despliegues nada a producción; solo código local."
+    },
+    {
+      "id": "gap-ui-marketing-filtros-nativos",
+      "status": "pending",
+      "createdAt": "2026-11-20T13:33:46-06:00",
+      "lane": "claude",
+      "instruction": "Marketing > Correo filtra con tres <select> nativos (#mk-folder, #mk-tipo, #mk-by en src/marketing-email.js 70-72; handlers en 341-343) mientras el resto de la app usa chips con menú desplegable (src/filter-chip.js, o el patrón filterChip/.qchip de src/calls.js 173-182). gap-ui-filtros-nativos-fuera-de-listas unificó los selects de inbox, ficha, workflows, plantillas y secuencias, pero dejó marketing fuera de su alcance: los select nativos tienen alto, borde y tipografía distintos y desentonan en la barra de herramientas. Cómo debe verse según HubSpot: tres chips de filtro con caret que abren un .menu__panel y muestran el valor activo en el propio chip (p. ej. «Carpeta: Promociones»), igual que los filtros Dirección/Actividad asignada a de Llamadas. Criterio de aceptación: no queda ningún <select> en la barra de filtros de Marketing > Correo; los tres filtros (carpeta, tipo, actualizado por) se ven y comportan como los chips de Llamadas, con is-set cuando tienen valor, y filtran igual que antes. No despliegues nada a producción; solo código local."
+    },
+    {
+      "id": "gap-ui-filtros-iconos-tipo-propiedad",
+      "status": "pending",
+      "createdAt": "2026-11-20T13:33:46-06:00",
+      "lane": "codex",
+      "instruction": "El popover «+ Agregar filtro» / «Todos los filtros» usa glifos de texto y emoji para el tipo de propiedad: src/list.js 2371 define KIND_ICON = date '📅', number '#', bool '☑', enum '≡', texto 'Abc', pintados dentro de .allf__ico (src/app.css 14028-14052). Mientras tanto Ajustes > Propiedades ya usa los iconos de línea SVG de FIELD_ICONS (src/action-icons.js ~47-65) para los mismos tipos: mismo significado, dos estilos, y uno de ellos es emoji (quedó fuera del alcance de gap-ui-emoji-sueltos-fuera-de-objetos). Cómo debe verse: los tipos de propiedad usan los mismos SVG lineales en ambos sitios, igual que se unificaron los iconos de actividad con ACT_ICONS en gap-ui-iconos-actividad-unificados; si falta algún tipo en FIELD_ICONS (p. ej. fecha), se añade con el mismo trazo. Criterio de aceptación: KIND_ICON deja de devolver emoji/caracteres sueltos y el popover de filtros muestra los mismos iconos SVG que Ajustes > Propiedades; no queda ningún emoji en .allf__ico. No despliegues nada a producción; solo código local."
+    },
+    {
+      "id": "gap-ui-editor-enlace-imagen-emoji",
+      "status": "pending",
+      "createdAt": "2026-11-20T13:33:46-06:00",
+      "lane": "claude",
+      "instruction": "Las barras de formato del editor de texto mezclan botones tipográficos (B, I, U, listas) con emoji: «Insertar enlace» y «Insertar imagen» son 🔗 y 🖼 en el compositor compartido (src/compose.js 200-201, usado al redactar correo en la ficha y en la bandeja) y en el editor de plantillas (src/templates.js 187-188). En HubSpot esas acciones son iconos de línea del mismo estilo que el resto de la barra. Ya existe un icono link SVG en src/action-icons.js (línea 9) reutilizable; para imagen habría que añadir uno con el mismo trazo. Cómo debe verse: todos los botones de la barra del editor con el mismo tamaño y estilo visual, sin emoji; enlace usa el icono de link y el de imagen un SVG lineal coherente. Criterio de aceptación: no queda ningún emoji en las barras de src/compose.js ni src/templates.js; «Insertar enlace» e «Insertar imagen» usan SVG lineales alineados con los demás botones y siguen funcionando igual. No despliegues nada a producción; solo código local."
+    },
+    {
+      "id": "gap-ui-cotizacion-icono-pago",
+      "status": "pending",
+      "createdAt": "2026-11-20T13:33:46-06:00",
+      "lane": "codex",
+      "instruction": "En el menú «Más» de la ficha de registro, «Crear cotización» usa el icono equivocado: src/record.js 341 tiene ['quote', ACT_ICONS.paylink, 'Crear cotización'], es decir, el icono de tarjeta de pago, idéntico al de «Crear enlace de pago» de la línea 342. Dos acciones distintas con el mismo icono y la cotización sin su icono propio: ACT_ICONS.quote existe en src/action-icons.js 27 pero no se usa ahí. En HubSpot cada acción del menú tiene su icono distintivo. Cómo debe verse: «Crear cotización» con ACT_ICONS.quote y «Crear enlace de pago» con ACT_ICONS.paylink. Criterio de aceptación: en el menú «Más» de la ficha las dos entradas muestran iconos distintos, y el de cotización es el icono de cotización; no se rompe nada más del menú. No despliegues nada a producción; solo código local."
     }
   ]
 }

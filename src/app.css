@@ -7708,6 +7708,7 @@ textarea.cellpop__input {
 
 .preview__name {
   margin: var(--sp-16) var(--sp-24) 0;
+  overflow-wrap: anywhere;
   font-size: 24px;
   line-height: 30px;
   font-weight: 500;
@@ -7719,9 +7720,22 @@ textarea.cellpop__input {
 
 .preview__mail {
   margin: 2px var(--sp-24) 0;
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: var(--sp-4);
+}
+
+.preview__mail > a {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.preview__mail > .ext,
+.preview__mail > .copy {
+  flex-shrink: 0;
 }
 
 .preview__quick {
