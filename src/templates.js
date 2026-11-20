@@ -1,3 +1,4 @@
+import { pagination, bindPagination } from './pagination.js';
 import './filter-chip.js';
 // Plantillas de mensaje: the original's templates list (folders on the left, search and owner filter, sortable
 // table with multi-select, row actions and pagination) and its editor — a large modal with the compose pane
@@ -110,17 +111,8 @@ function renderTable() {
     </table>`;
   const n = state.selected.size;
   $('tpl-bulk').innerHTML = n ? `<span>${plural(n, 'seleccionado', 'seleccionados')}</span><button class="btn btn--secondary btn--sm" type="button" data-ta="bulk-move">Mover</button><button class="btn btn--secondary btn--sm" type="button" data-ta="bulk-delete">Eliminar</button>` : '';
-  const num = (p) => `<button class="pager__num${p === state.page ? ' is-active' : ''}" type="button" data-page="${p}" aria-current="${p === state.page ? 'page' : 'false'}">${p}</button>`;
-  const first = Math.max(1, Math.min(state.page - 2, pages - 4));
-  const nums = Array.from({ length: Math.min(5, pages) }, (_, i) => first + i);
-  $('tpl-pager').innerHTML = `<nav class="pager" aria-label="Paginación">
-    <button class="pager__btn" type="button" data-page="first" ${state.page === 1 ? 'disabled' : ''}>Primero</button>
-    <button class="pager__btn" type="button" data-page="prev" ${state.page === 1 ? 'disabled' : ''}>‹ Anterior</button>
-    ${nums.map(num).join('')}
-    <button class="pager__btn" type="button" data-page="next" ${state.page === pages ? 'disabled' : ''}>Siguiente ›</button>
-    <button class="pager__btn" type="button" data-page="last" ${state.page === pages ? 'disabled' : ''}>Última</button>
-    <label class="pager__size">Por página <select id="tpl-size" aria-label="Plantillas por página">${[10, 25, 50].map((s) => `<option value="${s}" ${s === state.pageSize ? 'selected' : ''}>${s}</option>`).join('')}</select></label>
-  </nav>`;
+  $('tpl-pager').innerHTML = pagination({ page: state.page, pages, size: state.pageSize });
+  bindPagination($('tpl-pager'), ({ page, size }) => { state.page = page; if (size) state.pageSize = size; closeMenus(); renderTable(); });
   wireMenus(page);
 }
 
@@ -360,14 +352,6 @@ page.addEventListener('click', (e) => {
   if (open) { e.preventDefault(); openEditor(open.dataset.open); return; }
   const sort = e.target.closest('[data-sort]');
   if (sort) { const k = sort.dataset.sort; if (state.sort.key === k) state.sort.dir *= -1; else state.sort = { key: k, dir: k === 'name' || k === 'ownerId' ? 1 : -1 }; renderTable(); return; }
-  const pg = e.target.closest('[data-page]');
-  if (pg && !pg.disabled) {
-    const pages = Math.max(1, Math.ceil(visible().length / state.pageSize));
-    const v = pg.dataset.page;
-    state.page = v === 'first' ? 1 : v === 'prev' ? Math.max(1, state.page - 1) : v === 'next' ? Math.min(pages, state.page + 1) : v === 'last' ? pages : Number(v);
-    renderTable();
-    return;
-  }
   const folder = e.target.closest('[data-folder]');
   if (folder) { state.folder = folder.dataset.folder === '*' ? null : folder.dataset.folder; state.page = 1; state.selected.clear(); renderTable(); return; }
   const act = e.target.closest('[data-act]');
@@ -393,7 +377,7 @@ page.addEventListener('click', (e) => {
 page.addEventListener('input', (e) => { if (e.target.id === 'tpl-q') { state.q = e.target.value; state.page = 1; renderTable(); } });
 page.addEventListener('change', (e) => {
   const t = e.target;
-  if (t.id === 'tpl-owner') { state.owner = t.value; state.page = 1; renderTable(); } else if (t.id === 'tpl-size') { state.pageSize = Number(t.value); state.page = 1; renderTable(); } else if (t.id === 'tpl-check-all') {
+  if (t.id === 'tpl-owner') { state.owner = t.value; state.page = 1; renderTable(); } else if (t.id === 'tpl-check-all') {
     const ids = [...page.querySelectorAll('#tpl-rows tr[data-id]')].map((r) => r.dataset.id);
     ids.forEach((id) => (t.checked ? state.selected.add(id) : state.selected.delete(id)));
     renderTable();

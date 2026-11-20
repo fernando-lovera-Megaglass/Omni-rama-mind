@@ -599,10 +599,12 @@
     },
     {
       "id": "gap-ui-paginadores-inconsistentes",
-      "status": "pending",
+      "status": "done",
       "createdAt": "2026-11-20T03:25:00-06:00",
       "lane": "codex",
-      "instruction": "Cada módulo pagina distinto: las listas usan .pager--center con números de página y menú «25 por página» (src/list.js ~480-491); Plantillas usan Primero/‹ Anterior/números/Siguiente ›/Última con <select> nativo para el tamaño (src/templates.js ~115-122); Llamadas usan ‹ Anterior / «Página X de Y» / Siguiente › con otro select nativo (src/calls.js ~207-214); Workflows muestra números y un texto estático «25 por página · N workflows» sin cambiar tamaño (src/automation.js ~111). En HubSpot el paginador es un solo patrón en todas las tablas. Cómo debe verse: un componente de paginación compartido (el de las listas: Anterior/Siguiente + números con elipsis + menú de tamaño 25/50/100 como .menu__panel--up, no <select>) usado por los cuatro módulos; el contador «N por página» siempre como menú. Criterio de aceptación: Plantillas, Secuencias, Llamadas y Workflows renderizan el mismo paginador que Contactos; no queda ningún <select> de tamaño de página; la navegación entre páginas y el cambio de tamaño funcionan igual que hoy. No despliegues nada a producción; solo código local."
+      "instruction": "Cada módulo pagina distinto: las listas usan .pager--center con números de página y menú «25 por página» (src/list.js ~480-491); Plantillas usan Primero/‹ Anterior/números/Siguiente ›/Última con <select> nativo para el tamaño (src/templates.js ~115-122); Llamadas usan ‹ Anterior / «Página X de Y» / Siguiente › con otro select nativo (src/calls.js ~207-214); Workflows muestra números y un texto estático «25 por página · N workflows» sin cambiar tamaño (src/automation.js ~111). En HubSpot el paginador es un solo patrón en todas las tablas. Cómo debe verse: un componente de paginación compartido (el de las listas: Anterior/Siguiente + números con elipsis + menú de tamaño 25/50/100 como .menu__panel--up, no <select>) usado por los cuatro módulos; el contador «N por página» siempre como menú. Criterio de aceptación: Plantillas, Secuencias, Llamadas y Workflows renderizan el mismo paginador que Contactos; no queda ningún <select> de tamaño de página; la navegación entre páginas y el cambio de tamaño funcionan igual que hoy. No despliegues nada a producción; solo código local.",
+      "completedAt": "2026-11-20T13:16:52-0600",
+      "completedBy": "codex"
     },
     {
       "id": "gap-ui-llamadas-buscador-tabla-plana",

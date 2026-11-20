@@ -1,3 +1,4 @@
+import { pagination, bindPagination } from './pagination.js';
 import './filter-chip.js';
 // Automatización › Workflows: the tabs (Vista general / Workflows / Análisis / Estado), the Workflows list
 // with its views as chips, folders, filters, multi-select table (25 per page) and per-row actions, the
@@ -20,8 +21,7 @@ const $ = (id) => document.getElementById(id);
 const params = new URLSearchParams(location.search);
 const TABS = [['overview', 'Vista general'], ['workflows', 'Workflows'], ['analyze', 'Análisis'], ['health', 'Estado']];
 const EMPTY_FILTERS = { status: '', object: '', creator: '', folder: '', created: '', action: '' };
-const state = { tab: TABS.some((t) => t[0] === params.get('tab')) ? params.get('tab') : 'workflows', view: 'all', filters: { ...EMPTY_FILTERS }, q: '', page: 1, selected: new Set(), foldersOpen: false };
-const PAGE = 25;
+const state = { tab: TABS.some((t) => t[0] === params.get('tab')) ? params.get('tab') : 'workflows', view: 'all', filters: { ...EMPTY_FILTERS }, q: '', page: 1, size: 25, selected: new Set(), foldersOpen: false };
 const plural = (n, s, p) => `${n} ${n === 1 ? s : p}`;
 const pct = (x) => `${Math.round(x * 100)} %`;
 const statusHtml = (w) => `<span class="wfl__status wfl__status--${esc(w.status)}"><span class="cem__dot" aria-hidden="true"></span>${esc(STATUS_LABELS[w.status] || w.status)}</span>`;
@@ -53,9 +53,9 @@ function visible() {
 function renderWorkflows() {
   const all = workflows();
   const list = visible();
-  const pages = Math.max(1, Math.ceil(list.length / PAGE));
+  const pages = Math.max(1, Math.ceil(list.length / state.size));
   if (state.page > pages) state.page = pages;
-  const rows = list.slice((state.page - 1) * PAGE, state.page * PAGE);
+  const rows = list.slice((state.page - 1) * state.size, state.page * state.size);
   const f = state.filters;
   const n = state.selected.size;
   const issueCount = issues().length;
@@ -109,8 +109,9 @@ function renderWorkflows() {
             <td>${statusHtml(w)}</td><td>${esc(w.folder || '--')}</td><td class="wfl__desc" title="${esc(w.description)}">${esc(w.description || '--')}</td><td>${esc(OBJECT_LABEL[w.objectType] || w.objectType)}</td>
           </tr>`).join('') : `<tr><td colspan="6"><div class="tpls__empty">${state.view === 'deleted' ? 'No hay workflows eliminados.' : all.length ? 'Ningún workflow coincide con los filtros.' : 'Todavía no hay workflows. Crea el primero con «Crear workflow».'}</div></td></tr>`}</tbody>
       </table></div>
-      <nav class="pager" aria-label="Paginación"><button class="pager__btn" type="button" data-page="prev" ${state.page === 1 ? 'disabled' : ''}>‹ Anterior</button>${Array.from({ length: pages }, (_, i) => i + 1).slice(Math.max(0, state.page - 3), Math.max(0, state.page - 3) + 5).map((p) => `<button class="pager__num${p === state.page ? ' is-active' : ''}" type="button" data-page="${p}">${p}</button>`).join('')}<button class="pager__btn" type="button" data-page="next" ${state.page === pages ? 'disabled' : ''}>Siguiente ›</button><span class="pager__size muted">${PAGE} por página · ${plural(list.length, 'workflow', 'workflows')}</span></nav>
+      ${pagination({ page: state.page, pages, size: state.size })}
     </section>`;
+  bindPagination(page, ({ page: next, size }) => { state.page = next; if (size) state.size = size; closeMenus(); renderWorkflows(); });
   wireMenus(page);
 }
 
@@ -195,8 +196,7 @@ page.addEventListener('click', (e) => {
   if (view) { closeMenus(); state.view = view.dataset.view; state.page = 1; state.selected.clear(); renderWorkflows(); return; }
   const folder = e.target.closest('[data-folder]');
   if (folder) { state.filters.folder = folder.dataset.folder; state.page = 1; renderWorkflows(); return; }
-  const pg = e.target.closest('[data-page]');
-  if (pg && !pg.disabled) { const pages = Math.max(1, Math.ceil(visible().length / PAGE)); const v = pg.dataset.page; state.page = v === 'prev' ? Math.max(1, state.page - 1) : v === 'next' ? Math.min(pages, state.page + 1) : Number(v); renderWorkflows(); return; }
+
   const act = e.target.closest('[data-act]');
   if (act) {
     const id = act.dataset.id;
@@ -224,7 +224,7 @@ page.addEventListener('input', (e) => { if (e.target.id === 'wf-q') { state.q = 
 page.addEventListener('change', (e) => {
   const t = e.target;
   const map = { 'wf-status': 'status', 'wf-object': 'object', 'wf-creator': 'creator', 'wf-folder': 'folder', 'wf-created': 'created', 'wf-action': 'action' };
-  if (map[t.id]) { state.filters[map[t.id]] = t.value; state.page = 1; renderWorkflows(); } else if (t.id === 'wf-check-all') { visible().slice((state.page - 1) * PAGE, state.page * PAGE).forEach((w) => (t.checked ? state.selected.add(w.id) : state.selected.delete(w.id))); renderWorkflows(); } else if (t.dataset.sel) { if (t.checked) state.selected.add(t.dataset.sel); else state.selected.delete(t.dataset.sel); renderWorkflows(); }
+  if (map[t.id]) { state.filters[map[t.id]] = t.value; state.page = 1; renderWorkflows(); } else if (t.id === 'wf-check-all') { visible().slice((state.page - 1) * state.size, state.page * state.size).forEach((w) => (t.checked ? state.selected.add(w.id) : state.selected.delete(w.id))); renderWorkflows(); } else if (t.dataset.sel) { if (t.checked) state.selected.add(t.dataset.sel); else state.selected.delete(t.dataset.sel); renderWorkflows(); }
 });
 
 render();

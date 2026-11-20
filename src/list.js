@@ -1,3 +1,4 @@
+import { pagination, bindPagination } from './pagination.js';
 import { customFieldsHtml } from './create-contact.js';
 import { validatePropertyValues } from './data.js';
 import { sensitiveValue } from './property-privacy.js';
@@ -477,19 +478,7 @@ export function mountList(cfg) {
         <p class="empty" id="empty" hidden>No hay registros que coincidan con los filtros actuales.</p>
       </div>
 
-      <div class="pager pager--center">
-        <button class="pager__btn" type="button" id="prev">‹ Anterior</button>
-        <span class="pager__nums" id="pager-nums"></span>
-        <button class="pager__btn" type="button" id="next">Siguiente ›</button>
-        <div class="menu pager__sizemenu">
-          <button class="pager__btn" type="button" aria-haspopup="true" id="page-size-btn">25 por página <span class="caret"></span></button>
-          <div class="menu__panel menu__panel--up">
-            <button class="menu__item" type="button" data-size="25">25 por página</button>
-            <button class="menu__item" type="button" data-size="50">50 por página</button>
-            <button class="menu__item" type="button" data-size="100">100 por página</button>
-          </div>
-        </div>
-      </div>
+      <div id="list-pagination"></div>
     </div>
 
     <div class="listfoot">
@@ -1260,13 +1249,14 @@ export function mountList(cfg) {
     fitColumns();
     renderBoard(list);
 
-    $('pager-nums').innerHTML = Array.from({ length: pages }, (_, i) => i + 1)
-      .filter((n) => pages <= 11 || Math.abs(n - state.page) <= 4 || n === 1 || n === pages)
-      .map((n) => `<button class="pager__num${n === state.page ? ' is-active' : ''}" type="button" data-page="${n}">${n}</button>`)
-      .join('');
-    $('prev').disabled = state.page <= 1;
-    $('next').disabled = state.page >= pages;
-    $('page-size-btn').innerHTML = `${state.size} por página <span class="caret"></span>`;
+    $('list-pagination').innerHTML = pagination({ page: state.page, pages, size: state.size });
+    bindPagination($('list-pagination'), ({ page, size }) => {
+      state.page = page;
+      if (size) { state.size = size; setPrefs(cfg.type, { size }); }
+      closeMenus();
+      render();
+    });
+    wireMenus($('list-pagination'));
 
     const activeFilters = Object.values(state.filters).filter(Boolean).length + state.advanced.filter((c) => c.key).length;
     $('filter-pill').innerHTML = `<span class="ico ico--filter"></span> Filtro${activeFilters ? ` (${activeFilters})` : ''}`;
@@ -1392,7 +1382,7 @@ export function mountList(cfg) {
     const board = $('kanban');
     const isBoard = state.mode === 'board' && cfg.board;
     $('table-wrap').hidden = isBoard;
-    root.querySelector('.pager').hidden = isBoard;
+    $('list-pagination').hidden = isBoard;
     $('board-save-btn').hidden = !isBoard;
     root.querySelectorAll('.seg__btn').forEach((b) => b.classList.toggle('is-active', b.dataset.action === `mode-${state.mode}`));
     board.hidden = !isBoard;
@@ -2776,23 +2766,6 @@ export function mountList(cfg) {
     const id = Number(cb.dataset.id);
     if (cb.checked) state.selected.add(id);
     else state.selected.delete(id);
-    render();
-  });
-  $('prev').addEventListener('click', () => { state.page -= 1; render(); });
-  $('next').addEventListener('click', () => { state.page += 1; render(); });
-  $('pager-nums').addEventListener('click', (e) => {
-    const b = e.target.closest('[data-page]');
-    if (!b) return;
-    state.page = Number(b.dataset.page);
-    render();
-  });
-  root.querySelector('.pager__sizemenu').addEventListener('click', (e) => {
-    const b = e.target.closest('[data-size]');
-    if (!b) return;
-    state.size = Number(b.dataset.size);
-    setPrefs(cfg.type, { size: state.size });
-    state.page = 1;
-    closeMenus();
     render();
   });
   $('sort-menu').addEventListener('click', (e) => {

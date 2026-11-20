@@ -1,3 +1,4 @@
+import { pagination, bindPagination } from './pagination.js';
 import './filter-chip.js';
 // Secuencias (Ventas › Secuencias): the list with its tabs — Administrar (folders, search, owner filter,
 // multi-select table with per-row actions, Acciones: export / papelera), Análisis (filters as chips, metric
@@ -16,7 +17,7 @@ const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<
 const $ = (id) => document.getElementById(id);
 const params = new URLSearchParams(location.search);
 const TABS = [['manage', 'Administrar'], ['analyze', 'Análisis'], ['automate', 'Automatizar'], ['scheduled', 'Programado']];
-const state = { tab: TABS.some((t) => t[0] === params.get('tab')) ? params.get('tab') : 'manage', q: '', owner: '', selected: new Set(), collapsed: new Set(), filters: {}, metric: 'meetings', freq: 'week' };
+const state = { tab: TABS.some((t) => t[0] === params.get('tab')) ? params.get('tab') : 'manage', q: '', owner: '', page: 1, size: 25, selected: new Set(), collapsed: new Set(), filters: {}, metric: 'meetings', freq: 'week' };
 const pct = (x) => `${(Math.round(x * 1000) / 10).toLocaleString('es-ES')} %`;
 const plural = (n, s, p) => `${n} ${n === 1 ? s : p}`;
 const fullDate = (iso) => { const d = new Date(iso); return `${formatDate(d)} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
@@ -43,8 +44,11 @@ function visible() {
 }
 function renderManage() {
   const list = visible();
+  const pages = Math.max(1, Math.ceil(list.length / state.size));
+  state.page = Math.min(state.page, pages);
+  const rows = list.slice((state.page - 1) * state.size, state.page * state.size);
   const byFolder = {};
-  list.forEach((s) => { (byFolder[s.folder || ''] = byFolder[s.folder || ''] || []).push(s); });
+  rows.forEach((s) => { (byFolder[s.folder || ''] = byFolder[s.folder || ''] || []).push(s); });
   const folderNames = [...new Set([...folders(), ...Object.keys(byFolder).filter(Boolean)])].sort((a, b) => a.localeCompare(b, 'es'));
   const row = (s) => { const m = sequenceMetrics(s.id); return `
     <tr data-id="${esc(s.id)}" class="${s.folder ? 'seqs__inFolder' : ''}">
@@ -73,11 +77,13 @@ function renderManage() {
       </div>
       <div class="table-wrap">
         <table class="table tpls__table seqs__table">
-          <thead><tr><th class="table__check"><input type="checkbox" id="seq-check-all" aria-label="Seleccionar todo" ${list.length && list.every((s) => state.selected.has(s.id)) ? 'checked' : ''} /></th><th>Nombre</th><th>Total inscritos</th><th>Tasa de respuesta</th><th>Tasa de reuniones</th><th>Propietario</th><th>Fecha de modificación</th></tr></thead>
+          <thead><tr><th class="table__check"><input type="checkbox" id="seq-check-all" aria-label="Seleccionar todo" ${rows.length && rows.every((s) => state.selected.has(s.id)) ? 'checked' : ''} /></th><th>Nombre</th><th>Total inscritos</th><th>Tasa de respuesta</th><th>Tasa de reuniones</th><th>Propietario</th><th>Fecha de modificación</th></tr></thead>
           <tbody id="seq-rows">${list.length ? `${(byFolder[''] || []).map(row).join('')}${folderNames.map(folderRow).join('')}` : `<tr><td colspan="7"><div class="tpls__empty">${sequences().length ? 'Ninguna secuencia coincide con los filtros.' : 'Todavía no hay secuencias. Crea la primera con «Crear secuencia».'}</div></td></tr>`}</tbody>
         </table>
       </div>
+      ${pagination({ page: state.page, pages, size: state.size })}
     </section>`;
+  bindPagination(page, ({ page: next, size }) => { state.page = next; if (size) state.size = size; closeMenus(); renderManage(); });
   wireMenus(page);
 }
 
@@ -226,10 +232,10 @@ page.addEventListener('click', (e) => {
   else if (a === 'new-folder') { modal('Nueva carpeta', '<label class="field"><span>Nombre de la carpeta</span><input id="seqf-name" placeholder="P. ej. Prospección" /></label>', `<button class="btn btn--primary" type="button" data-se="create-folder">Crear</button>${cancelBtn}`); $('seqf-name').focus(); } else if (a === 'bulk-move') { const ids = [...state.selected]; modal('Mover a carpeta', `<p class="muted">Mover ${plural(ids.length, 'secuencia', 'secuencias')} a:</p><label class="field"><span>Carpeta</span><select id="seqm-folder">${folderOptions('')}</select></label>`, `<button class="btn btn--primary" type="button" data-se="confirm-move" data-ids="${esc(ids.join(','))}">Mover</button>${cancelBtn}`); } else if (a === 'bulk-delete') { const ids = [...state.selected]; modal('Eliminar secuencias', `<p>¿Seguro que quieres eliminar ${plural(ids.length, 'secuencia', 'secuencias')}? Podrás restaurarlas desde la papelera.</p>`, `<button class="btn btn--primary tpls__danger" type="button" data-se="confirm-delete" data-ids="${esc(ids.join(','))}">Eliminar</button>${cancelBtn}`); } else if (a === 'clear-filters') { state.filters = {}; renderAnalyze(); } else if (a === 'workflow') toast('Los workflows de inscripción automática estarán disponibles en Automatizaciones › Workflows.');
   else if (a === 'holidays') toast('Los días festivos se configuran en Configuración › Calendario de envíos.');
 });
-page.addEventListener('input', (e) => { if (e.target.id === 'seq-q') { state.q = e.target.value; const el = e.target; renderManage(); const q = $('seq-q'); if (q && q !== el) { q.focus(); q.setSelectionRange(q.value.length, q.value.length); } } });
+page.addEventListener('input', (e) => { if (e.target.id === 'seq-q') { state.q = e.target.value; state.page = 1; const el = e.target; renderManage(); const q = $('seq-q'); if (q && q !== el) { q.focus(); q.setSelectionRange(q.value.length, q.value.length); } } });
 page.addEventListener('change', (e) => {
   const t = e.target;
-  if (t.id === 'seq-owner') { state.owner = t.value; renderManage(); } else if (t.id === 'seq-metric') { state.metric = t.value; renderAnalyze(); } else if (t.id === 'seq-freq') { state.freq = t.value; renderAnalyze(); } else if (t.id === 'seq-check-all') { visible().forEach((s) => (t.checked ? state.selected.add(s.id) : state.selected.delete(s.id))); renderManage(); } else if (t.dataset.sel) { if (t.checked) state.selected.add(t.dataset.sel); else state.selected.delete(t.dataset.sel); renderManage(); }
+  if (t.id === 'seq-owner') { state.owner = t.value; state.page = 1; renderManage(); } else if (t.id === 'seq-metric') { state.metric = t.value; renderAnalyze(); } else if (t.id === 'seq-freq') { state.freq = t.value; renderAnalyze(); } else if (t.id === 'seq-check-all') { visible().slice((state.page - 1) * state.size, state.page * state.size).forEach((s) => (t.checked ? state.selected.add(s.id) : state.selected.delete(s.id))); renderManage(); } else if (t.dataset.sel) { if (t.checked) state.selected.add(t.dataset.sel); else state.selected.delete(t.dataset.sel); renderManage(); }
 });
 
 render();

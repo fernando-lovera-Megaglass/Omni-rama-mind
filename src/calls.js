@@ -1,3 +1,4 @@
+import { pagination, bindPagination } from './pagination.js';
 import { ACT_ICONS } from './action-icons.js';
 // CRM › Llamadas: la página de índice de llamadas, copia de la del original — pestaña de vista,
 // buscador, filtros rápidos (dirección, asignada a, fecha, duración), tabla con el título, la fecha,
@@ -20,7 +21,6 @@ const STATUS_LABEL = {
   busy: 'Ocupado', 'no-answer': 'Sin respuesta', failed: 'Fallida', canceled: 'Cancelada', initiated: 'Iniciada',
 };
 const DIRECTION_LABEL = { outbound: 'Saliente', inbound: 'Entrante' };
-const PAGE_SIZES = [25, 50, 100];
 const VIEWS = [['all', 'Todas las llamadas'], ['recorded', 'Llamadas grabadas']];
 
 const COLUMNS = [
@@ -238,17 +238,7 @@ function render() {
                 </tr>${r.transcript && state.openTranscripts.has(r.id) ? `<tr class="calls-transcript-row"><td colspan="${state.columns.length + 1}"><div class="calls-transcript"><strong>Transcripción</strong><p>${esc(r.transcript)}</p></div></td></tr>` : ''}`).join('')}
               </tbody>
             </table></div>
-            <div class="calls__pager">
-              <button class="btn btn--ghost btn--sm" type="button" id="calls-prev" ${state.page <= 1 ? 'disabled' : ''}>‹ Anterior</button>
-              <span class="muted">Página ${state.page} de ${pages}</span>
-              <button class="btn btn--ghost btn--sm" type="button" id="calls-next" ${state.page >= pages ? 'disabled' : ''}>Siguiente ›</button>
-              <div class="menu pager__sizemenu">
-                <button id="calls-size" class="pager__btn" type="button" aria-haspopup="true" aria-expanded="false">${state.size} por página <span class="caret"></span></button>
-                <div class="menu__panel menu__panel--up" role="menu" aria-labelledby="calls-size">
-                  ${PAGE_SIZES.map((n) => `<button class="menu__item" type="button" role="menuitemradio" aria-checked="${state.size === n}" data-size="${n}">${state.size === n ? '✓ ' : ''}${n} por página</button>`).join('')}
-                </div>
-              </div>
-            </div>
+            ${pagination({ page: state.page, pages, size: state.size })}
             <p class="muted calls__count">${total.toLocaleString('es-MX')} ${total === 1 ? 'llamada' : 'llamadas'}</p>`
           : '<p class="muted calls__empty">No hay llamadas con estos filtros. Las llamadas que hagas con el marcador o registres en las fichas aparecen aquí.</p>'}
     </div>`;
@@ -296,13 +286,7 @@ function render() {
     state.page = 1;
     render();
   }));
-  const prev = $('calls-prev'); if (prev) prev.addEventListener('click', () => { state.page -= 1; render(); });
-  const next = $('calls-next'); if (next) next.addEventListener('click', () => { state.page += 1; render(); });
-  root.querySelectorAll('[data-size]').forEach((button) => button.addEventListener('click', () => {
-    state.size = Number(button.dataset.size);
-    state.page = 1;
-    render();
-  }));
+  bindPagination(root, ({ page, size }) => { state.page = page; if (size) state.size = size; render(); });
   const exp = $('calls-export');
   if (exp) exp.addEventListener('click', () => {
     const rowsOut = filtered().map((r) => ({
