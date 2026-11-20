@@ -465,10 +465,12 @@
     },
     {
       "id": "gap-config-integraciones-reales",
-      "status": "pending",
+      "status": "done",
       "lane": "codex",
       "createdAt": "2026-11-19T22:30:41-06:00",
-      "instruction": "El panel Configuración › Integraciones (paneIntegrations en src/settings.js ~476) muestra tarjetas falsas (Zoom, Stripe, Slack, QuickBooks) con switches que solo hacen toast, mientras las integraciones REALES de la app (Gmail, Twilio) se gestionan en otros lados.\n\nPasos:\n1. El panel debe listar las integraciones reales con su estado real: Gmail (tabla connected_emails / gmail_tokens), Twilio (twilio_connections), y las futuras.\n2. Cada tarjeta: logo SVG minimalista (no la letra inicial actual), nombre, descripción, estado real (Conectada/Error/No conectada), y acción real: conectar inicia el flujo OAuth/config existente; desconectar llama al flujo real de desconexión.\n3. Quitar las tarjetas inventadas o marcarlas claramente como «Próximamente» con la ilustración de en-construcción.\n4. Criterio: el estado mostrado coincide con la base de datos en todo momento.\nNo despliegues nada a producción; solo código local."
+      "instruction": "El panel Configuración › Integraciones (paneIntegrations en src/settings.js ~476) muestra tarjetas falsas (Zoom, Stripe, Slack, QuickBooks) con switches que solo hacen toast, mientras las integraciones REALES de la app (Gmail, Twilio) se gestionan en otros lados.\n\nPasos:\n1. El panel debe listar las integraciones reales con su estado real: Gmail (tabla connected_emails / gmail_tokens), Twilio (twilio_connections), y las futuras.\n2. Cada tarjeta: logo SVG minimalista (no la letra inicial actual), nombre, descripción, estado real (Conectada/Error/No conectada), y acción real: conectar inicia el flujo OAuth/config existente; desconectar llama al flujo real de desconexión.\n3. Quitar las tarjetas inventadas o marcarlas claramente como «Próximamente» con la ilustración de en-construcción.\n4. Criterio: el estado mostrado coincide con la base de datos en todo momento.\nNo despliegues nada a producción; solo código local.",
+      "completedAt": "2026-11-19T22:37:17-0600",
+      "completedBy": "codex"
     },
     {
       "id": "gap-config-secciones-demo",

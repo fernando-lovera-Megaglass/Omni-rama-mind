@@ -1,3 +1,4 @@
+import { integrationsPaneHtml, mountIntegrations } from './settings-integrations.js';
 import { mountMfaSettings, ssoUnavailable } from './mfa-settings.js';
 // Account settings (the gear in the top bar): a full settings tree with a pane per section.
 import { boot } from './page.js';
@@ -99,7 +100,7 @@ function setSection(id) {
 }
 setSection((location.hash || '#prefs-general').slice(1));
 // Back from Google's consent screen (?gmail=connected|error): land on General › Correo, where the result shows.
-if (/[?&]gmail=/.test(location.search)) { state.section = 'prefs-general'; state.generalTab = 'correo'; }
+if (/[?&]gmail=/.test(location.search) && state.section !== 'int-connected') { state.section = 'prefs-general'; state.generalTab = 'correo'; }
 
 // ---------- stores ----------
 const profile = () => ({ first: 'Fernando', last: 'Lovera Colin', email: 'fernando-lovera@megaglass.us', lang: 'Español', region: 'México y Centroamérica', currency: 'MXN', dial: '+52', phone: '72-25-103617', ...load('crm:profile', {}) });
@@ -107,10 +108,6 @@ const notif = () => ({ email_assign: true, email_mention: true, email_digest: fa
 const account = () => ({ name: 'Megaglass', tz: 'America/Mexico_City', currency: 'MXN', lang: 'Español', fiscalYear: 'Enero', ...load('crm:account', {}) });
 const users = () => load('crm:users', OWNERS.filter((o) => o !== 'Sin asignar').map((o, i) => ({ name: o, email: `${slug(o).replace(/_/g, '.')}@megaglass.us`, team: TEAMS[i % 3], role: i === 0 ? 'Superadministrador' : 'Usuario', status: 'Activo' })));
 const teams = () => load('crm:teams', TEAMS.map((t) => ({ name: t })));
-const integrations = () => load('crm:integrations', [
-  { name: 'Gmail', desc: 'Correo y calendario', on: true }, { name: 'WhatsApp Business', desc: 'Mensajería', on: true }, { name: 'Zoom', desc: 'Reuniones', on: false },
-  { name: 'Stripe', desc: 'Pagos', on: false }, { name: 'Slack', desc: 'Notificaciones', on: true }, { name: 'QuickBooks', desc: 'Facturación', on: false },
-]);
 const exportsLog = () => load('crm:exports', []);
 const setting = (id, defaults) => ({ ...defaults, ...load(`crm:settings:${id}`, {}) });
 
@@ -473,7 +470,7 @@ function presetModal(i) {
   };
 }
 const paneUpdates = () => `<h2>Actualizaciones de productos</h2><p class="muted">Novedades recientes de la plataforma.</p><ul class="updates">${[['Noviembre 2026', 'Vista de panel (Kanban) para contactos y empresas.'], ['Octubre 2026', 'Editor de tarjetas de asociación con vista previa.'], ['Septiembre 2026', 'Nuevo redactor de correo con asistente.'], ['Agosto 2026', 'Edición en línea en las tablas.']].map(([d, t]) => `<li><span class="muted">${d}</span><strong>${t}</strong></li>`).join('')}</ul>`;
-const paneIntegrations = () => `<h2>Aplicaciones conectadas</h2><p class="muted">Aplicaciones conectadas a la cuenta.</p><div class="igrid">${integrations().map((it, i) => `<div class="icard"><div class="icard__logo">${esc(it.name[0])}</div><div class="icard__text"><strong>${esc(it.name)}</strong><small>${esc(it.desc)}</small></div><label class="switchwrap"><input type="checkbox" class="switch" data-integration="${i}" ${it.on ? 'checked' : ''} /><span>${it.on ? 'Conectada' : 'Desconectada'}</span></label></div>`).join('')}</div>`;
+const paneIntegrations = integrationsPaneHtml;
 const panePrivateApps = () => {
   const apps = load('crm:privateapps', [{ name: 'Integración ERP', scopes: 'crm.objects.contacts.read, crm.objects.deals.write', created: '12 mar 2026' }]);
   return `<div class="shead"><h2>Aplicaciones privadas</h2><button class="btn btn--primary" type="button" data-act="new-app">Crear aplicación privada</button></div><p class="muted">Tokens de acceso para tus propias integraciones.</p>${simpleTable(['Nombre', 'Permisos', 'Creada', ''], apps.map((a, i) => [`<strong>${esc(a.name)}</strong>`, `<span class="muted">${esc(a.scopes)}</span>`, esc(a.created), `${toastBtn('Ver token', `Token: pat-na1-••••••••-${i}42 (copiado)`, 'link-btn')} <button class="link-btn" type="button" data-app-rm="${i}">Eliminar</button>`]))}`;
@@ -1307,7 +1304,10 @@ function navItem(it) {
 // The settings menu can be collapsed to a slim rail; the choice is remembered.
 const SNAV_KEY = 'crm:settings:navcollapsed';
 state.navCollapsed = localStorage.getItem(SNAV_KEY) === '1';
+let unmountIntegrations;
 function render() {
+  unmountIntegrations?.();
+  unmountIntegrations = null;
   const collapsed = state.navCollapsed;
   root.innerHTML = `
     <div class="settings${collapsed ? ' is-collapsed' : ''}">
@@ -1326,6 +1326,8 @@ function render() {
     ${state.logicEdit && (state.logicEdit.lifecycle || state.pipeEdit !== null) ? logicHtml() : ''}
     <div class="drawer drawer--modal" id="s-modal" aria-hidden="true"><div class="drawer__panel drawer__panel--dialog" role="dialog" aria-labelledby="s-modal-title"><div class="drawer__head drawer__head--light"><h2 id="s-modal-title">—</h2><button class="drawer__close" type="button" data-close aria-label="Cerrar">×</button></div><div class="drawer__body" id="s-modal-body"></div><div class="drawer__foot" id="s-modal-foot"></div></div></div>`;
   root.querySelectorAll('[data-mfa-settings]').forEach((el) => { void mountMfaSettings(el); });
+  const integrationsRoot = root.querySelector("#real-integrations");
+  if (integrationsRoot) unmountIntegrations = mountIntegrations(integrationsRoot);
   wireMenus(root);
   const cem = document.getElementById('cem');
   if (cem) mountConnectedEmails(cem);
@@ -1478,7 +1480,6 @@ root.addEventListener('change', (e) => {
   if (t.dataset.setting) { const s = setting(t.dataset.setting, {}); s[t.dataset.key] = t.checked; save(`crm:settings:${t.dataset.setting}`, s); toast('Ajuste guardado'); if (t.dataset.key === 'connected') render(); }
   else if (t.dataset.notif) { const n = notif(); n[t.dataset.notif] = t.checked; save('crm:notif', n); toast('Preferencia guardada'); }
   else if (t.dataset.privacy) { save('crm:privacy', { ...load('crm:privacy', {}), [t.dataset.privacy]: t.checked }); toast('Ajuste guardado'); }
-  else if (t.dataset.integration !== undefined) { const list = integrations(); list[Number(t.dataset.integration)].on = t.checked; save('crm:integrations', list); render(); toast(t.checked ? 'Integración conectada' : 'Integración desconectada'); }
   else if (t.dataset.userTeam !== undefined || t.dataset.userRole !== undefined) { const us = users(); const i = Number(t.dataset.userTeam ?? t.dataset.userRole); if (t.dataset.userTeam !== undefined) us[i].team = t.value; else us[i].role = t.value; save('crm:users', us); toast('Usuario actualizado'); }
   else if (t.dataset.userSeat !== undefined) { const us = userRows(); const u = us[Number(t.dataset.userSeat)]; u.seat = t.value; if (t.value === 'view') u.addons = []; saveUsers(us); save('crm:seatlog', [{ when: new Date().toISOString(), text: `${u.name}: licencia ${SEATS[t.value]}` }, ...seatLog()].slice(0, 30)); render(); toast('Licencia actualizada'); }
   else if (t.dataset.userAddon) { const us = userRows(); const u = us[Number(t.dataset.i)]; const k = t.dataset.userAddon; u.addons = (u.addons || []).filter((x) => x !== k); if (t.checked) u.addons.push(k); saveUsers(us); save('crm:seatlog', [{ when: new Date().toISOString(), text: `${u.name}: ${t.checked ? 'añadida' : 'quitada'} licencia ${SEATS[k]}` }, ...seatLog()].slice(0, 30)); render(); toast(t.checked ? `Licencia de ${SEATS[k]} asignada` : `Licencia de ${SEATS[k]} quitada`); }
