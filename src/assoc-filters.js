@@ -97,7 +97,7 @@ export function assocValueOptions(kind, key) {
   if (key === 'priority' || p.kind === 'priority') return PRIORITIES.map((s) => [s[1], s[1]]);
   if (key === 'status' || p.kind === 'status') {
     if (kind === 'contacts') return Object.values(STATUSES).map((s) => [s[0], s[0]]);
-    if (kind === 'tickets') return TICKET_STATUSES.map((s) => [s[1], s[1]]);
+    if (kind === 'tickets') return allTicketStatuses().map((s) => [s[1], s[1]]);
     if (kind === 'tasks') return TASK_STATUSES.map((s) => [s[1], s[1]]);
   }
   if (Array.isArray(p.options) && p.options.length) return p.options.map((o) => (Array.isArray(o) ? [o[1], o[1]] : [o, o]));

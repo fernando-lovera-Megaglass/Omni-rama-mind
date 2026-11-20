@@ -1,5 +1,17 @@
 # Progreso — Omni CRM
 
+## 2026-11-19 (sesión 6) · Pipelines reales de tickets (4 × 27 estados) y probabilidades reales de negocios
+
+**Fuente**: la API del HubSpot de la cuenta (`GET /crm/v3/pipelines/tickets` y `/deals` con el token de `app/.hubspot-token`, que nunca se imprime). `scripts/hubspot-pipelines.mjs` consulta y lista los pipelines; la instantánea queda en `scripts/hubspot-pipelines.snapshot.json` y las pruebas comparan contra ella sin red.
+
+**Tickets**
+- `src/pipelines-seed.js` define los 4 pipelines reales con sus 27 estados en orden y con sus ids de HubSpot: Cotizaciones Proyectos (7), Cotizaciones SACA (8), Cotizaciones Acristala (8, con «Modificación de cotización» cerrada como en la cuenta) y Cotizaciones Kafer (4). `src/data.js` los usa como predeterminados (antes: 4 pipelines inventados con 4 estados genéricos cada uno = 10 de 27), la muestra de tickets se reparte entre ellos con estados reales abiertos y cerrados, y `normalizeTicket` mueve al leer cualquier ticket guardado con los pipelines / estados de muestra antiguos a su pipeline real (n-ésimo estado abierto o primer cerrado). La propiedad Pipeline de la ficha de ticket ya es editable: al cambiarla, la barra de estados y las opciones de «Estado del ticket» pasan a las del nuevo pipeline (y el estado salta al primero abierto si no existe). Lista, selector de pipeline, tablero, importación, filtros por asociación y el «Estado predeterminado del Ticket» de Ajustes usan los estados reales.
+- Migración `supabase/pipeline_stages_real.sql` (generada por `scripts/pipelines-sql.mjs`, **sin aplicar**): crea los 4 pipelines de tickets con sus estados en `pipelines` / `pipeline_stages` y remapea los tickets guardados con los pipelines antiguos.
+
+**Negocios**
+- Probabilidades y nombres de etapa idénticos a la API en los 8 pipelines (65 etapas): SACA SUMINISTRO 10/20/60/70/90/90, SACA Instalaciones 10 % en todas las abiertas, Proyectos Nacionales 10/10/30/50/80/90, Ventas Extranjero 20/30/60/70/90, JFC Envío de Cotizacion 40 %, Acristala obras 10/25/40/80/90 y la etiqueta completa «Contacto concretado (llamada, coreo, visita)» (la API dice «coreo»; se respeta). Las etapas que HubSpot marca cerradas fuera de ganado/perdido (Cotizacion Duplicada, Muestras, Instaladores, Cierre de obra) cuentan como cerradas (`CLOSED_STAGES`). El monto ponderado del kanban se calcula con las probabilidades nuevas. La misma migración actualiza nombre y probabilidad de las etapas guardadas.
+- Pruebas: `scripts/smoke-ticket-real-pipelines.mjs` (definiciones = instantánea de la API, selector y tablero, la ficha de un ticket de cada pipeline muestra sus estados reales, cambio de pipeline desde la ficha, migración) y `scripts/smoke-deal-probabilities.mjs` (65 etapas con probabilidad, nombre y abierto/cerrado iguales a la API, pie ponderado del kanban al 20 % / 10 %, migración); `smoke-pipelines`, `smoke-ticket-statuses`, `smoke-ticket-pipelines` y `smoke-import` ajustados a los valores reales.
+
 ## 2026-11-16 (sesión 5) · Editor de teléfono unificado
 
 **Corregido**

@@ -76,7 +76,7 @@ if (/NaN|undefined/.test($('grid').innerHTML + $('kpis').innerHTML)) fail('NaN/u
 
 click(document.querySelector('[data-dash="servicio"]'));
 const tCreated = tickets.filter((t) => within(t.created, p.start, p.end));
-const open = tickets.filter((t) => t.status !== 'closed').length;
+const open = tickets.filter((t) => data.isTicketOpen(t)).length; // open = an open status of the ticket's real pipeline
 const doneTasks = tasks.filter((t) => t.status === 'done' && within(t.completedAt || t.due, p.start, p.end)).length;
 log(`servicio: abiertos ${kpiValue('Tickets abiertos')} (exp ${fmt(open)}) · creados ${kpiValue('Tickets creados')} (exp ${fmt(tCreated.length)}) · cerrados ${kpiValue('Tickets cerrados')} · tareas ${kpiValue('Tareas completadas')} (exp ${fmt(doneTasks)}) | cards: ${document.querySelectorAll('.card--report').length}`);
 if (kpiValue('Tickets abiertos') !== fmt(open) || kpiValue('Tickets creados') !== fmt(tCreated.length) || kpiValue('Tareas completadas') !== fmt(doneTasks)) fail('servicio KPIs');

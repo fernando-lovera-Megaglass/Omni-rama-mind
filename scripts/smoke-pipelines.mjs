@@ -63,7 +63,7 @@ log('Acristala obras columns:', cols().join(' | '));
 if (cols().join('|') !== EXPECTED['Acristala obras'].join('|')) fail('columns should be the pipeline stages in order');
 click(document.querySelector('[data-pipeline="JFC Cargo Destino"]'));
 log('JFC columns:', cols().join(' | '), '| footer probability:', text(document.querySelector('.kcol[data-group="envio_cotizacion"] .kfoot__prob')));
-if (cols().length !== 4 || text(document.querySelector('.kcol[data-group="envio_cotizacion"] .kfoot__prob')) !== '(50%)') fail('JFC Cargo Destino columns and probabilities');
+if (cols().length !== 4 || text(document.querySelector('.kcol[data-group="envio_cotizacion"] .kfoot__prob')) !== '(40%)') fail('JFC Cargo Destino columns and probabilities (Envio de Cotizacion is 40 % in the account)');
 click(document.querySelector('[data-pipeline="SACA Instalaciones"]'));
 if (cols().length !== 12 || cols()[11] !== 'Proceso de Cotizacion') fail('SACA Instalaciones keeps its 12 stages in the given order');
 // 4) saving definitions (what Configuración › Pipelines does): probabilities persist and the catalogue follows
