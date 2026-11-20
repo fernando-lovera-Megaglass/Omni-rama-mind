@@ -455,6 +455,41 @@
       "createdAt": "2026-11-19T19:40:10-06:00",
       "instruction": "Ajustes › Objetos muestra los iconos de los objetos como emoji: OBJ_META en src/settings.js ~914-920 define icon: '👤' Contacto, '🏢' Empresa, '🤝' Negocio, '🎫' Ticket, '☑' Tarea, '📦' Producto, renderizados en el selector «Seleccionar un objeto» (~1227, .objsel__ico) y en las cabeceras de las páginas de objeto. El resto de la app usa iconos de línea (el menú lateral con .ico ico--*, y FIELD_ICONS de src/action-icons.js para los tipos de propiedad), así que los emoji desentonan en estilo y en color con la interfaz; en HubSpot los objetos llevan iconos de línea del mismo set que la navegación.\n\nCómo debe verse: cada objeto con un icono SVG lineal coherente con el menú lateral (mismo viewBox 24, trazo 1.8, currentColor — se pueden añadir a src/action-icons.js o reutilizar los ico--crm/ico--tickets existentes), sustituyendo los emoji en OBJ_META y en cualquier otro punto donde se pinten (cabeceras, selector, tarjetas de objeto).\n\nCriterio de aceptación: no queda ningún emoji 👤🏢🤝🎫📦 en las páginas de Ajustes › Objetos; el icono de cada objeto coincide con el del menú lateral; el modo oscuro los tiñe igual que al resto de iconos. No despliegues nada a producción; solo código local.",
       "lane": "claude"
+    },
+    {
+      "id": "gap-config-persistencia-real",
+      "status": "pending",
+      "lane": "claude",
+      "createdAt": "2026-11-19T22:30:41-06:00",
+      "instruction": "La configuración de Omni se guarda en localStorage (crm:settings:*, crm:profile, crm:notif, crm:account, etc. en src/settings.js), así que no sigue al usuario entre dispositivos ni aplica a toda la cuenta como en HubSpot.\n\nPasos:\n1. Crea una migración supabase/user_settings.sql: tabla user_settings (user_id, scope, key, value jsonb, updated_at) con RLS por usuario y una tabla account_settings para ajustes de cuenta (solo admins escriben).\n2. En src/settings.js sustituye load()/save() de localStorage por lectura/escritura a Supabase (con caché en memoria y escritura optimista), manteniendo localStorage solo como respaldo offline.\n3. Aplica a: perfil, notificaciones, valores de cuenta, integraciones activadas, toggles de las secciones.\n4. Prueba smoke: cambiar un toggle, recargar en otra sesión/navegador y ver el mismo valor.\nNo despliegues nada a producción; solo código local."
+    },
+    {
+      "id": "gap-config-integraciones-reales",
+      "status": "pending",
+      "lane": "codex",
+      "createdAt": "2026-11-19T22:30:41-06:00",
+      "instruction": "El panel Configuración › Integraciones (paneIntegrations en src/settings.js ~476) muestra tarjetas falsas (Zoom, Stripe, Slack, QuickBooks) con switches que solo hacen toast, mientras las integraciones REALES de la app (Gmail, Twilio) se gestionan en otros lados.\n\nPasos:\n1. El panel debe listar las integraciones reales con su estado real: Gmail (tabla connected_emails / gmail_tokens), Twilio (twilio_connections), y las futuras.\n2. Cada tarjeta: logo SVG minimalista (no la letra inicial actual), nombre, descripción, estado real (Conectada/Error/No conectada), y acción real: conectar inicia el flujo OAuth/config existente; desconectar llama al flujo real de desconexión.\n3. Quitar las tarjetas inventadas o marcarlas claramente como «Próximamente» con la ilustración de en-construcción.\n4. Criterio: el estado mostrado coincide con la base de datos en todo momento.\nNo despliegues nada a producción; solo código local."
+    },
+    {
+      "id": "gap-config-secciones-demo",
+      "status": "pending",
+      "lane": "codex",
+      "createdAt": "2026-11-19T22:30:41-06:00",
+      "instruction": "Muchas secciones de Configuración son maquetas con datos inventados y botones que solo muestran un toast «(demostración)»: Múltiples cuentas (~235), Clave de API (~481), Descargas del mercado (~487), Dominios (~490), Cuenta de pagos (~499), Productos (~1231), Objetos personalizados (~1232), Sincronización de datos (~1243), Anuncios (~1259), Redes sociales (~1260), Base de conocimientos (~1280).\n\nPasos:\n1. Para cada sección: o se implementa de verdad, o se reemplaza por la página «en construcción» con la ilustración y logo de Omini (la que ya se usa en otras páginas vacías).\n2. Prioridad de implementación real: Productos (se usa en cotizaciones/negocios), luego Objetos personalizados; el resto a «en construcción» para no mentir al usuario.\n3. Elimina TODOS los toastBtn con texto «(demostración)» de src/settings.js.\n4. Criterio: ningún botón de Configuración simula una acción que no ocurre.\nNo despliegues nada a producción; solo código local."
+    },
+    {
+      "id": "gap-config-perfil-foto-real",
+      "status": "pending",
+      "lane": "claude",
+      "createdAt": "2026-11-19T22:30:41-06:00",
+      "instruction": "En HubSpot el usuario sube su foto de perfil desde Perfil y preferencias (upload con recorte circular, o Gravatar) y esa foto aparece en todo el CRM (menús de propietario, asignaciones, equipos). Omni solo dibuja iniciales con color.\n\nPasos:\n1. En Configuración › General › Perfil permite subir foto (input file, recorte circular con slider como HubSpot) y guardarla en Supabase Storage (bucket avatars) ligada al user_id; quita el nombre/teléfono hardcodeado «Fernando Lovera» del perfil por defecto (src/settings.js ~105) — debe salir del usuario autenticado.\n2. Centraliza un helper avatarHtml(user) que use la foto si existe y caiga a iniciales si no.\n3. Úsalo en TODOS lados: menú de propietario en listas y fichas, «Actividad asignada a» en llamadas, equipos en Configuración, topbar.\n4. Prueba smoke: subir foto, verla en topbar y en un menú de propietario tras recargar.\nNo despliegues nada a producción; solo código local."
+    },
+    {
+      "id": "gap-config-usuarios-vistas",
+      "status": "pending",
+      "lane": "codex",
+      "createdAt": "2026-11-19T22:30:41-06:00",
+      "instruction": "HubSpot › Configuración › Usuarios y equipos tiene pestañas (Usuarios / Equipos / Conjuntos de permisos), vistas guardadas (Todos, Invitaciones pendientes, Desactivados), filtros por estado y «último acceso», y al hacer clic en un usuario se abre un panel con pestañas Overview/Setup/Preferences. Omni (src/settings.js ~295-380) solo tiene tabla plana con búsqueda y paginación.\n\nPasos:\n1. Agrega pestañas Usuarios / Equipos / Conjuntos de permisos (permisos puede reutilizar los presets existentes).\n2. Agrega vistas rápidas: Todos, Activos, Invitación pendiente, Desactivados; filtro por equipo y por rol.\n3. Columna «Último acceso» con dato real de auth.users/last_sign_in si está disponible, si no «--».\n4. Al hacer clic en un usuario abre panel lateral con: Overview (actividad), Setup (roles, equipos), Preferences (zona horaria, idioma).\n5. Criterio: se puede encontrar y administrar un usuario igual que en HubSpot sin recargar.\nNo despliegues nada a producción; solo código local."
     }
   ]
 }
