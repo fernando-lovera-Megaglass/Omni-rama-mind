@@ -302,10 +302,11 @@
     },
     {
       "id": "gap-tareas-recordatorios-funcionales-de-tareas",
-      "status": "pending",
+      "status": "done",
       "instruction": "El recordatorio predeterminado de tareas existe en Ajustes pero no dispara nada.\n\nCambio pedido:\n1. Al crear/editar una tarea con recordatorio, guarda la fecha-hora del recordatorio en la tarea.\n2. Con la app abierta, un verificador cada 30 s dispara el recordatorio vencido: notificación del navegador (Notification API, pidiendo permiso) + burbuja dentro de la app con sonido suave y enlace a la tarea.\n3. Marca el recordatorio como disparado para no repetir.\n4. Prueba smoke: tarea con recordatorio en 1 minuto dispara la notificación. No despliegues a producción.",
       "createdAt": "2026-11-19T17:12:33-06:00",
-      "lane": "claude"
+      "lane": "claude",
+      "completedAt": "2026-11-20T17:06:15-0600"
     },
     {
       "id": "gap-tareas-subtareas",
@@ -715,21 +716,17 @@
     },
     {
       "id": "gap-ui-cotizacion-icono-pago",
-      "status": "done",
+      "status": "pending",
       "createdAt": "2026-11-20T13:33:46-06:00",
       "lane": "codex",
-      "instruction": "En el menú «Más» de la ficha de registro, «Crear cotización» usa el icono equivocado: src/record.js 341 tiene ['quote', ACT_ICONS.paylink, 'Crear cotización'], es decir, el icono de tarjeta de pago, idéntico al de «Crear enlace de pago» de la línea 342. Dos acciones distintas con el mismo icono y la cotización sin su icono propio: ACT_ICONS.quote existe en src/action-icons.js 27 pero no se usa ahí. En HubSpot cada acción del menú tiene su icono distintivo. Cómo debe verse: «Crear cotización» con ACT_ICONS.quote y «Crear enlace de pago» con ACT_ICONS.paylink. Criterio de aceptación: en el menú «Más» de la ficha las dos entradas muestran iconos distintos, y el de cotización es el icono de cotización; no se rompe nada más del menú. No despliegues nada a producción; solo código local.",
-      "completedAt": "2026-11-20T16:50:28-0600",
-      "completedBy": "codex"
+      "instruction": "En el menú «Más» de la ficha de registro, «Crear cotización» usa el icono equivocado: src/record.js 341 tiene ['quote', ACT_ICONS.paylink, 'Crear cotización'], es decir, el icono de tarjeta de pago, idéntico al de «Crear enlace de pago» de la línea 342. Dos acciones distintas con el mismo icono y la cotización sin su icono propio: ACT_ICONS.quote existe en src/action-icons.js 27 pero no se usa ahí. En HubSpot cada acción del menú tiene su icono distintivo. Cómo debe verse: «Crear cotización» con ACT_ICONS.quote y «Crear enlace de pago» con ACT_ICONS.paylink. Criterio de aceptación: en el menú «Más» de la ficha las dos entradas muestran iconos distintos, y el de cotización es el icono de cotización; no se rompe nada más del menú. No despliegues nada a producción; solo código local."
     },
     {
       "id": "gap-ui-tablero-tarjetas-oscuro",
-      "status": "done",
+      "status": "pending",
       "createdAt": "2026-11-20T15:29:20-06:00",
       "lane": "codex",
-      "instruction": "Las tarjetas del tablero (vista de panel de Contactos, Empresas, Negocios, Tickets y Tareas) llevan colores claros quemados que en tema oscuro se ven como parches: la píldora «última actividad» .kcard__pill tiene border #c8a24a y background #fffbf0 (src/app.css, regla .kcard__pill; la usa src/list.js ~1414 y src/deals.js ~96), la etiqueta «Importante» .kcard__tag tiene background #e5f5f8 y color #0091ae (src/deals.js ~87), el pie de columna .kcol__foot y el separador .kfoot__sep usan #cbd6e2, y el hover de la columna contraída .kcol__expand:hover usa #dfe8f1. El único override oscuro del tablero es [data-theme=\"dark\"] .kcol (src/app.css 106); estas cinco reglas no tienen ninguno. OJO: gap-ui-tema-oscuro-fondos-claros (pendiente) cubre Bandeja, banner de Tareas, drawer de crear negocio, .opreview, .rvpin, editor de workflows y .allf__ico — NO toques esas, este ítem es solo el tablero (.kcol/.kcard/.kfoot). Cómo debe verse: en tema oscuro la píldora usa fondo y borde ámbar oscuros (o variables), la etiqueta «Importante» usa el equivalente oscuro de --c-tag-new, y los bordes del pie usan var(--c-border); en tema claro nada cambia. Criterio de aceptación: con el tema oscuro activo, el tablero de Negocios no muestra ninguna píldora amarillo claro ni etiqueta turquesa clara, y el pie de columna no tiene una línea gris clara. No despliegues nada a producción; solo código local.",
-      "completedAt": "2026-11-20T16:55:51-0600",
-      "completedBy": "codex"
+      "instruction": "Las tarjetas del tablero (vista de panel de Contactos, Empresas, Negocios, Tickets y Tareas) llevan colores claros quemados que en tema oscuro se ven como parches: la píldora «última actividad» .kcard__pill tiene border #c8a24a y background #fffbf0 (src/app.css, regla .kcard__pill; la usa src/list.js ~1414 y src/deals.js ~96), la etiqueta «Importante» .kcard__tag tiene background #e5f5f8 y color #0091ae (src/deals.js ~87), el pie de columna .kcol__foot y el separador .kfoot__sep usan #cbd6e2, y el hover de la columna contraída .kcol__expand:hover usa #dfe8f1. El único override oscuro del tablero es [data-theme=\"dark\"] .kcol (src/app.css 106); estas cinco reglas no tienen ninguno. OJO: gap-ui-tema-oscuro-fondos-claros (pendiente) cubre Bandeja, banner de Tareas, drawer de crear negocio, .opreview, .rvpin, editor de workflows y .allf__ico — NO toques esas, este ítem es solo el tablero (.kcol/.kcard/.kfoot). Cómo debe verse: en tema oscuro la píldora usa fondo y borde ámbar oscuros (o variables), la etiqueta «Importante» usa el equivalente oscuro de --c-tag-new, y los bordes del pie usan var(--c-border); en tema claro nada cambia. Criterio de aceptación: con el tema oscuro activo, el tablero de Negocios no muestra ninguna píldora amarillo claro ni etiqueta turquesa clara, y el pie de columna no tiene una línea gris clara. No despliegues nada a producción; solo código local."
     },
     {
       "id": "gap-ui-re-encabezados-tabla-llamadas",
@@ -740,12 +737,10 @@
     },
     {
       "id": "gap-ui-secuencias-iconos-pasos",
-      "status": "done",
+      "status": "pending",
       "createdAt": "2026-11-20T15:29:28-06:00",
       "lane": "codex",
-      "instruction": "Los iconos de tipo de paso de las secuencias son glifos de texto en vez de iconos de línea: src/sequences-data.js 17-24 define STEP_TYPES con icon: '✉' (correo automatizado y manual), '☏' (llamada), '☑' (tarea), '⤳' (solicitud de conexión) y la cadena 'in' (InMail). Se pintan dentro de .seqstep__ico en el selector de tipo de paso (src/sequence-editor.js 84), en la cabecera de cada paso del flujo (src/sequence-editor.js 97) y en el diálogo de inscripción (src/sequence-enroll.js 86). Además hay dos emoji ⚡ sueltos: la tarjeta «Crear una secuencia dinámica» (src/sequence-editor.js 68, .seqed__startico) y el nodo desencadenante del editor de workflows (src/workflow-editor.js 73 .wfn__ico, y el minimapa en 104 y 111). Estos puntos quedaron fuera de gap-ui-iconos-actividad-unificados (que cubrió list.js, deals.js, task-queue.js y calls.js) y de gap-ui-emoji-sueltos-fuera-de-objetos (catálogo de workflows-data.js). Cómo debe verse: cada tipo de paso con su icono SVG de línea de src/action-icons.js (ya existen email, call, task, linkedin; añade los que falten, p. ej. lightning para el disparador/dinámica e inmail reutilizando linkedin), mismo viewBox 24, trazo 1.8, currentColor, para que hereden el color del tema. Criterio de aceptación: grep de '✉', '☏', '☑', '⤳', '⚡' en src/sequences-data.js, src/sequence-editor.js, src/sequence-enroll.js y src/workflow-editor.js queda vacío, y los pasos de una secuencia muestran iconos de línea del mismo tamaño que los de la ficha de registro. No despliegues nada a producción; solo código local.",
-      "completedAt": "2026-11-20T17:01:22-0600",
-      "completedBy": "codex"
+      "instruction": "Los iconos de tipo de paso de las secuencias son glifos de texto en vez de iconos de línea: src/sequences-data.js 17-24 define STEP_TYPES con icon: '✉' (correo automatizado y manual), '☏' (llamada), '☑' (tarea), '⤳' (solicitud de conexión) y la cadena 'in' (InMail). Se pintan dentro de .seqstep__ico en el selector de tipo de paso (src/sequence-editor.js 84), en la cabecera de cada paso del flujo (src/sequence-editor.js 97) y en el diálogo de inscripción (src/sequence-enroll.js 86). Además hay dos emoji ⚡ sueltos: la tarjeta «Crear una secuencia dinámica» (src/sequence-editor.js 68, .seqed__startico) y el nodo desencadenante del editor de workflows (src/workflow-editor.js 73 .wfn__ico, y el minimapa en 104 y 111). Estos puntos quedaron fuera de gap-ui-iconos-actividad-unificados (que cubrió list.js, deals.js, task-queue.js y calls.js) y de gap-ui-emoji-sueltos-fuera-de-objetos (catálogo de workflows-data.js). Cómo debe verse: cada tipo de paso con su icono SVG de línea de src/action-icons.js (ya existen email, call, task, linkedin; añade los que falten, p. ej. lightning para el disparador/dinámica e inmail reutilizando linkedin), mismo viewBox 24, trazo 1.8, currentColor, para que hereden el color del tema. Criterio de aceptación: grep de '✉', '☏', '☑', '⤳', '⚡' en src/sequences-data.js, src/sequence-editor.js, src/sequence-enroll.js y src/workflow-editor.js queda vacío, y los pasos de una secuencia muestran iconos de línea del mismo tamaño que los de la ficha de registro. No despliegues nada a producción; solo código local."
     },
     {
       "id": "gap-ui-tablero-glifos-meta",
@@ -756,12 +751,10 @@
     },
     {
       "id": "gap-ui-re-filtros-nativos-fragmentos",
-      "status": "done",
+      "status": "pending",
       "createdAt": "2026-11-20T15:29:36-06:00",
       "lane": "codex",
-      "instruction": "El fix gap-ui-filtros-nativos-fuera-de-listas unificó los filtros de Bandeja, ficha, Workflows, Plantillas y Secuencias con el componente <filter-chip>, pero dejó Fragmentos fuera: src/snippets.js 50 sigue usando un <select> nativo pelado (<select id=\"snp-owner\" aria-label=\"Propietario\">, rellenado en src/snippets.js 62-66) dentro de .tpls__filters, sin regla CSS propia, así que se ve con el estilo por defecto del navegador (alto y borde distintos) justo al lado del buscador con icono. Su página hermana Plantillas ya usa <filter-chip id=\"tpl-owner\" owner> (src/templates.js 59) con el mismo contenido (Cualquiera / Yo / resto de propietarios). Cómo debe verse: el filtro de propietario de Fragmentos como <filter-chip owner> idéntico al de Plantillas, con el avatar en las opciones y el chip con caret; conserva el contrato change → state.owner y el valor inicial. Criterio de aceptación: no queda ningún <select> en la barra de filtros de Fragmentos y el filtro de propietario se ve y se comporta igual que el de Plantillas (incluido el modo oscuro). No despliegues nada a producción; solo código local.",
-      "completedAt": "2026-11-20T17:05:57-0600",
-      "completedBy": "codex"
+      "instruction": "El fix gap-ui-filtros-nativos-fuera-de-listas unificó los filtros de Bandeja, ficha, Workflows, Plantillas y Secuencias con el componente <filter-chip>, pero dejó Fragmentos fuera: src/snippets.js 50 sigue usando un <select> nativo pelado (<select id=\"snp-owner\" aria-label=\"Propietario\">, rellenado en src/snippets.js 62-66) dentro de .tpls__filters, sin regla CSS propia, así que se ve con el estilo por defecto del navegador (alto y borde distintos) justo al lado del buscador con icono. Su página hermana Plantillas ya usa <filter-chip id=\"tpl-owner\" owner> (src/templates.js 59) con el mismo contenido (Cualquiera / Yo / resto de propietarios). Cómo debe verse: el filtro de propietario de Fragmentos como <filter-chip owner> idéntico al de Plantillas, con el avatar en las opciones y el chip con caret; conserva el contrato change → state.owner y el valor inicial. Criterio de aceptación: no queda ningún <select> en la barra de filtros de Fragmentos y el filtro de propietario se ve y se comporta igual que el de Plantillas (incluido el modo oscuro). No despliegues nada a producción; solo código local."
     },
     {
       "id": "gap-ui-re-paginadores-residuales",
@@ -783,90 +776,6 @@
       "createdAt": "2026-11-20T15:29:48-06:00",
       "lane": "claude",
       "instruction": "La biblioteca de informes personalizados (Informes › Paneles › Biblioteca de informes) no sigue los patrones visuales del resto del CRM: cada fila muestra cinco botones btn--ghost seguidos (Abrir informe / Duplicar / Renombrar / Eliminar / Anclar, src/report-builder.js 20) en vez del menú «Acciones» desplegable que usan Plantillas, Secuencias y Workflows (.tpls__rowmenu), así que las filas crecen y se desalinean con nombres largos. Además sus controles son formularios sin las clases del sistema: el buscador y los selects usan la regla suelta .custom-library input, .custom-library select (border #b6c7d6 quemado y background var(--bg,#fff) — la variable --bg no existe, así que siempre cae a #fff y en tema oscuro quedan cajas blancas) y el constructor usa <label>texto<input/select> desnudos (src/report-builder.js 23 y 34-35) sin .field ni .search. Cómo debe verse: una acción primaria visible (Abrir) y el resto en un menú «Acciones» con el patrón .menu/.menu__panel; buscador con .search.search--sm e icono; campos del constructor con .field; eliminar en rojo menu__item--danger; sustituir la regla .custom-library por clases del sistema para heredar el tema. Criterio de aceptación: la biblioteca no muestra más de dos botones por fila, sus inputs se ven como los de cualquier formulario del CRM en claro y oscuro, y no queda la regla con #b6c7d6 ni var(--bg,#fff). No despliegues nada a producción; solo código local."
-    },
-    {
-      "id": "gap-smoke-paginadores-regresion",
-      "status": "pending",
-      "instruction": "Las pruebas smoke-templates («pager state wrong on page 1») y smoke-server-pagination («pager must show the last page from the exact count») fallan tras el commit 6fbcb5f (gap-ui-paginadores-inconsistentes). Investiga si el cambio de paginadores rompió el comportamiento (regresión) o si las pruebas quedaron desactualizadas respecto al nuevo comportamiento correcto; corrige el código o actualiza las pruebas según corresponda. Criterio de aceptación: ambas pruebas pasan. Ejecuta la(s) prueba(s) con node scripts/<smoke>.mjs hasta que pasen. No despliegues nada a producción; solo código local.",
-      "createdAt": "2026-11-20T16:48:58-06:00",
-      "lane": "claude"
-    },
-    {
-      "id": "gap-smoke-calls-elemento-faltante",
-      "status": "pending",
-      "instruction": "smoke-calls.mjs falla con «missing element to click» después de las pruebas de chips y pie de tabla, probablemente por los commits de hoy en llamadas (tabla plana, filtros chip). Verifica qué elemento del DOM espera la prueba y si aún existe; corrige el código o la prueba. Criterio de aceptación: smoke-calls pasa. Ejecuta la(s) prueba(s) con node scripts/<smoke>.mjs hasta que pasen. No despliegues nada a producción; solo código local.",
-      "createdAt": "2026-11-20T16:48:58-06:00",
-      "lane": "codex"
-    },
-    {
-      "id": "gap-smoke-bulk-assign",
-      "status": "pending",
-      "instruction": "smoke-bulk.mjs falla en «assign»: la asignación masiva de registros no funciona como espera la prueba. Reproduce, encuentra la causa (posible regresión de los commits de hoy) y corrige. Criterio de aceptación: smoke-bulk pasa. Ejecuta la(s) prueba(s) con node scripts/<smoke>.mjs hasta que pasen. No despliegues nada a producción; solo código local.",
-      "createdAt": "2026-11-20T16:48:58-06:00",
-      "lane": "claude"
-    },
-    {
-      "id": "gap-smoke-currency-registro",
-      "status": "pending",
-      "instruction": "smoke-currency.mjs falla en «record should show the new currency right away»: al cambiar la moneda, el registro no la refleja de inmediato. Investiga si falta refresco de estado o si la prueba quedó vieja; corrige. Criterio de aceptación: smoke-currency pasa. Ejecuta la(s) prueba(s) con node scripts/<smoke>.mjs hasta que pasen. No despliegues nada a producción; solo código local.",
-      "createdAt": "2026-11-20T16:48:58-06:00",
-      "lane": "codex"
-    },
-    {
-      "id": "gap-smoke-company-hierarchy-fila",
-      "status": "pending",
-      "instruction": "smoke-company-hierarchy.mjs falla en «row shape for the table»: la fila de la tabla de jerarquía de empresas no tiene la forma esperada. Reproduce y corrige el código o la prueba. Criterio de aceptación: smoke-company-hierarchy pasa. Ejecuta la(s) prueba(s) con node scripts/<smoke>.mjs hasta que pasen. No despliegues nada a producción; solo código local.",
-      "createdAt": "2026-11-20T16:48:58-06:00",
-      "lane": "claude"
-    },
-    {
-      "id": "gap-smoke-custom-props-writer",
-      "status": "pending",
-      "instruction": "smoke-custom-props.mjs falla en «saving should persist through the writer»: al guardar una propiedad personalizada no persiste (cuenta de contacts, in_form, options Norte/Sur o group_name). Investiga el writer de propiedades y corrige. Criterio de aceptación: smoke-custom-props pasa. Ejecuta la(s) prueba(s) con node scripts/<smoke>.mjs hasta que pasen. No despliegues nada a producción; solo código local.",
-      "createdAt": "2026-11-20T16:48:58-06:00",
-      "lane": "codex"
-    },
-    {
-      "id": "gap-smoke-dedupe-skip",
-      "status": "pending",
-      "instruction": "smoke-dedupe.mjs falla en «skip duplicates choice»: el flujo de importación con opción «omitir duplicados» no se comporta como espera la prueba (stats created:2, updated:2, failed:1; contacts 420→422). Reproduce y corrige código o prueba. Criterio de aceptación: smoke-dedupe pasa. Ejecuta la(s) prueba(s) con node scripts/<smoke>.mjs hasta que pasen. No despliegues nada a producción; solo código local.",
-      "createdAt": "2026-11-20T16:48:58-06:00",
-      "lane": "claude"
-    },
-    {
-      "id": "gap-smoke-import-map-en",
-      "status": "pending",
-      "instruction": "smoke-import.mjs falla en «english fallback auto-map»: el auto-mapeo de columnas en inglés durante la importación dejó de funcionar, posiblemente por el commit de importación multiarchivo (2853737). Reproduce y corrige. Criterio de aceptación: smoke-import pasa. Ejecuta la(s) prueba(s) con node scripts/<smoke>.mjs hasta que pasen. No despliegues nada a producción; solo código local.",
-      "createdAt": "2026-11-20T16:48:58-06:00",
-      "lane": "codex"
-    },
-    {
-      "id": "gap-smoke-invitations-reemplazo",
-      "status": "pending",
-      "instruction": "smoke-invitations.mjs falla en «the sample users must be replaced»: la lista de usuarios de ejemplo no se reemplaza correctamente al invitar usuarios reales. Reproduce y corrige. Criterio de aceptación: smoke-invitations pasa. Ejecuta la(s) prueba(s) con node scripts/<smoke>.mjs hasta que pasen. No despliegues nada a producción; solo código local.",
-      "createdAt": "2026-11-20T16:48:58-06:00",
-      "lane": "claude"
-    },
-    {
-      "id": "gap-smoke-phone-guardado-celda",
-      "status": "pending",
-      "instruction": "smoke-phone.mjs falla en «cell save: +57 1 321 4008»: guardar un teléfono editado en la celda no persiste o no formatea como espera la prueba. Reproduce y corrige código o prueba. Criterio de aceptación: smoke-phone pasa. Ejecuta la(s) prueba(s) con node scripts/<smoke>.mjs hasta que pasen. No despliegues nada a producción; solo código local.",
-      "createdAt": "2026-11-20T16:48:58-06:00",
-      "lane": "codex"
-    },
-    {
-      "id": "gap-smoke-task-queue-barra",
-      "status": "pending",
-      "instruction": "smoke-task-queue.mjs falla en «bar should reflect the completed task»: la barra de progreso de la cola de tareas no refleja la tarea completada, posiblemente por los commits de tareas/colas de hoy. Reproduce y corrige. Criterio de aceptación: smoke-task-queue pasa. Ejecuta la(s) prueba(s) con node scripts/<smoke>.mjs hasta que pasen. No despliegues nada a producción; solo código local.",
-      "createdAt": "2026-11-20T16:48:58-06:00",
-      "lane": "claude"
-    },
-    {
-      "id": "gap-smoke-views-error",
-      "status": "pending",
-      "instruction": "smoke-views.mjs falla sin imprimir línea FAIL clara (posible excepción). Ejecuta node scripts/smoke-views.mjs, captura el error real, diagnostica y corrige código o prueba. Criterio de aceptación: smoke-views pasa. Ejecuta la(s) prueba(s) con node scripts/<smoke>.mjs hasta que pasen. No despliegues nada a producción; solo código local.",
-      "createdAt": "2026-11-20T16:48:58-06:00",
-      "lane": "codex"
     }
   ]
 }
