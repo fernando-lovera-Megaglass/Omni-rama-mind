@@ -254,7 +254,8 @@ function userRows() {
   base.forEach((u, i) => {
     if (!u.seat) { u.seat = u.role === 'Solo lectura' ? 'view' : 'core'; changed = true; }
     if (!Array.isArray(u.addons)) { u.addons = i % 2 === 0 ? ['sales'] : []; changed = true; }
-    if (!u.lastActive) { u.lastActive = new Date(Date.now() - [0.2, 1, 3, 9, 40][i % 5] * 86400000).toISOString(); changed = true; }
+    // Legacy lastActive values were synthetic; never use them as sign-in evidence.
+    u.lastActive = u.email?.toLowerCase() === state.meEmail ? state.meLastSignIn || null : u.last_sign_in_at || null;
     if (!u.status) { u.status = 'Activo'; changed = true; }
     if (u.status === 'Invitado') { u.status = 'Invitación pendiente'; changed = true; }
   });
@@ -263,16 +264,16 @@ function userRows() {
 }
 const saveUsers = (list) => save('crm:users', list);
 const initialsOf = (n) => String(n || '?').split(' ').filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase();
-const lastActiveText = (iso) => { const d = (Date.now() - new Date(iso)) / 86400000; return d < 1 ? 'Hoy' : d < 2 ? 'Ayer' : d < 30 ? `Hace ${Math.round(d)} días` : formatDate(iso); };
+const lastActiveText = (iso) => { if (!iso || !Number.isFinite(Date.parse(iso))) return '--'; const d = (Date.now() - new Date(iso)) / 86400000; return d < 1 ? 'Hoy' : d < 2 ? 'Ayer' : d < 30 ? `Hace ${Math.round(d)} días` : formatDate(iso); };
 const presets = () => load('crm:presets', [{ id: 'p1', name: 'Ajuste predeterminado de ventas', home: 'Negocios', lang: 'Español', tz: '(UTC-06:00) Ciudad de México', dateFormat: 'dd/mm/aaaa', notifEmail: true, notifDesktop: true, notifMobile: false, teams: ['Ventas en el Extranjero'], users: [], updated: new Date(2026, 9, 2, 10, 15).toISOString(), by: 'Fernando Lovera Colin' }]);
 const savePresets = (list) => save('crm:presets', list);
 const seatLog = () => load('crm:seatlog', []);
-function usersTabHtmlLegacy() { // sample users (kept for the licences tab); the Usuarios tab now manages invitations
+function usersDirectoryHtml() {
   const ts = teams();
   const all = userRows();
   const f = state.uFilter;
   const q = state.uq.trim().toLowerCase();
-  const daysAgo = (iso) => (Date.now() - new Date(iso)) / 86400000;
+  const daysAgo = (iso) => iso && Number.isFinite(Date.parse(iso)) ? (Date.now() - new Date(iso)) / 86400000 : NaN;
   let rows = all.map((u, i) => ({ ...u, i })).filter((u) => (!f.perm || u.role === f.perm) && (!f.team || u.team === f.team) && (!f.status || u.status === f.status) && (!f.active || (f.active === 'today' ? daysAgo(u.lastActive) < 1 : f.active === '7' ? daysAgo(u.lastActive) <= 7 : f.active === '30' ? daysAgo(u.lastActive) <= 30 : daysAgo(u.lastActive) > 30)) && (!q || u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)));
   const { key, dir } = state.uSort;
   rows.sort((a, b) => (key === 'lastActive' ? new Date(a.lastActive) - new Date(b.lastActive) : String(a[key] || '').localeCompare(String(b[key] || ''), 'es')) * dir);
@@ -283,10 +284,10 @@ function usersTabHtmlLegacy() { // sample users (kept for the licences tab); the
   const th = (k, label) => `<th><button class="psort${key === k ? ' is-active' : ''}" type="button" data-usort="${k}">${label} <span aria-hidden="true">${key === k ? (dir > 0 ? '↑' : '↓') : '⇅'}</span></button></th>`;
   const selCount = [...state.uSel].filter((e) => all.some((u) => u.email === e)).length;
   const anyFilter = f.perm || f.team || f.status || f.active || q;
-  return `<div class="pchips">${chip('perm', 'Permisos', f.perm, ROLES.map((r) => [r, r]))}${chip('team', 'Equipos', f.team, ts.map((t) => [t.name, t.name]))}${chip('active', 'Último activo', f.active, [['today', 'Hoy'], ['7', 'Últimos 7 días'], ['30', 'Últimos 30 días'], ['old', 'Más de 30 días']])}${chip('status', 'Estado', f.status, [['Activo', 'Activo'], ['Invitación pendiente', 'Invitación pendiente'], ['Desactivado', 'Desactivado']])}${anyFilter ? '<button class="link-btn" type="button" data-act="users-clear">Borrar filtros</button>' : ''}</div>
+  return `<p class="muted">Roles, equipos y preferencias se administran localmente en este navegador.</p><div class="gtabs" aria-label="Vistas de usuarios">${[['', 'Todos'], ['Activo', 'Activos'], ['Invitación pendiente', 'Invitación pendiente'], ['Desactivado', 'Desactivados']].map(([value, label]) => `<button type="button" data-uset="status" data-value="${value}" class="${f.status === value ? 'is-active' : ''}" aria-pressed="${f.status === value}">${label}</button>`).join('')}</div><div class="pchips">${chip('perm', 'Rol', f.perm, ROLES.map((r) => [r, r]))}${chip('team', 'Equipos', f.team, ts.map((t) => [t.name, t.name]))}${chip('active', 'Último acceso', f.active, [['today', 'Hoy'], ['7', 'Últimos 7 días'], ['30', 'Últimos 30 días'], ['old', 'Más de 30 días']])}${chip('status', 'Estado', f.status, [['Activo', 'Activo'], ['Invitación pendiente', 'Invitación pendiente'], ['Desactivado', 'Desactivado']])}${anyFilter ? '<button class="link-btn" type="button" data-act="users-clear">Borrar filtros</button>' : ''}</div>
     <div class="ptoolbar"><div class="search search--sm ptoolbar__search"><input type="search" id="users-q" value="${esc(state.uq)}" placeholder="Buscar usuarios" aria-label="Buscar usuarios" /><span class="ico ico--search" aria-hidden="true"></span></div><span class="muted">${rows.length} usuario${rows.length === 1 ? '' : 's'}</span></div>
     ${selCount ? `<div class="pbulk"><strong>${selCount} seleccionado${selCount > 1 ? 's' : ''}</strong><button class="link-btn" type="button" data-act="ubulk-team">Asignar equipo</button><button class="link-btn" type="button" data-act="ubulk-role">Cambiar permisos</button><button class="link-btn" type="button" data-act="ubulk-off">Desactivar</button><button class="link-btn" type="button" data-act="ubulk-export">Exportar</button><button class="link-btn" type="button" data-act="ubulk-clear">Limpiar</button></div>` : ''}
-    <table class="mini-table stable proptable utable"><thead><tr><th class="pcheck"><input type="checkbox" data-ucheck-all ${page.length && page.every((u) => state.uSel.has(u.email)) ? 'checked' : ''} aria-label="Seleccionar todo" /></th>${th('name', 'Nombre')}${th('team', 'Equipos')}${th('role', 'Acceso')}<th>Licencia</th>${th('lastActive', 'Último activo')}${th('status', 'Estado')}<th class="num">Acciones</th></tr></thead><tbody>
+    <table class="mini-table stable proptable utable"><thead><tr><th class="pcheck"><input type="checkbox" data-ucheck-all ${page.length && page.every((u) => state.uSel.has(u.email)) ? 'checked' : ''} aria-label="Seleccionar todo" /></th>${th('name', 'Nombre')}${th('team', 'Equipos')}${th('role', 'Acceso')}<th>Licencia</th>${th('lastActive', 'Último acceso')}${th('status', 'Estado')}<th class="num">Acciones</th></tr></thead><tbody>
       ${page.length ? page.map((u) => `<tr class="${u.status === 'Desactivado' ? 'is-off' : ''}"><td class="pcheck"><input type="checkbox" data-ucheck="${esc(u.email)}" ${state.uSel.has(u.email) ? 'checked' : ''} aria-label="Seleccionar ${esc(u.name)}" /></td>
         <td><div class="uname"><span class="avatar avatar--sm" style="background:${['#006162', '#0091ae', '#6a78d1', '#f2547d', '#00a4bd'][u.i % 5]}">${esc(initialsOf(u.name))}</span><div><button class="olink" type="button" data-uact="edit" data-i="${u.i}">${esc(u.name)}</button>${u.role === 'Superadministrador' ? ' <span class="tag tag--new">Superadministrador</span>' : ''}<br /><span class="muted">${esc(u.email)}</span></div></div></td>
         <td>${u.team ? `<span class="rvchip">${esc(u.team)}</span>` : '<span class="muted">--</span>'}</td>
@@ -298,7 +299,7 @@ function usersTabHtmlLegacy() { // sample users (kept for the licences tab); the
           <button class="menu__item" type="button" data-uact="edit" data-i="${u.i}">Editar usuario</button>
           <button class="menu__item" type="button" data-uact="perms" data-i="${u.i}">Editar permisos</button>
           <button class="menu__item" type="button" data-uact="super" data-i="${u.i}">${u.role === 'Superadministrador' ? 'Quitar superadministrador' : 'Establecer como superadministrador'}</button>
-          ${u.status === 'Invitación pendiente' ? `<button class="menu__item" type="button" data-uact="resend" data-i="${u.i}">Reenviar invitación</button>` : ''}
+          ${u.status === 'Invitación pendiente' ? `<button class="menu__item" type="button" data-invite-resend="${esc(u.email)}">Reenviar invitación</button>` : ''}
           <button class="menu__item" type="button" data-user-toggle="${u.i}">${u.status === 'Activo' ? 'Desactivar usuario' : 'Activar usuario'}</button>
           <button class="menu__item menu__item--danger" type="button" data-uact="rm" data-i="${u.i}" ${u.role === 'Superadministrador' && all.filter((x) => x.role === 'Superadministrador').length < 2 ? 'disabled' : ''}>Eliminar usuario</button>
         </div></div></td></tr>`).join('') : '<tr><td colspan="8" class="muted">No hay usuarios que coincidan con los filtros.</td></tr>'}
@@ -350,11 +351,16 @@ function loadInvitations(force = false) {
   s.loading = true;
   s.error = '';
   listInvitations()
-    .then((rows) => { s.rows = rows; })
+    .then((rows) => {
+      s.rows = rows;
+      const all = users().filter((u) => !u.invitationOnly || rows.some((r) => r.email === u.email));
+      rows.forEach((r) => { if (!all.some((u) => u.email.toLowerCase() === r.email.toLowerCase())) all.push({ name: r.email, email: r.email, role: 'Usuario', team: '', status: 'Invitación pendiente', invitationOnly: true }); });
+      saveUsers(all);
+    })
     .catch((e) => { s.error = (e && e.message) || String(e); })
     .finally(() => { s.loaded = true; s.loading = false; if (state.section === 'account-users') render(); });
 }
-if (authEnabled()) currentUser().then((u) => { state.meEmail = u && u.email ? u.email.toLowerCase() : ''; if (state.section === 'account-users') render(); });
+if (authEnabled()) currentUser().then((u) => { state.meEmail = u && u.email ? u.email.toLowerCase() : ''; state.meLastSignIn = u?.last_sign_in_at || null; if (state.section === 'account-users') render(); });
 function usersTabHtml() {
   const s = inv();
   if (!s.loaded && !s.loading) loadInvitations();
@@ -368,14 +374,35 @@ function usersTabHtml() {
     ${s.loading && !s.loaded ? '<p class="muted">Cargando invitaciones…</p>' : s.error ? `<p class="pempty">No se pudieron cargar las invitaciones: ${esc(s.error)}.${invitationsEnabled() ? ' Comprueba que ejecutaste supabase/invitations.sql y que tienes sesión.' : ''}</p>` : rows.length ? simpleTable(['Correo', 'Invitado el', 'Estado', ''], rows.map((r) => [`<strong>${esc(r.email)}</strong>`, esc(formatDate(r.createdAt)), status(r), `<button class="link-btn" type="button" data-invite-resend="${esc(r.email)}">Reenviar enlace</button> <button class="link-btn" type="button" data-invite-rm="${esc(r.email)}" ${me && r.email === me ? 'disabled title="No puedes revocar tu propia invitación"' : ''}>Revocar</button>`])) : '<p class="pempty">Todavía no hay invitaciones.</p>'}`;
 }
 function paneUsers() {
-  const tabs = [['users', `Invitaciones (${inv().rows.length})`], ['seats', 'Licencias'], ['teams', `Equipos (${teams().length})`], ['presets', `Ajustes preestablecidos (${presets().length})`]];
-  const body = state.utab === 'seats' ? seatsTabHtml() : state.utab === 'teams' ? teamsTabHtml() : state.utab === 'presets' ? presetsTabHtml() : usersTabHtml();
+  if (!inv().loaded && !inv().loading) loadInvitations();
+  const tabs = [['users', 'Usuarios'], ['invitations', `Invitaciones (${inv().rows.length})`], ['seats', 'Licencias'], ['teams', `Equipos (${teams().length})`], ['presets', `Conjuntos de permisos (${presets().length})`]];
+  const body = state.utab === 'seats' ? seatsTabHtml() : state.utab === 'teams' ? teamsTabHtml() : state.utab === 'presets' ? presetsTabHtml() : state.utab === 'invitations' ? usersTabHtml() : usersDirectoryHtml();
   return `<div class="shead"><h2>Usuarios y equipos</h2><span class="ad-foot__btns"><button class="btn btn--primary" type="button" data-act="invite-focus">Invitar usuario</button></span></div>
     <p class="odesc">Invita por correo a quien deba entrar en Omni (solo los correos invitados pueden crear cuenta) y organiza al equipo en equipos y licencias.</p>
     <div class="otabs"><div class="otabs__tabs">${tabs.map(([k, l]) => `<button type="button" class="${state.utab === k ? 'is-active' : ''}" data-utab="${k}">${l}</button>`).join('')}</div></div>
     <div class="obody">${body}</div>`;
 }
 // Modals for users, permissions, teams and presets.
+function userDrawer(i, tab = 'Overview') {
+  const all = userRows();
+  const u = all[i];
+  if (!u) return;
+  const select = (name, label, value, options) => `<label class="field"><span>${label}</span><select name="${name}">${[...new Set([value, ...options])].map((v) => `<option value="${esc(v)}" ${v === value ? 'selected' : ''}>${esc(v || 'Sin equipo')}</option>`).join('')}</select></label>`;
+  const tabs = `<div class="gtabs" role="tablist">${['Overview', 'Setup', 'Preferences'].map((t) => `<button type="button" role="tab" aria-selected="${t === tab}" class="${t === tab ? 'is-active' : ''}" data-detail-tab="${t}">${t}</button>`).join('')}</div>`;
+  const body = tab === 'Overview' ? `<h3>Actividad</h3>${infoList('', [['Correo', esc(u.email)], ['Estado', esc(u.status)], ['Último acceso', esc(lastActiveText(u.lastActive))]])}<p class="muted">${u.lastActive ? 'Acceso registrado por autenticación.' : 'No hay actividad de autenticación disponible.'}</p>` : `<form id="user-detail-form" class="ad-form">${tab === 'Setup' ? select('role', 'Rol', u.role, ROLES) + select('team', 'Equipo', u.team || '', ['', ...teams().map((t) => t.name)]) + select('status', 'Estado local', u.status, ['Activo', 'Invitación pendiente', 'Desactivado']) : select('tz', 'Zona horaria', u.tz || account().tz, [account().tz, 'UTC', 'Europe/Madrid', 'America/Bogota', 'America/New_York']) + select('lang', 'Idioma', u.lang || account().lang, ['Español', 'Inglés', 'Portugués', 'Francés'])}</form>`;
+  openModal(u.name, tabs + body, `${tab !== 'Overview' ? '<button class="btn btn--primary" type="submit" form="user-detail-form">Guardar</button>' : ''}<button class="btn btn--ghost" type="button" data-close>Cerrar</button>`);
+  const modal = document.getElementById('s-modal');
+  modal.classList.add('user-detail');
+  modal.querySelectorAll('[data-detail-tab]').forEach((b) => { b.onclick = () => userDrawer(i, b.dataset.detailTab); });
+  modal.querySelector('[data-detail-tab][aria-selected="true"]').focus();
+  const form = document.getElementById('user-detail-form');
+  if (form) form.onsubmit = (e) => {
+    e.preventDefault(); e.stopPropagation();
+    const changes = Object.fromEntries(new FormData(form));
+    if (changes.role && changes.role !== 'Superadministrador' && u.role === 'Superadministrador' && all.filter((x) => x.role === 'Superadministrador' && x.status === 'Activo').length <= 1 || changes.status === 'Desactivado' && u.role === 'Superadministrador' && all.filter((x) => x.role === 'Superadministrador' && x.status === 'Activo').length <= 1) { toast('Debe quedar un superadministrador activo'); return; }
+    Object.assign(u, changes); saveUsers(all); render(); userDrawer(i, tab); toast('Usuario guardado localmente');
+  };
+}
 function userModal(i) {
   const all = userRows();
   const u = i === null ? { name: '', email: '', team: teams()[0] ? teams()[0].name : '', role: 'Usuario', seat: 'core', addons: [] } : all[i];
@@ -394,7 +421,7 @@ function userModal(i) {
     const addons = ['sales', 'service'].filter((k) => ev.target.elements[k].checked);
     if (i === null) {
       if (all.some((x) => x.email.toLowerCase() === d.email.trim().toLowerCase())) { toast('Ya existe un usuario con ese correo'); return; }
-      all.push({ name: d.name.trim(), email: d.email.trim(), team: d.team, role: d.role, seat: d.seat, addons, status: 'Invitación pendiente', lastActive: new Date().toISOString() });
+      all.push({ name: d.name.trim(), email: d.email.trim(), team: d.team, role: d.role, seat: d.seat, addons, status: 'Invitación pendiente' });
       toast(`Invitación enviada a ${d.email.trim()}`);
     } else {
       Object.assign(u, { name: d.name.trim(), team: d.team, role: d.role, seat: d.seat, addons });
@@ -1332,7 +1359,7 @@ function openModal(title, body, foot) {
 }
 function closeModal() {
   const m = document.getElementById('s-modal');
-  m.classList.remove('is-open');
+  m.classList.remove('is-open', 'user-detail');
   m.setAttribute('aria-hidden', 'true');
 }
 function promptModal(title, fields, okLabel, onOk) {
@@ -1658,10 +1685,9 @@ root.addEventListener('click', (e) => {
   if (uact) {
     closeMenus();
     const us = userRows(); const i = Number(uact.dataset.i); const u = us[i]; const a2 = uact.dataset.uact;
-    if (a2 === 'edit') userModal(i);
+    if (a2 === 'edit') userDrawer(i);
     else if (a2 === 'perms') permsModal(i);
     else if (a2 === 'super') { u.role = u.role === 'Superadministrador' ? 'Administrador' : 'Superadministrador'; saveUsers(us); render(); toast(u.role === 'Superadministrador' ? `${u.name} ahora es superadministrador` : `${u.name} ya no es superadministrador`); }
-    else if (a2 === 'resend') { toast(`Invitación reenviada a ${u.email}`); }
     else if (a2 === 'rm') { if (window.confirm(`¿Eliminar al usuario ${u.name}? Sus registros pasarán a "Sin asignar".`)) { us.splice(i, 1); saveUsers(us); state.uSel.delete(u.email); render(); toast('Usuario eliminado'); } }
     return;
   }
@@ -1824,7 +1850,7 @@ root.addEventListener('click', (e) => {
   }
   else if (a === 'new-propgroup') promptModal('Crear grupo de propiedades', [['name', 'Nombre del grupo']], 'Crear', (d) => { const list = propGroupsStore(state.propsObject); const name = d.name.trim(); if (name && !list.includes(name)) list.push(name); save(`crm:propgroups:${state.propsObject}`, list); toast(`Grupo "${name}" creado`); });
   else if (a === 'new-prop') { openModal('Crear propiedad', propertyForm(state.propsObject), `<button class="btn btn--primary" type="button" id="prop-save">Crear</button><button class="btn btn--ghost" type="button" data-close>Cancelar</button>`); enhanceKindSelects(document.getElementById('prop-form')); document.getElementById('prop-save').onclick = () => saveProperty(state.propsObject); }
-  else if (a === 'invite-focus') { state.utab = 'users'; render(); document.querySelector('#invite-form [name="email"]')?.focus(); }
+  else if (a === 'invite-focus') { state.utab = 'invitations'; render(); document.querySelector('#invite-form [name="email"]')?.focus(); }
   else if (a === 'invites-reload') { loadInvitations(true); render(); }
   else if (a === 'new-user') userModal(null);
   else if (a === 'new-team') teamModal(null);
@@ -1832,7 +1858,7 @@ root.addEventListener('click', (e) => {
   else if (a === 'users-clear') { state.uFilter = { perm: '', team: '', active: '', status: '', seat: '' }; state.uq = ''; state.uPage = 1; render(); }
   else if (a === 'export-users' || a === 'ubulk-export') {
     const rows = userRows().filter((u) => a === 'export-users' || state.uSel.has(u.email));
-    download(`usuarios-omni.csv`, ['Nombre;Correo;Equipo;Acceso;Licencia;Estado;Último activo', ...rows.map((u) => [u.name, u.email, u.team, u.role, SEATS[u.seat] || '', u.status, formatDate(u.lastActive)].map((v) => `"${String(v ?? '').replace(/"/g, '""')}"`).join(';'))].join('\n'));
+    download(`usuarios-omni.csv`, ['Nombre;Correo;Equipo;Acceso;Licencia;Estado;Último activo', ...rows.map((u) => [u.name, u.email, u.team, u.role, SEATS[u.seat] || '', u.status, lastActiveText(u.lastActive)].map((v) => `"${String(v ?? '').replace(/"/g, '""')}"`).join(';'))].join('\n'));
     toast(`${rows.length} usuarios exportados`);
   }
   else if (a === 'ubulk-team') promptModal('Asignar equipo', [['team', 'Equipo', 'select', teams().map((t) => t.name)]], 'Asignar', (d) => { const us = userRows(); us.forEach((u) => { if (state.uSel.has(u.email)) u.team = d.team; }); saveUsers(us); state.uSel = new Set(); toast('Equipo asignado'); });

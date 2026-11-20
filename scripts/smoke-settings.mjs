@@ -110,6 +110,22 @@ log('catalog has custom:', props.propertyList('contacts').some((p) => p.label ==
 location.hash = '#account-users';
 window.dispatchEvent(new dom.window.Event('hashchange'));
 log('users tabs:', [...document.querySelectorAll('[data-utab]')].map((b) => b.textContent).join(' | '), '| invite form:', Boolean(document.getElementById('invite-form')), '| sample users table gone:', !document.querySelector('.utable'));
+assert.ok(document.querySelector('.utable'));
+assert.ok(document.querySelector('[data-usort="lastActive"]').textContent.includes('Último acceso'));
+assert.ok([...document.querySelectorAll('.utable tbody tr')].every((r) => r.cells[5].textContent === '--'));
+click(document.querySelector('[data-uact="edit"]'));
+assert.ok(document.querySelector('#s-modal.user-detail.is-open'));
+click(document.querySelector('[data-detail-tab="Preferences"]'));
+let detail = document.getElementById('user-detail-form');
+detail.elements.lang.value = 'Francés';
+detail.dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true }));
+assert.equal(document.getElementById('user-detail-form').elements.lang.value, 'Francés');
+click(document.querySelector('#s-modal [data-close]'));
+click(document.querySelector('[data-uset="status"][data-value="Desactivado"]'));
+assert.ok(document.querySelector('.utable tbody').textContent.includes('No hay usuarios'));
+click(document.querySelector('[data-act="users-clear"]'));
+click(document.querySelector('[data-utab="invitations"]'));
+await new Promise((r) => setTimeout(r, 20));
 // invitations (local mode: saved in this browser, no e-mail is sent)
 const inviteForm = document.getElementById('invite-form');
 inviteForm.elements.email.value = 'carlos.perez@megaglass.us';
