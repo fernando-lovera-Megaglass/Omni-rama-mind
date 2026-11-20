@@ -337,10 +337,11 @@
     },
     {
       "id": "gap-segmentos-categor-a-eventos-en-filtros",
-      "status": "pending",
+      "status": "done",
       "instruction": "La categoría «Eventos» del editor de filtros de segmentos está visible pero deshabilitada.\n\nCambio pedido: habilítala con criterios reales sobre la tabla activities/llamadas: «ha tenido actividad en últimos N días», «tiene llamada grabada», «último resultado de llamada = X», «tiene correo abierto/sin abrir» (según datos disponibles). La vista previa del segmento debe contar bien. Prueba smoke: segmento «contactos con llamada en últimos 30 días» devuelve resultados correctos. No despliegues a producción.",
       "createdAt": "2026-11-19T17:12:33-06:00",
-      "lane": "claude"
+      "lane": "claude",
+      "completedAt": "2026-11-20T17:18:02-0600"
     },
     {
       "id": "gap-negocios-y-pipelines-categor-as-de-previsi-n-por-etapa",
@@ -716,12 +717,10 @@
     },
     {
       "id": "gap-ui-cotizacion-icono-pago",
-      "status": "done",
+      "status": "pending",
       "createdAt": "2026-11-20T13:33:46-06:00",
       "lane": "codex",
-      "instruction": "En el menú «Más» de la ficha de registro, «Crear cotización» usa el icono equivocado: src/record.js 341 tiene ['quote', ACT_ICONS.paylink, 'Crear cotización'], es decir, el icono de tarjeta de pago, idéntico al de «Crear enlace de pago» de la línea 342. Dos acciones distintas con el mismo icono y la cotización sin su icono propio: ACT_ICONS.quote existe en src/action-icons.js 27 pero no se usa ahí. En HubSpot cada acción del menú tiene su icono distintivo. Cómo debe verse: «Crear cotización» con ACT_ICONS.quote y «Crear enlace de pago» con ACT_ICONS.paylink. Criterio de aceptación: en el menú «Más» de la ficha las dos entradas muestran iconos distintos, y el de cotización es el icono de cotización; no se rompe nada más del menú. No despliegues nada a producción; solo código local.",
-      "completedAt": "2026-11-20T17:09:52-0600",
-      "completedBy": "codex"
+      "instruction": "En el menú «Más» de la ficha de registro, «Crear cotización» usa el icono equivocado: src/record.js 341 tiene ['quote', ACT_ICONS.paylink, 'Crear cotización'], es decir, el icono de tarjeta de pago, idéntico al de «Crear enlace de pago» de la línea 342. Dos acciones distintas con el mismo icono y la cotización sin su icono propio: ACT_ICONS.quote existe en src/action-icons.js 27 pero no se usa ahí. En HubSpot cada acción del menú tiene su icono distintivo. Cómo debe verse: «Crear cotización» con ACT_ICONS.quote y «Crear enlace de pago» con ACT_ICONS.paylink. Criterio de aceptación: en el menú «Más» de la ficha las dos entradas muestran iconos distintos, y el de cotización es el icono de cotización; no se rompe nada más del menú. No despliegues nada a producción; solo código local."
     },
     {
       "id": "gap-ui-tablero-tarjetas-oscuro",
