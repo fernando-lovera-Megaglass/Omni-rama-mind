@@ -258,10 +258,11 @@
     },
     {
       "id": "gap-tickets-los-4-pipelines-reales-de-cotizaciones",
-      "status": "pending",
+      "status": "done",
       "instruction": "Crear los 4 pipelines reales de tickets con sus 27 etapas reales (hoy Omni tiene 10 de 27, cobertura 37%).\n\nPasos:\n1. Lee el token de HubSpot en app/.hubspot-token y consulta GET https://api.hubapi.com/crm/v3/pipelines/tickets (header Authorization: Bearer <token>). Devuelve los 4 pipelines: Cotizaciones Proyectos, Cotizaciones SACA, Cotizaciones Acristala, Cotizaciones Kafer, con sus etapas, orden y probabilidades.\n2. Modela esos pipelines y etapas en Supabase (migración SQL nueva en supabase/; usa scripts/migrate-ticket-pipelines.mjs como referencia de cómo se hizo la vez anterior) y en el seed/config local (src/data.js ticketPipelines).\n3. La ficha y listas de tickets deben poder cambiar de pipeline y mostrar las etapas reales de cada uno.\n4. Prueba smoke: abrir un ticket de cada pipeline muestra sus etapas reales.\nNo despliegues nada a producción; solo código local.",
       "createdAt": "2026-11-19T17:12:33-06:00",
-      "lane": "claude"
+      "lane": "claude",
+      "completedAt": "2026-11-19T22:23:24-0600"
     },
     {
       "id": "llamadas-entrantes",
