@@ -32,10 +32,24 @@ await request({CallSid:'CA'+'2'.repeat(32),ParentCallSid:sid,CallStatus:'in-prog
 await request({CallStatus:'ringing'},callback); assert.equal(rows[0].status,'in-progress');
 await request({CallStatus:'in-progress',DialCallStatus:'completed',DialCallDuration:'42'},callback);
 await request({CallStatus:'ringing'},callback); assert.equal(rows[0].status,'completed'); assert.equal(rows[0].duration_sec,42);
-signature=false; assert.equal((await request()).status,403); signature=true;
+signature=false;
+const rowsBeforeRejection = structuredClone(rows);
+const rejected = async (params = {}, suffix = '') => {
+  const response = await request(params, suffix);
+  return { status: response.status, body: await response.text() };
+};
+// Requests carry no signature header: known and unknown numbers must be indistinguishable.
+const knownRejection = await rejected();
+assert.deepEqual(knownRejection, { status: 403, body: 'Firma inválida' });
+assert.deepEqual(await rejected({ To: '+19999999999' }), knownRejection);
+assert.deepEqual(await rejected({ AccountSid: 'other' }), knownRejection);
+assert.deepEqual(await rejected({}, callback), knownRejection);
+assert.deepEqual(await rejected({}, callback.replace('connection=connection', 'connection=unknown')), knownRejection);
+assert.deepEqual(rows, rowsBeforeRejection);
+signature=true;
 assert.equal((await request({AccountSid:'other'})).status,403);
 assert.equal((await request({CallSid:'CA'+'3'.repeat(32)},callback)).status,403);
 for(const status of ['busy','no-answer','failed','canceled']) { rows[0].status='ringing'; await request({DialCallStatus:status,CallDuration:'0'},callback); assert.equal(rows[0].status,status); assert.equal(rows[0].duration_sec,0); }
 rows=[]; contacts=[]; await request({From:'anonymous'}); assert.equal(rows[0].contact_id,null);
 rows=[]; conn.incoming_forward_number=conn.phone_number; assert.match(await (await request()).text(), /<Hangup\/>/); assert.equal(rows[0].status,'failed');
-console.log('PASS: forwarding, association, duplicate delivery, monotonic callbacks, duration, signature/account/parent rejection, terminal outcomes, unknown caller, loop prevention');
+console.log('PASS: forwarding, association, duplicate delivery, monotonic callbacks, duration, indistinguishable unsigned rejections, signature/account/parent rejection, terminal outcomes, unknown caller, loop prevention');

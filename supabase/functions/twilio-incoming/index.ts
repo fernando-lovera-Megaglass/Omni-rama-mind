@@ -15,7 +15,8 @@ Deno.serve(handle(async (req) => {
   query = callback ? query.eq('id', url.searchParams.get('connection')) : query.eq('phone_number', params.To || '');
   const { data: conn, error } = await query.maybeSingle();
   if (error) throw error;
-  if (!conn) return fail('Conexión desconocida', 403);
+  // Match signature failures so unauthenticated callers cannot enumerate connections.
+  if (!conn) return fail('Firma inválida', 403);
   const token = await authTokenOf(service, conn.id);
   const publicUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/twilio-incoming${url.search}`;
   if (!await twilioSignatureValid(publicUrl, params, req.headers.get('X-Twilio-Signature') || '', token)) return fail('Firma inválida', 403);

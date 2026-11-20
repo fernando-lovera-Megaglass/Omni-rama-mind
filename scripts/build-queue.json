@@ -531,10 +531,12 @@
     },
     {
       "id": "gap-backend-incoming-enumeracion",
-      "status": "pending",
+      "status": "done",
       "instruction": "SEGURIDAD MENOR. supabase/functions/twilio-incoming/index.ts responde 403 'Conexión desconocida' (línea 18) ANTES de validar la firma (línea 21): como necesita la conexión para obtener el auth token, cualquier petición anónima a este webhook público (verify_jwt=false) funciona como oráculo para enumerar qué números de teléfono tienen conexión Twilio activa en el CRM (respuesta distinta si params.To coincide con un phone_number registrado: 'Conexión desconocida' vs 'Firma inválida'). Evidencia: curl con form-data To=<número inexistente> → 'Conexión desconocida'; el mismo POST contra twilio-voice/twilio-inbound siempre devuelve 'Firma inválida'. Corrección: hacer la respuesta indistinguible — validar la firma con cualquier conexión activa de la cuenta antes de revelar existencia, o devolver el mismo código/cuerpo para número desconocido y firma inválida. Criterio de aceptación: POST sin firma con To existente y con To inexistente producen respuestas idénticas (mismo status y cuerpo). No despliegues nada a producción; solo código local.",
       "createdAt": "2026-11-20T00:55:00-06:00",
-      "lane": "codex"
+      "lane": "codex",
+      "completedAt": "2026-11-20T10:26:16-0600",
+      "completedBy": "codex"
     },
     {
       "id": "gap-backend-contactos-duplicados-doble-seed",
