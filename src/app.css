@@ -13357,8 +13357,8 @@ a.is-done {
   gap: var(--sp-16);
   margin: 0 0 var(--sp-16);
   padding: var(--sp-10) var(--sp-16);
-  background: #fff8f6;
-  border: 1px solid #fcd9cf;
+  background: var(--c-white);
+  border: 1px solid var(--c-border);
   border-radius: var(--r-md);
 }
 
@@ -19084,3 +19084,17 @@ td[data-key="deal_tags"] .dtag {
 .ai-box__foot .src { display: inline-flex; align-items: center; gap: var(--sp-4); }
 .wfn__ico svg,
 .ibs__cardico svg { width: 22px; height: 22px; flex: none; vertical-align: middle; }
+
+/* Named task queues follow the list filter and bulk-action layout. */
+.task-queue-controls { display: flex; align-items: center; gap: var(--sp-8); }
+.task-queue-menu { position: relative; }
+.task-queue-menu > summary { list-style: none; cursor: pointer; }
+.task-queue-menu > summary::-webkit-details-marker { display: none; }
+.task-queue-menu__panel {
+  position: absolute; top: calc(100% + 8px); left: 0; z-index: 50;
+  width: 280px; max-width: calc(100vw - 32px); padding: var(--sp-16);
+  background: var(--c-white); border: 1px solid var(--c-border);
+  border-radius: var(--r-md); box-shadow: 0 4px 16px #0002;
+}
+.task-queue-menu__panel form { display: grid; gap: var(--sp-8); margin-bottom: var(--sp-8); }
+.task-queue-menu__panel input { width: 100%; min-width: 0; box-sizing: border-box; }

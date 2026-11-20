@@ -1,3 +1,4 @@
+import './filter-chip.js';
 import { taskQueues, loadTaskQueues, saveTaskQueue, deleteTaskQueue } from './task-queues.js';
 import { assignTaskQueue } from './data.js';
 import { boot } from './page.js';
@@ -111,6 +112,7 @@ const list = mountList({
       b.disabled = queueable.length === 0;
     }
     renderQueueBanner();
+    updateQueueAssignment();
   },
   onAction: (a) => {
     if (a === 'start-queue') {
@@ -155,34 +157,54 @@ document.getElementById('rows').addEventListener('change', (e) => {
   list.render();
 });
 
-// Queue controls stay outside the generic list so names can change without a reload.
-const controls = document.createElement('section');
-controls.className = 'tq-banner';
+// Keep queue controls local so renamed options refresh without rebuilding the list.
+const controls = document.createElement('div');
+controls.className = 'task-queue-controls';
 controls.setAttribute('aria-label', 'Colas de tareas');
-$('views-bar').before(controls);
+$('filter-bar').prepend(controls);
+document.querySelector('#bulk .bulk__actions').insertAdjacentHTML('beforeend', '<button type="button" class="bulk__btn" id="assign-named-queue">Asignar seleccionadas a esta cola</button>');
+let queueBusy = false;
+function updateQueueAssignment() {
+  const button = $('assign-named-queue');
+  if (!button) return;
+  button.disabled = queueBusy || !selectedQueue || !!queuesError;
+  button.textContent = selectedQueue === 'none' ? 'Quitar cola de seleccionadas' : 'Asignar seleccionadas a esta cola';
+}
 function renderQueueControls() {
-  controls.innerHTML = queuesError ? `<p role="alert">${esc(queuesError)}</p>` : `
-    <label>Cola <select id="named-queue-filter"><option value="">Todas las colas</option><option value="none">Sin cola</option>${taskQueues().map(q => `<option value="${q.id}" ${selectedQueue === q.id ? 'selected' : ''}>${esc(q.name)}</option>`).join('')}</select></label>
-    <form id="queue-name-form"><label>Nombre <input name="queueName" maxlength="100" required aria-label="Nombre de cola" value="${esc(taskQueues().find(q => q.id === selectedQueue)?.name || '')}"></label>
-    <button class="btn btn--sm" type="submit">Crear cola</button>
-    <button class="btn btn--sm" type="button" id="rename-queue" ${!taskQueues().some(q => q.id === selectedQueue) ? 'disabled' : ''}>Renombrar</button></form>
-    <button class="btn btn--sm" id="delete-named-queue" ${!taskQueues().some(q => q.id === selectedQueue) ? 'disabled' : ''}>Eliminar cola</button>
-    <button class="btn btn--sm" id="assign-named-queue" ${!selectedQueue ? 'disabled' : ''}>${selectedQueue === 'none' ? 'Quitar cola de seleccionadas' : 'Asignar seleccionadas a esta cola'}</button>`;
-  if (selectedQueue === 'none') controls.querySelector('select').value = 'none';
+  const current = taskQueues().find(q => q.id === selectedQueue);
+  controls.innerHTML = queuesError ? `<span role="alert">${esc(queuesError)}</span>` : `
+    <filter-chip id="named-queue-filter" aria-label="Cola"><template><option value="">Todas las colas</option><option value="none" ${selectedQueue === 'none' ? 'selected' : ''}>Sin cola</option>${taskQueues().map(q => `<option value="${esc(q.id)}" ${selectedQueue === q.id ? 'selected' : ''}>${esc(q.name)}</option>`).join('')}</template></filter-chip>
+    <details class="task-queue-menu">
+      <summary class="qchip">Administrar colas <span class="caret" aria-hidden="true"></span></summary>
+      <div class="task-queue-menu__panel">
+        <form id="queue-name-form">
+          <label for="queue-name">Nombre de cola</label>
+          <input id="queue-name" name="queueName" maxlength="100" required value="${esc(current?.name || '')}">
+          <button class="btn btn--sm" type="submit">Crear cola</button>
+          <button class="btn btn--sm" type="button" id="rename-queue" ${!current ? 'disabled' : ''}>Renombrar</button>
+        </form>
+        <button class="btn btn--sm" type="button" id="delete-named-queue" ${!current ? 'disabled' : ''}>Eliminar cola</button>
+      </div>
+    </details>`;
+  updateQueueAssignment();
 }
 async function queueAction(action) {
-  controls.querySelectorAll('button').forEach(b => { b.disabled = true; });
-  try { await action(); list.state.selected.clear(); list.state.page = 1; list.render(); }
+  if (queueBusy) return;
+  queueBusy = true;
+  controls.querySelectorAll('button, input').forEach(b => { b.disabled = true; });
+  updateQueueAssignment();
+  try { await action(); list.state.page = 1; list.render(); }
   catch (e) { toast(e.message || 'No se pudo guardar la cola'); }
-  finally { renderQueueControls(); }
+  finally { queueBusy = false; renderQueueControls(); }
 }
 controls.addEventListener('change', e => {
   if (e.target.id !== 'named-queue-filter') return;
   selectedQueue = e.target.value;
-  // Keep selected tasks so they can be assigned to a newly chosen queue.
+  // Preserve selection so tasks can be assigned to an empty or newly created queue.
   list.state.page = 1;
   list.render();
   renderQueueControls();
+  $('named-queue-filter')?.querySelector('.qchip')?.focus();
 });
 controls.addEventListener('submit', e => {
   e.preventDefault();
@@ -191,16 +213,29 @@ controls.addEventListener('submit', e => {
 });
 controls.addEventListener('click', e => {
   const id = e.target.id;
+  const queueId = selectedQueue;
   if (id === 'rename-queue') {
+    if (!$('queue-name-form').reportValidity()) return;
     const name = controls.querySelector('input').value;
-    queueAction(async () => { await saveTaskQueue(name, selectedQueue); toast('Cola renombrada'); });
+    queueAction(async () => { await saveTaskQueue(name, queueId); toast('Cola renombrada'); });
   } else if (id === 'delete-named-queue') {
     if (!window.confirm('¿Eliminar esta cola? Sus tareas se conservarán sin cola.')) return;
-    queueAction(async () => { await deleteTaskQueue(selectedQueue); selectedQueue = ''; toast('Cola eliminada'); });
-  } else if (id === 'assign-named-queue') {
-    const ids = [...list.state.selected];
-    if (!ids.length) { toast('Selecciona primero las tareas en la lista'); return; }
-    queueAction(async () => { await assignTaskQueue(ids, selectedQueue === 'none' ? null : selectedQueue); toast('Cola asignada'); });
+    queueAction(async () => { await deleteTaskQueue(queueId); selectedQueue = ''; toast('Cola eliminada'); });
+  }
+});
+$('assign-named-queue').addEventListener('click', () => {
+  const ids = [...list.state.selected];
+  if (!ids.length || !selectedQueue) return;
+  const queueId = selectedQueue === 'none' ? null : selectedQueue;
+  queueAction(async () => { await assignTaskQueue(ids, queueId); list.state.selected.clear(); toast('Cola asignada'); });
+});
+document.addEventListener('click', e => {
+  if (!controls.contains(e.target)) controls.querySelector('details')?.removeAttribute('open');
+});
+controls.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    controls.querySelector('details')?.removeAttribute('open');
+    controls.querySelector('summary')?.focus();
   }
 });
 renderQueueControls();
