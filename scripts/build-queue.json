@@ -389,6 +389,64 @@
       "instruction": "RLS estricto por usuario: el PASO 2 de supabase/auth.sql sigue comentado (cada usuario vería solo sus datos).\n\nCambio pedido: aplica el PASO 2 (políticas owner-only) en una migración nueva, verificando antes qué tablas comparten datos entre usuarios del equipo para no romper la operación (si la cuenta es multiusuario con datos compartidos, propón políticas por equipo en vez de por usuario y documéntalo en el PR/commit). Corre scripts/smoke-auth.mjs y las pruebas de listas. No despliegues a producción.",
       "createdAt": "2026-11-19T17:12:33-06:00",
       "lane": "claude"
+    },
+    {
+      "id": "gap-ui-llamadas-tema-oscuro",
+      "status": "done",
+      "createdAt": "2026-11-19T19:33:10-06:00",
+      "instruction": "El módulo de Llamadas se ve blanco incluso con el tema oscuro activo. src/app.css (bloques .calls-table ~18822-18836, .dialer, .callmenu, .keypad ~18540-18820) usa var(--surface, #fff), var(--surface-2, #f3f6f9) y var(--border, #e3e8ee), pero esas variables NO existen en :root ni en [data-theme=\"dark\"] (el tema oscuro solo redefine --c-*), así que siempre caen al fallback claro: la página de Llamadas, el marcador y el menú de llamadas recientes quedan blancos sobre la app oscura.\n\nCómo debe verse: como el resto de la app en tema oscuro (superficies --c-white/--c-head, bordes --c-border). Sustituye los var(--surface/--surface-2/--border, …) por --c-white, --c-row-hover/--c-head y --c-border, o define esos alias en :root y en [data-theme=\"dark\"] junto al resto de variables.\n\nCriterio de aceptación: con el tema oscuro activo (botón luna de la barra superior), la página CRM › Llamadas (tabla, filtros, paginación) y el marcador (teclado, recientes) usan fondos y bordes oscuros coherentes con Contactos; en tema claro no cambia nada. No despliegues nada a producción; solo código local.",
+      "lane": "codex",
+      "completedAt": "2026-11-19T19:36:20-0600",
+      "completedBy": "codex"
+    },
+    {
+      "id": "gap-ui-iconos-actividad-unificados",
+      "status": "pending",
+      "createdAt": "2026-11-19T19:34:10-06:00",
+      "instruction": "Los iconos de las acciones Nota/Correo/Llamada/Tarea/Reunión son de un estilo distinto según dónde aparezcan. La ficha (src/record.js, fila .quick y cronología ICONS ~1365) usa los SVG lineales de src/action-icons.js (ACT_ICONS), pero: las tarjetas del tablero de las listas usan caracteres sueltos — src/list.js ~1391 `const ACT_ICON = { email: '✉', call: '☏', task: '☑', meeting: '▦', note: '✎' }` y botones ✉/✎ en ~1429-1430 —; Negocios repite otro mapa igual con 💬 extra (src/deals.js ~69, usado en ~94 y los botones ☑/✉/✎ de ~97-100); la cola de tareas usa emoji (src/task-queue.js ~48 `TYPE_ICONS = { Llamada: '📞', Correo: '✉', Tarea: '☑' }`); la columna Dirección de Llamadas usa flechas de texto ↗/↙ (src/calls.js ~202) y la cronología mete '↙' suelto para llamadas entrantes (src/record.js ~1454). En HubSpot todas estas superficies usan el mismo set de iconos de línea.\n\nCómo debe verse: un solo origen — ACT_ICONS de src/action-icons.js (mismo viewBox 24, trazo 1.8, currentColor) — en las tarjetas Kanban de Contactos/Empresas/Tickets/Tareas (src/list.js), las de Negocios (src/deals.js), la cola de tareas (src/task-queue.js) y la columna de dirección de Llamadas (añade iconos entrante/saliente al set si hace falta). Nada de emoji ni caracteres ✉☏✎📞💬 en esas posiciones.\n\nCriterio de aceptación: grep de '✉', '☏', '📞', '💬', '▦' en src/list.js, src/deals.js y src/task-queue.js queda vacío; los iconos de una tarjeta del tablero y de la ficha del mismo registro son idénticos en forma y tamaño. No despliegues nada a producción; solo código local.",
+      "lane": "claude"
+    },
+    {
+      "id": "gap-ui-re-propietario-avatar-llamadas",
+      "status": "pending",
+      "createdAt": "2026-11-19T19:35:10-06:00",
+      "instruction": "El fix «propietario-avatar-consistente» (ownerHtml con avatar de dos iniciales y color por persona) no llegó a la página de Llamadas: la columna «Actividad asignada a» sigue dibujando su propio avatar (src/calls.js ~198, .calls-owner__avatar en src/app.css ~17313) con UNA sola letra y el mismo fondo teal (var(--c-link)) para todo el mundo, sin el color derivado del nombre. En HubSpot esa columna muestra el mismo avatar + nombre que el resto del CRM.\n\nCómo debe verse: la celda usa ownerHtml(r.owner) de src/owner.js (avatar xs con las dos iniciales y el color de la persona, «Sin asignar» con el avatar gris cuando no hay responsable), igual que las columnas de propietario de Contactos, Negocios, Tickets y Tareas; se borran .calls-owner y .calls-owner__avatar del CSS si no quedan usos.\n\nCriterio de aceptación: en CRM › Llamadas dos responsables distintos muestran iniciales y colores distintos, idénticos a los que esas mismas personas tienen en la lista de Contactos; sin owner se ve «Sin asignar» con el avatar gris. No despliegues nada a producción; solo código local.",
+      "lane": "codex"
+    },
+    {
+      "id": "gap-ui-etapa-negocio-sin-pipeline",
+      "status": "pending",
+      "createdAt": "2026-11-19T19:36:10-06:00",
+      "instruction": "En la tabla de Negocios la columna «Etapa del negocio» imprime la etapa seguida del pipeline entre paréntesis en CADA celda — src/deals.js ~18: `stageLabel = (r) => '${label} (${r.pipeline || defs[0].name})'`, usada por stageCell (~20-25) y por la columna (~226) — mientras la tabla ya tiene una columna «Pipeline» propia. Resultado: celdas como «OFERTA A+W (FUERZA DE VENTAS)» que duplican información, fuerzan un ancho por defecto de 250 px (defaultWidths ~223) y empujan el scroll horizontal. En HubSpot la columna de etapa muestra solo la etapa; el pipeline es su propia columna.\n\nCómo debe verse: la celda de etapa muestra únicamente el nombre de la etapa (conserva el color verde ganado / perdido y el modo punto/insignia de «Definir los colores de visualización»); el nombre del pipeline sigue en su columna y en el tooltip solo si aporta (title puede quedarse con la etapa sola). Baja el ancho por defecto de la columna (p. ej. 180-200 px).\n\nCriterio de aceptación: la columna «Etapa del negocio» no contiene «(» en ninguna fila; la columna «Pipeline» sigue mostrando el pipeline; el ordenamiento y la edición en línea por etapa siguen funcionando. No despliegues nada a producción; solo código local.",
+      "lane": "claude"
+    },
+    {
+      "id": "gap-ui-vista-previa-etiquetas-cortadas",
+      "status": "pending",
+      "createdAt": "2026-11-19T19:37:10-06:00",
+      "instruction": "La vista previa de las listas (panel lateral que se abre con el botón ▭ de una tarjeta o al pulsar una fila) muestra las acciones rápidas con las etiquetas cortadas a mano: «Corr…», «Llam…», «Reu…» (src/list.js ~539-543, los botones .quick del .preview__quick). En la ficha del registro los mismos botones llevan el texto completo (Nota, Correo, Llamada, Tarea, Reunión), y así es en HubSpot: la palabra no se trunca, el botón se adapta.\n\nCómo debe verse: las etiquetas completas «Nota», «Correo», «Llamada», «Tarea», «Reunión», «Más» en los seis botones; si el ancho del panel no da, se reduce el gap/padding o se permite que los botones encajen con el mismo estilo .quick de la ficha, nunca con puntos suspensivos quemados en el texto.\n\nCriterio de aceptación: al abrir la vista previa de un contacto, empresa, negocio o ticket se leen las seis etiquetas completas sin «…»; los botones siguen abriendo su acción (nota, correo, llamada, tarea, reunión, menú Más). No despliegues nada a producción; solo código local.",
+      "lane": "codex"
+    },
+    {
+      "id": "gap-ui-llamadas-filtros-chip",
+      "status": "pending",
+      "createdAt": "2026-11-19T19:38:10-06:00",
+      "instruction": "Los filtros rápidos de la página de Llamadas son <select> nativos del navegador (src/calls.js ~164-186: Dirección, Actividad asignada a, Fecha de actividad, Duración de la llamada, con clase .calls__filter), mientras Contactos, Empresas, Negocios y Tickets usan los chips desplegables .qchip con .menu__panel (src/list.js ~432-444). Visualmente son dos lenguajes distintos (caja nativa con borde gris vs píldora con caret), y en HubSpot el índice de llamadas usa los mismos chips de filtro que el resto de listas.\n\nCómo debe verse: los cuatro filtros de Llamadas como chips .qchip que abren el mismo menú .menu__panel que las demás listas (opción «Todos» primero, opción activa marcada, etiqueta del chip con el valor elegido en negrita si procede), reutilizando las clases existentes en vez de .calls__filter; el selector «N por página» puede seguir igual que las demás listas (menú con opciones).\n\nCriterio de aceptación: los cuatro filtros de Llamadas se abren como menú al estilo de Contactos, muestran el valor activo en el chip y filtran igual que antes (dirección, responsable, fecha, duración); no queda ningún <select class=\"calls__filter\"> en la barra. No despliegues nada a producción; solo código local.",
+      "lane": "claude"
+    },
+    {
+      "id": "gap-ui-menus-ancho-base",
+      "status": "pending",
+      "createdAt": "2026-11-19T19:39:10-06:00",
+      "instruction": "Todos los menús desplegables de la app fuerzan min-width: 260px (src/app.css .menu__panel ~1204-1216), con excepciones repartidas: --picker 340px (~765), --wide 320px (~3463), --actions 300px (~7830) y .ptable 200px (~11611). Resultado: menús de dos o tres opciones cortas (p. ej. «Nueva plantilla» Desde cero/Biblioteca, «Insertar» Token/Fragmento, el ⋮ de cada fila de propiedades, el ⋮ de cada informe en Paneles) se renderizan con una franja vacía a la derecha y tamaños distintos según el módulo. En HubSpot estos menús abrazan el contenido (~180-220px según la opción más larga) con el mismo padding en todas partes.\n\nCómo debe verse: un único menú base con min-width ~200px y width: max-content (con max-width razonable, p. ej. 320px, y las opciones largas con wrap o elipsis), conservando las variantes que de verdad necesitan más ancho (buscadores, --picker) pero revisando que --actions y .ptable hereden la base; mismo padding de ítem en todos los módulos.\n\nCriterio de aceptación: el menú «Nueva plantilla» y el ⋮ de una fila de Ajustes › Propiedades miden lo justo para su texto más largo (sin franja vacía de 60+ px), y los menús de acciones de ficha/lista comparten el mismo ancho mínimo y padding. No despliegues nada a producción; solo código local.",
+      "lane": "codex"
+    },
+    {
+      "id": "gap-ui-ajustes-iconos-objetos-emoji",
+      "status": "pending",
+      "createdAt": "2026-11-19T19:40:10-06:00",
+      "instruction": "Ajustes › Objetos muestra los iconos de los objetos como emoji: OBJ_META en src/settings.js ~914-920 define icon: '👤' Contacto, '🏢' Empresa, '🤝' Negocio, '🎫' Ticket, '☑' Tarea, '📦' Producto, renderizados en el selector «Seleccionar un objeto» (~1227, .objsel__ico) y en las cabeceras de las páginas de objeto. El resto de la app usa iconos de línea (el menú lateral con .ico ico--*, y FIELD_ICONS de src/action-icons.js para los tipos de propiedad), así que los emoji desentonan en estilo y en color con la interfaz; en HubSpot los objetos llevan iconos de línea del mismo set que la navegación.\n\nCómo debe verse: cada objeto con un icono SVG lineal coherente con el menú lateral (mismo viewBox 24, trazo 1.8, currentColor — se pueden añadir a src/action-icons.js o reutilizar los ico--crm/ico--tickets existentes), sustituyendo los emoji en OBJ_META y en cualquier otro punto donde se pinten (cabeceras, selector, tarjetas de objeto).\n\nCriterio de aceptación: no queda ningún emoji 👤🏢🤝🎫📦 en las páginas de Ajustes › Objetos; el icono de cada objeto coincide con el del menú lateral; el modo oscuro los tiñe igual que al resto de iconos. No despliegues nada a producción; solo código local.",
+      "lane": "claude"
     }
   ]
 }

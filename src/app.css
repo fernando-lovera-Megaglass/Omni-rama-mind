@@ -18535,6 +18535,15 @@ td[data-key="deal_tags"] .dtag {
 }
 
 /* ===== Llamadas: menú «Llamar» de la ficha, marcador de la barra superior y página de índice ===== */
+/* Alias locales: en claro se conservan los fallbacks originales del módulo. */
+[data-theme="dark"] .calls,
+[data-theme="dark"] .dialer,
+[data-theme="dark"] .callmenu {
+  --surface: var(--c-white);
+  --surface-2: var(--c-row-hover);
+  --border: var(--c-border);
+}
+
 .callmenu {
   position: fixed;
   z-index: 90;
