@@ -7712,6 +7712,7 @@ textarea.cellpop__input {
 
 .preview__quick {
   display: flex;
+  flex-wrap: wrap;
   justify-content: center;
   gap: var(--sp-4);
   padding: var(--sp-16) var(--sp-16);
@@ -7719,7 +7720,10 @@ textarea.cellpop__input {
 }
 
 .preview__quick .quick {
-  width: 58px;
+  width: auto;
+  min-width: 56px;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .preview__quick .quick__ico {

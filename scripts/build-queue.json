@@ -424,10 +424,12 @@
     },
     {
       "id": "gap-ui-vista-previa-etiquetas-cortadas",
-      "status": "pending",
+      "status": "done",
       "createdAt": "2026-11-19T19:37:10-06:00",
       "instruction": "La vista previa de las listas (panel lateral que se abre con el botón ▭ de una tarjeta o al pulsar una fila) muestra las acciones rápidas con las etiquetas cortadas a mano: «Corr…», «Llam…», «Reu…» (src/list.js ~539-543, los botones .quick del .preview__quick). En la ficha del registro los mismos botones llevan el texto completo (Nota, Correo, Llamada, Tarea, Reunión), y así es en HubSpot: la palabra no se trunca, el botón se adapta.\n\nCómo debe verse: las etiquetas completas «Nota», «Correo», «Llamada», «Tarea», «Reunión», «Más» en los seis botones; si el ancho del panel no da, se reduce el gap/padding o se permite que los botones encajen con el mismo estilo .quick de la ficha, nunca con puntos suspensivos quemados en el texto.\n\nCriterio de aceptación: al abrir la vista previa de un contacto, empresa, negocio o ticket se leen las seis etiquetas completas sin «…»; los botones siguen abriendo su acción (nota, correo, llamada, tarea, reunión, menú Más). No despliegues nada a producción; solo código local.",
-      "lane": "codex"
+      "lane": "codex",
+      "completedAt": "2026-11-19T20:00:51-0600",
+      "completedBy": "codex"
     },
     {
       "id": "gap-ui-llamadas-filtros-chip",
