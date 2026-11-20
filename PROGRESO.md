@@ -1,5 +1,14 @@
 # Progreso — Omni CRM
 
+## 2026-11-20 (sesión 6) · Recordatorios de tareas que se disparan
+
+Antes, «Recordatorio predeterminado» (Ajustes › General › Tareas) era solo un ajuste guardado. Ahora:
+
+- **Fecha-hora guardada en la tarea** (`reminderAt`, y `reminderFiredAt` cuando ya se avisó; van en la columna `extra` de `tasks`, sin migración). Al crear una tarea desde la lista, el cajón «Crear tarea» tiene **Recordatorio** (el valor de Ajustes primero como predeterminado, los otros preajustes «Sin recordatorio», «El día de vencimiento a las 9:00», «1 hora antes», «1 día antes», o «Fecha y hora personalizadas» con un campo fecha-hora). Las tareas creadas desde cualquier otro sitio (correo con seguimiento, registro de actividad, workflows, secuencias, tareas masivas) reciben el recordatorio predeterminado (`addRecord` en `src/data.js`; `reminderFromDue` calcula la hora: una fecha sin hora cuenta como las 9:00). La ficha de la tarea muestra **Recordatorio** en «Acerca de» (con «· avisado» cuando ya sonó) y lo edita con un selector de fecha y hora; cambiarlo vuelve a armarlo. La lista tiene la columna «Recordatorio» (oculta por defecto).
+- **Verificador** (`src/task-reminders.js`): arranca al cargar cualquier página (`src/page.js`) y revisa cada 30 s las tareas pendientes con recordatorio vencido y no avisado. Al disparar: marca `reminderFiredAt` primero (nunca se repite), añade el aviso a la campana, muestra una **burbuja** abajo a la derecha (título, enlace a la tarea, tipo · vencimiento · contacto · responsable, cerrar; máximo tres) con un **sonido suave** (dos notas por Web Audio, sin archivos) y lanza la **notificación del navegador** (Notification API: si el permiso está pendiente lo pide; la burbuja y Ajustes ofrecen «Activar avisos del navegador» / «Permitir», porque Chrome solo muestra el diálogo tras un clic). Las tareas completadas no avisan.
+- Ajustes › General › Tareas explica el funcionamiento y muestra el estado del permiso del navegador con el botón «Permitir».
+- Pruebas: `scripts/smoke-task-reminders.mjs` (predeterminado desde Ajustes; cajón con preajuste, personalizado y sin recordatorio; tarea con recordatorio en 1 minuto: no avisa a los 30 s, a los 60 s pide permiso, crea la notificación del navegador, la burbuja con enlace y el sonido, la entrada en la campana, queda marcada y no se repite; verificador por intervalo; edición en la ficha; botón de permiso en Ajustes). El decorador de datos de muestra ya no inventa recordatorios (`REAL_ONLY` en `src/data.js`).
+
 ## 2026-11-19 (sesión 6) · Motor de workflows funcional (MVP)
 
 Hasta ahora «Inscribir en un workflow» y «Publicar» ejecutaban todas las acciones de golpe en el momento (los retrasos solo se anotaban). Ahora hay un motor real:

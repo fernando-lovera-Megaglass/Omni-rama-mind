@@ -466,7 +466,7 @@ function displayValue(f, r) {
   if (props[key]?.hubspot?.options.length) return propValue(props[key], v);
   if (kind === 'select') return esc((options.find((o) => String(o[0]) === String(v)) || [v, v])[1]);
   if (kind === 'date' || kind === 'date-ro') return formatDate(v);
-  if (kind === 'datetime') return esc(reminderText(v) || formatDate(v));
+  if (kind === 'datetime') return esc(`${reminderText(v) || formatDate(v)}${key === 'reminderAt' && r.reminderFiredAt ? ' · avisado' : ''}`);
   if (key === 'amount' || key === 'revenue') return formatMoney(v, key === 'amount' ? r.deal_currency_code : undefined);
   if (kind === 'email' || key === 'email' || key === 'alt_email' || (props[key] && props[key].kind === 'email')) return linkHtml('email', v);
   if (kind === 'url' || key === 'domain' || key === 'website' || (props[key] && props[key].kind === 'url')) return linkHtml('url', v);
