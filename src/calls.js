@@ -3,7 +3,7 @@
 // la duración y el responsable, paginación y exportar. Junta las llamadas reales de Twilio
 // (call_logs) con las registradas a mano en las fichas (actividades de tipo "call").
 import { boot } from './page.js';
-import { toast } from './shell.js';
+import { toast, wireMenus, closeMenus } from './shell.js';
 import { allContacts, allActivities, OWNERS, toCsv, download, dbIsLive } from './data.js';
 import { supabase } from './supabaseClient.js';
 import { displayPhone } from './phone.js';
@@ -22,7 +22,16 @@ const DIRECTION_LABEL = { outbound: 'Saliente', inbound: 'Entrante' };
 const PAGE_SIZES = [25, 50, 100];
 const VIEWS = [['all', 'Todas las llamadas'], ['recorded', 'Llamadas grabadas']];
 
+const COLUMNS = [
+  ['title', 'Título de la llamada'], ['owner', 'Actividad asignada a'],
+  ['durationSec', 'Duración de la llamada'], ['when', 'Fecha de actividad'],
+  ['status', 'Resultado de la llamada'], ['direction', 'Dirección de la llamada'],
+  ['number', 'Número'], ['notes', 'Notas'],
+];
+
 const state = {
+  columns: COLUMNS.slice(0, 6).map(([key]) => key),
+  sort: { key: 'when', dir: -1 },
   rows: null, // null = todavía cargando
   q: '',
   view: 'all',
@@ -139,10 +148,29 @@ function filtered() {
       if (state.duration === 'gt5' && !(s > 300)) return false;
     }
     return true;
+  }).sort((a, b) => {
+    const key = state.sort.key;
+    const value = (r) => key === 'direction' ? DIRECTION_LABEL[r[key]] || r[key] : r[key];
+    const av = value(a), bv = value(b);
+    return state.sort.dir * (typeof av === 'number' && typeof bv === 'number'
+      ? av - bv : String(av ?? '').localeCompare(String(bv ?? ''), 'es', { numeric: true, sensitivity: 'base' }));
   });
 }
 
+function cellHtml(r, key) {
+  switch (key) {
+    case 'title': return `<span class="calls__call-title">${esc(r.title)}</span>${r.recording ? ` <button class="calls-play" type="button" data-play="${esc(r.callSid)}" title="Escuchar la grabación">▶ Grabación</button>` : ''}${r.transcript ? ` <button class="calls-play" type="button" data-transcript="${esc(r.id)}" title="Ver la transcripción">${state.openTranscripts.has(r.id) ? '▾' : '▸'} Transcripción</button>` : r.recording ? ` <button class="calls-play" type="button" data-transcribe="${esc(r.callSid)}" title="Transcribir con IA">Transcribir</button>` : ''}`;
+    case 'owner': return `${ownerHtml(r.owner)}`;
+    case 'durationSec': return `${esc(fmtDuration(r.durationSec))}`;
+    case 'when': return `${esc(fmtWhen(r.when))}`;
+    case 'status': return `<span class="tag">${esc(r.status || '—')}</span>`;
+    case 'direction': return `${r.direction ? `<span class="calls__direction">${r.direction === 'outbound' ? '↗' : '↙'} ${DIRECTION_LABEL[r.direction] || esc(r.direction)}</span>` : '—'}`;
+    default: return esc(r[key] || '—');
+  }
+}
+
 function render() {
+  closeMenus();
   const root = $('calls-root');
   const rows = state.rows;
   const list = rows ? filtered() : [];
@@ -163,7 +191,7 @@ function render() {
         ${VIEWS.map(([k, label]) => `<button class="calls__view ${state.view === k ? 'is-active' : ''}" type="button" data-view="${k}">${label}</button>`).join('')}
       </div>
       <div class="calls__toolbar">
-        <input class="calls__search" type="search" id="calls-q" placeholder="Buscar ( / )" value="${esc(state.q)}" aria-label="Buscar llamadas" />
+        <div class="search search--pill"><span class="ico ico--search" aria-hidden="true"></span><input type="search" id="calls-q" placeholder="Buscar ( / )" value="${esc(state.q)}" aria-label="Buscar llamadas" /></div>
         <select id="calls-f-direction" class="calls__filter" aria-label="Dirección">
           <option value="">Dirección</option>
           <option value="outbound" ${state.direction === 'outbound' ? 'selected' : ''}>Saliente</option>
@@ -189,21 +217,32 @@ function render() {
       ${rows === null
         ? '<p class="muted calls__empty">Cargando llamadas…</p>'
         : slice.length
-          ? `<table class="calls-table">
+          ? `<div class="table-wrap"><table class="table table--standard">
               <thead><tr>
-                <th>Título de la llamada</th><th>Actividad asignada a</th><th>Duración de la llamada</th><th>Fecha de actividad</th><th>Resultado de la llamada</th><th>Dirección de la llamada</th>
+                ${state.columns.map((key) => `<th class="th" aria-sort="${state.sort.key === key ? (state.sort.dir === 1 ? 'ascending' : 'descending') : 'none'}">
+                  <div class="th__inner"><span class="th__label">${COLUMNS.find(([k]) => k === key)[1]}</span>
+                    <div class="menu th__menu">
+                      <button class="th__more" type="button" aria-label="Opciones de columna: ${COLUMNS.find(([k]) => k === key)[1]}" aria-haspopup="true" aria-expanded="false">⋮</button>
+                      <div class="menu__panel thmenu" role="menu">
+                        <button class="menu__item" type="button" role="menuitem" data-sort="${key}" data-dir="1">↑ Orden ascendente</button>
+                        <button class="menu__item" type="button" role="menuitem" data-sort="${key}" data-dir="-1">↓ Orden descendente</button>
+                      </div>
+                    </div>
+                  </div>
+                </th>`).join('')}
+                <th class="table__add"><div class="menu">
+                  <button class="table__add-btn" type="button" title="Añadir columna" aria-label="Añadir columna" aria-haspopup="true" aria-expanded="false">+</button>
+                  <div class="menu__panel menu__panel--right" role="menu">
+                    ${COLUMNS.map(([key, label]) => `<button class="menu__item" type="button" role="menuitemcheckbox" aria-checked="${state.columns.includes(key)}" data-column="${key}" ${key === 'title' ? 'disabled' : ''}>${state.columns.includes(key) ? '✓ ' : '+ '}${label}</button>`).join('')}
+                  </div>
+                </div></th>
               </tr></thead>
               <tbody>
                 ${slice.map((r) => `<tr data-callrow="${esc(r.id)}"${r.contactId ? ` data-contact="${esc(r.contactId)}"` : ''}>
-                  <td><span class="calls-table__title">${esc(r.title)}</span>${r.recording ? ` <button class="calls-play" type="button" data-play="${esc(r.callSid)}" title="Escuchar la grabación">▶ Grabación</button>` : ''}${r.transcript ? ` <button class="calls-play" type="button" data-transcript="${esc(r.id)}" title="Ver la transcripción">${state.openTranscripts.has(r.id) ? '▾' : '▸'} Transcripción</button>` : r.recording ? ` <button class="calls-play" type="button" data-transcribe="${esc(r.callSid)}" title="Transcribir con IA">Transcribir</button>` : ''}</td>
-                  <td>${ownerHtml(r.owner)}</td>
-                  <td>${esc(fmtDuration(r.durationSec))}</td>
-                  <td>${esc(fmtWhen(r.when))}</td>
-                  <td><span class="tag">${esc(r.status || '—')}</span></td>
-                  <td>${r.direction ? `<span class="calls-table__dir">${r.direction === 'outbound' ? '↗' : '↙'} ${DIRECTION_LABEL[r.direction] || esc(r.direction)}</span>` : '—'}</td>
-                </tr>${r.transcript && state.openTranscripts.has(r.id) ? `<tr class="calls-transcript-row"><td colspan="6"><div class="calls-transcript"><strong>Transcripción</strong><p>${esc(r.transcript)}</p></div></td></tr>` : ''}`).join('')}
+                  ${state.columns.map((key) => `<td>${cellHtml(r, key)}</td>`).join('')}<td class="table__add"></td>
+                </tr>${r.transcript && state.openTranscripts.has(r.id) ? `<tr class="calls-transcript-row"><td colspan="${state.columns.length + 1}"><div class="calls-transcript"><strong>Transcripción</strong><p>${esc(r.transcript)}</p></div></td></tr>` : ''}`).join('')}
               </tbody>
-            </table>
+            </table></div>
             <div class="calls__pager">
               <button class="btn btn--ghost btn--sm" type="button" id="calls-prev" ${state.page <= 1 ? 'disabled' : ''}>‹ Anterior</button>
               <span class="muted">Página ${state.page} de ${pages}</span>
@@ -215,7 +254,44 @@ function render() {
             <p class="muted calls__count">${total.toLocaleString('es-MX')} ${total === 1 ? 'llamada' : 'llamadas'}</p>`
           : '<p class="muted calls__empty">No hay llamadas con estos filtros. Las llamadas que hagas con el marcador o registres en las fichas aparecen aquí.</p>'}
     </div>`;
-  $('calls-q').addEventListener('input', (e) => { state.q = e.target.value; state.page = 1; render(); });
+  wireMenus(root);
+  root.querySelectorAll('[data-sort]').forEach((button) => button.addEventListener('click', () => {
+    state.sort = { key: button.dataset.sort, dir: Number(button.dataset.dir) };
+    state.page = 1;
+    render();
+  }));
+  root.querySelectorAll('[data-column]').forEach((button) => button.addEventListener('click', () => {
+    const key = button.dataset.column;
+    state.columns = state.columns.includes(key) ? state.columns.filter((k) => k !== key) : [...state.columns, key];
+    render();
+  }));
+  // Keep dropdowns outside the horizontal scroller's clipping area.
+  root.querySelectorAll('.table .menu > button').forEach((button) => button.addEventListener('click', () => {
+    const panel = button.nextElementSibling;
+    if (!button.parentElement.classList.contains('is-open')) return;
+    const rect = button.getBoundingClientRect();
+    panel.style.position = 'fixed';
+    panel.style.top = `${rect.bottom}px`;
+    panel.style.left = `${Math.max(8, Math.min(rect.left, window.innerWidth - panel.offsetWidth - 8))}px`;
+    panel.style.right = 'auto';
+    panel.style.maxHeight = `${Math.max(120, window.innerHeight - rect.bottom - 8)}px`;
+    panel.style.overflowY = 'auto';
+  }));
+  const wrap = root.querySelector('.table-wrap');
+  render._resize?.disconnect();
+  if (wrap) {
+    const sync = () => {
+      wrap.classList.toggle('is-overflowing', wrap.scrollWidth > wrap.clientWidth);
+      wrap.classList.toggle('is-scrolled-end', wrap.scrollLeft + wrap.clientWidth >= wrap.scrollWidth - 1);
+    };
+    wrap.addEventListener('scroll', () => { sync(); closeMenus(); });
+    if (typeof ResizeObserver !== 'undefined') {
+      render._resize = new ResizeObserver(sync);
+      render._resize.observe(wrap);
+    }
+    sync();
+  }
+  $('calls-q').addEventListener('input', (e) => { state.q = e.target.value; state.page = 1; render(); $('calls-q').focus(); });
   root.querySelectorAll('[data-view]').forEach((b) => b.addEventListener('click', () => { state.view = b.dataset.view; state.page = 1; render(); }));
   $('calls-f-direction').addEventListener('change', (e) => { state.direction = e.target.value; state.page = 1; render(); });
   $('calls-f-owner').addEventListener('change', (e) => { state.owner = e.target.value; state.page = 1; render(); });

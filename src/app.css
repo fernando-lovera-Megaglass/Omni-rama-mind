@@ -7313,6 +7313,14 @@ th.th:hover .th__more,
   font-size: var(--fs-sm);
 }
 
+/* Standard list headings, independent of the compact list variant above. */
+.table.table--standard thead th {
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  font-weight: 600;
+  font-size: var(--fs-xs);
+}
+
 .col-guide {
   position: absolute;
   top: 0;
@@ -18825,15 +18833,6 @@ td[data-key="deal_tags"] .dtag {
 }
 .calls__view.is-active { font-weight: 600; border-bottom-color: var(--accent, #ff5c35); }
 .calls__toolbar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
-.calls__search {
-  width: 240px;
-  border: 1px solid var(--border, #e3e8ee);
-  border-radius: 8px;
-  padding: 8px 12px;
-  font: inherit;
-  background: var(--surface, #fff);
-  color: inherit;
-}
 .calls__filter {
   border: 1px solid var(--border, #e3e8ee);
   border-radius: 8px;
@@ -18842,21 +18841,10 @@ td[data-key="deal_tags"] .dtag {
   background: var(--surface, #fff);
   color: inherit;
 }
-.calls-table { width: 100%; border-collapse: collapse; background: var(--surface, #fff); border: 1px solid var(--border, #e3e8ee); border-radius: 12px; overflow: hidden; }
-.calls-table th {
-  text-align: left;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--muted, #6b7a8d);
-  padding: 10px 14px;
-  border-bottom: 1px solid var(--border, #e3e8ee);
-}
-.calls-table td { padding: 10px 14px; border-bottom: 1px solid var(--border, #e3e8ee); font-size: 14px; }
-.calls-table tbody tr:last-child td { border-bottom: 0; }
-.calls-table tbody tr[data-contact] { cursor: pointer; }
-.calls-table tbody tr[data-contact]:hover { background: var(--surface-2, #f3f6f9); }
-.calls-table__title { font-weight: 500; }
-.calls-table__dir { white-space: nowrap; }
+.calls .table tr[data-contact] { cursor: pointer; }
+.calls__call-title { font-weight: 500; }
+.calls .th__inner { gap: var(--sp-8); justify-content: space-between; cursor: default; }
+.calls .th__more:focus-visible { opacity: 1; }
 .calls__pager { display: flex; align-items: center; gap: 12px; padding: 12px 2px 0; }
 .calls__count { margin: 8px 2px 0; font-size: 13px; }
 .calls__empty { padding: 40px 0; text-align: center; }

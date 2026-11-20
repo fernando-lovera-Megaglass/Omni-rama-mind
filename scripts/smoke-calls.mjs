@@ -47,7 +47,7 @@ data.addActivity({ type: 'call', recordType: 'contacts', recordId: contact.id, t
 await import(resolve(here, '../src/calls.js'));
 await wait(60);
 
-if (text(q('.calls__title')) !== 'Llamadas') fail('título de la página');
+if (text(q('.calls .page-title')) !== 'Llamadas') fail('título de la página');
 if (!q('.calls__view.is-active') || text(q('.calls__view.is-active')) !== 'Todas las llamadas') fail('pestaña de vista');
 if (!$('calls-q') || !$('calls-f-direction') || !$('calls-f-owner') || !$('calls-f-date') || !$('calls-f-duration')) fail('filtros rápidos');
 // Ambas llamadas en la tabla.
@@ -57,6 +57,25 @@ if (!rowsText.includes('4 minutos')) fail('la duración no aparece');
 if (!rowsText.includes('Sin respuesta')) fail('la entrante no aparece');
 if (!text(q('.calls__count')).includes('2 llamadas')) fail(`conteo inicial: ${text(q('.calls__count'))}`);
 log('página: cabecera, vista, filtros y tabla con las llamadas OK');
+if (!q('.search.search--pill .ico--search') || !q('.table-wrap .table')) fail('componentes compartidos');
+click(q('[data-sort="durationSec"][data-dir="1"]'));
+if (!text(q('.table tbody tr')).includes('Sin respuesta')) fail('orden ascendente');
+click(q('[data-sort="durationSec"][data-dir="-1"]'));
+if (!text(q('.table tbody tr')).includes('4 minutos')) fail('orden descendente');
+click(q('.table__add-btn'));
+if (!q('.table__add .menu.is-open')) fail('selector de columnas');
+click(q('[data-column="number"]'));
+if (qa('.table thead th').length !== 8) fail('añadir columna');
+click(q('[data-column="number"]'));
+if (qa('.table thead th').length !== 7) fail('quitar columna');
+$('calls-q').focus();
+$('calls-q').value = 'inexistente';
+$('calls-q').dispatchEvent(new window.Event('input', { bubbles: true }));
+if (q('.table tbody tr') || document.activeElement !== $('calls-q')) fail('búsqueda y foco');
+$('calls-q').value = '';
+$('calls-q').dispatchEvent(new window.Event('input', { bubbles: true }));
+log('tabla: ordenación, columnas y búsqueda OK');
+
 
 // Filtro por dirección.
 const dirSel = $('calls-f-direction');
