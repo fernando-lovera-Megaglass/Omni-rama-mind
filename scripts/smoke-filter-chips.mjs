@@ -40,11 +40,11 @@ for (const owner of [false, true]) {
   click(document.body);
   assert.equal(chip.classList.contains('is-open'), false);
 }
-for (const [file, ids] of Object.entries({ inbox: ['inbox-status', 'inbox-channel'], record: ['act-date', 'act-who'], automation: ['wf-status', 'wf-object', 'wf-creator', 'wf-folder', 'wf-created', 'wf-action'], templates: ['tpl-owner'], sequences: ['seq-owner'] })) {
+for (const [file, ids] of Object.entries({ inbox: ['inbox-status', 'inbox-channel'], record: ['act-date', 'act-who'], automation: ['wf-status', 'wf-object', 'wf-creator', 'wf-folder', 'wf-created', 'wf-action'], templates: ['tpl-owner'], snippets: ['snp-owner'], sequences: ['seq-owner'] })) {
   const source = readFileSync(new URL(`../src/${file}.js`, import.meta.url), 'utf8');
   for (const id of ids) {
     assert.ok(source.includes(`<filter-chip id="${id}"`));
     assert.ok(!source.includes(`<select id="${id}"`));
   }
 }
-console.log('Filter chips: selection, clearing, avatars, search, dynamic options and all 12 integrations passed.');
+console.log('Filter chips: selection, clearing, avatars, search, dynamic options and all 13 integrations passed.');

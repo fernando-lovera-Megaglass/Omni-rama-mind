@@ -50,7 +50,7 @@ if (rows().length !== 3 || text($('snp-count')) !== '3 creados') fail(`seed rows
 const heads = [...document.querySelectorAll('.tpls__table thead th button')].map(text);
 ['Nombre', 'Creado por', 'Fecha de creación', 'Fecha de modificación'].forEach((h) => { if (!heads.some((x) => x.startsWith(h))) fail(`column ${h} missing`); });
 if (!q('[data-ta="new-folder"]') || text(q('[data-ta="new"]')) !== 'Crear fragmento' || !q('[data-ta="new"]').classList.contains('btn--green')) fail('header buttons');
-if (q('#snp-q').placeholder !== 'Buscar' || !text(q('#snp-owner option')).startsWith('Propietario: Cualquiera')) fail('search / owner filter');
+if (q('#snp-q').placeholder !== 'Buscar' || $('snp-owner').value !== '' || !q('filter-chip#snp-owner[owner] .caret') || q('.tpls__filters select') || !text(q('#snp-owner [data-value=""]')).startsWith('Cualquiera')) fail('search / owner filter');
 if (!rows()[0].querySelector('[data-act="clone"]') || !rows()[0].querySelector('[data-act="move"]') || !rows()[0].querySelector('[data-act="delete"]') || rows()[0].querySelector('[data-act="share"]')) fail('row actions');
 if (!q('[data-page="prev"]') || !q('[data-page="next"]') || q('[data-page="first"]')) fail('pager should be Anterior / páginas / Siguiente');
 if (!rows().some((r) => text(r).includes('#horario'))) fail('shortcut not shown');

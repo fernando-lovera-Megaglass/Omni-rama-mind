@@ -2,6 +2,7 @@
 // row actions, pagination) and the "Fragmento nuevo" editor — internal name, folder, rich text with
 // "Personalizar" tokens, and the "#atajo" shortcut (one word, unique) that inserts it in any text editor.
 import { boot } from './page.js';
+import './filter-chip.js';
 import { toast, wireMenus, closeMenus } from './shell.js';
 import { ownerHtml } from './owner.js';
 import { relativeTimeFine, formatDate } from './data.js';
@@ -47,7 +48,7 @@ function renderPage() {
         <section class="tpls__main">
           <div class="tpls__filters">
             <div class="search search--sm"><span class="ico ico--search" aria-hidden="true"></span><input type="search" id="snp-q" placeholder="Buscar" aria-label="Buscar fragmentos" /></div>
-            <select id="snp-owner" aria-label="Propietario"></select>
+            <filter-chip id="snp-owner" aria-label="Propietario" owner><template></template></filter-chip>
             <div class="tpls__bulk" id="snp-bulk"></div>
           </div>
           <div class="table-wrap" id="snp-table"></div>
@@ -61,7 +62,7 @@ function renderPage() {
 }
 function renderOwners() {
   const sel = $('snp-owner');
-  sel.innerHTML = `<option value="">Propietario: Cualquiera</option><option value="${esc(ME)}">Propietario: Yo</option>${owners().filter((o) => o !== ME).map((o) => `<option value="${esc(o)}">Propietario: ${esc(o)}</option>`).join('')}`;
+  sel.innerHTML = `<template><option value="">Cualquiera</option><option value="${esc(ME)}">Yo</option>${owners().filter((o) => o !== ME).map((o) => `<option value="${esc(o)}">${esc(o)}</option>`).join('')}</template>`;
   sel.value = state.owner;
 }
 function renderFolders() {

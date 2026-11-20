@@ -756,10 +756,12 @@
     },
     {
       "id": "gap-ui-re-filtros-nativos-fragmentos",
-      "status": "pending",
+      "status": "done",
       "createdAt": "2026-11-20T15:29:36-06:00",
       "lane": "codex",
-      "instruction": "El fix gap-ui-filtros-nativos-fuera-de-listas unificó los filtros de Bandeja, ficha, Workflows, Plantillas y Secuencias con el componente <filter-chip>, pero dejó Fragmentos fuera: src/snippets.js 50 sigue usando un <select> nativo pelado (<select id=\"snp-owner\" aria-label=\"Propietario\">, rellenado en src/snippets.js 62-66) dentro de .tpls__filters, sin regla CSS propia, así que se ve con el estilo por defecto del navegador (alto y borde distintos) justo al lado del buscador con icono. Su página hermana Plantillas ya usa <filter-chip id=\"tpl-owner\" owner> (src/templates.js 59) con el mismo contenido (Cualquiera / Yo / resto de propietarios). Cómo debe verse: el filtro de propietario de Fragmentos como <filter-chip owner> idéntico al de Plantillas, con el avatar en las opciones y el chip con caret; conserva el contrato change → state.owner y el valor inicial. Criterio de aceptación: no queda ningún <select> en la barra de filtros de Fragmentos y el filtro de propietario se ve y se comporta igual que el de Plantillas (incluido el modo oscuro). No despliegues nada a producción; solo código local."
+      "instruction": "El fix gap-ui-filtros-nativos-fuera-de-listas unificó los filtros de Bandeja, ficha, Workflows, Plantillas y Secuencias con el componente <filter-chip>, pero dejó Fragmentos fuera: src/snippets.js 50 sigue usando un <select> nativo pelado (<select id=\"snp-owner\" aria-label=\"Propietario\">, rellenado en src/snippets.js 62-66) dentro de .tpls__filters, sin regla CSS propia, así que se ve con el estilo por defecto del navegador (alto y borde distintos) justo al lado del buscador con icono. Su página hermana Plantillas ya usa <filter-chip id=\"tpl-owner\" owner> (src/templates.js 59) con el mismo contenido (Cualquiera / Yo / resto de propietarios). Cómo debe verse: el filtro de propietario de Fragmentos como <filter-chip owner> idéntico al de Plantillas, con el avatar en las opciones y el chip con caret; conserva el contrato change → state.owner y el valor inicial. Criterio de aceptación: no queda ningún <select> en la barra de filtros de Fragmentos y el filtro de propietario se ve y se comporta igual que el de Plantillas (incluido el modo oscuro). No despliegues nada a producción; solo código local.",
+      "completedAt": "2026-11-20T17:05:57-0600",
+      "completedBy": "codex"
     },
     {
       "id": "gap-ui-re-paginadores-residuales",
