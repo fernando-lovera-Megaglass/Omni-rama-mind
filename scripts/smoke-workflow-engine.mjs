@@ -120,6 +120,25 @@ if (!mailReal || mailReal.extra.gmailId !== 'msg-9' || !mailReal.text.includes('
 fake.responses['gmail-send'] = new Error('Gmail respondió 403');
 const res3 = await E.enroll(wf.id, 'contacts', contact);
 if (res3.ok !== true || res3.run.estado !== 'failed' || res3.steps[0].ok !== false || !res3.steps[0].result.includes('No se pudo enviar por Gmail: Gmail respondió 403') || res3.steps[1].ok !== true) fail(`failed send: ${JSON.stringify(res3.steps)}`);
+if (!data.activitiesFor('contacts', contact.id).some((a) => a.extra.runId === res3.run.id && a.text.includes('Enviar correo falló: No se pudo enviar por Gmail'))) fail('Gmail failure must be visible on the record timeline');
+// Cancel while Gmail is in flight: preserve cancellation and do not create the next task.
+const invoke = fake.functions.invoke;
+let releaseSend;
+fake.functions.invoke = async (name, opts) => {
+  if (name === 'gmail-send') return new Promise((resolve) => { releaseSend = () => resolve({ data: { ok: true, id: 'cancel-msg' }, error: null }); });
+  return invoke(name, opts);
+};
+const beforeCancelTasks = data.allTasks().length;
+const inFlight = E.enroll(wf.id, 'contacts', contact);
+for (let i = 0; i < 100 && !releaseSend; i++) await wait(5);
+if (!releaseSend) fail('Gmail request did not start');
+const cancelling = E.activeRunsOf(wf.id)[0];
+E.cancelRun(cancelling.id);
+releaseSend();
+await inFlight;
+if (E.runById(cancelling.id).estado !== 'cancelled' || data.allTasks().length !== beforeCancelTasks) fail('cancellation during Gmail must prevent the next task');
+fake.functions.invoke = invoke;
+log('failure timeline and cancellation during an in-flight Gmail send verified');
 G.setGmailClient(null);
 await G.reloadAccounts();
 if (CE.activeAccounts()[0].real) fail('back to the simulated account');

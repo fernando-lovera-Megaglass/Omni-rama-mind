@@ -275,10 +275,12 @@
     },
     {
       "id": "gap-segmentos-motor-de-workflows-inscripci-n-real",
-      "status": "pending",
+      "status": "done",
       "instruction": "Motor de workflows funcional (MVP estilo HubSpot). Hoy existe la UI: catálogo (src/workflows-data.js), botón «Inscribir en un workflow» en la ficha y enrollRecord(), pero no hay motor que ejecute nada.\n\nCambio pedido:\n1. Tabla workflow_runs en Supabase: workflow_id, record_type, record_id, step_actual, estado, próxima_ejecución.\n2. Motor de pasos (cliente, src/workflow-engine.js): al inscribir, crea el run; soporta pasos tipo: enviar correo (usa el compose/Gmail conectado), crear tarea, cambiar propiedad, esperar N días (programa próxima_ejecución) y ramificación si/entonces simple por valor de propiedad.\n3. Un verificador que al cargar la app (y cada minuto con la app abierta) procese los runs vencidos y avance pasos, registrando cada acción en la cronología del registro.\n4. Vista del workflow con sus inscritos activos y historial de acciones ejecutadas.\n5. Prueba smoke: inscribir un contacto en un workflow de 2 pasos (correo + tarea) ejecuta ambos y queda en la cronología.\nNo despliegues nada a producción; solo código local.",
       "createdAt": "2026-11-19T17:12:33-06:00",
-      "lane": "codex"
+      "lane": "codex",
+      "completedAt": "2026-11-20T12:06:51-0600",
+      "completedBy": "codex"
     },
     {
       "id": "gap-informes-y-paneles-constructor-de-informes-personalizados",

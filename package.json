@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "test:workflow-engine": "node scripts/smoke-workflow-engine.mjs",
     "test:sequence-process": "node scripts/smoke-sequence-process.mjs"
   },
   "devDependencies": {

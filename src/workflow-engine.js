@@ -34,14 +34,17 @@ export const whenText = (value) => { if (!value) return ''; const d = new Date(v
 let live = dbIsLive();
 let rows = [];
 let queue = Promise.resolve();
-const enqueue = (fn) => { queue = queue.then(fn).catch((e) => reportDbError('workflow_runs', e)); return queue; };
+const enqueue = (fn) => { const write = queue.then(fn); queue = write.catch((e) => reportDbError('workflow_runs', e)); return write; };
 export const pending = () => queue;
 const fromDb = (r) => ({ id: r.id, workflowId: r.workflow_id, recordType: r.record_type || 'contacts', recordId: Number(r.record_id), recordName: r.record_name || '', stepActual: Number(r.step_actual) || 0, estado: r.estado || 'active', proximaEjecucion: r.proxima_ejecucion || null, log: Array.isArray(r.log) ? r.log : [], jumps: Number(r.jumps) || 0, enrolledBy: r.enrolled_by || '', startedAt: r.started_at, updatedAt: r.updated_at || r.started_at, finishedAt: r.finished_at || null });
 const toDb = (x) => ({ id: x.id, workflow_id: x.workflowId, record_type: x.recordType, record_id: Number(x.recordId), record_name: x.recordName, step_actual: x.stepActual, estado: x.estado, proxima_ejecucion: x.proximaEjecucion, log: x.log, jumps: x.jumps, enrolled_by: x.enrolledBy, started_at: x.startedAt, updated_at: x.updatedAt, finished_at: x.finishedAt });
 const saveLocal = () => { localStorage.setItem(LS_KEY, JSON.stringify(rows)); };
 function persist(run) {
   run.updatedAt = new Date().toISOString();
-  if (live) enqueue(async () => { const { error } = await supabase.from('workflow_runs').upsert(toDb(run), { onConflict: 'id' }); if (error) throw error; });
+  if (live) {
+    const snapshot = clone(toDb(run));
+    return enqueue(async () => { const { error } = await supabase.from('workflow_runs').upsert(snapshot, { onConflict: 'id' }); if (error) throw error; });
+  }
   else saveLocal();
 }
 function loadLocal() { try { const v = JSON.parse(localStorage.getItem(LS_KEY)); rows = Array.isArray(v) ? v : []; } catch { rows = []; } }
@@ -161,24 +164,24 @@ async function executeAction(w, a, r, run) {
 
 // ---------- advancing a run ----------
 const busy = new Set();
-function finish(run, w, now, error) {
+async function finish(run, w, now, error) {
   if (error) logStep(run, { actionId: null, type: 'error', title: 'Inscripción detenida', ok: false, result: error }, now);
   run.estado = error || run.log.some((l) => l.ok === false) ? 'failed' : 'completed';
   run.proximaEjecucion = null;
   run.finishedAt = iso(now);
-  persist(run);
+  await persist(run);
   if (w) { const n = run.log.filter((l) => !l.pending && l.type !== 'error').length; note(w, run, `Workflow «${w.name}» ${run.estado === 'completed' ? 'completado' : 'terminado con errores'} (${n} ${n === 1 ? 'acción ejecutada' : 'acciones ejecutadas'}).`, { when: now }); }
   emit(run);
 }
 // Runs the steps from run.stepActual until the end or until a delay schedules the next execution.
 export async function advance(run, now = Date.now()) {
-  if (busy.has(run.id)) return run;
+  if (busy.has(run.id) || !isRunActive(run)) return run;
   busy.add(run.id);
   try {
     const w = workflowById(run.workflowId);
-    if (!w) { finish(run, null, now, 'El workflow ya no existe'); return run; }
+    if (!w) { await finish(run, null, now, 'El workflow ya no existe'); return run; }
     const r = recordsOf(run.recordType).find((x) => Number(x.id) === Number(run.recordId));
-    if (!r) { finish(run, w, now, `El ${OBJECT_LABEL[run.recordType] ? OBJECT_LABEL[run.recordType].toLowerCase() : 'registro'} ya no existe`); return run; }
+    if (!r) { await finish(run, w, now, `El ${OBJECT_LABEL[run.recordType] ? OBJECT_LABEL[run.recordType].toLowerCase() : 'registro'} ya no existe`); return run; }
     const flat = flatten(w.actions);
     const resumed = run.log.find((l) => l.pending);
     if (resumed) { resumed.pending = false; resumed.result = `Retraso de ${resumed.wait || ''} completado`.replace('  ', ' '); resumed.resumedAt = iso(now); note(w, run, `Workflow «${w.name}»: retraso de ${resumed.wait || ''} completado; el workflow continúa.`.replace('  ', ' '), { when: now }); }
@@ -186,6 +189,7 @@ export async function advance(run, now = Date.now()) {
     run.proximaEjecucion = null;
     let guard = 0;
     while (run.stepActual < flat.length) {
+      if (!isRunActive(run)) return run;
       guard += 1;
       if (guard > MAX_STEPS) { logStep(run, { actionId: null, type: 'error', title: 'Bucle detenido', ok: false, result: `Se alcanzó el límite de ${MAX_STEPS} pasos` }, now); break; }
       const i = run.stepActual;
@@ -198,17 +202,17 @@ export async function advance(run, now = Date.now()) {
         note(w, run, `Workflow «${w.name}»: rama if/then (${text || 'sin condiciones'}) → ${ev.ok ? 'cumple, sigue por Sí' : 'no cumple, sigue por No'}.`, { when: now });
         const kids = childrenOf(w.actions, a.id, ev.ok ? 'yes' : 'no');
         run.stepActual = kids.length ? flat.findIndex((x) => x.id === kids[0].id) : nextAfter(w.actions, flat, i);
-        persist(run);
+        await persist(run);
         continue;
       }
       if (a.type === 'goto') {
         const target = w.actions.find((x) => x.id === (a.config || {}).target);
-        if (!target) { logStep(run, { actionId: a.id, type: a.type, title: def.label, ok: false, result: 'Destino no encontrado' }, now); run.stepActual = nextAfter(w.actions, flat, i); persist(run); continue; }
+        if (!target) { logStep(run, { actionId: a.id, type: a.type, title: def.label, ok: false, result: 'Destino no encontrado' }, now); run.stepActual = nextAfter(w.actions, flat, i); await persist(run); continue; }
         run.jumps += 1;
-        if (run.jumps > MAX_JUMPS) { logStep(run, { actionId: a.id, type: a.type, title: def.label, ok: false, result: `Salto ignorado para evitar un bucle (máximo ${MAX_JUMPS})` }, now); run.stepActual = nextAfter(w.actions, flat, i); persist(run); continue; }
+        if (run.jumps > MAX_JUMPS) { logStep(run, { actionId: a.id, type: a.type, title: def.label, ok: false, result: `Salto ignorado para evitar un bucle (máximo ${MAX_JUMPS})` }, now); run.stepActual = nextAfter(w.actions, flat, i); await persist(run); continue; }
         logStep(run, { actionId: a.id, type: a.type, title: def.label, ok: true, result: `Salta a «${ACTION_DEFS[target.type] ? ACTION_DEFS[target.type].label : target.type}»` }, now);
         run.stepActual = flat.findIndex((x) => x.id === target.id);
-        persist(run);
+        await persist(run);
         continue;
       }
       if (a.type === 'delay') {
@@ -219,16 +223,18 @@ export async function advance(run, now = Date.now()) {
         run.stepActual = nextAfter(w.actions, flat, i);
         run.estado = 'waiting';
         run.proximaEjecucion = until.toISOString();
-        persist(run);
+        await persist(run);
         emit(run);
         return run;
       }
       const res = await executeAction(w, a, r, run);
       logStep(run, { actionId: a.id, type: a.type, title: def.label, ok: Boolean(res && res.ok), result: (res && res.result) || '' }, now);
+      if (!res?.ok) note(w, run, `Workflow «${w.name}»: ${def.label} falló: ${res?.result || 'Error desconocido'}.`, { when: now });
+      if (!isRunActive(run)) { await persist(run); emit(run); return run; }
       run.stepActual = nextAfter(w.actions, flat, i);
-      persist(run);
+      await persist(run);
     }
-    finish(run, w, now);
+    await finish(run, w, now);
   } finally { busy.delete(run.id); }
   return run;
 }
@@ -243,7 +249,10 @@ export async function enroll(workflowId, type, record, { by = ME, source = 'manu
   if (activeRun(workflowId, type, record.id)) return { ok: false, reason: `Ya está inscrito en «${w.name}» (inscripción en curso).` };
   const run = { id: uuid(), workflowId, recordType: type, recordId: Number(record.id), recordName: recordName(type, record), stepActual: 0, estado: 'active', proximaEjecucion: null, log: [], jumps: 0, enrolledBy: by, startedAt: iso(now), updatedAt: iso(now), finishedAt: null };
   rows.unshift(run);
-  persist(run);
+  try { await persist(run); } catch (e) {
+    rows = rows.filter((r) => r.id !== run.id);
+    return { ok: false, reason: `No se pudo guardar la inscripción: ${e.message || e}` };
+  }
   note(w, run, source === 'manual' ? sentence(`Inscrito en el workflow «${w.name}» por ${by}`) : `Inscrito en el workflow «${w.name}» (cumple el desencadenante).`, { when: now });
   await advance(run, now);
   return { ok: true, run: out(run), steps: clone(run.log), workflow: w };
@@ -275,7 +284,8 @@ export function cancelRun(id, { by = ME, now = Date.now() } = {}) {
   run.estado = 'cancelled';
   run.proximaEjecucion = null;
   run.finishedAt = iso(now);
-  persist(run);
+  // The synchronous UI reads the cancelled state immediately; the queue reports save errors.
+  persist(run)?.catch(() => {});
   if (w) note(w, run, sentence(`Inscripción en el workflow «${w.name}» cancelada por ${by}`), { when: now });
   emit(run);
   return out(run);
@@ -283,22 +293,36 @@ export function cancelRun(id, { by = ME, now = Date.now() } = {}) {
 
 // ---------- the checker ----------
 // Processes every due run (a delay that ended; a run left 'active' by a closed tab). With Supabase, a run is
-// claimed with a conditional update so two open tabs never execute the same step twice.
+// claimed against its observed timestamp so competing checkers cannot claim the same version.
 async function claim(run) {
-  const { data, error } = await supabase.from('workflow_runs').update({ estado: 'active', updated_at: new Date().toISOString() }).eq('id', run.id).eq('estado', run.estado).select('id');
+  const { data, error } = await supabase.from('workflow_runs').update({ estado: 'active', updated_at: new Date().toISOString() }).eq('id', run.id).eq('estado', run.estado).eq('updated_at', run.updatedAt).select('id');
   if (error) { reportDbError('workflow_runs', error); return false; }
   return Array.isArray(data) && data.length > 0;
 }
+let checking = false;
 export async function processDueRuns(now = Date.now()) {
   await ready;
-  const due = rows.filter((r) => !busy.has(r.id) && ((r.estado === 'waiting' && r.proximaEjecucion && new Date(r.proximaEjecucion).getTime() <= now) || (r.estado === 'active' && new Date(r.updatedAt).getTime() <= now - STALE_MS)));
-  let advanced = 0;
-  for (const run of due) {
-    if (live && !(await claim(run))) continue;
-    await advance(run, now);
-    advanced += 1;
-  }
-  return { due: due.length, advanced };
+  if (checking) return { due: 0, advanced: 0 };
+  checking = true;
+  try {
+    await pending();
+    // Refresh runs created or advanced by other tabs without replacing in-flight objects.
+    if (live) {
+      const { data, error } = await supabase.from('workflow_runs').select('*').order('started_at', { ascending: false });
+      if (error) throw error;
+      const fresh = (data || []).map(fromDb);
+      rows = rows.filter((r) => busy.has(r.id));
+      rows.push(...fresh.filter((r) => !busy.has(r.id)));
+    }
+    const due = rows.filter((r) => !busy.has(r.id) && ((r.estado === 'waiting' && r.proximaEjecucion && new Date(r.proximaEjecucion).getTime() <= now) || (r.estado === 'active' && new Date(r.updatedAt).getTime() <= now - STALE_MS)));
+    let advanced = 0;
+    for (const run of due) {
+      if (live && !(await claim(run))) continue;
+      await advance(run, now);
+      advanced += 1;
+    }
+    return { due: due.length, advanced };
+  } finally { checking = false; }
 }
 let timer = null;
 let lastCheck = null;
