@@ -52,3 +52,6 @@ verify_jwt = false
 
 [functions.twilio-transcribe]
 verify_jwt = true
+
+[functions.twilio-incoming]
+verify_jwt = false

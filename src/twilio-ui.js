@@ -32,6 +32,11 @@ export function twilioPaneHtml() {
     <p class="muted">Para recibir SMS y WhatsApp en el CRM, pon en tu número de Twilio (Phone Numbers → tu número → Messaging → «A message comes in») esta URL: <code id="twilio-hook">${esc(hookUrl())}</code> <button class="btn btn--ghost btn--sm" type="button" id="twilio-copy-hook">Copiar</button></p>
     <div id="twilio-msg" class="muted" role="status"></div>
 
+    <h3 class="gh">Recibir llamadas</h3>
+    <p>Publica este número para que tus contactos te llamen: <strong>${esc(c.phoneNumber)}</strong>.</p>
+    <p class="muted">Las llamadas a ese número se reenvían a tu teléfono personal configurado en el servidor, incluso con el CRM cerrado. El número de quien llama, el estado y la duración se guardan en CRM › Llamadas y se vinculan al contacto por los últimos 10 dígitos de su teléfono o móvil. En tu teléfono verás el número de Twilio.</p>
+    <p class="muted">Webhook de voz: <code>${esc(hookUrl().replace('twilio-inbound', 'twilio-incoming'))}</code> (HTTP POST).</p>
+
     <h3 class="gh">Mensaje de buzón de voz</h3>
     <p class="muted">Cuando una llamada caiga en el buzón, toca el botón <span class="ico ico--vmail ico--inline"></span> de la ventana de la llamada: Omni cuelga por ti, marca de nuevo y deja este mensaje justo después del tono.</p>
     <div class="gform" id="vm-form">
