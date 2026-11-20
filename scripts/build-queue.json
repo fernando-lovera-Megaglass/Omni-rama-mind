@@ -636,10 +636,12 @@
     },
     {
       "id": "gap-backend-contacts-email-sin-indice",
-      "status": "pending",
+      "status": "done",
       "createdAt": "2026-11-20T04:47:25-06:00",
       "lane": "codex",
-      "instruction": "RENDIMIENTO (BAJA). La tabla contacts no tiene índice por email pese a ser la columna de búsqueda más frecuente: dedupe de importación (dedupe-importacion), el matcher de gmail-sync (supabase/functions/gmail-sync/index.ts línea 58: from('contacts').select('id, email').or(...)), las búsquedas de listas y el alta de contactos consultan por email. Evidencia estática: grep 'create index' en todos los supabase/*.sql solo muestra índices en tasks, activities, sequences, workflows, conversations, twilio, gmail, segments, reports, pipelines, contact_companies y deal_tags; ninguno toca contacts(email) (schema.sql línea 40 define la columna, sin índice, y schema.sql está 'saltada_destructiva' en applied-migrations.json). Hoy son 423 filas, pero cada importación/dedupe hace scan completo. Cómo corregirlo: migración nueva con create index if not exists contacts_email_idx on public.contacts (lower(email)) where deleted_at is null (y considerar índices análogos en deals.contact_id/company_id si se confirma que faltan), registrándola en scripts/applied-migrations.json tras aplicarla. Criterio de aceptación: la migración es idempotente (re-ejecutable sin error) y EXPLAIN de una búsqueda por email usa el índice. No despliegues nada a producción; solo código local."
+      "instruction": "RENDIMIENTO (BAJA). La tabla contacts no tiene índice por email pese a ser la columna de búsqueda más frecuente: dedupe de importación (dedupe-importacion), el matcher de gmail-sync (supabase/functions/gmail-sync/index.ts línea 58: from('contacts').select('id, email').or(...)), las búsquedas de listas y el alta de contactos consultan por email. Evidencia estática: grep 'create index' en todos los supabase/*.sql solo muestra índices en tasks, activities, sequences, workflows, conversations, twilio, gmail, segments, reports, pipelines, contact_companies y deal_tags; ninguno toca contacts(email) (schema.sql línea 40 define la columna, sin índice, y schema.sql está 'saltada_destructiva' en applied-migrations.json). Hoy son 423 filas, pero cada importación/dedupe hace scan completo. Cómo corregirlo: migración nueva con create index if not exists contacts_email_idx on public.contacts (lower(email)) where deleted_at is null (y considerar índices análogos en deals.contact_id/company_id si se confirma que faltan), registrándola en scripts/applied-migrations.json tras aplicarla. Criterio de aceptación: la migración es idempotente (re-ejecutable sin error) y EXPLAIN de una búsqueda por email usa el índice. No despliegues nada a producción; solo código local.",
+      "completedAt": "2026-11-20T11:45:54-0600",
+      "completedBy": "codex"
     }
   ]
 }

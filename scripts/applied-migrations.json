@@ -125,8 +125,16 @@
     "at": "2026-11-19T18:22:40-0600",
     "nota": "ya existía de la aplicación manual original"
   },
+  "contact-search-indexes.sql": {
+    "status": "pendiente",
+    "nota": "Solo código local; no aplicada a producción. Ver docs/contact-search-indexes.md."
+  },
   "sequence-process.sql": {
     "status": "pendiente",
     "nota": "Solo código local; no aplicada a producción. Ver docs/sequence-process.md."
+  },
+  "workflow_runs.sql": {
+    "status": "aplicada",
+    "at": "2026-11-20T17:45:42.402Z"
   }
 }
