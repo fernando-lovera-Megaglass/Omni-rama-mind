@@ -499,10 +499,12 @@
     },
     {
       "id": "gap-backend-call-status-sin-firma",
-      "status": "pending",
+      "status": "done",
       "instruction": "SEGURIDAD ALTA. El webhook público twilio-call-status (verify_jwt=false en supabase/config.toml) NO valida la firma X-Twilio-Signature: supabase/functions/twilio-call-status/index.ts nunca llama a twilioSignatureValid (compara con twilio-incoming/index.ts línea 21). Evidencia: curl -X POST .../functions/v1/twilio-call-status con form-data sin firma devuelve 200 '<Response></Response>' en vez de 403. Impacto: cualquiera que conozca un CallSid (se muestran en la UI y en las URLs twilio-recording?call=CA...) puede (1) falsear status/ended_at/duration_sec en call_logs, y (2) peor: las líneas 41-43 guardan params.RecordingUrl+'.mp3' en call_logs.recording_url sin validar el host; después twilio-recording/index.ts línea 22 y transcribeCallLog (_shared/twilio.ts línea 101, se dispara en segundo plano desde la línea 45) hacen fetch a esa URL con 'Authorization: Basic <AccountSID>:<AuthToken>' → fuga de las credenciales maestras de Twilio a un host atacante. Corrección: validar la firma antes de tocar la base (token vía authTokenOf de la conexión del log, como hace twilio-incoming); validar formato CallSid /^CA[0-9a-f]{32}$/i; al guardar recording_url aceptar solo URLs https://api.twilio.com/2010-04-01/Accounts/<accountSid>/...; y en twilio-recording y transcribeCallLog rechazar recording_url cuyo host no sea api.twilio.com (defensa en profundidad). Criterio de aceptación: POST sin firma o con firma inválida → 403; RecordingUrl con host ajeno → no se guarda; los callbacks legítimos de Twilio (status y grabación) siguen actualizando call_logs. No despliegues nada a producción; solo código local.",
       "createdAt": "2026-11-20T00:55:00-06:00",
-      "lane": "codex"
+      "lane": "codex",
+      "completedAt": "2026-11-20T10:01:43-0600",
+      "completedBy": "codex"
     },
     {
       "id": "gap-backend-call-status-updates-mudos",

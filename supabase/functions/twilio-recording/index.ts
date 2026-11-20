@@ -2,7 +2,7 @@
 // auth (Account SID + Auth Token, which the browser never sees), so the audio element cannot fetch
 // them directly — this function checks the caller owns the call log and pipes the audio through.
 // GET /functions/v1/twilio-recording?call=<CallSid>  (con el JWT del usuario, verify_jwt = true)
-import { handle, userFromRequest, serviceClient, fail, authTokenOf, CORS } from '../_shared/twilio.ts';
+import { handle, userFromRequest, serviceClient, fail, authTokenOf, twilioRecordingUrlValid, CORS } from '../_shared/twilio.ts';
 
 Deno.serve(handle(async (req) => {
   if (req.method !== 'GET') return fail('Usa GET', 405);
@@ -17,9 +17,11 @@ Deno.serve(handle(async (req) => {
 
   const { data: conn } = await service.from('twilio_connections').select('account_sid').eq('id', log.connection_id).maybeSingle();
   if (!conn) return fail('La conexión de Twilio ya no existe.', 404, { code: 'no_connection' });
+  if (!twilioRecordingUrlValid(log.recording_url, conn.account_sid)) return fail('URL de grabación inválida', 400, { code: 'invalid_recording_url' });
   const token = await authTokenOf(service, log.connection_id);
 
   const res = await fetch(log.recording_url, {
+    redirect: 'error',
     headers: { Authorization: `Basic ${btoa(`${conn.account_sid}:${token}`)}` },
   });
   if (!res.ok || !res.body) return fail(`Twilio respondió ${res.status} al pedir la grabación.`, 502, { code: 'twilio' });

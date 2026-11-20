@@ -13,6 +13,17 @@ export class TwilioError extends Error {
 
 const API = 'https://api.twilio.com/2010-04-01';
 
+// Validate stored URLs too: legacy rows must never send account credentials to another origin.
+export function twilioRecordingUrlValid(raw: string, accountSid: string): boolean {
+  try {
+    const url = new URL(raw);
+    return /^AC[0-9a-f]{32}$/i.test(accountSid)
+      && url.protocol === 'https:' && url.hostname === 'api.twilio.com'
+      && !url.port && !url.username && !url.password && !url.search && !url.hash
+      && url.pathname.startsWith(`/2010-04-01/Accounts/${accountSid}/`);
+  } catch { return false; }
+}
+
 // One call to the Twilio REST API with the given credentials.
 export async function twilio(sid: string, token: string, path: string, init: { method?: string; form?: Record<string, string> } = {}): Promise<unknown> {
   const res = await fetch(`${API}${path}`, {
@@ -97,8 +108,9 @@ export async function transcribeCallLog(service: SupabaseClient, log: { id: stri
   if (log.transcript) return log.transcript;
   const { data: conn } = await service.from('twilio_connections').select('account_sid').eq('id', log.connection_id).maybeSingle();
   if (!conn) return null;
+  if (!twilioRecordingUrlValid(log.recording_url, conn.account_sid)) throw new TwilioError('URL de grabación inválida', 'invalid_recording_url', 400);
   const token = await authTokenOf(service, log.connection_id);
-  const audio = await fetch(log.recording_url, { headers: { Authorization: `Basic ${btoa(`${conn.account_sid}:${token}`)}` } });
+  const audio = await fetch(log.recording_url, { redirect: 'error', headers: { Authorization: `Basic ${btoa(`${conn.account_sid}:${token}`)}` } });
   if (!audio.ok) throw new TwilioError(`No se pudo bajar la grabación (${audio.status})`, 'api', 502);
   const fd = new FormData();
   fd.append('file', new Blob([await audio.arrayBuffer()], { type: 'audio/mpeg' }), 'grabacion.mp3');
