@@ -38,7 +38,11 @@ const DEFAULT_SIG = {
 };
 // "Plantillas" lists the saved message templates (CRM › Plantillas de mensaje); a late load refreshes the panel.
 const rootPath = () => document.body.dataset.root || '';
-const tplPanelHtml = () => `${savedTemplates().length ? savedTemplates().map((t) => `<button class="menu__item" type="button" data-tpl="${esc(t.id)}">${esc(t.name)}${t.shared ? '' : ' <span class="muted">· Privada</span>'}</button>`).join('') : '<div class="menu__note">Todavía no hay plantillas guardadas</div>'}<div class="menu__sep"></div><a class="menu__item" href="${rootPath()}templates/">Administrar plantillas</a>`;
+const tplPanelHtml = () => {
+  const timestamp = (value) => Date.parse(value) || 0;
+  const list = savedTemplates().sort((a, b) => timestamp(b.lastUsedAt) - timestamp(a.lastUsedAt) || timestamp(b.updatedAt) - timestamp(a.updatedAt));
+  return `<div class="compose__seqsearch"><input type="search" placeholder="Buscar plantillas" aria-label="Buscar plantillas" data-tpl-search autocomplete="off" /></div><div class="compose__seqlist">${list.length ? list.map((t) => `<button class="menu__item" type="button" data-tpl="${esc(t.id)}" data-search="${esc(`${t.name || ''} ${t.subject || ''}`.toLowerCase())}">${esc(t.name)}${t.shared ? '' : ' <span class="muted">· Privada</span>'}</button>`).join('') : '<div class="menu__note" data-tpl-empty>Todavía no hay plantillas guardadas</div>'}<div class="menu__note" data-tpl-no-results role="status" hidden></div></div><div class="menu__sep"></div><a class="menu__item" href="${rootPath()}templates/">Administrar plantillas</a>`;
+};
 // "Secuencias" lists the real sequences (Ventas › Secuencias); choosing one opens the enrolment dialog.
 const seqPanelHtml = () => {
   const list = savedSequences().filter((s) => s.steps.length);
@@ -109,6 +113,25 @@ function wireSeqSearch() {
   ss.dataset.wired = '1';
   ss.addEventListener('click', (e) => e.stopPropagation());
   ss.addEventListener('input', () => { const q = ss.value.trim().toLowerCase(); el.querySelectorAll('#cmp-seq-panel [data-seq]').forEach((b) => { b.hidden = Boolean(q) && !b.dataset.name.includes(q); }); });
+}
+function wireTplSearch() {
+  const search = el && el.querySelector('[data-tpl-search]');
+  if (!search || search.dataset.wired) return;
+  search.dataset.wired = '1';
+  search.addEventListener('click', (e) => e.stopPropagation());
+  search.addEventListener('input', () => {
+    const query = search.value.trim();
+    let matches = 0;
+    el.querySelectorAll('#cmp-tpl-panel [data-tpl]').forEach((button) => {
+      button.hidden = !button.dataset.search.includes(query.toLowerCase());
+      if (!button.hidden) matches += 1;
+    });
+    const empty = el.querySelector('[data-tpl-empty]');
+    if (empty) empty.hidden = Boolean(query);
+    const note = el.querySelector('[data-tpl-no-results]');
+    note.hidden = !query || matches > 0;
+    note.textContent = note.hidden ? '' : `Sin resultados para '${query}'`;
+  });
 }
 // The contact the composer was opened for (its record when known, otherwise what the caller passed).
 function tokenContact() {
@@ -243,6 +266,7 @@ function render() {
     </div>`;
   wireMenus(el);
   wireSeqSearch();
+  wireTplSearch();
   const text = el.querySelector('#cmp-text');
   if (text && !collapsed) {
     text.addEventListener('input', () => {
@@ -538,7 +562,7 @@ export function openCompose(options) {
   el.style.bottom = '';
   el.hidden = false;
   render();
-  templatesReady.then(() => { const p = el && el.querySelector('#cmp-tpl-panel'); if (p) p.innerHTML = tplPanelHtml(); });
+  templatesReady.then(() => { const p = el && el.querySelector('#cmp-tpl-panel'); if (p && ctx) { p.innerHTML = tplPanelHtml(); wireTplSearch(); } });
   sequencesReady.then(() => { const p = el && el.querySelector('#cmp-seq-panel'); if (p && ctx) { p.innerHTML = seqPanelHtml(); wireSeqSearch(); } });
   emailsReady.then(() => { if (el && !el.hidden && ctx && !el.querySelector('.compose__from') && senders().length) reopenAfterConnect(); });
   const subj = el.querySelector('#cmp-subject');

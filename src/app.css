@@ -16103,7 +16103,9 @@ body.has-slideover {
   overflow: auto;
 }
 
-.compose__seqlist [data-seq][hidden] {
+.compose__seqlist [data-seq][hidden],
+.compose__seqlist [data-tpl][hidden],
+.compose__seqlist .menu__note[hidden] {
   display: none;
 }
 
