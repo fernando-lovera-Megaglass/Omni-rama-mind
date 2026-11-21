@@ -151,7 +151,7 @@ export function mountCreateTicket({ root = document.getElementById('list-root') 
     el.classList.add('is-open');
     el.setAttribute('aria-hidden', 'false');
     document.body.classList.add('has-slideover');
-    setTimeout(() => form.elements.name.focus(), 50);
+    setTimeout(() => { if (isOpen()) form.elements.name?.focus?.(); }, 50);
   }
   function close() {
     state.open = false;
@@ -207,7 +207,7 @@ export function mountCreateTicket({ root = document.getElementById('list-root') 
       toast('Ticket creado');
       if (list && typeof list.render === 'function') list.render();
       if (onCreated) onCreated(saved);
-      if (another) { reset(); setTimeout(() => form.elements.name.focus(), 0); } else close();
+      if (another) { reset(); setTimeout(() => { if (isOpen()) form.elements.name?.focus?.(); }, 0); } else close();
     } catch (e) {
       showError(`No se pudo crear el ticket: ${e.message || e}`);
     } finally {
