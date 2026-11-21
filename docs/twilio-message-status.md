@@ -4,6 +4,9 @@
 con el ID local. El SID se guarda al recibir la respuesta de Twilio o un callback
 anterior a esa respuesta. Los rechazos se guardan como `failed`; la columna `error`
 existente conserva el código del proveedor y el detalle. No requiere migración.
+La petición de envío tiene un límite de 20 segundos, incluida la lectura de la
+respuesta. Si vence, guarda `failed` con causa `Twilio timeout` y responde HTTP 504;
+no reintenta automáticamente un envío cuyo resultado es incierto.
 
 `twilio-message-status` verifica la firma con el token de la conexión del mensaje,
 comprueba AccountSid/MessageSid y actualiza estados con filtros atómicos para no

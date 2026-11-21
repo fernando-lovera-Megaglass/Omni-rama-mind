@@ -371,4 +371,4 @@ wireMenus();
 render();
 export { state, render };
 
-export const customReports = mountReportBuilder({ root: document.querySelector('main'), dashboard: document.getElementById('grid') });
+export const customReports = mountReportBuilder({ root: document.querySelector('main'), dashboard: document.getElementById('grid'), wireMenus, closeMenus });

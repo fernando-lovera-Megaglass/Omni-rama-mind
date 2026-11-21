@@ -1,7 +1,8 @@
 import { SOURCES, MEASURES, DIMENSIONS, VIEWS, escapeHtml as esc, reportChart, createReportStore } from './custom-reports.js';
 import { supabase } from './supabaseClient.js';
 
-export function mountReportBuilder({ root, dashboard, store = createReportStore() }) {
+// The page passes shell's wireMenus/closeMenus so the row menus («Acciones») behave like every other .menu of the CRM.
+export function mountReportBuilder({ root, dashboard, store = createReportStore(), wireMenus = () => {}, closeMenus = () => {} }) {
   let reports = [];
   let query = "", loaded = false, busy = false;
   const host = document.createElement('section');
@@ -17,10 +18,23 @@ export function mountReportBuilder({ root, dashboard, store = createReportStore(
     const list = host.querySelector('[data-list]'); if (!list) return;
     const normalize = text => text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('es');
     const matches = reports.filter(r => normalize(r.name).includes(normalize(query.trim())));
-    list.innerHTML = !loaded ? '<p>Cargando informes…</p>' : !reports.length ? `<div data-empty><svg width="160" height="100" viewBox="0 0 160 100" role="img" aria-label="En construcción"><path d="M15 85h130M40 85V35h80v50" fill="none" stroke="#516f90" stroke-width="5"/><path d="M25 35h110v22H25z" fill="#ffbc4b"/><path d="m40 35 20 22m10-22 20 22m10-22 20 22" stroke="#33475b" stroke-width="8"/></svg><h3>Tu biblioteca está en construcción</h3><p>No hay informes guardados. Crea tu primer informe para empezar.</p></div>` : matches.length ? matches.map(r => `<article class="custom-library-row"><h3>${esc(r.name)}</h3><p>${esc(SOURCES[r.config?.source] || 'Fuente desconocida')} · ${esc(VIEWS[r.config?.visualization] || '')}</p><button class="btn btn--ghost" data-view="${esc(r.id)}">Abrir informe</button> <button class="btn btn--ghost" data-duplicate="${esc(r.id)}">Duplicar</button> <button class="btn btn--ghost" data-rename="${esc(r.id)}">Renombrar</button> <button class="btn btn--ghost" data-delete="${esc(r.id)}">Eliminar</button> <button class="btn btn--ghost" data-pin="${esc(r.id)}">${r.pinned ? 'Quitar del panel' : 'Anclar al panel principal'}</button></article>`).join('') : '<p>No hay informes que coincidan con la búsqueda.</p>';
+    list.innerHTML = !loaded ? '<p>Cargando informes…</p>' : !reports.length ? `<div data-empty><svg width="160" height="100" viewBox="0 0 160 100" role="img" aria-label="En construcción"><path d="M15 85h130M40 85V35h80v50" fill="none" stroke="#516f90" stroke-width="5"/><path d="M25 35h110v22H25z" fill="#ffbc4b"/><path d="m40 35 20 22m10-22 20 22m10-22 20 22" stroke="#33475b" stroke-width="8"/></svg><h3>Tu biblioteca está en construcción</h3><p>No hay informes guardados. Crea tu primer informe para empezar.</p></div>` : matches.length ? matches.map(r => `<article class="custom-library-row">
+      <div class="custom-library-row__main"><h3>${esc(r.name)}</h3><p class="muted">${esc(SOURCES[r.config?.source] || 'Fuente desconocida')} · ${esc(VIEWS[r.config?.visualization] || '')}${r.pinned ? ' · Anclado al panel principal' : ''}</p></div>
+      <div class="custom-library-row__actions">
+        <button class="btn btn--secondary btn--sm" type="button" data-view="${esc(r.id)}">Abrir</button>
+        <div class="menu custom-library-row__menu"><button class="link-btn" type="button" aria-haspopup="true" aria-expanded="false">Acciones <span class="caret"></span></button><div class="menu__panel menu__panel--right">
+          <button class="menu__item" type="button" data-duplicate="${esc(r.id)}">Duplicar</button>
+          <button class="menu__item" type="button" data-rename="${esc(r.id)}">Renombrar</button>
+          <button class="menu__item" type="button" data-pin="${esc(r.id)}">${r.pinned ? 'Quitar del panel' : 'Anclar al panel principal'}</button>
+          <div class="menu__sep"></div>
+          <button class="menu__item menu__item--danger" type="button" data-delete="${esc(r.id)}">Eliminar</button>
+        </div></div>
+      </div>
+    </article>`).join('') : '<p class="muted">No hay informes que coincidan con la búsqueda.</p>';
+    wireMenus(host);
   }
   function library() {
-    host.innerHTML = `<div class="page-head"><h2>Biblioteca de informes</h2><button class="btn btn--primary" data-create>Crear informe</button><button class="btn btn--ghost" data-close>Cerrar</button></div><p class="muted">${supabase ? 'Informes guardados en Supabase' : 'Modo local · Informes guardados en este navegador'}</p><label>Buscar informes<input type="search" data-search value="${esc(query)}" placeholder="Buscar por nombre"></label><div role="status" data-status></div><div data-list></div>`;
+    host.innerHTML = `<div class="page-head"><h2>Biblioteca de informes</h2><div class="page-head__actions"><button class="btn btn--primary" type="button" data-create>Crear informe</button><button class="btn btn--ghost" type="button" data-close>Cerrar</button></div></div><p class="muted">${supabase ? 'Informes guardados en Supabase' : 'Modo local · Informes guardados en este navegador'}</p><div class="search search--sm"><span class="ico ico--search" aria-hidden="true"></span><input type="search" data-search value="${esc(query)}" placeholder="Buscar informes" aria-label="Buscar informes" /></div><div role="status" data-status></div><div data-list></div>`;
     host.querySelector('[data-search]').addEventListener('input', e => { query = e.target.value; renderList(); });
     renderList();
   }
@@ -31,8 +45,9 @@ export function mountReportBuilder({ root, dashboard, store = createReportStore(
     catch (error) { library(); host.querySelector("[data-list]").innerHTML = '<button class="btn btn--ghost" data-retry>Reintentar</button>'; status(`No se pudieron cargar los informes: ${error.message}. Comprueba la migración reports.sql y tu sesión.`); }
   }
   function builder() {
-    const select = (key, label, options) => `<label>${label}<select name="${key}">${Object.entries(options).map(([v,l]) => `<option value="${v}" ${config[key] === v ? 'selected' : ''} ${key === 'measure' && config.source !== 'deals' && v !== 'count' ? 'disabled' : ''}>${l}</option>`).join('')}</select></label>`;
-    host.innerHTML = `<h2>Crear informe personalizado</h2><form data-builder><label>Nombre del informe<input name="name" required maxlength="120" value="Negocios por etapa (barras)"></label><div class="custom-fields">${select('source','1. Fuente',SOURCES)}${select('measure','2. Medida',MEASURES)}${select('dimension','3. Dimensión',DIMENSIONS)}${select('visualization','4. Visualización',VIEWS)}</div><p class="muted">Todos los registros cargados. Suma y promedio usan el importe de negocios en la moneda de la cuenta. Campos ausentes se agrupan como «Sin dato».</p><h3>Vista previa</h3><div data-preview></div><p role="status" data-status></p><button class="btn btn--primary" type="submit">Guardar informe</button> <button class="btn btn--ghost" type="button" data-back>Volver a biblioteca</button></form>`;
+    // System form classes (.field) so the builder looks like any other form of the CRM, in light and dark.
+    const select = (key, label, options) => `<label class="field"><span>${label}</span><select name="${key}">${Object.entries(options).map(([v,l]) => `<option value="${v}" ${config[key] === v ? 'selected' : ''} ${key === 'measure' && config.source !== 'deals' && v !== 'count' ? 'disabled' : ''}>${l}</option>`).join('')}</select></label>`;
+    host.innerHTML = `<h2>Crear informe personalizado</h2><form data-builder><label class="field"><span>Nombre del informe</span><input name="name" required maxlength="120" value="Negocios por etapa (barras)"></label><div class="custom-fields">${select('source','1. Fuente',SOURCES)}${select('measure','2. Medida',MEASURES)}${select('dimension','3. Dimensión',DIMENSIONS)}${select('visualization','4. Visualización',VIEWS)}</div><p class="muted">Todos los registros cargados. Suma y promedio usan el importe de negocios en la moneda de la cuenta. Campos ausentes se agrupan como «Sin dato».</p><h3>Vista previa</h3><div data-preview></div><p role="status" data-status></p><button class="btn btn--primary" type="submit">Guardar informe</button> <button class="btn btn--ghost" type="button" data-back>Volver a biblioteca</button></form>`;
     const form = host.querySelector('form');
     function preview() {
       config.source = form.elements.source.value;
@@ -54,6 +69,7 @@ export function mountReportBuilder({ root, dashboard, store = createReportStore(
   }
   async function action(e) {
     const button = e.target.closest('button'); if (!button || busy) return;
+    if (button.closest('.menu__panel')) closeMenus();
     if (button.hasAttribute('data-retry')) return refresh();
     if (button.hasAttribute('data-create')) builder();
     if (button.hasAttribute('data-back')) library();
@@ -73,7 +89,7 @@ export function mountReportBuilder({ root, dashboard, store = createReportStore(
     if (button.dataset.rename || button.dataset.delete) {
       const report = reports.find(r => r.id === (button.dataset.rename || button.dataset.delete));
       const deleting = !!button.dataset.delete;
-      host.innerHTML = `<h2>${deleting ? 'Eliminar' : 'Renombrar'} informe</h2><form data-edit>${deleting ? `<p>¿Eliminar «${esc(report.name)}»? Esta acción no se puede deshacer.</p>` : `<label>Nombre del informe<input name="name" required maxlength="120" value="${esc(report.name)}"></label>`}<button class="btn btn--primary" type="submit">${deleting ? 'Eliminar informe' : 'Guardar nombre'}</button> <button class="btn btn--ghost" type="button" data-back>Cancelar</button><p role="status" data-status></p></form>`;
+      host.innerHTML = `<h2>${deleting ? 'Eliminar' : 'Renombrar'} informe</h2><form data-edit>${deleting ? `<p>¿Eliminar «${esc(report.name)}»? Esta acción no se puede deshacer.</p>` : `<label class="field"><span>Nombre del informe</span><input name="name" required maxlength="120" value="${esc(report.name)}"></label>`}<button class="btn ${deleting ? 'btn--primary tpls__danger' : 'btn--primary'}" type="submit">${deleting ? 'Eliminar informe' : 'Guardar nombre'}</button> <button class="btn btn--ghost" type="button" data-back>Cancelar</button><p role="status" data-status></p></form>`;
       const form = host.querySelector('form');
       form.querySelector('input')?.focus();
       form.addEventListener('submit', async e => {

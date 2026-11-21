@@ -48,18 +48,20 @@ Deno.serve(handle(async (req) => {
   let sent: { sid: string; status?: string; error_code?: number; error_message?: string };
   try {
     sent = await twilio(c.account_sid, token, `/Accounts/${c.account_sid}/Messages.json`, {
-      method: 'POST', form: { From: from, To: dest, Body: body, StatusCallback: callback },
+      method: 'POST', timeoutMs: 20_000, form: { From: from, To: dest, Body: body, StatusCallback: callback },
     }) as typeof sent;
     if (!/^(SM|MM)[0-9a-f]{32}$/i.test(sent.sid || '')) throw new TwilioError('Twilio no devolvió un MessageSid válido.', 'invalid_response');
   } catch (e) {
     const err = e as TwilioError;
-    const cause = messageError(err.twilioCode || err.code || 'transport', err.message);
+    const timedOut = err.name === 'TimeoutError' || err.name === 'AbortError';
+    const code = timedOut ? 'timeout' : err.twilioCode || err.code || 'transport';
+    const cause = messageError(code, timedOut ? 'La petición a Twilio superó el límite de 20 segundos; no se confirmó el envío.' : err.message);
     const { error: saveError } = await service.from('twilio_messages').update({ status: 'failed', error: cause })
       .eq('id', id).eq('status', 'queued').is('message_sid', null);
     if (saveError) throw saveError;
     // Invalid destinations and carrier errors must not disable the whole account.
     if (err.code === 'auth') await markConnection(service, c.id, 'error', cause);
-    return fail(cause!, err.status || 502, { code: err.twilioCode || err.code || 'transport', message_id: id });
+    return fail(cause!, timedOut ? 504 : err.status || 502, { code, message_id: id });
   }
   // Keep persistence failures outside the send catch: Twilio may already be delivering.
   await applyMessageStatus(service, id, c.id, sent.sid, sent.status || 'queued', messageError(sent.error_code, sent.error_message));

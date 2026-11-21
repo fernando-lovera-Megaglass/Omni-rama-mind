@@ -152,9 +152,6 @@
 [data-theme="dark"] .othumb__img i:first-child { background: #5d6c7e; }
 [data-theme="dark"] .wfe__canvaswrap { background: radial-gradient(circle, #2f3b49 1px, transparent 1px) 0 0 / 18px 18px; }
 [data-theme="dark"] .recent__art { background: radial-gradient(circle at 50% 50%, var(--c-head) 0 38%, transparent 39%), linear-gradient(135deg, #3f2a16 0 50%, var(--c-head) 50%); }
-[data-theme="dark"] .custom-library { --bg: var(--c-white); }
-[data-theme="dark"] .custom-library input,
-[data-theme="dark"] .custom-library select,
 [data-theme="dark"] .subtasks__add input { border-color: var(--c-border); }
 
 /* Tintes de estado: teal (avisos, burbujas salientes, barra de selección masiva) */
@@ -19358,13 +19355,20 @@ td[data-key="deal_tags"] .dtag {
   overflow-wrap: anywhere;
 }
 
-/* Constructor y biblioteca de informes personalizados */
+/* Constructor y biblioteca de informes personalizados: campos .field y buscador .search del sistema (heredan el
+   tema); filas con la acción primaria «Abrir» y el menú «Acciones» (.menu/.menu__panel), como Plantillas,
+   Secuencias y Workflows. */
 .custom-library { margin-top: 24px; padding: 24px; }
 .custom-library[hidden] { display: none; }
+.custom-library .search { margin: var(--sp-12) 0; }
 .custom-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin: 20px 0; }
-.custom-library label { display: flex; flex-direction: column; gap: 8px; }
-.custom-library input, .custom-library select { padding: 10px; border: 1px solid #b6c7d6; border-radius: 4px; background: var(--bg, #fff); color: inherit; font: inherit; }
-.custom-library-row { padding: 16px 0; border-bottom: 1px solid var(--c-border); }
+.custom-library form > .field { margin-bottom: var(--sp-12); }
+.custom-library-row { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-16); padding: 12px 0; border-bottom: 1px solid var(--c-border); }
+.custom-library-row__main { min-width: 0; }
+.custom-library-row h3 { margin: 0 0 2px; font-size: var(--fs-md); overflow-wrap: anywhere; }
+.custom-library-row p { margin: 0; }
+.custom-library-row__actions { display: flex; align-items: center; gap: var(--sp-12); flex: none; }
+.custom-library-row__menu .menu__panel { z-index: 30; }
 .custom-bar { margin: 12px 0; }
 .custom-bar span { display: block; overflow-wrap: anywhere; }
 [data-preview] { max-height: 500px; overflow: auto; margin-bottom: 20px; }

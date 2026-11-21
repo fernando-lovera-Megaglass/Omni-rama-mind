@@ -26,9 +26,10 @@ export function twilioRecordingUrlValid(raw: string, accountSid: string): boolea
 }
 
 // One call to the Twilio REST API with the given credentials.
-export async function twilio(sid: string, token: string, path: string, init: { method?: string; form?: Record<string, string> } = {}): Promise<unknown> {
+export async function twilio(sid: string, token: string, path: string, init: { method?: string; form?: Record<string, string>; timeoutMs?: number } = {}): Promise<unknown> {
   const res = await fetch(`${API}${path}`, {
     method: init.method || 'GET',
+    signal: init.timeoutMs == null ? undefined : AbortSignal.timeout(init.timeoutMs),
     headers: {
       Authorization: `Basic ${btoa(`${sid}:${token}`)}`,
       ...(init.form ? { 'Content-Type': 'application/x-www-form-urlencoded' } : {}),
@@ -36,7 +37,11 @@ export async function twilio(sid: string, token: string, path: string, init: { m
     body: init.form ? new URLSearchParams(init.form).toString() : undefined,
   });
   let body: Record<string, unknown> = {};
-  try { body = await res.json(); } catch { /* empty body */ }
+  try { body = await res.json(); } catch (error) {
+    // Do not swallow timeouts while reading a response body.
+    if (error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError')) throw error;
+    /* empty or invalid JSON body */
+  }
   if (!res.ok) {
     const apiCode = body.code == null ? undefined : String(body.code);
     const msg = (body.message as string) || `Twilio respondió ${res.status}`;

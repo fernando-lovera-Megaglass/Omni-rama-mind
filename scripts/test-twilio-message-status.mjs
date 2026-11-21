@@ -35,6 +35,7 @@ async function moduleAt(path, deps = {}) {
 }
 const shared = await moduleAt('supabase/functions/_shared/twilio.ts', {fetch: async(url,opts) => {
   calls++;
+  assert.ok(opts.signal instanceof AbortSignal, 'Outgoing send must have a deadline');
   if (apiFailure) throw apiFailure;
   const form = new URLSearchParams(opts.body);
   callback = form.get('StatusCallback');
@@ -77,6 +78,15 @@ assert.equal((await (await sendRequest()).json()).status,'delivered'); assert.eq
 reset(); apiResponse={status:400,body:{code:21608,message:'Unverified recipient'}};
 assert.equal((await sendRequest()).status,502); assert.equal(rows[0].status,'failed'); assert.match(rows[0].error,/21608.*Unverified/); assert.equal(conn.status,'active');
 reset(); apiFailure=new Error('Network disconnected'); await sendRequest(); assert.equal(rows[0].status,'failed'); assert.match(rows[0].error,/Network disconnected/);
+reset(); apiFailure=new DOMException('Timed out','TimeoutError');
+assert.equal((await sendRequest()).status,504); assert.equal(rows[0].status,'failed'); assert.match(rows[0].error,/timeout.*20 segundos/); assert.equal(calls,1);
+// Exercise a genuinely hanging HTTP request with a short local deadline.
+const hanging = await moduleAt('supabase/functions/_shared/twilio.ts', {fetch: async (_url, opts) => new Promise((_resolve, reject) => {
+  opts.signal.addEventListener('abort', () => reject(opts.signal.reason), {once:true});
+})});
+const keepAlive = setTimeout(()=>{},1000);
+try { await assert.rejects(hanging.twilio(account,token,'/Messages.json',{timeoutMs:10}), {name:'TimeoutError'}); }
+finally { clearTimeout(keepAlive); }
 // No send after a failed insert, and webhook write errors must surface as 500.
 const originalError = console.error; console.error=()=>{};
 try {
