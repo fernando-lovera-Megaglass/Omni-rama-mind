@@ -61,7 +61,7 @@ function renderManage() {
   const list = visibleEmails();
   const people = [...new Set(emails().map((e) => e.updatedBy).filter(Boolean))].sort();
   root.innerHTML = `
-    <div class="page-head"><h1>Correo de marketing</h1><div class="page-head__actions"><button class="btn btn--primary btn--pillx" type="button" data-mk="create">Crear correo</button></div></div>
+    <div class="page-head"><h1 class="page-title">Correo de marketing</h1><div class="page-head__actions"><button class="btn btn--primary btn--pillx" type="button" data-mk="create">Crear correo</button></div></div>
     <div class="mk-tabs" role="tablist"><button class="mk-tab${state.view === 'manage' ? ' is-active' : ''}" type="button" data-view="manage">Administrar</button><button class="mk-tab${state.view === 'analyze' ? ' is-active' : ''}" type="button" data-view="analyze">Analizar</button></div>
     ${state.view === 'analyze' ? renderAnalyze() : `
     <div class="mk-estados" role="tablist">${ESTADO_TABS.map(([k, l]) => `<button class="mk-estado${state.estado === k ? ' is-active' : ''}" type="button" data-estado="${k}">${l} <span class="mk-estado__n">${counts[k] || 0}</span></button>`).join('')}</div>
@@ -122,7 +122,7 @@ function renderTemplates() {
   const list = allTemplates().filter((t) => (!state.tplCat || t.categoria === state.tplCat) && (!q || `${t.nombre} ${t.descripcion}`.toLowerCase().includes(q)));
   const thumb = (t) => `<div class="mk-tpl__thumb">${t.header ? `<div class="mk-tpl__thumbbar" style="background:${BRAND.primary}">MEGAGLASS</div>` : ''}${(t.modules ? t.modules() : []).slice(0, 4).map((m) => `<div class="mk-tpl__line mk-tpl__line--${m.type}"></div>`).join('')}</div>`;
   root.innerHTML = `
-    <div class="page-head"><div><button class="link-btn" type="button" data-mk="back">← Volver a Correo</button><h1>Seleccionar plantilla</h1></div><div class="page-head__actions"><button class="btn btn--ghost" type="button" data-mk="blank">Empezar de cero</button></div></div>
+    <div class="page-head"><div><button class="link-btn" type="button" data-mk="back">← Volver a Correo</button><h1 class="page-title">Seleccionar plantilla</h1></div><div class="page-head__actions"><button class="btn btn--ghost" type="button" data-mk="blank">Empezar de cero</button></div></div>
     <div class="mk-tpl">
       <aside class="mk-tpl__cats"><button class="mk-tpl__cat${!state.tplCat ? ' is-active' : ''}" type="button" data-cat="">Todas las plantillas</button>${TEMPLATE_CATEGORIES.map((c) => `<button class="mk-tpl__cat${state.tplCat === c ? ' is-active' : ''}" type="button" data-cat="${esc(c)}">${esc(c)} <span class="muted">${allTemplates().filter((t) => t.categoria === c).length}</span></button>`).join('')}</aside>
       <section class="mk-tpl__main">

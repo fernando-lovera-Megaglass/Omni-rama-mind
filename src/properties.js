@@ -27,6 +27,14 @@ const g = (title, items) => ({ title, items });
 
 // HubSpot option labels can differ from their stored values; retain both, including hidden options.
 export const HUBSPOT_CUSTOM_METADATA = {
+  // Tickets: the account's 4 custom properties (scripts/hubspot-ticket-properties.snapshot.json). «Vendedor
+  // solicitante» is an enumeration without options in HubSpot, so it is left out here and src/custom-properties.js
+  // gives it the account's sellers as choices.
+  tickets: {
+    "municipio": {"type": "string", "fieldType": "text", "options": [], "readOnly": false, "hidden": false},
+    "source_incoming_expired": {"type": "number", "fieldType": "number", "options": [], "readOnly": false, "hidden": true},
+    "source_incoming_phone": {"type": "string", "fieldType": "text", "options": [], "readOnly": false, "hidden": true},
+  },
   contacts: {
     "tipo_de_cliente": {"type": "enumeration", "fieldType": "radio", "options": [{"label": "Instalador AAA", "value": "Instalador AAA", "displayOrder": 0, "hidden": true}, {"label": "Instalador", "value": "Instalador", "displayOrder": 1, "hidden": false}, {"label": "Arquitecto", "value": "Arquitecto", "displayOrder": 2, "hidden": false}, {"label": "Desarrollador", "value": "Desarrollador", "displayOrder": 3, "hidden": false}, {"label": "Cliente Final", "value": "Cliente Final", "displayOrder": 4, "hidden": false}, {"label": "Fabricante de Ventanas", "value": "Fabricante de Ventanas", "displayOrder": 5, "hidden": true}, {"label": "Proveedor", "value": "Proveedor", "displayOrder": 6, "hidden": false}, {"label": "Gerencia de Proyecto", "value": "Gerencia de Proyecto", "displayOrder": 7, "hidden": false}, {"label": "Ingeniero", "value": "Ingeniero", "displayOrder": 8, "hidden": true}, {"label": "Asesor de ventas", "value": "Vendedor", "displayOrder": 9, "hidden": true}, {"label": "Maquilador ", "value": "Maquilador", "displayOrder": 10, "hidden": true}, {"label": "Mobiliario ", "value": "Mobiliario", "displayOrder": 11, "hidden": true}, {"label": "Herrero", "value": "Herrero", "displayOrder": 12, "hidden": true}, {"label": "Contratista", "value": "Contratista", "displayOrder": 13, "hidden": false}, {"label": "Transporte", "value": "Transporte", "description": "", "displayOrder": 14, "hidden": true}], "readOnly": false},
     "contacto_con_negocio_en_cierre_ganado": {"type": "enumeration", "fieldType": "booleancheckbox", "options": [{"label": "Sí", "value": "true", "displayOrder": 0, "hidden": false}, {"label": "No", "value": "false", "displayOrder": 1, "hidden": false}], "readOnly": false},

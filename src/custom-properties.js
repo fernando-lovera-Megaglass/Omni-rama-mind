@@ -68,4 +68,15 @@ export const SEED_DEAL_PROPERTIES = [
   ['fuente_origen', 'Fuente de origen', 'text'],
   ['informacion_del_proyecto', 'Información del proyecto', 'text'],
 ].map(([key, label, kind]) => ({ key, label, kind, group: SEED_GROUP, desc: '', visible: false, archived: false }));
-export const SEED_BY_TYPE = { contacts: SEED_CONTACT_PROPERTIES, companies: SEED_COMPANY_PROPERTIES, deals: SEED_DEAL_PROPERTIES };
+// The account's 4 real custom ticket properties (HubSpot GET /crm/v3/properties/tickets, hubspotDefined = false;
+// snapshot in scripts/hubspot-ticket-properties.snapshot.json; supabase/custom-properties-tickets.sql). All in
+// HubSpot's «Información del ticket» group. «Vendedor solicitante» is a dropdown that has no options in the
+// account yet, so Omni offers the sellers; the two «Source Incoming …» ones are hidden technical fields there.
+export const SEED_TICKET_GROUP = 'Información del ticket';
+export const SEED_TICKET_PROPERTIES = [
+  ['municipio', 'Municipio', 'text', '', undefined],
+  ['source_incoming_expired', 'Source Incoming Expired', 'number', 'Source Incoming Expired · oculta en HubSpot (la rellena el canal de entrada).', undefined],
+  ['source_incoming_phone', 'Source Incoming Phone', 'text', 'Source Incoming Phone · oculta en HubSpot (la rellena el canal de entrada).', undefined],
+  ['vendedor_solicitante', 'Vendedor solicitante', 'enum', 'Vendedor que pidió la cotización. Se deja vacío cuando el lead entra por página web u otro canal sin vendedor asignado. (La lista no tiene opciones en HubSpot; aquí se ofrecen los vendedores de la cuenta.)', ['Fernando L.', 'Sofía R.', 'Diego G.', 'Laura M.']],
+].map(([key, label, kind, desc, options]) => ({ key, label, kind, options, group: SEED_TICKET_GROUP, desc, visible: false, archived: false }));
+export const SEED_BY_TYPE = { contacts: SEED_CONTACT_PROPERTIES, companies: SEED_COMPANY_PROPERTIES, deals: SEED_DEAL_PROPERTIES, tickets: SEED_TICKET_PROPERTIES };

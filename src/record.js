@@ -113,6 +113,9 @@ const CONFIG = {
       ['description', 'Descripción', 'textarea'], ['pipeline', 'Pipeline', 'select', opt(ticketPipelines())], ['created', 'Fecha de creación', 'date-ro'],
     ],
     highlights: (r) => [['Fecha de creación', formatDate(r.created)], ['Estado', ticketStatusLabel(r.pipeline, r.status)], ['Prioridad', labelOf(PRIORITIES, r.priority)], ['Última actividad', formatDate(r.lastActivity)]],
+    // The account's real custom ticket properties shown on the «Acerca de» card by default (the two hidden
+    // «Source Incoming …» ones stay in «Ver todas las propiedades»).
+    cardExtra: ['municipio', 'vendedor_solicitante'],
     stages: true,
     // Contacts and companies (a ticket gets the primary company of its contact automatically).
     assoc: (r) => [
@@ -526,7 +529,7 @@ function fieldFor(key) {
   if (key === 'description' || key === 'message') return [key, p.label, 'textarea'];
   return [key, p.label, 'text'];
 }
-const defaultCardKeys = () => cfg.fields.map((f) => f[0]);
+const defaultCardKeys = () => [...cfg.fields.map((f) => f[0]), ...(cfg.cardExtra || []).filter((k) => props[k])];
 function currentFields() {
   const saved = loadCard();
   const keys = saved && Array.isArray(saved.keys) && saved.keys.length ? saved.keys : defaultCardKeys();

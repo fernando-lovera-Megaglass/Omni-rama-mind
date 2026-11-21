@@ -17,7 +17,9 @@ for (const [key, meta] of Object.entries(metadata)) {
 const data = await import('../src/data.js');
 const sample = type === 'contacts'
   ? { satisfaccion_profesionalismo_instalador: '5', producto: 'Laminated Glass;Tempered Glass' }
-  : { metros_cuadrados: 125, tag: 'Vidrio Templado;Vidrio laminado' };
+  : type === 'tickets'
+    ? { municipio: 'Monterrey', source_incoming_phone: '+52 81 1234 5678' }
+    : { metros_cuadrados: 125, tag: 'Vidrio Templado;Vidrio laminado' };
 Object.assign(data.findRecord(type, 3), sample);
 await import('../src/record.js');
 document.querySelector('[data-act="all-props-panel"]').click();
@@ -27,7 +29,7 @@ for (const key of Object.keys(metadata)) {
  assert.ok(row, `Missing row: ${key}`);
  assert.equal(row.querySelector('dt').textContent, catalog[key].label);
 }
-const expected = type === 'contacts' ? 'Excelente' : '125';
+const expected = type === 'contacts' ? 'Excelente' : type === 'tickets' ? 'Monterrey' : '125';
 assert.ok(document.getElementById('allprops-groups').textContent.includes(expected));
 const search = document.getElementById('allprops-q');
 search.value = Object.keys(sample)[0];

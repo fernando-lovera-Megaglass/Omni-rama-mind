@@ -1,0 +1,59 @@
+{
+  "object": "tickets",
+  "fetchedAt": "2026-11-21T18:03:06.496Z",
+  "total": 214,
+  "properties": [
+    {
+      "name": "municipio",
+      "label": "Municipio",
+      "groupName": "ticketinformation",
+      "type": "string",
+      "fieldType": "text",
+      "description": "",
+      "hubspotDefined": false,
+      "hidden": false,
+      "archived": false,
+      "createdAt": "2021-03-11T15:40:35.537Z",
+      "options": []
+    },
+    {
+      "name": "source_incoming_expired",
+      "label": "Source Incoming Expired",
+      "groupName": "ticketinformation",
+      "type": "number",
+      "fieldType": "number",
+      "description": "Source Incoming Expired",
+      "hubspotDefined": false,
+      "hidden": true,
+      "archived": false,
+      "createdAt": "2020-11-18T22:07:31.628Z",
+      "options": []
+    },
+    {
+      "name": "source_incoming_phone",
+      "label": "Source Incoming Phone",
+      "groupName": "ticketinformation",
+      "type": "string",
+      "fieldType": "text",
+      "description": "Source Incoming Phone",
+      "hubspotDefined": false,
+      "hidden": true,
+      "archived": false,
+      "createdAt": "2020-11-18T22:07:31.332Z",
+      "options": []
+    },
+    {
+      "name": "vendedor_solicitante",
+      "label": "Vendedor solicitante",
+      "groupName": "ticketinformation",
+      "type": "enumeration",
+      "fieldType": "select",
+      "description": "Vendedor que pidio la cotizacion. Se deja vacio cuando el lead entra por pagina web u otro canal sin vendedor asignado.",
+      "hubspotDefined": false,
+      "hidden": false,
+      "archived": false,
+      "createdAt": "2026-09-18T01:07:19.068Z",
+      "options": []
+    }
+  ]
+}

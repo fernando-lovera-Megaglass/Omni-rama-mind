@@ -50,7 +50,7 @@ function render() {
   const allChecked = pageIds.length > 0 && pageIds.every((id) => state.selected.has(id));
   root.innerHTML = `
     <div class="seg__head">
-      <div><h1>Segmentos</h1><p class="seg__count">${num(all.length)} segmento${all.length === 1 ? '' : 's'}</p></div>
+      <h1 class="page-title page-title--with-count">Segmentos <span class="seg__count">${num(all.length)} segmento${all.length === 1 ? '' : 's'}</span></h1>
       <div class="seg__actions">
         <div class="menu"><button class="btn btn--ghost btn--pillx" type="button" aria-haspopup="true" aria-expanded="false">Configuración de administración <span class="caret"></span></button><div class="menu__panel menu__panel--right"><button class="menu__item" type="button" data-act="folders">Carpetas</button><button class="menu__item" type="button" data-act="limits">Límites de segmentos</button><button class="menu__item" type="button" data-act="permissions">Permisos de segmentos</button></div></div>
         <a class="btn btn--ghost btn--pillx" href="../data/?from=contacts">Importación</a>

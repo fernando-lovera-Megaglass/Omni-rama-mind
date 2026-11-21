@@ -2302,15 +2302,10 @@ h1 {
   margin-bottom: var(--sp-16);
 }
 
-.seg__head h1 {
-  margin: 0;
-  font-size: 24px;
-  font-weight: 500;
-}
-
 .seg__count {
-  margin: 2px 0 0;
-  font-weight: 600;
+  font-size: var(--fs-sm);
+  font-weight: 400;
+  color: var(--c-muted);
 }
 
 .seg__actions {
