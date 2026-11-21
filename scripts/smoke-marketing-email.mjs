@@ -157,10 +157,11 @@ if (!/Boletín de prueba automatizada/.test(JSON.parse(mem['crm:marketing_emails
 // preview and test send
 click(document.querySelector('[data-mk="preview"]'));
 log('preview:', Boolean($('mk-modal').querySelector('iframe.mk-preview')), '| test form:', Boolean($('mk-test')));
-$('mk-test').elements.to.value = 'prueba@megaglass.us';
+const testContact = data.allContacts().find(c => c.email);
+$('mk-test').elements.to.value = testContact.email;
 $('mk-test').dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true }));
-log('test send toast:', text($('toast')));
-if (!/prueba enviado a prueba@megaglass.us/.test(text($('toast')))) fail('test send');
+const testHtml = $('mk-modal').querySelector('iframe').getAttribute('srcdoc');
+if (!testHtml.includes(`c=${testContact.id}&amp;e=${current().id}`) || testHtml.includes('#unsubscribe')) fail('personalized test preferences link');
 click($('mk-modal').querySelector('[data-bm="close"]'));
 
 // 4) Revisar y enviar

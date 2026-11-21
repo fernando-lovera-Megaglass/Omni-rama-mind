@@ -46,6 +46,16 @@ data.setField('contacts', contact.id, 'marketingOptOut', 'No');
 assert.equal(marketing.recipientsOf(email).length, before);
 marketing.sendEmail(email.id);
 assert.equal(countMail(), 1);
+// A preference saved by another tab must invalidate the already-read audience.
+const overridesKey = 'crm:contacts:overrides';
+const overrides = JSON.parse(localStorage.getItem(overridesKey) || '{}');
+overrides[contact.id] = { ...overrides[contact.id], marketingOptOut: 'Sí' };
+localStorage.setItem(overridesKey, JSON.stringify(overrides));
+window.dispatchEvent(new dom.window.StorageEvent('storage', { key: overridesKey }));
+assert.equal(marketing.recipientsOf(email).length, before - 1);
+assert.match(document.querySelector('strong').textContent, /Dado de baja/);
+submit();
+assert.equal(marketing.recipientsOf(email).length, before);
 assert.ok(data.activitiesFor('contacts', contact.id).some(a => a.text === 'Se dio de baja de los correos de marketing'));
 let expression;
 applyConditions({ or(v) { expression = v; return this; } }, 'contacts', [{ key: 'marketingOptOut', op: 'anyof', value: 'No' }]);
