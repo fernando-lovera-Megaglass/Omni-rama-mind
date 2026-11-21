@@ -3,6 +3,7 @@
 // (Configuración de la etiqueta → Filtros → Revisión) that creates or edits a tag. The tags themselves and the
 // evaluation engine live in src/deal-tags.js.
 import { toast, wireMenus, closeMenus } from './shell.js';
+import { pagination, bindPagination } from './pagination.js';
 import { dealPipelineDefs } from './data.js';
 import { createFilterEditor } from './filter-editor.js';
 import { ready, dealTags, tagById, createTag, updateTag, deleteTag, moveTag, tagsForPipeline, pipelineAssignment, pipelineNamesOf, usage, tagChipHtml, describeCondition, filterGroups, PRESETS, presetByKey, PALETTE, EMOJIS, MAX_TAGS } from './deal-tags.js';
@@ -29,7 +30,7 @@ export function dealTagsPaneHtml() {
     <table class="mini-table stable dtags__table"><thead><tr><th></th><th>Nombre</th><th>Asignación de pipelines</th><th class="num">Acciones</th></tr></thead><tbody id="dtags-rows">
       ${list.length ? list.map((t, i) => `<tr data-tag="${esc(t.id)}"><td class="dtags__handle"><span class="pmoves"><button type="button" class="icon-btn icon-btn--sm" data-dt="move" data-dir="-1" data-id="${esc(t.id)}" ${i === 0 && ui.page === 1 ? 'disabled' : ''} aria-label="Subir">↑</button><button type="button" class="icon-btn icon-btn--sm" data-dt="move" data-dir="1" data-id="${esc(t.id)}" ${i === list.length - 1 && ui.page === pages ? 'disabled' : ''} aria-label="Bajar">↓</button></span></td><td><div class="dtags__name">${swatch(t)}<div><strong>${esc(t.name)}</strong>${t.description ? `<div class="muted">${esc(t.description)}</div>` : ''}</div></div></td><td>${esc(pipelineAssignment(t))}</td><td class="num"><button class="link-btn" type="button" data-dt="edit" data-id="${esc(t.id)}">Editar</button> <button class="link-btn dtags__danger" type="button" data-dt="remove" data-id="${esc(t.id)}">Eliminar</button></td></tr>`).join('') : `<tr><td colspan="4"><div class="tpls__empty">${ui.pipeline ? 'Ninguna etiqueta se aplica a este pipeline.' : 'Todavía no hay etiquetas de negocio. Crea la primera con «Crear etiqueta».'}</div></td></tr>`}
     </tbody></table>
-    <div class="dtags__pager"><button class="link-btn" type="button" data-dt="page" data-page="${ui.page - 1}" ${ui.page <= 1 ? 'disabled' : ''}>‹ Anterior</button><span class="dtags__pagenum">${ui.page}</span><button class="link-btn" type="button" data-dt="page" data-page="${ui.page + 1}" ${ui.page >= pages ? 'disabled' : ''}>Siguiente ›</button><select id="dtags-size" aria-label="Por página">${[10, 25, 50].map((n) => `<option value="${n}" ${ui.size === n ? 'selected' : ''}>${n} por página</option>`).join('')}</select></div>
+    <div class="spager" data-pager="dtags">${pagination({ page: ui.page, pages, size: ui.size, sizes: [10, 25, 50, 100] })}</div>
   </div>`;
 }
 // Inside a pipeline's editor: the tags that apply to it.
@@ -44,7 +45,11 @@ export function pipelineTagsHtml(pipeline) {
 let rerenderPane = null;
 export function mountDealTags(container, { rerender } = {}) {
   if (!container) return;
-  rerenderPane = rerender || (() => { const tmp = document.createElement('div'); tmp.innerHTML = container.classList.contains('dtags--pipe') ? container.innerHTML : dealTagsPaneHtml(); if (!container.classList.contains('dtags--pipe')) container.innerHTML = tmp.firstElementChild.innerHTML; wireMenus(container); });
+  // Shared pager (src/pagination.js): page and size live in `ui`; it is re-bound after every render of the pane.
+  const bindPager = () => bindPagination(container, ({ page, size }) => { ui.page = page; if (size) ui.size = size; closeMenus(); rerenderPane(); });
+  const base = rerender || (() => { const tmp = document.createElement('div'); tmp.innerHTML = container.classList.contains('dtags--pipe') ? container.innerHTML : dealTagsPaneHtml(); if (!container.classList.contains('dtags--pipe')) container.innerHTML = tmp.firstElementChild.innerHTML; wireMenus(container); });
+  rerenderPane = () => { base(); if (container.isConnected) bindPager(); };
+  bindPager();
   if (!container.dataset.dtWired) {
     container.dataset.dtWired = '1';
     container.addEventListener('click', (e) => {
@@ -55,10 +60,10 @@ export function mountDealTags(container, { rerender } = {}) {
       if (a === 'preset') openDealTagWizard({ preset: b.dataset.preset });
       else if (a === 'new') openDealTagWizard({ pipelineId: b.dataset.pipeline || '' });
       else if (a === 'edit') openDealTagWizard({ tagId: b.dataset.id });
-      else if (a === 'remove') { const t = tagById(b.dataset.id); if (!t) return; openModal('Eliminar etiqueta', `<p>¿Seguro que quieres eliminar la etiqueta <strong>${esc(t.name)}</strong>? Dejará de mostrarse en los negocios que la cumplen.</p>`, `<button class="btn btn--primary tpls__danger" type="button" data-dtm="confirm-remove" data-id="${esc(t.id)}">Eliminar</button><button class="btn btn--secondary" type="button" data-bm="close">Cancelar</button>`, { onAction: (act) => { if (act === 'confirm-remove') { deleteTag(t.id); closeModal(); rerenderPane(); toast(`Etiqueta «${t.name}» eliminada`); } } }); } else if (a === 'move') { moveTag(b.dataset.id, Number(b.dataset.dir)); rerenderPane(); } else if (a === 'page') { ui.page = Math.max(1, Number(b.dataset.page) || 1); rerenderPane(); } else if (a === 'usage') openUsage();
+      else if (a === 'remove') { const t = tagById(b.dataset.id); if (!t) return; openModal('Eliminar etiqueta', `<p>¿Seguro que quieres eliminar la etiqueta <strong>${esc(t.name)}</strong>? Dejará de mostrarse en los negocios que la cumplen.</p>`, `<button class="btn btn--primary tpls__danger" type="button" data-dtm="confirm-remove" data-id="${esc(t.id)}">Eliminar</button><button class="btn btn--secondary" type="button" data-bm="close">Cancelar</button>`, { onAction: (act) => { if (act === 'confirm-remove') { deleteTag(t.id); closeModal(); rerenderPane(); toast(`Etiqueta «${t.name}» eliminada`); } } }); } else if (a === 'move') { moveTag(b.dataset.id, Number(b.dataset.dir)); rerenderPane(); } else if (a === 'usage') openUsage();
     });
     container.addEventListener('change', (e) => {
-      if (e.target.id === 'dtags-pipeline') { ui.pipeline = e.target.value; ui.page = 1; rerenderPane(); } else if (e.target.id === 'dtags-size') { ui.size = Number(e.target.value) || 10; ui.page = 1; rerenderPane(); }
+      if (e.target.id === 'dtags-pipeline') { ui.pipeline = e.target.value; ui.page = 1; rerenderPane(); }
     });
     document.addEventListener('crm:deal-tags', () => { if (container.isConnected) rerenderPane(); });
   }

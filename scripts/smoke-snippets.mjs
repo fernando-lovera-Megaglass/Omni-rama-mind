@@ -52,7 +52,9 @@ const heads = [...document.querySelectorAll('.tpls__table thead th button')].map
 if (!q('[data-ta="new-folder"]') || text(q('[data-ta="new"]')) !== 'Crear fragmento' || !q('[data-ta="new"]').classList.contains('btn--green')) fail('header buttons');
 if (q('#snp-q').placeholder !== 'Buscar' || $('snp-owner').value !== '' || !q('filter-chip#snp-owner[owner] .caret') || q('.tpls__filters select') || !text(q('#snp-owner [data-value=""]')).startsWith('Cualquiera')) fail('search / owner filter');
 if (!rows()[0].querySelector('[data-act="clone"]') || !rows()[0].querySelector('[data-act="move"]') || !rows()[0].querySelector('[data-act="delete"]') || rows()[0].querySelector('[data-act="share"]')) fail('row actions');
-if (!q('[data-page="prev"]') || !q('[data-page="next"]') || q('[data-page="first"]')) fail('pager should be Anterior / páginas / Siguiente');
+// shared pager (src/pagination.js): Anterior / numbers / Siguiente and the «N por página» menu, no native select
+if (!q('#snp-pager .pager .pager__btn[data-pagination-page]') || !q('#snp-pager .pager__num.is-active[aria-current="page"]') || q('#snp-pager select') || q('#snp-size') || q('#snp-pager [aria-current="false"]')) fail('pager should be the shared pagination component');
+if ([...document.querySelectorAll('#snp-pager [data-pagination-size]')].map((b) => b.dataset.paginationSize).join(',') !== '10,25,50,100' || !text(q('#snp-pager .pager__sizemenu > button')).startsWith('10 por página')) fail('size menu must offer 10/25/50/100 and start at 10');
 if (!rows().some((r) => text(r).includes('#horario'))) fail('shortcut not shown');
 log('list loads: 3 seeded snippets, counter, columns, actions, pager');
 
@@ -169,15 +171,16 @@ click(q('[data-ta="bulk-delete"]'));
 click(q('[data-se="confirm-delete"]'));
 if (S.snippetById(created.id) || text($('snp-count')) !== '3 creados') fail('bulk delete');
 for (let i = 1; i <= 12; i += 1) S.createSnippet({ name: `Masivo ${i}`, body: '<p>x</p>', shortcut: `masivo${i}` });
-change($('snp-size'), '10');
-if (rows().length !== 10 || q('[data-page="next"]').disabled) fail('pagination page 1');
-click(q('[data-page="next"]'));
-if (rows().length !== 5 || !q('[data-page="2"]').classList.contains('is-active') || !q('[data-page="next"]').disabled) fail('pagination page 2');
-click(q('[data-page="prev"]'));
+const pagerBtn = (label) => [...document.querySelectorAll('#snp-pager .pager__btn')].find((b) => text(b).includes(label));
+click(q('#snp-pager [data-pagination-size="10"]'));
+if (rows().length !== 10 || pagerBtn('Siguiente').disabled) fail('pagination page 1');
+click(pagerBtn('Siguiente'));
+if (rows().length !== 5 || !q('#snp-pager [data-pagination-page="2"]').classList.contains('is-active') || !pagerBtn('Siguiente').disabled) fail('pagination page 2');
+click(pagerBtn('Anterior'));
 if (rows().length !== 10) fail('Anterior');
 S.deleteSnippets(S.snippets().filter((s) => s.name.startsWith('Masivo')).map((s) => s.id));
-change($('snp-size'), '25');
-if (rows().length !== 3) fail('cleanup');
+click(q('#snp-pager [data-pagination-size="25"]'));
+if (rows().length !== 3 || !text(q('#snp-pager .pager__sizemenu > button')).startsWith('25 por página')) fail('cleanup');
 log('folders, move, search, owner filter, sort, multi-select, pagination Anterior/Siguiente');
 
 // 8) "#atajo" autocomplete in the e-mail composer (rich text) + Insertar menu + tokens resolved on send

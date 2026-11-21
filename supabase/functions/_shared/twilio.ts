@@ -8,7 +8,8 @@ export { handle, userFromRequest, serviceClient, json, fail, env, requireEnv, Co
 export class TwilioError extends Error {
   code: string;
   status: number;
-  constructor(message: string, code = 'twilio', status = 502) { super(message); this.code = code; this.status = status; }
+  twilioCode?: string;
+  constructor(message: string, code = 'twilio', status = 502, twilioCode?: string) { super(message); this.code = code; this.status = status; this.twilioCode = twilioCode; }
 }
 
 const API = 'https://api.twilio.com/2010-04-01';
@@ -37,10 +38,11 @@ export async function twilio(sid: string, token: string, path: string, init: { m
   let body: Record<string, unknown> = {};
   try { body = await res.json(); } catch { /* empty body */ }
   if (!res.ok) {
+    const apiCode = body.code == null ? undefined : String(body.code);
     const msg = (body.message as string) || `Twilio respondió ${res.status}`;
-    if (res.status === 401) throw new TwilioError('El Account SID o el Auth Token no son válidos. Revísalos en la consola de Twilio.', 'auth', 400);
-    if (res.status === 404) throw new TwilioError('No encontré eso en tu cuenta de Twilio. Revisa el Account SID.', 'not_found', 400);
-    throw new TwilioError(msg, 'api', 502);
+    if (res.status === 401) throw new TwilioError('El Account SID o el Auth Token no son válidos. Revísalos en la consola de Twilio.', 'auth', 400, apiCode);
+    if (res.status === 404) throw new TwilioError('No encontré eso en tu cuenta de Twilio. Revisa el Account SID.', 'not_found', 400, apiCode);
+    throw new TwilioError(msg, 'api', 502, apiCode);
   }
   return body;
 }

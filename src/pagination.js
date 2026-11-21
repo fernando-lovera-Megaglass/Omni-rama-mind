@@ -1,7 +1,11 @@
 // Shared table pagination. Menus are wired by the caller with wireMenus.
-export function pagination({ page = 1, pages = 1, size = 25 } = {}) {
+// `sizes` lists the «N por página» options (default 25/50/100); the current size is always offered, so a module
+// whose initial size is 10 (Fragmentos, Ajustes, Etiquetas de negocio) keeps it.
+export const DEFAULT_SIZES = [25, 50, 100];
+export function pagination({ page = 1, pages = 1, size = 25, sizes = DEFAULT_SIZES } = {}) {
   pages = Math.max(1, pages);
   page = Math.max(1, Math.min(page, pages));
+  const options = [...new Set([...sizes, size].map(Number).filter((n) => n > 0))].sort((a, b) => a - b);
   const numbers = new Set([1, pages]);
   for (let n = Math.max(1, page - 4); n <= Math.min(pages, page + 4); n++) numbers.add(n);
   if (pages <= 11) for (let n = 1; n <= pages; n++) numbers.add(n);
@@ -18,7 +22,7 @@ export function pagination({ page = 1, pages = 1, size = 25 } = {}) {
     <div class="menu pager__sizemenu">
       <button class="pager__btn" type="button" aria-haspopup="menu" aria-expanded="false">${size} por página <span class="caret"></span></button>
       <div class="menu__panel menu__panel--up" role="menu" aria-label="Registros por página">
-        ${[25, 50, 100].map((n) => `<button class="menu__item" type="button" role="menuitemradio" aria-checked="${n === size}" data-pagination-size="${n}">${n} por página</button>`).join('')}
+        ${options.map((n) => `<button class="menu__item" type="button" role="menuitemradio" aria-checked="${n === size}" data-pagination-size="${n}">${n} por página</button>`).join('')}
       </div>
     </div>
   </nav>`;

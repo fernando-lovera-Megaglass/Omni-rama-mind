@@ -5,6 +5,7 @@ import { boot } from './page.js';
 import './filter-chip.js';
 import { toast, wireMenus, closeMenus } from './shell.js';
 import { ACT_ICONS } from './action-icons.js';
+import { pagination, bindPagination } from './pagination.js';
 import { ownerHtml } from './owner.js';
 import { relativeTimeFine, formatDate } from './data.js';
 import { ready, snippets, snippetById, folders, owners, createSnippet, updateSnippet, cloneSnippet, deleteSnippets, moveSnippets, createFolder, validateShortcut, bodyText, ME } from './snippets-data.js';
@@ -102,15 +103,9 @@ function renderTable() {
     </table>`;
   const n = state.selected.size;
   $('snp-bulk').innerHTML = n ? `<span>${plural(n, 'seleccionado', 'seleccionados')}</span><button class="btn btn--secondary btn--sm" type="button" data-ta="bulk-move">Mover</button><button class="btn btn--secondary btn--sm" type="button" data-ta="bulk-delete">Eliminar</button>` : '';
-  const num = (p) => `<button class="pager__num${p === state.page ? ' is-active' : ''}" type="button" data-page="${p}" aria-current="${p === state.page ? 'page' : 'false'}">${p}</button>`;
-  const first = Math.max(1, Math.min(state.page - 2, pages - 4));
-  const nums = Array.from({ length: Math.min(5, pages) }, (_, i) => first + i);
-  $('snp-pager').innerHTML = `<nav class="pager" aria-label="Paginación">
-    <button class="pager__btn" type="button" data-page="prev" ${state.page === 1 ? 'disabled' : ''}>‹ Anterior</button>
-    ${nums.map(num).join('')}
-    <button class="pager__btn" type="button" data-page="next" ${state.page === pages ? 'disabled' : ''}>Siguiente ›</button>
-    <label class="pager__size">Por página <select id="snp-size" aria-label="Fragmentos por página">${[10, 25, 50].map((s) => `<option value="${s}" ${s === state.pageSize ? 'selected' : ''}>${s}</option>`).join('')}</select></label>
-  </nav>`;
+  // Shared pager (src/pagination.js): numbers with ellipsis and the «N por página» menu; 10 stays the initial size.
+  $('snp-pager').innerHTML = pagination({ page: state.page, pages, size: state.pageSize, sizes: [10, 25, 50, 100] });
+  bindPagination($('snp-pager'), ({ page: p, size }) => { state.page = p; if (size) state.pageSize = size; closeMenus(); renderTable(); });
   wireMenus(page);
 }
 
@@ -261,14 +256,6 @@ page.addEventListener('click', (e) => {
   if (open) { e.preventDefault(); openEditor(open.dataset.open); return; }
   const sort = e.target.closest('[data-sort]');
   if (sort) { const k = sort.dataset.sort; if (state.sort.key === k) state.sort.dir *= -1; else state.sort = { key: k, dir: k === 'name' || k === 'ownerId' ? 1 : -1 }; renderTable(); return; }
-  const pg = e.target.closest('[data-page]');
-  if (pg && !pg.disabled) {
-    const pages = Math.max(1, Math.ceil(visible().length / state.pageSize));
-    const v = pg.dataset.page;
-    state.page = v === 'prev' ? Math.max(1, state.page - 1) : v === 'next' ? Math.min(pages, state.page + 1) : Number(v);
-    renderTable();
-    return;
-  }
   const folder = e.target.closest('[data-folder]');
   if (folder) { state.folder = folder.dataset.folder === '*' ? null : folder.dataset.folder; state.page = 1; state.selected.clear(); renderTable(); return; }
   const act = e.target.closest('[data-act]');
@@ -290,7 +277,7 @@ page.addEventListener('click', (e) => {
 page.addEventListener('input', (e) => { if (e.target.id === 'snp-q') { state.q = e.target.value; state.page = 1; renderTable(); } });
 page.addEventListener('change', (e) => {
   const t = e.target;
-  if (t.id === 'snp-owner') { state.owner = t.value; state.page = 1; renderTable(); } else if (t.id === 'snp-size') { state.pageSize = Number(t.value); state.page = 1; renderTable(); } else if (t.id === 'snp-check-all') {
+  if (t.id === 'snp-owner') { state.owner = t.value; state.page = 1; renderTable(); } else if (t.id === 'snp-check-all') {
     const ids = [...page.querySelectorAll('#snp-rows tr[data-id]')].map((r) => r.dataset.id);
     ids.forEach((id) => (t.checked ? state.selected.add(id) : state.selected.delete(id)));
     renderTable();

@@ -23,6 +23,9 @@ verify_jwt = false
 [functions.twilio-inbound]
 verify_jwt = false
 
+[functions.twilio-message-status]
+verify_jwt = false
+
 [functions.twilio-call-status]
 verify_jwt = false
 

@@ -948,10 +948,12 @@
     },
     {
       "id": "gap-backend-sms-queued-eterno",
-      "status": "pending",
+      "status": "done",
       "lane": "codex",
       "createdAt": "2026-11-21T00:47:00-06:00",
-      "instruction": "COMUNICACIONES (MEDIA-ALTA). Los SMS salientes se quedan en 'queued' para siempre: twilio_messages solo tiene 2 filas y ambas siguen en status 'queued' — una de 2026-11-17 17:45 UTC (4 días) y otra de 2026-11-20 21:26 UTC (9 h). Un SMS real pasa a sent/delivered en segundos, así que o el envío falla silenciosamente después de insertar el registro, o nadie actualiza el estado (no existe webhook de status para SMS salientes: sms_url del número apunta a twilio-inbound, que es para entrantes). Revisar supabase/functions/twilio-send/index.ts: (1) capturar el error de la API de Twilio y marcar el mensaje 'failed' con el código de error en vez de dejarlo 'queued'; (2) pasar statusCallback apuntando a una función (nueva twilio-message-status o reutilizar twilio-inbound si aplica) que actualice twilio_messages.status a sent/delivered/failed/undelivered; (3) al crear el registro, guardar el message_sid para poder reconciliar. Criterio de aceptación: enviar un SMS de prueba deja la fila en 'sent'/'delivered' (o 'failed' con causa) en menos de 1 minuto sin intervención manual. No despliegues nada a producción; solo código local."
+      "instruction": "COMUNICACIONES (MEDIA-ALTA). Los SMS salientes se quedan en 'queued' para siempre: twilio_messages solo tiene 2 filas y ambas siguen en status 'queued' — una de 2026-11-17 17:45 UTC (4 días) y otra de 2026-11-20 21:26 UTC (9 h). Un SMS real pasa a sent/delivered en segundos, así que o el envío falla silenciosamente después de insertar el registro, o nadie actualiza el estado (no existe webhook de status para SMS salientes: sms_url del número apunta a twilio-inbound, que es para entrantes). Revisar supabase/functions/twilio-send/index.ts: (1) capturar el error de la API de Twilio y marcar el mensaje 'failed' con el código de error en vez de dejarlo 'queued'; (2) pasar statusCallback apuntando a una función (nueva twilio-message-status o reutilizar twilio-inbound si aplica) que actualice twilio_messages.status a sent/delivered/failed/undelivered; (3) al crear el registro, guardar el message_sid para poder reconciliar. Criterio de aceptación: enviar un SMS de prueba deja la fila en 'sent'/'delivered' (o 'failed' con causa) en menos de 1 minuto sin intervención manual. No despliegues nada a producción; solo código local.",
+      "completedAt": "2026-11-21T14:37:19-0600",
+      "completedBy": "codex"
     },
     {
       "id": "gap-ui-secuencias-exclusion-respuesta",

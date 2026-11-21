@@ -8,6 +8,7 @@ import { mountMfaSettings, ssoUnavailable } from './mfa-settings.js';
 // Account settings (the gear in the top bar): a full settings tree with a pane per section.
 import { boot } from './page.js';
 import { toast, wireMenus, closeMenus } from './shell.js';
+import { pagination, bindPagination } from './pagination.js';
 import { ownerHtml, ownerAvatarHtml } from './owner.js';
 import { avatarFor, ME_KEY, saveAvatar, removeAvatar, keysForPerson, gravatarUrl, imageExists } from './avatars.js';
 import { openAvatarCropper } from './avatar-crop.js';
@@ -358,7 +359,7 @@ function usersDirectoryHtml() {
           <button class="menu__item menu__item--danger" type="button" data-uact="rm" data-i="${u.i}" ${u.role === 'Superadministrador' && all.filter((x) => x.role === 'Superadministrador').length < 2 ? 'disabled' : ''}>Eliminar usuario</button>
         </div></div></td></tr>`).join('') : '<tr><td colspan="8" class="muted">No hay usuarios que coincidan con los filtros.</td></tr>'}
     </tbody></table>
-    <div class="ppager"><span></span><nav class="ppager__nav" aria-label="Páginas"><button class="link-btn" type="button" data-upage="${state.uPage - 1}" ${state.uPage <= 1 ? 'disabled' : ''}>‹ Anterior</button>${Array.from({ length: pages }, (_, i) => i + 1).map((n) => `<button class="ppager__num${n === state.uPage ? ' is-active' : ''}" type="button" data-upage="${n}">${n}</button>`).join('')}<button class="link-btn" type="button" data-upage="${state.uPage + 1}" ${state.uPage >= pages ? 'disabled' : ''}>Siguiente ›</button></nav><div class="menu"><button class="qchip" type="button" aria-haspopup="true" aria-expanded="false">${state.uSize} por página <span class="caret"></span></button><div class="menu__panel menu__panel--right">${[10, 25, 50].map((n) => `<button class="menu__item${state.uSize === n ? ' is-current' : ''}" type="button" data-usize="${n}">${n} por página</button>`).join('')}</div></div></div>`;
+    <div class="spager" data-pager="users">${pagination({ page: state.uPage, pages, size: state.uSize, sizes: [10, 25, 50, 100] })}</div>`;
 }
 function seatsTabHtml() {
   const all = userRows();
@@ -608,11 +609,7 @@ function paneProperties() {
       <table class="mini-table stable proptable"><thead><tr><th class="pcheck"><input type="checkbox" data-props-check-all ${page.length && page.every((p) => state.propsSel.has(p.key)) ? 'checked' : ''} aria-label="Seleccionar todo" /></th>${sortTh('label', 'Nombre')}${sortTh('group', 'Grupo')}${sortTh('creator', 'Creado por')}${sortTh('used', 'Se usa en', 'num')}<th class="num">Tasa de completación</th><th></th></tr></thead><tbody>
         ${page.length ? page.map((p) => `<tr><td class="pcheck"><input type="checkbox" data-props-check="${esc(p.key)}" ${state.propsSel.has(p.key) ? 'checked' : ''} aria-label="Seleccionar ${esc(p.label)}" /></td><td><button class="olink" type="button" data-prop-${p.custom ? 'edit' : 'view'}="${esc(p.key)}">${esc(p.label)}</button><br /><span class="muted">${esc(KINDS[p.kind] || p.kind)}${p.system ? ' · Solo lectura (la rellena el sistema)' : ''}</span></td><td>${esc(p.group)}</td><td>${esc(p.creator)}</td><td class="num">${p.used ? `<a class="plink" href="../${type}/">${p.used}</a>` : '0'}</td><td class="num">${p.rate.toLocaleString('es-ES', { minimumFractionDigits: p.rate % 1 ? 2 : 0, maximumFractionDigits: 2 })}%</td><td class="num"><div class="menu"><button class="icon-btn icon-btn--sm rowact" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Acciones">⋮</button><div class="menu__panel menu__panel--right"><button class="menu__item" type="button" data-prop-view="${esc(p.key)}">Ver detalles</button>${p.custom ? `<button class="menu__item" type="button" data-prop-edit="${esc(p.key)}">Editar</button><button class="menu__item" type="button" data-prop-archive="${esc(p.key)}">Archivar</button><button class="menu__item menu__item--danger" type="button" data-prop-rm="${esc(p.key)}">Eliminar</button>` : `<button class="menu__item" type="button" data-copy="${esc(p.key)}">Copiar nombre interno</button>`}</div></div></td></tr>`).join('') : '<tr><td colspan="7" class="muted">No hay propiedades que coincidan.</td></tr>'}
       </tbody></table>
-      <div class="ppager">
-        <span></span>
-        <nav class="ppager__nav" aria-label="Páginas"><button class="link-btn" type="button" data-props-page="${state.propsPage - 1}" ${state.propsPage <= 1 ? 'disabled' : ''}>‹ Anterior</button>${Array.from({ length: pages }, (_, i) => i + 1).filter((n) => pages <= 12 || n <= 10 || n === pages || Math.abs(n - state.propsPage) < 2).map((n, i, arr) => `${i && arr[i - 1] !== n - 1 ? '<span class="muted">…</span>' : ''}<button class="ppager__num${n === state.propsPage ? ' is-active' : ''}" type="button" data-props-page="${n}">${n}</button>`).join('')}<button class="link-btn" type="button" data-props-page="${state.propsPage + 1}" ${state.propsPage >= pages ? 'disabled' : ''}>Siguiente ›</button></nav>
-        <div class="menu"><button class="qchip" type="button" aria-haspopup="true" aria-expanded="false">${state.propsSize} por página <span class="caret"></span></button><div class="menu__panel menu__panel--right">${[10, 25, 50, 100].map((n) => `<button class="menu__item${state.propsSize === n ? ' is-current' : ''}" type="button" data-props-size="${n}">${n} por página</button>`).join('')}</div></div>
-      </div>`;
+      <div class="spager" data-pager="props">${pagination({ page: state.propsPage, pages, size: state.propsSize, sizes: [10, 25, 50, 100] })}</div>`;
   } else if (state.propsTab === 'logic') {
     const rules = type === 'deals' ? dealPipelineDefs().flatMap((p) => Object.entries(p.logic || {}).filter(([, l]) => l.props && l.props.length).map(([k, l]) => ({ pipe: p.name, stage: labelOfStage(p, k), props: l.props }))) : [];
     body = `<div class="shead"><div><h3>Lógica condicional</h3><p class="muted">Muestra o exige propiedades según el valor de otra. Las reglas de las etapas de negocio se crean desde Objetos › Negocios › Pipelines.</p></div>${type === 'deals' ? '<a class="btn btn--primary" href="#obj-deals:pipelines">Crear regla de lógica</a>' : unavailableButton('Crear regla de lógica', 'btn btn--primary')}</div>
@@ -1102,7 +1099,7 @@ function lifecycleHtml(type) {
     </div>`;
 }
 // Record views ("Personalización de registros"): the default view plus team views.
-Object.assign(state, { rvQuery: '', rvSort: { key: 'name', dir: 1 }, rvSel: new Set() });
+Object.assign(state, { rvQuery: '', rvSort: { key: 'name', dir: 1 }, rvSel: new Set(), rvPage: 1, rvSize: 10 });
 const RV_DEFAULT_UPDATED = new Date(2026, 2, 23, 11, 23).toISOString();
 const RV_SEEDS = {
   deals: [{ name: 'Ventas Extranjero', teams: ['Ventas en el Extranjero'], updated: new Date(2026, 6, 10, 11, 13).toISOString(), by: 'Fernando Lovera Colin' }, { name: 'Vista de Acristala', teams: ['Acristala'], updated: new Date(2026, 6, 10, 11, 13).toISOString(), by: 'Fernando Lovera Colin' }, { name: 'Proyectos+ 100', teams: ['Proyectos'], updated: RV_DEFAULT_UPDATED, by: '' }],
@@ -1128,13 +1125,17 @@ function objectRecordHtml(type) {
   const { key, dir } = state.rvSort;
   const rows = all.filter((v) => !q || v.name.toLowerCase().includes(q)).sort((a, b) => (a.isDefault ? -1 : b.isDefault ? 1 : (key === 'updated' ? new Date(a.updated) - new Date(b.updated) : String(key === 'teams' ? a.teams.join() : a.name).localeCompare(String(key === 'teams' ? b.teams.join() : b.name), 'es')) * dir));
   const th = (k, label) => `<th><button class="psort${key === k ? ' is-active' : ''}" type="button" data-rv-sort="${k}">${label} <span aria-hidden="true">${key === k ? (dir > 0 ? '↑' : '↓') : '⇅'}</span></button></th>`;
+  const rvSize = state.rvSize || 10;
+  const rvPages = Math.max(1, Math.ceil(rows.length / rvSize));
+  state.rvPage = Math.max(1, Math.min(state.rvPage || 1, rvPages));
+  const pageRows = rows.slice((state.rvPage - 1) * rvSize, state.rvPage * rvSize);
   return `<p class="odesc">${isPreview ? `Personaliza el panel de vista previa de ${m.s} registros. También puedes <a href="../${type}/">actualizar tarjetas de vista previa</a> que aparecen fuera del CRM. <span class="info">ⓘ</span>` : `Crea vistas para personalizar el diseño y el contenido de los registros de ${m.s}.`}</p><hr class="cd-sep" />
     <div class="rvbar">
       <div class="search search--sm ptoolbar__search"><input type="search" id="rv-q" value="${esc(state.rvQuery)}" placeholder="Buscar por nombre de vista" aria-label="Buscar por nombre de vista" /><span class="ico ico--search" aria-hidden="true"></span></div>
       <a class="pill pill--lg" href="${editorHref('')}&new=1" id="rv-new">Crear vista de equipo</a>
     </div>
     <table class="mini-table stable proptable rvtable"><thead><tr><th class="pcheck"><input type="checkbox" aria-label="Seleccionar todo" data-rv-check-all ${rows.filter((v) => !v.isDefault).length && rows.filter((v) => !v.isDefault).every((v) => state.rvSel.has(v.name)) ? 'checked' : ''} /></th>${th('name', 'Ver nombre')}${th('teams', 'Asignado a')}${th('updated', 'Última actualización')}<th class="num">Acciones</th></tr></thead><tbody>
-      ${rows.map((v) => `<tr><td class="pcheck">${v.isDefault ? '<input type="checkbox" disabled aria-label="Vista predeterminada" />' : `<input type="checkbox" data-rv-check="${esc(v.name)}" ${state.rvSel.has(v.name) ? 'checked' : ''} aria-label="Seleccionar ${esc(v.name)}" />`}</td>
+      ${pageRows.map((v) => `<tr><td class="pcheck">${v.isDefault ? '<input type="checkbox" disabled aria-label="Vista predeterminada" />' : `<input type="checkbox" data-rv-check="${esc(v.name)}" ${state.rvSel.has(v.name) ? 'checked' : ''} aria-label="Seleccionar ${esc(v.name)}" />`}</td>
         <td>${v.isDefault ? '<span class="rvpin" aria-hidden="true">📌</span> ' : ''}<a class="olink" href="${editorHref(v.isDefault ? '' : v.name)}">${esc(v.name)}</a></td>
         <td>${v.isDefault ? 'Todos los equipos y usuarios sin asignar' : v.teams.length ? v.teams.map((t) => `<span class="rvchip">${esc(t)}</span>`).join(' ') : '<span class="muted">Sin asignar</span>'}</td>
         <td><div>${rvDate(v.updated)}</div>${v.by ? `<div class="muted">${esc(v.by)}</div>` : ''}</td>
@@ -1144,7 +1145,7 @@ function objectRecordHtml(type) {
         </div></div></td></tr>`).join('')}
     </tbody></table>
     ${state.rvSel.size ? `<div class="pbulk"><strong>${state.rvSel.size} seleccionada${state.rvSel.size > 1 ? 's' : ''}</strong><button class="link-btn" type="button" data-act="rv-delete-sel" data-type="${type}">Eliminar</button><button class="link-btn" type="button" data-act="rv-clear-sel">Limpiar</button></div>` : ''}
-    <div class="ppager ppager--center"><nav class="ppager__nav" aria-label="Páginas"><button class="link-btn" type="button" disabled>‹ Anterior</button><button class="ppager__num is-active" type="button">1</button><button class="link-btn" type="button" disabled>Siguiente ›</button></nav></div>`;
+    <div class="spager" data-pager="rv">${pagination({ page: state.rvPage, pages: rvPages, size: rvSize, sizes: [10, 25, 50, 100] })}</div>`;
 }
 const objectPreviewHtml = (type) => objectRecordHtml(type);
 function objectPreviewHtmlOld(type) {
@@ -1392,6 +1393,17 @@ function render() {
   const integrationsRoot = root.querySelector("#real-integrations");
   if (integrationsRoot) unmountIntegrations = mountIntegrations(integrationsRoot);
   wireMenus(root);
+  // Shared pagers (src/pagination.js): users, properties and record views keep their page/size in `state`.
+  for (const slot of root.querySelectorAll('[data-pager]')) {
+    bindPagination(slot, ({ page, size }) => {
+      const k = slot.dataset.pager;
+      if (k === 'users') { state.uPage = page; if (size) state.uSize = size; }
+      else if (k === 'props') { state.propsPage = page; if (size) state.propsSize = size; }
+      else if (k === 'rv') { state.rvPage = page; if (size) state.rvSize = size; }
+      closeMenus();
+      render();
+    });
+  }
   const cem = document.getElementById('cem');
   if (cem) mountConnectedEmails(cem);
   const ibs = document.getElementById('ibs');
@@ -1739,10 +1751,6 @@ root.addEventListener('click', (e) => {
   if (uset) { closeMenus(); state.uFilter[uset.dataset.uset] = uset.dataset.value; state.uPage = 1; render(); return; }
   const usrt = e.target.closest('[data-usort]');
   if (usrt) { const k = usrt.dataset.usort; state.uSort = { key: k, dir: state.uSort.key === k ? -state.uSort.dir : 1 }; render(); return; }
-  const upg = e.target.closest('[data-upage]');
-  if (upg && !upg.disabled) { state.uPage = Math.max(1, Number(upg.dataset.upage)); render(); return; }
-  const usz = e.target.closest('[data-usize]');
-  if (usz) { closeMenus(); state.uSize = Number(usz.dataset.usize); state.uPage = 1; render(); return; }
   const uact = e.target.closest('[data-uact]');
   if (uact) {
     closeMenus();
@@ -1773,10 +1781,6 @@ root.addEventListener('click', (e) => {
   if (pset) { closeMenus(); const map = { group: 'propsGroup', kind: 'propsKind', user: 'propsUser', filter: 'propsFilter' }; state[map[pset.dataset.propsSet]] = pset.dataset.value; state.propsPage = 1; if (pset.hasAttribute('data-goto-list')) state.propsTab = 'list'; render(); return; }
   const psort = e.target.closest('[data-props-sort]');
   if (psort) { const k = psort.dataset.propsSort; state.propsSort = { key: k, dir: state.propsSort.key === k ? -state.propsSort.dir : 1 }; render(); return; }
-  const ppage = e.target.closest('[data-props-page]');
-  if (ppage && !ppage.disabled) { state.propsPage = Math.max(1, Number(ppage.dataset.propsPage)); render(); return; }
-  const psize = e.target.closest('[data-props-size]');
-  if (psize) { closeMenus(); state.propsSize = Number(psize.dataset.propsSize); state.propsPage = 1; render(); return; }
   const parch = e.target.closest('[data-prop-archive], [data-prop-restore]');
   if (parch) { closeMenus(); const k = parch.dataset.propArchive || parch.dataset.propRestore; const list = customProperties(state.propsObject); const p = list.find((x) => x.key === k); if (p) { p.archived = Boolean(parch.dataset.propArchive); saveCustomProperties(state.propsObject, list); } render(); toast(parch.dataset.propArchive ? 'Propiedad archivada' : 'Propiedad restaurada'); return; }
   const pgrm = e.target.closest('[data-propgroup-rm]');

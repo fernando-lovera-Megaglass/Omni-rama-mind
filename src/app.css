@@ -1267,25 +1267,6 @@ h1 {
   color: var(--c-white);
 }
 
-.pager__size {
-  margin-left: auto;
-  display: flex;
-  align-items: center;
-  gap: var(--sp-8);
-  color: var(--c-muted);
-}
-
-.pager__size select {
-  height: 32px;
-  padding: 0 var(--sp-8);
-  border: 1px solid var(--c-border);
-  border-radius: var(--r-sm);
-  background: var(--c-white);
-  font-family: inherit;
-  font-size: var(--fs-sm);
-  color: var(--c-text);
-}
-
 .scrim {
   display: none;
   position: fixed;
@@ -1369,12 +1350,6 @@ h1 {
 
   .search {
     width: 100%;
-  }
-
-  .pager__size {
-    margin-left: 0;
-    width: 100%;
-    justify-content: center;
   }
 }
 
@@ -10845,38 +10820,9 @@ textarea.cellpop__input {
   color: var(--c-text);
 }
 
-.ppager {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: var(--sp-20);
-}
-
-.ppager__nav {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-8);
-}
-
-.ppager__nav .link-btn[disabled] {
-  color: var(--c-muted);
-  cursor: default;
-}
-
-.ppager__num {
-  min-width: 32px;
-  height: 32px;
-  border: 1px solid transparent;
-  border-radius: 50%;
-  background: transparent;
-  color: var(--c-text);
-  font-family: inherit;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.ppager__num.is-active {
-  border-color: var(--c-text);
+/* Settings tables (users, properties, record views) paginate with the shared .pager of src/pagination.js. */
+.spager {
+  margin-top: var(--sp-4);
 }
 
 .pempty {
@@ -11785,10 +11731,6 @@ textarea.cellpop__input {
   background: var(--c-white);
   font-size: var(--fs-xs);
   white-space: nowrap;
-}
-
-.ppager--center {
-  justify-content: center;
 }
 
 /* Deal pipelines tab */
@@ -18215,8 +18157,7 @@ td[data-key="deal_tags"] .dtag {
   font-size: var(--fs-sm);
 }
 
-.dtags__filter select,
-.dtags__pager select {
+.dtags__filter select {
   height: 34px;
   padding: 0 var(--sp-8);
   border: 1px solid var(--c-border);
@@ -18288,25 +18229,6 @@ td[data-key="deal_tags"] .dtag {
   color: var(--c-danger, #c0392b);
 }
 
-.dtags__pager {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--sp-12);
-  margin-top: var(--sp-16);
-  font-size: var(--fs-sm);
-}
-
-.dtags__pagenum {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 28px;
-  height: 28px;
-  border: 1px solid var(--c-text);
-  border-radius: 50%;
-  font-weight: 600;
-}
 
 .dtags__list {
   list-style: none;
