@@ -296,6 +296,15 @@ C.openCompose({ to: contact.name, email: contact.email, contactId: contact.id })
 click(q(`[data-tpl="${seed.id}"]`));
 click(q('[data-cm="close"]'));
 if (T.templateById(seed.id).uses !== 1) fail('cancel must not count');
+C.openCompose({});
+click(q(`[data-tpl="${seed.id}"]`));
+click(q('[data-cm="send"]'));
+if (T.templateById(seed.id).uses !== 1) fail('missing recipient must not count');
+click(q('[data-cm="close"]'));
+C.openCompose({ to: contact.name, email: contact.email, contactId: contact.id });
+click(q(`[data-tpl="${seed.id}"]`));
+click(q('[data-cm="send-later"]'));
+if (T.templateById(seed.id).uses !== 1) fail('scheduling is not a sent email');
 C.openCompose({ to: contact.name, email: contact.email, contactId: contact.id });
 click(q(`[data-tpl="${seed.id}"]`));
 $('cmp-text').innerHTML = '';
