@@ -1,4 +1,4 @@
-import { ready as sequencesReady, scheduled, sequenceById, pauseEnrollment, resumeEnrollment, unenroll } from './sequences-data.js';
+import { ready as sequencesReady, scheduled, sequenceById, pauseEnrollment, resumeEnrollment, unenroll, enrollmentsOfContact, unenrollReasonOf, STATUS_LABELS as SEQ_STATUS } from './sequences-data.js';
 import { propertyEditor } from './property-editor.js';
 import { changeDealStage } from './deal-close.js';
 import { ACTIVITY_COMPANY_SETTING, activityAssociations, saveAssociatedActivity } from './activity-associations.js';
@@ -1171,7 +1171,11 @@ function renderRight() {
   if (type === 'contacts') {
     const card = document.createElement('section');
     card.className = 'card';
-    card.innerHTML = '<h3>Secuencias</h3>' + scheduled().filter(e => String(e.contactId) === String(id)).map(e => `<div><strong>${esc(e.sequenceName)}</strong><p>Paso ${e.currentStep} de ${sequenceById(e.sequenceId)?.steps.length || 0} · ${esc(e.stepLabel)}</p><p>${e.status === 'paused' ? 'En pausa' : e.nextStepAt ? esc(new Date(e.nextStepAt).toLocaleString()) : 'Esperando la tarea'}</p><button data-seq-action="${e.status === 'paused' ? 'resume' : 'pause'}" data-id="${esc(e.id)}">${e.status === 'paused' ? 'Reanudar' : 'Pausar'}</button><button data-seq-action="cancel" data-id="${esc(e.id)}">Cancelar inscripción</button></div>`).join('');
+    // Enrolments ended by an exclusion criterion (reply, meeting, new deal, unsubscribe) stay visible with their
+    // reason, newest first, under the running ones.
+    const ended = enrollmentsOfContact(id).filter((e) => unenrollReasonOf(e)).sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)).slice(0, 3);
+    card.innerHTML = '<h3>Secuencias</h3>' + scheduled().filter(e => String(e.contactId) === String(id)).map(e => `<div><strong>${esc(e.sequenceName)}</strong><p>Paso ${e.currentStep} de ${sequenceById(e.sequenceId)?.steps.length || 0} · ${esc(e.stepLabel)}</p><p>${e.status === 'paused' ? 'En pausa' : e.nextStepAt ? esc(new Date(e.nextStepAt).toLocaleString()) : 'Esperando la tarea'}</p><button data-seq-action="${e.status === 'paused' ? 'resume' : 'pause'}" data-id="${esc(e.id)}">${e.status === 'paused' ? 'Reanudar' : 'Pausar'}</button><button data-seq-action="cancel" data-id="${esc(e.id)}">Cancelar inscripción</button></div>`).join('')
+      + ended.map((e) => `<p class="muted" data-seq-ended="${esc(e.id)}"><strong>${esc(sequenceById(e.sequenceId)?.name || 'Secuencia')}</strong> · ${esc(SEQ_STATUS[e.status] || e.status)}${e.extra && e.extra.reason ? `: ${esc(e.extra.reason)}` : ''} · ${esc(formatDate(e.updatedAt))}</p>`).join('');
     card.addEventListener('click', event => {
       const b = event.target.closest('[data-seq-action]');
       if (!b) return;
@@ -2360,8 +2364,9 @@ if (!rec) {
   mount.addEventListener('focusin', (e) => { if (e.target.matches && e.target.matches('#note-form textarea')) wireNoteBox(e.target); });
   const noteBox = mount.querySelector('#note-form textarea');
   if (noteBox) wireNoteBox(noteBox);
-  // An enrolment made from the e-mail composer's Secuencias tab also lands in this timeline.
-  document.addEventListener('crm:enrolled', () => renderTimeline());
+  // An enrolment made from the e-mail composer's Secuencias tab also lands in this timeline; an enrolment
+  // ended by an exclusion criterion (reply, new deal, unsubscribe) updates the Secuencias card too.
+  document.addEventListener('crm:enrolled', () => { renderRight(); renderTimeline(); });
   // A workflow run advancing on this record (the checker finished a delay, a step ran) refreshes the timeline.
   document.addEventListener('crm:workflow', (e) => { if (e.detail && e.detail.recordType === type && Number(e.detail.recordId) === Number(id)) { renderTimeline(); renderAssoc(); } });
 

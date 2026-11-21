@@ -726,6 +726,9 @@ export function setField(type, id, field, value, opts = {}) {
     setField(type, id, 'marketingOptOutAt', next === 'Sí' ? when : null);
     setField(type, id, 'marketingOptOutReason', opts.reason || (next === 'Sí' ? 'Baja manual desde la ficha' : 'Reactivación manual desde la ficha'));
     addActivity({ type: 'note', recordType: type, recordId: Number(id), text: next === 'Sí' ? 'Se dio de baja de los correos de marketing' : 'Reactivó su suscripción a los correos de marketing', who: opts.who || 'Marketing', when: Date.now(), extra: { reason: opts.reason || 'Cambio manual', marketingEmailId: opts.emailId || null } });
+    // An unsubscribe stops the sequences with «Cancelar la inscripción cuando cancela la suscripción» (the
+    // sequence module imports this one, hence the dynamic import).
+    if (next === 'Sí') import('./sequences-data.js').then((m) => m.cancelOnUnsubscribe(Number(id), when)).catch((e) => console.error('[secuencias] baja de suscripción', e));
     return;
   }
   const completedAt = new Date();
@@ -1046,6 +1049,9 @@ function afterAdd(type, rec, opts = {}) {
       if (rec.companyId) logSystem('companies', rec.companyId, `${word} «${rec.name}» creado y asociado a esta empresa.`, { [type]: rec.id });
     }
   } catch (e) { console.error('[cronología]', e); }
+  // A new deal for a contact stops the sequences with «Cancelar la inscripción cuando se crea un negocio»
+  // (single hook for the slide-over, the record, workflows and the import; dynamic import: sequences import us).
+  if (type === 'deals' && rec.contactId) import('./sequences-data.js').then((m) => m.cancelOnDeal(rec.contactId, rec)).catch((e) => console.error('[secuencias] negocio creado', e));
   if (type === 'contacts' && !opts.skipAutoCompany) { try { autoAssociateCompany(rec); } catch (e) { console.error('[empresas automáticas]', e); } }
   if (type === 'contacts' && (rec.companyId || (rec.assoc_companies || []).length)) { try { syncContactCompanies(rec.id); } catch (e) { console.error('[contact_companies]', e); } }
   if (type === 'tickets') { try { autoAssociateTicketCompany(rec); } catch (e) { console.error('[tickets: empresa del contacto]', e); } }

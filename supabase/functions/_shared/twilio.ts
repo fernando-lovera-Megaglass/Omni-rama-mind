@@ -105,41 +105,81 @@ export async function twilioSignatureValid(url: string, params: Record<string, s
 export const twiml = (inner: string): Response =>
   new Response(`<Response>${inner}</Response>`, { headers: { 'Content-Type': 'text/xml' } });
 
-// Transcribe a recorded call with OpenAI Whisper and saves the text on call_logs.transcript, so it
-// shows up in CRM › Llamadas and the AI can read it. Needs the OPENAI_API_KEY secret; without it,
-// returns null silently (transcription is optional). Idempotent: skips logs already transcribed.
+// Shared by automatic callbacks and manual retries. Errors contain only safe, stage-specific
+// messages: provider bodies can contain credentials or recording contents and must not be logged.
 export async function transcribeCallLog(service: SupabaseClient, log: { id: string; recording_url: string | null; connection_id: string; transcript?: string | null }): Promise<string | null> {
-  const apiKey = Deno.env.get('OPENAI_API_KEY');
-  if (!apiKey) return null;
-  if (!log.recording_url) return null;
   if (log.transcript) return log.transcript;
-  const { data: conn } = await service.from('twilio_connections').select('account_sid').eq('id', log.connection_id).maybeSingle();
-  if (!conn) return null;
-  if (!twilioRecordingUrlValid(log.recording_url, conn.account_sid)) throw new TwilioError('URL de grabación inválida', 'invalid_recording_url', 400);
-  const token = await authTokenOf(service, log.connection_id);
-  const audio = await fetch(log.recording_url, { redirect: 'error', headers: { Authorization: `Basic ${btoa(`${conn.account_sid}:${token}`)}` } });
-  if (!audio.ok) throw new TwilioError(`No se pudo bajar la grabación (${audio.status})`, 'api', 502);
-  const fd = new FormData();
-  fd.append('file', new Blob([await audio.arrayBuffer()], { type: 'audio/mpeg' }), 'grabacion.mp3');
-  fd.append('model', 'whisper-1');
-  fd.append('language', 'es');
-  const res = await fetch('https://api.openai.com/v1/audio/transcriptions', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${apiKey}` },
-    body: fd,
-  });
-  const data = await res.json().catch(() => ({})) as Record<string, unknown>;
-  if (!res.ok) throw new TwilioError(`OpenAI respondió ${res.status}: ${(data.error as Record<string, unknown> | undefined)?.message || res.statusText}`, 'openai', 502);
-  const text = String(data.text || '').trim();
-  await service.from('call_logs').update({ transcript: text }).eq('id', log.id);
-  return text;
+  if (!log.recording_url) return null;
+  let stage = 'configuration';
+  const messages: Record<string, string> = {
+    configuration: 'Falta configurar OPENAI_API_KEY.',
+    connection: 'No se pudo leer la conexión de Twilio.',
+    recording_url: 'URL de grabación inválida',
+    credentials: 'No se pudo leer el token de Twilio.',
+    download: 'No se pudo descargar la grabación de Twilio.',
+    openai: 'OpenAI no pudo transcribir la grabación.',
+    save: 'No se pudo guardar la transcripción.',
+  };
+  let httpStatus: number | undefined;
+  // Read fresh metadata before each write, preserving unrelated call metadata.
+  const metadata = async () => {
+    const { data, error } = await service.from('call_logs').select('extra').eq('id', log.id).maybeSingle();
+    if (error || !data) throw new Error('metadata unavailable');
+    return { ...(data.extra || {}) };
+  };
+  try {
+    const apiKey = Deno.env.get('OPENAI_API_KEY');
+    if (!apiKey?.trim()) throw new Error('missing key');
+    stage = 'connection';
+    const { data: conn, error } = await service.from('twilio_connections').select('account_sid').eq('id', log.connection_id).maybeSingle();
+    if (error || !conn) throw new Error('connection unavailable');
+    stage = 'recording_url';
+    if (!twilioRecordingUrlValid(log.recording_url, conn.account_sid)) throw new Error('invalid URL');
+    stage = 'credentials';
+    const token = await authTokenOf(service, log.connection_id);
+    stage = 'download';
+    const audio = await fetch(log.recording_url, { redirect: 'error', signal: AbortSignal.timeout(30000), headers: { Authorization: `Basic ${btoa(`${conn.account_sid}:${token}`)}` } });
+    if (!audio.ok) { httpStatus = audio.status; throw new Error('download failed'); }
+    const fd = new FormData();
+    fd.append('file', new Blob([await audio.arrayBuffer()], { type: 'audio/mpeg' }), 'grabacion.mp3');
+    fd.append('model', 'whisper-1');
+    fd.append('language', 'es');
+    stage = 'openai';
+    const res = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+      method: 'POST', signal: AbortSignal.timeout(90000),
+      headers: { Authorization: `Bearer ${apiKey}` }, body: fd,
+    });
+    if (!res.ok) { httpStatus = res.status; throw new Error('transcription failed'); }
+    const data = await res.json() as Record<string, unknown>;
+    const text = typeof data.text === 'string' ? data.text.trim() : '';
+    if (!text) throw new Error('empty transcription');
+    stage = 'save';
+    const extra = await metadata();
+    delete extra.transcript_error;
+    const { error: saveError } = await service.from('call_logs').update({ transcript: text, extra }).eq('id', log.id);
+    if (saveError) throw saveError;
+    return text;
+  } catch {
+    const failure = { timestamp: new Date().toISOString(), code: stage, message: messages[stage], ...(httpStatus ? { http_status: httpStatus } : {}) };
+    console.error(JSON.stringify({ event: 'call_transcription_failed', call_log_id: log.id, ...failure }));
+    try {
+      const extra = await metadata();
+      const { error } = await service.from('call_logs').update({ extra: { ...extra, transcript_error: failure } }).eq('id', log.id);
+      if (error) throw error;
+    } catch {
+      console.error(JSON.stringify({ event: 'call_transcription_error_persist_failed', call_log_id: log.id, timestamp: failure.timestamp }));
+    }
+    throw new TwilioError(failure.message, `transcript_${stage}`, stage === 'configuration' ? 400 : 502);
+  }
 }
 
-// Runs work after responding when the runtime allows it (EdgeRuntime.waitUntil), awaited otherwise.
+// Keep work alive after the webhook response; always observe rejections, even outside EdgeRuntime.
 export function background(p: Promise<unknown>): void {
   const rt = (globalThis as { EdgeRuntime?: { waitUntil?: (p: Promise<unknown>) => void } }).EdgeRuntime;
-  if (rt && typeof rt.waitUntil === 'function') rt.waitUntil(p.catch(() => {}));
-  else p.catch(() => {});
+  const observed = p.catch(() => {
+    console.error(JSON.stringify({ event: 'twilio_background_failed', timestamp: new Date().toISOString() }));
+  });
+  if (rt && typeof rt.waitUntil === 'function') rt.waitUntil(observed);
 }
 
 export const xmlEscape = (s: string): string =>

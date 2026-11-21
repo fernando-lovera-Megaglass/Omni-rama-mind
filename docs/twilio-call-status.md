@@ -40,3 +40,38 @@ Solo código local: ninguna función se ha desplegado ni se ha tocado la configu
    con `duration_sec > 0` en las contestadas, sin intervención manual.
 3. Las 38 llamadas ya atascadas no se corrigen solas: `node scripts/backfill-call-status.mjs` pregunta a Twilio
    su estado real y actualiza las filas (lee el token desde la base; ejecutarlo a propósito, una vez).
+
+## Runbook de transcripción automática
+
+La transcripción necesita `OPENAI_API_KEY` además de las credenciales de Twilio guardadas por conexión.
+La presencia del secreto no demuestra que la clave sea válida ni que tenga cuota. Esta revisión solo
+modifica código local; los pasos remotos siguientes son para una operación posterior autorizada.
+
+1. Verificar el proyecto destino y la **presencia** del secreto (el comando lista nombres/digests,
+   no su valor): `supabase secrets list --project-ref <PROJECT_REF>`. Debe aparecer `OPENAI_API_KEY`.
+   No copiar claves a logs, capturas o documentación. Si falta, configurarla mediante el proceso de
+   secretos del proyecto antes de probar una grabación.
+2. En un entorno de prueba, producir una grabación con clave ausente y después con clave inválida.
+   Consultar `call_logs.extra.transcript_error`: contiene `timestamp`, `code`, `message` y, cuando
+   existe respuesta HTTP fallida, `http_status` (por ejemplo, 401 de OpenAI). Llamadas muestra
+   «Transcripción fallida» y «Reintentar transcripción» al cargar la lista.
+3. Si no se puede escribir en la base, buscar el evento JSON `call_transcription_failed` por
+   `call_log_id` en los logs de la función; `call_transcription_error_persist_failed` indica que
+   tampoco pudo persistirse el diagnóstico. No se registran cuerpos de proveedores ni secretos.
+4. Con una clave válida, reintentar desde Llamadas o hacer una nueva grabación. Confirmar que
+   `transcript` contiene texto y que `extra.transcript_error` desaparece. Una respuesta vacía de
+   OpenAI o un fallo al guardar cuentan como error, no como éxito. Los registros antiguos no se
+   reprocesan solos; el botón manual permite reintentarlos.
+
+```sql
+select id, started_at, transcript, extra->'transcript_error' as transcript_error
+from call_logs
+where recording_url is not null
+order by started_at desc;
+```
+
+Smoke sin red ni secretos: `node scripts/smoke-call-transcription.mjs`. Ejecuta el helper real
+con audio, respuestas HTTP y base simulados: clave ausente/inválida, descarga fallida, error de
+red, respuesta vacía, fallo de persistencia y éxito tras reintento. Comprueba también que la UI
+muestra el error escapado y el botón de reintento. Esto verifica los caminos locales, no la
+validez de una clave remota ni una transcripción real de Whisper.

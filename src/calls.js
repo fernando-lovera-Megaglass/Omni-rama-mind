@@ -89,7 +89,7 @@ function normalize() {
 async function loadTwilio() {
   if (!dbIsLive() || !supabase) return [];
   try {
-    const { data, error } = await supabase.from('call_logs').select('id,call_sid,direction,from_number,to_number,status,duration_sec,started_at,contact_id,recording_url,transcript').order('started_at', { ascending: false }).limit(500);
+    const { data, error } = await supabase.from('call_logs').select('id,call_sid,direction,from_number,to_number,status,duration_sec,started_at,contact_id,recording_url,transcript,extra').order('started_at', { ascending: false }).limit(500);
     if (error || !Array.isArray(data)) return [];
     return data.map((r) => {
       const isOut = r.direction === 'outbound';
@@ -100,6 +100,7 @@ async function loadTwilio() {
         callSid: r.call_sid || '',
         recording: Boolean(r.recording_url),
         transcript: r.transcript || '',
+        transcriptError: r.extra?.transcript_error || null,
         title: `Llamada con ${name || displayPhone(num)}`,
         when: r.started_at ? new Date(r.started_at).getTime() : Date.now(),
         durationSec: Number(r.duration_sec) || 0,
@@ -156,7 +157,7 @@ function filtered() {
 
 function cellHtml(r, key) {
   switch (key) {
-    case 'title': return `<span class="calls__call-title">${esc(r.title)}</span>${r.recording ? ` <button class="calls-play" type="button" data-play="${esc(r.callSid)}" title="Escuchar la grabación">▶ Grabación</button>` : ''}${r.transcript ? ` <button class="calls-play" type="button" data-transcript="${esc(r.id)}" title="Ver la transcripción">${state.openTranscripts.has(r.id) ? '▾' : '▸'} Transcripción</button>` : r.recording ? ` <button class="calls-play" type="button" data-transcribe="${esc(r.callSid)}" title="Transcribir con IA">Transcribir</button>` : ''}`;
+    case 'title': return `<span class="calls__call-title">${esc(r.title)}</span>${r.recording ? ` <button class="calls-play" type="button" data-play="${esc(r.callSid)}" title="Escuchar la grabación">▶ Grabación</button>` : ''}${r.transcript ? ` <button class="calls-play" type="button" data-transcript="${esc(r.id)}" title="Ver la transcripción">${state.openTranscripts.has(r.id) ? '▾' : '▸'} Transcripción</button>` : r.recording ? ` <button class="calls-play" type="button" data-transcribe="${esc(r.callSid)}" title="Transcribir con IA">${r.transcriptError ? 'Reintentar transcripción' : 'Transcribir'}</button>${r.transcriptError ? ` <span class="calls-transcript-error" role="status">Transcripción fallida: ${esc(r.transcriptError.message || 'Error al transcribir')}${r.transcriptError.timestamp ? ` (${esc(r.transcriptError.timestamp)})` : ''}</span>` : ''}` : ''}`;
     case 'owner': return `${ownerHtml(r.owner)}`;
     case 'durationSec': return `${esc(fmtDuration(r.durationSec))}`;
     case 'when': return dateCellHtml(r.when); // the table rule: «12 nov 2026», full date-time in the tooltip
@@ -326,7 +327,7 @@ function render() {
       if (error || (data && data.error)) throw new Error((data && data.error) || (error && error.message) || 'error');
       toast('Transcripción lista');
       const row = (state.rows || []).find((r) => r.callSid === b.dataset.transcribe);
-      if (row) { row.transcript = data.transcript || ''; state.openTranscripts.add(row.id); }
+      if (row) { row.transcript = data.transcript || ''; row.transcriptError = null; state.openTranscripts.add(row.id); }
       render();
     } catch (err) {
       b.disabled = false;

@@ -3,7 +3,7 @@ import { ACT_ICONS } from './action-icons.js';
 // (localStorage otherwise), the six pre-built sequences, the step types, the business-day maths, the
 // enrolment of a contact (first step scheduled, task created, timeline entry) and the analytics computed
 // from the enrolments (simulated but consistent stats seeded once).
-import { dbIsLive, allContacts, allCompanies, allDeals, addRecord, addActivity, formatDate, TODAY } from './data.js';
+import { dbIsLive, allContacts, allCompanies, allDeals, addRecord, addActivity, logSystem, formatDate, TODAY } from './data.js';
 import { supabase } from './supabaseClient.js';
 import { reportDbError } from './db-report.js';
 
@@ -369,27 +369,65 @@ export function unenroll(enrollmentId) {
   persistEnr(e);
   return out(e);
 }
+// How each exclusion criterion ends an enrolment, as the original does: a reply or a booked meeting is a status
+// of its own («Respondió», «Reunión reservada»); a new deal or an unsubscribe is a plain cancellation
+// («Cancelada») that keeps its readable reason in extra.reason for the analytics and the record.
+export const UNENROLL_REASONS = {
+  replied: { status: 'replied' },
+  meeting: { status: 'meeting' },
+  unsubscribed: { status: 'unenrolled', label: 'Suscripción cancelada' },
+  deal: { status: 'unenrolled', label: 'Negocio creado' },
+};
+// Readable reason of an ended enrolment («Respondió», «Negocio creado»…), or '' while it runs / when it was
+// cancelled by hand without one.
+export const unenrollReasonOf = (e) => (e && e.extra && e.extra.reason) || (e && (e.status === 'replied' || e.status === 'meeting') ? STATUS_LABELS[e.status] : '');
 // The exclusion criteria of a sequence (EXCLUSION_CRITERIA) applied: every active or paused enrolment of the
-// contact in a sequence that cancels on `reason` ends with that status ('replied' → «Respondió»…), no next
-// step, stats.<reason> = 1 and stats.<reason>At = now. Returns the enrolments it ended (with the sequence name)
-// so the caller can write the timeline and refresh the record. Nothing else is inferred.
+// contact in a sequence that cancels on `reason` ends with the status of UNENROLL_REASONS, no next step,
+// stats.<reason> = 1, stats.<reason>At = now and (deal / unsubscribed) extra.reason with the readable label.
+// Returns the enrolments it ended (with the sequence name) so the caller can write the timeline and refresh
+// the record. Nothing else is inferred.
 export function unenrollByReason(contactId, reason, { now = new Date().toISOString() } = {}) {
-  if (!EXCLUSION_CRITERIA.some(([k]) => k === reason) || !STATUS_LABELS[reason]) return [];
+  const how = UNENROLL_REASONS[reason];
+  if (!how || !EXCLUSION_CRITERIA.some(([k]) => k === reason)) return [];
   const when = new Date(now).toISOString();
   const hits = [];
   for (const e of enrollRows) {
     if (String(e.contactId) !== String(contactId) || !(e.status === 'active' || e.status === 'paused')) continue;
     const seq = rows.find((s) => s.id === e.sequenceId && !s.deletedAt);
     if (!seq || !(seq.exclusion || []).includes(reason)) continue;
-    e.status = reason;
+    e.status = how.status;
     e.nextStepAt = null;
     e.stats = { ...(e.stats || {}), [reason]: 1, [`${reason}At`]: when };
-    if (e.extra && e.extra.pauseRemainingMs !== undefined) delete e.extra.pauseRemainingMs;
+    e.extra = { ...(e.extra || {}) };
+    delete e.extra.pauseRemainingMs;
+    if (how.label) { e.extra.reason = how.label; e.extra.reasonKey = reason; }
     e.updatedAt = when;
     persistEnr(e);
     hits.push({ ...out(e), sequenceName: seq.name });
   }
   return hits;
+}
+// The criteria «Cancelar la inscripción cuando se crea un negocio» and «…cuando cancela la suscripción» stop
+// the sequence by themselves, as the original does. src/data.js calls these from its single creation hook
+// (addRecord of a deal with a contact: slide-over, record, workflows, import) and from the marketing opt-out
+// («Sí»), so every path lands here. Each cancelled enrolment gets its system entry on the contact timeline and
+// the record refreshes (crm:enrolled). Runs as soon as the sequence data is loaded.
+export function cancelOnDeal(contactId, deal, when) {
+  return cancelByEvent(contactId, 'deal', (name) => `Inscripción cancelada en «${name}»: se creó el negocio «${deal.name}».`, { deals: deal.id }, when);
+}
+export function cancelOnUnsubscribe(contactId, when) {
+  return cancelByEvent(contactId, 'unsubscribed', (name) => `Inscripción cancelada en «${name}»: canceló la suscripción.`, {}, when);
+}
+function cancelByEvent(contactId, reason, textOf, extra, when = new Date().toISOString()) {
+  const apply = () => {
+    let hits = [];
+    try { hits = unenrollByReason(contactId, reason, { now: when }); } catch (e) { console.error('[secuencias] criterio de exclusión', e); return []; }
+    for (const h of hits) logSystem('contacts', contactId, textOf(h.sequenceName), { sequenceId: h.sequenceId, enrollmentId: h.id, reason, ...extra });
+    if (hits.length && typeof document !== 'undefined' && document.defaultView) document.dispatchEvent(new document.defaultView.CustomEvent('crm:enrolled', { detail: { reason, enrollments: hits } }));
+    return hits;
+  };
+  if (loaded) return apply();
+  return ready.then(apply).catch((e) => { console.error('[secuencias] criterio de exclusión', e); return []; });
 }
 
 // ---------- analytics ----------

@@ -9,7 +9,6 @@ Deno.serve(handle(async (req) => {
   const body = await req.json().catch(() => ({}));
   const callSid = String((body as Record<string, unknown>).callSid || '');
   if (!callSid) return fail('Falta callSid.', 400, { code: 'no_call' });
-  if (!Deno.env.get('OPENAI_API_KEY')) return fail('Falta configurar la clave de OpenAI (OPENAI_API_KEY) en los secretos de Supabase para transcribir.', 400, { code: 'no_openai' });
 
   const service = serviceClient();
   const { data: log } = await service.from('call_logs').select('id, user_id, connection_id, recording_url, transcript').eq('call_sid', callSid).maybeSingle();
