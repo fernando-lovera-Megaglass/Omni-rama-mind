@@ -61,6 +61,14 @@ export function applyConditions(query, type, conditions, { kindOf } = {}) {
     const v = c.value;
     const n1 = Number(v);
     const n2 = Number(c.value2);
+    if (type === 'contacts' && c.key === 'marketingOptOut' && ['in', 'anyof', 'is'].includes(op)) {
+      const vals = list(v);
+      const clauses = [];
+      if (vals.includes('Sí')) clauses.push(`${column}.eq.Sí`, `${column}.eq.true`);
+      if (vals.includes('No')) clauses.push(`${column}.is.null`, `${column}.eq.No`, `${column}.eq.false`, `${column}.eq.`);
+      if (clauses.length) { query = query.or(clauses.join(',')); applied += 1; }
+      return;
+    }
     if (op === 'filled') { query = query.not(column, 'is', null).neq(column, ''); applied += 1; return; }
     if (op === 'empty') { query = query.or(`${column}.is.null,${column}.eq.`); applied += 1; return; }
     if (group === 'text' || group === 'enum' || group === 'bool') {

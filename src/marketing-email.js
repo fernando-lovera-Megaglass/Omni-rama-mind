@@ -5,7 +5,7 @@ import { boot } from './page.js';
 import { toast, wireMenus, closeMenus } from './shell.js';
 import { ownerHtml } from './owner.js';
 import { formatDate, relativeTimeFine, download } from './data.js';
-import { ready, emails, emailById, countsByEstado, folders, createEmail, updateEmail, cloneEmail, archiveEmail, deleteEmail, recipientOptions, recipientsOf, destinatariosFromValue, destinatariosValue, checklist, sendEmail, sendTest, analytics, ESTADOS, TIPOS, ME } from './marketing-data.js';
+import { ready, emails, emailById, countsByEstado, folders, createEmail, updateEmail, cloneEmail, archiveEmail, deleteEmail, recipientOptions, recipientsOf, excludedRecipientsOf, destinatariosFromValue, destinatariosValue, checklist, sendEmail, sendTest, analytics, ESTADOS, TIPOS, ME } from './marketing-data.js';
 import { MODULE_DEFS, MODULE_GROUPS, SECTIONS, TEMPLATES, TEMPLATE_CATEGORIES, newModule, cloneModules, renderEmailHtml, moduleHtml, BRAND } from './marketing-templates.js';
 
 boot({ root: '../../', active: 'marketing', sub: 'Correo', title: 'Correo de marketing' });
@@ -258,6 +258,7 @@ function renderReview() {
       <h1>Revisar y enviar</h1>
       <p class="muted">${esc(e.nombre)}</p>
       <ul class="mk-check">${items.map((c) => `<li class="mk-check__item${c.ok ? ' is-ok' : ' is-bad'}"><span class="mk-check__ico" aria-hidden="true">${c.ok ? '✓' : '!'}</span><div><strong>${esc(c.label)}</strong><div class="muted">${esc(c.detail)}</div></div></li>`).join('')}</ul>
+      <p>${excludedRecipientsOf(e).length} contactos no recibirán este correo por estar dados de baja</p>
       <div class="card mk-send">
         <h3 class="card__title">Envío</h3>
         <label class="mk-send__opt"><input type="radio" name="when" value="now" checked /> Enviar ahora</label>
@@ -367,7 +368,8 @@ root.addEventListener('submit', (e) => {
   if (e.target.id === 'mk-test') {
     e.preventDefault();
     const to = e.target.elements.to.value.trim();
-    if (sendTest(state.id, to)) toast(`Correo de prueba enviado a ${to} (simulado)`); else toast('Escribe un correo válido');
+    const result = sendTest(state.id, to);
+    if (result) previewHtml(result.html, `Correo de prueba para ${to} (simulado)`); else toast('Introduce el correo de un contacto existente para probar sus preferencias');
   }
 });
 // Drag and drop: palette items and sections into a drop zone; existing modules can be dragged to reorder.

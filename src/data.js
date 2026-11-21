@@ -690,6 +690,18 @@ function validatePropertyValuesLocal(type, fields, id = null) {
 }
 
 export function setField(type, id, field, value, opts = {}) {
+  if (type === 'contacts' && field === 'marketingOptOut' && !opts.subscriptionInternal) {
+    const contact = findRecord(type, id);
+    if (!contact) throw new Error('Contacto no encontrado');
+    const next = [true, 'true', 'Sí'].includes(value) ? 'Sí' : 'No';
+    if (contact.marketingOptOut === next) return;
+    const when = new Date().toISOString();
+    setField(type, id, field, next, { ...opts, subscriptionInternal: true });
+    setField(type, id, 'marketingOptOutAt', next === 'Sí' ? when : null);
+    setField(type, id, 'marketingOptOutReason', opts.reason || (next === 'Sí' ? 'Baja manual desde la ficha' : 'Reactivación manual desde la ficha'));
+    addActivity({ type: 'note', recordType: type, recordId: Number(id), text: next === 'Sí' ? 'Se dio de baja de los correos de marketing' : 'Reactivó su suscripción a los correos de marketing', who: opts.who || 'Marketing', when: Date.now(), extra: { reason: opts.reason || 'Cambio manual', marketingEmailId: opts.emailId || null } });
+    return;
+  }
   validatePropertyValuesLocal(type, { [field]: value }, id);
   const previousStatus = type === 'tickets' && field === 'status' ? findIn(type, id)?.status : undefined;
   if (dbLive) {
@@ -1163,6 +1175,7 @@ function sampleValue(prop, r, type) {
 
 const PROP_CACHE = {};
 function augment(type, r) {
+  if (type === 'contacts') r.marketingOptOut = [true, 'true', 'Sí'].includes(r.marketingOptOut) ? 'Sí' : 'No';
   const props = PROP_CACHE[type] || (PROP_CACHE[type] = propertyList(type));
   for (const p of props) {
     if (p.custom || REAL_ONLY.has(p.key)) continue; // custom properties and the real-only ones never get sample values
@@ -1171,7 +1184,7 @@ function augment(type, r) {
   return r;
 }
 // Properties the app really drives: a sample value would be acted upon (a fake reminder would fire).
-const REAL_ONLY = new Set(['reminderAt', 'reminderFiredAt', 'closedLostReason', 'closedWonReason']);
+const REAL_ONLY = new Set(['marketingOptOut', 'marketingOptOutAt', 'marketingOptOutReason', 'reminderAt', 'reminderFiredAt', 'closedLostReason', 'closedWonReason']);
 
 // ---------- generators ----------
 function daysAgo(n) {

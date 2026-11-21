@@ -83,9 +83,15 @@ export function moduleHtml(m) {
     default: return '';
   }
 }
-export function renderEmailHtml(email) {
+export function preferencesUrl(contactId, emailId) {
+  const url = new URL('/marketing/preferences/', globalThis.location?.origin || 'http://localhost:5173');
+  url.hash = new URLSearchParams({ c: contactId == null ? '' : String(contactId), e: emailId || '' }).toString();
+  return url.href;
+}
+export function renderEmailHtml(email, recipient = null) {
+  const preferences = esc(preferencesUrl(recipient?.id, email.id));
   const header = email.plantilla === 'plain' ? '' : `<tr><td style="background:${BRAND.primary};padding:20px 24px;text-align:center"><span style="display:inline-block;color:#fff;font-family:Helvetica,Arial,sans-serif;font-size:22px;font-weight:700;letter-spacing:.18em">MEGAGLASS</span></td></tr>`;
   const body = (email.contenido || []).map((m) => `<tr><td>${moduleHtml(m)}</td></tr>`).join('');
-  const footer = `<tr><td style="background:${BRAND.light};padding:16px 24px;text-align:center;font-family:Helvetica,Arial,sans-serif;font-size:12px;color:${BRAND.muted}">${esc(BRAND.address)}<br /><a href="#unsubscribe" style="color:${BRAND.muted}">Darme de baja</a> · <a href="#preferences" style="color:${BRAND.muted}">Gestionar preferencias</a></td></tr>`;
+  const footer = `<tr><td style="background:${BRAND.light};padding:16px 24px;text-align:center;font-family:Helvetica,Arial,sans-serif;font-size:12px;color:${BRAND.muted}">${esc(BRAND.address)}<br /><a target="_top" href="${preferences}" style="color:${BRAND.muted}">Darme de baja</a> · <a target="_top" href="${preferences}" style="color:${BRAND.muted}">Gestionar preferencias</a></td></tr>`;
   return `<!doctype html><html lang="es"><head><meta charset="utf-8" /><title>${esc(email.asunto || email.nombre || 'Correo')}</title></head><body style="margin:0;background:#eef2f6;padding:24px"><table role="presentation" cellpadding="0" cellspacing="0" style="width:600px;max-width:100%;margin:0 auto;background:#fff;border-radius:6px;overflow:hidden">${header}${body || '<tr><td style="padding:40px;text-align:center;color:#7c98b6;font-family:Helvetica,Arial,sans-serif">Sin contenido todavía</td></tr>'}${footer}</table></body></html>`;
 }

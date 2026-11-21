@@ -23,6 +23,7 @@ const pages = {
   'segments-editor': 'segments/editor/index.html',
   inbox: 'inbox/index.html',
   calls: 'calls/index.html',
+  'marketing-preferences': 'marketing/preferences/index.html',
   'marketing-email': 'marketing/email/index.html',
   templates: 'templates/index.html',
   snippets: 'snippets/index.html',

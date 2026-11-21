@@ -160,6 +160,9 @@ export const PROPERTIES = {
       ["zoom_webinar_registration_count","Total number of Zoom webinar registrations","number"],
     ]),
     g('Información del contacto', [
+      ['marketingOptOut', 'Dado de baja de correos de marketing', 'bool', YESNO],
+      ['marketingOptOutAt', 'Fecha de la baja', 'datetime'],
+      ['marketingOptOutReason', 'Motivo del cambio de suscripción', 'text'],
       ['first', 'Nombre', 'text'],
       ['last', 'Apellidos', 'text'],
       ['name', 'Nombre completo', 'text'],
@@ -784,7 +787,7 @@ const SYSTEM_PATTERNS = [
   /^hs_total_payments$/, /^hs_latest_quote_status$/, /^hs_invoice_status$/, /^hs_latest_createdate_of_active_subscriptions$/, /^hs_nps_score$/, /^hs_sla_status$/, /^hs_lead_status_date$/, /^associatedcompany$/,
 ];
 // Keys whose meaning depends on the object: "Fuente original" is system-set for contacts, while a ticket's "Fuente" is chosen by hand.
-const SYSTEM_BY_TYPE = { contacts: ['source'], companies: [], deals: [], tickets: [], tasks: [] };
+const SYSTEM_BY_TYPE = { contacts: ['source', 'marketingOptOutAt', 'marketingOptOutReason'], companies: [], deals: [], tickets: [], tasks: [] };
 export function isSystemProperty(type, key) {
   if (!key) return false;
   if (HUBSPOT_CUSTOM_METADATA[type]?.[key]?.readOnly) return true;

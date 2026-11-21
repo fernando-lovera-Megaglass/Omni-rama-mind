@@ -76,11 +76,14 @@ export function recipientOptions() {
   const all = allContacts().filter((c) => c.email);
   return [{ value: 'all', label: `Todos los contactos con correo (${all.length})` }, ...segments().filter((s) => s.object === 'contacts').map((s) => ({ value: `segment:${s.id}`, label: `${s.name} (${segmentMembers(s).filter((c) => c.email).length})` }))];
 }
-export function recipientsOf(email) {
+export function selectedRecipientsOf(email) {
   const d = (email && email.destinatarios) || { kind: 'all' };
   if (d.kind === 'segment') { const seg = segments().find((s) => String(s.id) === String(d.id)); return seg ? segmentMembers(seg).filter((c) => c.email) : []; }
   return allContacts().filter((c) => c.email);
 }
+export const isMarketingOptOut = (c) => [true, 'true', 'Sí'].includes(c.marketingOptOut);
+export const recipientsOf = (email) => selectedRecipientsOf(email).filter((c) => !isMarketingOptOut(c));
+export const excludedRecipientsOf = (email) => selectedRecipientsOf(email).filter(isMarketingOptOut);
 export const destinatariosFromValue = (v) => (v && v.startsWith('segment:') ? { kind: 'segment', id: v.slice(8) } : { kind: 'all' });
 export const destinatariosValue = (d) => (d && d.kind === 'segment' ? `segment:${d.id}` : 'all');
 export function checklist(email) {
@@ -158,15 +161,16 @@ export function sendEmail(id, { at, by = ME, rnd } = {}) {
   // «Tiene correo abierto / sin abrir») knows whether this one opened it.
   const step = metrics.aperturas ? people.length / metrics.aperturas : 0;
   const opened = new Set(Array.from({ length: metrics.aperturas }, (_, k) => Math.min(people.length - 1, Math.floor(k * step))));
-  addActivities(people.map((c, i) => ({ type: 'email', recordType: 'contacts', recordId: Number(c.id), text: `Correo de marketing: ${e.nombre}`, who: 'Marketing', when: now.getTime(), extra: { subject: e.asunto, marketingEmailId: e.id, channel: 'Correo de marketing', opened: opened.has(i) } })));
+  addActivities(people.map((c, i) => ({ type: 'email', recordType: 'contacts', recordId: Number(c.id), text: `Correo de marketing: ${e.nombre}`, who: 'Marketing', when: now.getTime(), extra: { html: renderEmailHtml(e, c), subject: e.asunto, marketingEmailId: e.id, channel: 'Correo de marketing', opened: opened.has(i) } })));
   return sent;
 }
-// "Enviar prueba": only a log line and a confirmation; the test e-mail is not delivered anywhere.
+// "Enviar prueba": render for an existing contact; no real e-mail is delivered.
 export function sendTest(id, to) {
   const e = rows.find((x) => x.id === id);
   if (!e || !/\S+@\S+\.\S+/.test(to || '')) return false;
   console.info(`[marketing] correo de prueba de "${e.nombre}" a ${to} (simulado)`);
-  return true;
+  const contact = allContacts().find((c) => String(c.email).toLowerCase() === to.trim().toLowerCase());
+  return contact ? { html: renderEmailHtml(e, contact), contactId: contact.id } : false;
 }
 export function analytics() {
   const sent = rows.filter((e) => e.enviadoAt && e.enviados > 0).map(decorate).sort((a, b) => new Date(b.enviadoAt) - new Date(a.enviadoAt));

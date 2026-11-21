@@ -572,11 +572,11 @@ function fieldFor(key) {
   if (key === 'description' || key === 'message') return [key, p.label, 'textarea'];
   return [key, p.label, 'text'];
 }
-const defaultCardKeys = () => [...cfg.fields.map((f) => f[0]), ...(cfg.cardExtra || []).filter((k) => props[k])];
+const defaultCardKeys = () => [...(type === 'contacts' ? ['marketingOptOut', 'marketingOptOutAt', 'marketingOptOutReason'] : []), ...cfg.fields.map((f) => f[0]), ...(cfg.cardExtra || []).filter((k) => props[k])];
 function currentFields() {
   const saved = loadCard();
   const keys = saved && Array.isArray(saved.keys) && saved.keys.length ? saved.keys : defaultCardKeys();
-  return keys.map(fieldFor).filter(Boolean);
+  return [...new Set([...(type === 'contacts' ? ['marketingOptOut', 'marketingOptOutAt', 'marketingOptOutReason'] : []), ...keys])].map(fieldFor).filter(Boolean);
 }
 function cardTitle() {
   const saved = loadCard();
