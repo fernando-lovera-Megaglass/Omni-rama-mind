@@ -1452,6 +1452,13 @@ function sampleEvents() {
 }
 let actKind = '';
 let actQuery = '';
+const evKey = (ev) => `${ev.id || ''}:${ev.when}:${ev.type}`;
+const pinnedStorageKey = `crm:${type}:${id}:pinned`;
+// An empty value explicitly overrides legacy extra.pinned flags after unpinning.
+function pinnedEvent(events) {
+  const key = localStorage.getItem(pinnedStorageKey);
+  return key === null ? events.find((ev) => ev.extra?.pinned) : events.find((ev) => evKey(ev) === key);
+}
 const openEvents = new Set(); // timeline entries expanded by the person
 let actDate = ''; // '' | days back ('0' = today)
 let actWho = ''; // '' | 'Tú' | owner name | 'Sistema'
@@ -1483,11 +1490,13 @@ function allEvents() {
       transcript: l.transcript || '',
     },
   }));
-  return [...enriched, ...callEvs].sort((a, b) => Number(!!b.extra?.pinned) - Number(!!a.extra?.pinned) || b.when - a.when);
+  return [...enriched, ...callEvs].sort((a, b) => b.when - a.when);
 }
 function renderTimeline() {
   const q = actQuery.toLowerCase();
-  const events = allEvents().filter((ev) => (!actKind || ev.type === actKind) && (!q || ev.text.toLowerCase().includes(q)) && actDateOk(ev) && (!actWho || ev.who === actWho));
+  const all = allEvents();
+  const pinned = pinnedEvent(all);
+  const events = all.filter((ev) => ev !== pinned && (!actKind || ev.type === actKind) && (!q || ev.text.toLowerCase().includes(q)) && actDateOk(ev) && (!actWho || ev.who === actWho));
   if ($('act-clear')) $('act-clear').hidden = !(actKind || actDate || actWho || q);
   const fmtWhen = (ev) => {
     const d = new Date(ev.when);
@@ -1523,34 +1532,40 @@ function renderTimeline() {
   // Each entry: icon by type, title, who logged it and when (relative); click expands the full text,
   // the exact date and the details.
   const titleOf = (ev) => { const x = ev.extra || {}; const base = KIND_TITLE[ev.type] || 'Actividad'; return x.subject ? `${base}: ${x.subject}` : base; };
-  const evKey = (ev) => `${ev.id || ''}:${ev.when}:${ev.type}`;
   const item = (ev) => `
-    <li class="timeline__item${openEvents.has(evKey(ev)) ? ' is-open' : ''}" data-ev="${esc(evKey(ev))}">
+    <li class="timeline__item${ev === pinned ? ' timeline__item--pinned' : ''}${openEvents.has(evKey(ev)) ? ' is-open' : ''}" data-ev="${esc(evKey(ev))}">
       <span class="timeline__ico" aria-hidden="true">${ev.type === 'call' && ev.extra?.direction === 'Entrante' ? ACT_ICONS.inbound : ICONS[ev.type] || ACT_ICONS.more}</span>
       <div class="timeline__body">
+        <details class="timeline__actions"><summary aria-label="Acciones de actividad">⋮</summary><div class="timeline__actions-panel">${[...( ['note', 'call', 'email', 'meeting', 'message'].includes(ev.type) ? [['edit', 'Editar'], ['delete', 'Eliminar']] : []), ['pin', ev === pinned ? 'Desfijar' : 'Fijar en la parte superior']].map(([action, label]) => `<button type="button" class="btn btn--ghost" data-activity-action="${action}" data-activity-key="${esc(evKey(ev))}">${label}</button>`).join('')}</div></details>
         <button class="timeline__head" type="button" aria-expanded="${openEvents.has(evKey(ev))}">
-          <span class="timeline__title">${ev.extra?.pinned ? '📌 Fijada · ' : ''}${esc(titleOf(ev))}</span>
+          <span class="timeline__title">${ev === pinned ? '📌 Fijada · ' : ''}${esc(titleOf(ev))}</span>
           <span class="timeline__chev" aria-hidden="true">⌄</span>
         </button>
         <div class="timeline__meta"><strong>${esc(ev.who)}</strong> · <span title="${esc(fmtWhen(ev))}">${esc(relativeTimeFine(ev.when))}</span></div>
         ${activityOriginHtml(ev)}<div class="timeline__text">${esc(ev.text)}</div>
-        <div class="timeline__detail">${['note', 'call', 'email', 'meeting', 'message'].includes(ev.type) ? `<details><summary aria-label="Acciones de actividad">⋯</summary>${[['edit', 'Editar'], ['pin', ev.extra?.pinned ? 'Desfijar' : 'Fijar en la parte superior'], ['delete', 'Eliminar']].map(([action, label]) => `<button type="button" class="btn btn--ghost" data-activity-action="${action}" data-activity-key="${esc(evKey(ev))}">${label}</button>`).join('')}</details>` : ''}<div class="muted">${esc(fmtWhen(ev))}</div>${extraTags(ev)}${callMedia(ev)}</div>
+        <div class="timeline__detail"><div class="muted">${esc(fmtWhen(ev))}</div>${extraTags(ev)}${callMedia(ev)}</div>
         ${['system', 'prop', 'created'].includes(ev.type) ? '' : `<div data-comments-key="${esc(evKey(ev))}"></div>`}
       </div>
     </li>`;
-  $('rec-timeline').innerHTML = events.length ? events.map(item).join('') : '<li class="muted">Sin actividades que coincidan.</li>';
+  $('rec-timeline').innerHTML = (pinned ? `<li class="timeline__section"><h3>📌 Fijado</h3><span class="muted">Visible independientemente de los filtros</span></li>${item(pinned)}` : '') + '<li class="timeline__section"><h3>Actividad</h3></li>' + (events.length ? events.map(item).join('') : '<li class="muted">Sin actividades que coincidan.</li>');
   if ($('rec-timeline-short')) $('rec-timeline-short').innerHTML = allEvents().filter((e) => e.type === 'task' || e.type === 'email').slice(0, 2).map(item).join('');
   document.querySelectorAll('[data-activity-action]').forEach((button) => button.addEventListener('click', async () => {
     const ev = allEvents().find((a) => evKey(a) === button.dataset.activityKey);
     if (!ev) return;
     button.disabled = true;
     try {
+      if (button.dataset.activityAction === 'pin') {
+        const unpin = evKey(ev) === (pinned && evKey(pinned));
+        localStorage.setItem(pinnedStorageKey, unpin ? '' : evKey(ev));
+        renderTimeline();
+        toast(unpin ? 'Actividad desfijada' : 'Actividad fijada');
+        return;
+      }
       if (!ev.id) {
         if (dbIsLive()) ev.id = await activityIdForComment(ev, type, id);
         else { addActivity({ ...ev, recordType: type, recordId: id }); ev.id = activitiesFor(type, id).find((a) => a.extra?.callSid === ev.extra?.callSid)?.id; }
       }
       if (button.dataset.activityAction === 'edit') openLogModal(ev.type, { activity: ev, channel: ev.extra?.channel || '' });
-      else if (button.dataset.activityAction === 'pin') { await updateActivity(ev.id, { extra: { pinned: !ev.extra?.pinned } }); renderTimeline(); }
       else openModal('Eliminar actividad', '<p>La actividad se podrá restaurar durante 90 días.</p>', `<button class="btn btn--danger" data-confirm="activity-delete" data-id="${esc(ev.id)}">Eliminar</button><button class="btn btn--ghost" data-close>Cancelar</button>`);
     } catch (error) { toast(error.message); }
     finally { button.disabled = false; }
@@ -1562,7 +1577,7 @@ function renderTimeline() {
   $('rec-timeline').querySelectorAll('[data-tplayer]').forEach((el) => attachInlinePlayer(el, el.dataset.tplayer));
   $('rec-timeline').querySelectorAll('[data-reviewcall]').forEach((b) => b.addEventListener('click', (e) => {
     e.stopPropagation();
-    const ev = events.find((x) => x.extra && x.extra.callSid === b.dataset.reviewcall);
+    const ev = all.find((x) => x.extra && x.extra.callSid === b.dataset.reviewcall);
     if (!ev) return;
     openCallReview({
       callSid: ev.extra.callSid,
@@ -2028,7 +2043,12 @@ $('rec-modal').addEventListener('click', async (e) => {
     }
     if (editingActivity) {
       b.disabled = true;
-      try { await updateActivity(editingActivity.id, { when, text, extra }); renderTimeline(); }
+      try {
+        const wasPinned = pinnedEvent(allEvents());
+        await updateActivity(editingActivity.id, { when, text, extra });
+        if (wasPinned && evKey(wasPinned) === evKey(editingActivity)) localStorage.setItem(pinnedStorageKey, evKey({ ...editingActivity, when }));
+        renderTimeline();
+      }
       catch (error) { toast(error.message); b.disabled = false; return; }
     } else {
       if (b.disabled) return;

@@ -19526,3 +19526,13 @@ td[data-key="deal_tags"] .dtag {
 .inbox__item:hover .inbox__check, .inbox__item:focus-within .inbox__check, .has-selection .inbox__check { opacity: 1; }
 .inbox__item:hover .avatar, .inbox__item:focus-within .avatar, .has-selection .inbox__item .avatar { visibility: hidden; }
 @media (hover: none) { .inbox__check { opacity: 1; } .inbox__item .avatar { visibility: hidden; } }
+
+.timeline__section { list-style: none; padding: 12px 0; }
+.timeline__section h3 { margin: 0 0 4px; font-size: var(--fs-sm); }
+.timeline__item--pinned { background: #fff8e6; border: 1px solid #e8ce85; border-radius: 8px; padding: 16px; }
+.timeline__actions { position: relative; float: right; margin-left: 12px; }
+.timeline__actions summary { cursor: pointer; list-style: none; padding: 0 10px; font-size: 20px; }
+.timeline__actions summary::-webkit-details-marker { display: none; }
+.timeline__actions-panel { position: absolute; right: 0; top: 100%; z-index: 5; min-width: 210px; padding: 6px; background: var(--c-bg, white); border: 1px solid var(--c-border); border-radius: 6px; box-shadow: 0 4px 12px #0002; }
+.timeline__actions-panel .btn { display: block; width: 100%; text-align: left; }
+.timeline__actions + .timeline__head { width: auto; }
