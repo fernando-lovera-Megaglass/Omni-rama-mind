@@ -23,9 +23,12 @@
 --  · Después, abre la app: te llevará a la pantalla de inicio de sesión. Pulsa "crear una cuenta",
 --    registra tu correo y contraseña, y entra.
 --
--- ============ PASO 2 (OPCIONAL): AISLAR LOS DATOS POR USUARIO ============
---  Cuando todos tengan cuenta y quieras que cada usuario vea solo sus registros, ejecuta el bloque
---  comentado al final de este archivo. Antes asigna las filas existentes a su dueño (ver allí).
+-- ============ PASO 2 (OPCIONAL): ACCESO ESTRICTO ============
+--  Para esta cuenta (equipo con datos compartidos: los registros se reparten por «Propietario» pero todos
+--  trabajan sobre los mismos contactos, negocios, tickets…) el PASO 2 está en supabase/rls_team.sql:
+--  políticas POR EQUIPO (miembros activos de public.team_members), sin acceso anónimo, con las tablas
+--  personales solo del dueño. El bloque «owner only» comentado al final queda solo como referencia:
+--  aplicarlo dejaría el CRM vacío, porque casi ninguna fila tiene user_id (ver rls_team.sql).
 
 -- ---------- 1 y 2: políticas para usuarios autenticados (además de las anónimas) ----------
 do $$

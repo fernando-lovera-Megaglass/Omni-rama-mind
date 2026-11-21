@@ -2112,6 +2112,32 @@ async function anonSeesRows(table) {
     return false;
   }
 }
+// With the team policies (supabase/rls_team.sql) a signed-in user who is not an active member of
+// public.team_members sees nothing: say so instead of seeding or switching to the demo. 'unknown' when the
+// migration has not been applied (no table) — the app behaves as before.
+export async function teamMembership(session, client = supabase) {
+  const uid = session && session.user && session.user.id;
+  if (!uid || !client) return 'unknown';
+  try {
+    const { data, error } = await client.from('team_members').select('active').eq('user_id', uid).maybeSingle();
+    if (error) return 'unknown';
+    if (!data) return 'none';
+    return data.active ? 'active' : 'inactive';
+  } catch {
+    return 'unknown';
+  }
+}
+export const teamNoticeHtml = (email, status) => `<main style="max-width:640px;margin:80px auto;padding:32px;font-family:'Lexend Deca',Helvetica,Arial,sans-serif;color:#333;border:1px solid #dfe3eb;border-radius:8px;background:#fff">
+    <h1 style="font-size:22px;margin:0 0 12px">Tu cuenta no está activa en el equipo</h1>
+    <p>Has iniciado sesión como <strong>${String(email || '').replace(/[&<>]/g, '')}</strong>, pero ${status === 'inactive' ? 'un administrador dio de baja tu acceso' : 'tu usuario todavía no figura como miembro del equipo'} en Omni, así que la base de datos no muestra ningún registro.</p>
+    <p>Pide a un administrador que te active en la tabla <code>team_members</code> de Supabase (<code>update public.team_members set active = true where email = '…'</code>) y vuelve a cargar esta página.</p>
+    <p style="margin-top:20px"><button id="rls-reload" type="button" style="padding:10px 16px;border:0;border-radius:6px;background:#ff5c35;color:#fff;font:inherit;font-weight:600">Volver a cargar</button> <button id="rls-signout" type="button" style="padding:10px 16px;border:1px solid #dfe3eb;border-radius:6px;background:#fff;font:inherit">Cerrar sesión</button></p>
+  </main>`;
+function showTeamNotice(session, status) {
+  document.body.innerHTML = teamNoticeHtml(session?.user?.email || '', status);
+  document.getElementById('rls-reload').onclick = () => location.reload();
+  document.getElementById('rls-signout').onclick = async () => { await signOut(); location.replace(siteRoot()); };
+}
 function showRlsNotice(session) {
   const email = session?.user?.email || '';
   document.body.innerHTML = `<main style="max-width:640px;margin:80px auto;padding:32px;font-family:'Lexend Deca',Helvetica,Arial,sans-serif;color:#333;border:1px solid #dfe3eb;border-radius:8px;background:#fff">
@@ -2184,6 +2210,14 @@ async function initFromSupabase() {
     if (session && !known('contacts') && !known('companies') && (await anonSeesRows('contacts'))) {
       showRlsNotice(session);
       await new Promise(() => {});
+    }
+    // Team policies in force (rls_team.sql) and this user is not an active member: nothing to seed, explain.
+    if (session && !known('contacts') && !known('companies')) {
+      const membership = await teamMembership(session);
+      if (membership === 'none' || membership === 'inactive') {
+        showTeamNotice(session, membership);
+        await new Promise(() => {});
+      }
     }
     if (!known('contacts') && !known('companies')) {
       await seedAll();
