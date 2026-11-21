@@ -56,8 +56,12 @@ click(document.querySelector('.menu__item[data-filter="owner"][data-value]:not([
 const filteredN = total();
 click(document.querySelector('#actions-menu [data-action="export"]'));
 await wait(5); // the action opens after the (possible) full load of the table
+// the export dialog (name / format / properties) opens first; confirming it downloads the filtered view as CSV
+if (!$('bulk-modal') || !$('bulk-modal').classList.contains('is-open') || !$('bulk-form').elements.name || !$('bulk-form').elements.format) fail('Exportar opens the export dialog');
+click($('bulk-ok'));
+await wait(20);
 log('export:', downloaded, '| toast:', text($('toast')), '| filtered rows:', filteredN);
-if (!downloaded || !/contacts-.*\.csv$/.test(downloaded) || !text($('toast')).startsWith(`${filteredN} registro`)) fail('Exportar should download the filtered view');
+if (!downloaded || !/^Contactos - \d{4}-\d{2}-\d{2}\.csv$/.test(downloaded) || !text($('toast')).startsWith(`${filteredN} registro`)) fail('Exportar should download the filtered view');
 document.createElement = origCreate;
 click(document.querySelector('.menu__item[data-filter="owner"][data-value=""]'));
 

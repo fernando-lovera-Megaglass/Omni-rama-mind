@@ -6265,6 +6265,18 @@ td.cell--hl .cell__pen {
   border-color: #b9e0ea;
 }
 
+/* Export dialog (lists): format and properties groups */
+.export__group {
+  margin: var(--sp-10) 0 0;
+  padding: 0;
+  border: 0;
+}
+
+.export__group > legend {
+  font-weight: 600;
+  margin-bottom: var(--sp-4);
+}
+
 /* Internal comment («Comentario»): yellow, full width, never sent to the contact. */
 .msg--note {
   align-self: stretch;

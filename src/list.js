@@ -13,6 +13,7 @@ import { enhanceOwnerSelects, refreshOwnerSelects } from './owner-select.js';
 import { enhancePhoneInputs, displayPhone } from './phone.js';
 import { formatDateTime, addRecord, deleteRecords, restoreAll, restoreRecords, trashedRecords, mergeRecords, softDeletes, getPrefs, setPrefs, getViewStore, setViewStore, matches, strip, toCsv, download, formatDate, formatMoney, formatShortDate, relativeTime, setField, TODAY, ALL, OWNERS, TASK_TYPES, ensureAll, ensureTrash, ensureAllActivities, isLazy, setPageRows } from './data.js';
 import { serverListEnabled, fetchPage, listClient } from './server-list.js';
+import { exportColumns, buildExport, downloadBlob, defaultExportName, EXPORT_FORMATS } from './export.js';
 import { findDuplicateGroups, suggestedKeep, formatFixes } from './duplicates.js';
 import { segments as allSegments, addSegment, addStaticMembers, segmentMembers } from './segments-data.js';
 import { defaultTabs, deletedViews, saveDeletedViews } from './std-views.js';
@@ -2658,6 +2659,35 @@ export function mountList(cfg) {
       },
     });
   }
+  // «Exportar» as in the original: file name, format and which properties, before any download.
+  function openExportDialog(selectionOnly) {
+    const list = filtered().filter((r) => !selectionOnly || state.selected.has(Number(r.id)));
+    const viewCols = visibleColumns();
+    const allCols = exportColumns(cfg.type, viewCols, 'all');
+    const n = list.length;
+    bulkDialog({
+      title: selectionOnly ? `Exportar ${bulkN(n)}` : 'Exportar vista',
+      body: `
+        <label class="field"><span>Nombre del archivo</span><input name="name" type="text" value="${esc(defaultExportName(cfg.title))}" maxlength="120" autocomplete="off" /></label>
+        <fieldset class="export__group"><legend>Formato de archivo</legend>${EXPORT_FORMATS.map(([k, l], i) => `<label class="ocheck ocheck--sm"><input type="radio" name="format" value="${k}" ${i === 0 ? 'checked' : ''} /><span>${l}</span></label>`).join('')}</fieldset>
+        <fieldset class="export__group"><legend>Propiedades</legend>
+          <label class="ocheck ocheck--sm"><input type="radio" name="scope" value="view" checked /><span>Solo las propiedades de la vista actual (${viewCols.length})</span></label>
+          <label class="ocheck ocheck--sm"><input type="radio" name="scope" value="all" /><span>Todas las propiedades del objeto (${allCols.length})</span></label>
+        </fieldset>
+        <p class="muted">${n} registro(s) ${selectionOnly ? 'seleccionado(s)' : 'de la vista'} con sus filtros.</p>`,
+      okLabel: 'Exportar',
+      onOk: async (d) => {
+        const format = d.format === 'xlsx' ? 'xlsx' : 'csv';
+        const columns = exportColumns(cfg.type, viewCols, d.scope === 'all' ? 'all' : 'view');
+        try {
+          const out = await buildExport({ rows: list, columns, type: cfg.type, format, name: d.name || defaultExportName(cfg.title), sheet: cfg.title });
+          downloadBlob(out.filename, out.blob);
+          toast(`${n} registro(s) exportados a ${format.toUpperCase()}`);
+        } catch (e) { toast(`No se pudo exportar: ${e.message || e}`); return false; }
+        return true;
+      },
+    });
+  }
   function bulkDialog({ title, body, okLabel = 'Aplicar', danger = false, onOk, onChange }) {
     const m = bulkModal();
     m.querySelector('#bulk-modal-title').textContent = title;
@@ -2842,12 +2872,9 @@ export function mountList(cfg) {
     else if (a === 'advanced') { renderAdvRows(); openDrawer('adv-drawer'); }
     else if (a === 'import') { location.href = `../data/?from=${cfg.type}`; } // imports live in Gestión de datos › Integración de datos, as in the original
     else if (a === 'export' || a === 'bulk-export') {
-      // Exports cover the whole view: with server-side paging the full table is loaded first.
-      (a === 'export' ? ensureFull() : Promise.resolve(false)).then(() => {
-        const list = filtered().filter((r) => a === 'export' || state.selected.has(Number(r.id)));
-        download(`${cfg.type}-${TODAY.toISOString().slice(0, 10)}.csv`, toCsv(list, visibleColumns(), cfg.type));
-        toast(`${list.length} registro(s) exportados a CSV`);
-      });
+      // Exports cover the whole view: with server-side paging the full table is loaded first. Then the dialog
+      // (name, CSV / XLSX, view columns or every property) decides what is written; cancelling downloads nothing.
+      (a === 'export' ? ensureFull() : Promise.resolve(false)).then(() => openExportDialog(a === 'bulk-export'));
     } else if (a === 'delete') {
       const n = state.selected.size;
       bulkDialog({
