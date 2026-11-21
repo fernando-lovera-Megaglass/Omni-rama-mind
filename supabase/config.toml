@@ -59,3 +59,7 @@ verify_jwt = false
 # Handler additionally requires the exact service-role credential.
 [functions.sequence-process]
 verify_jwt = true
+
+# Scheduled marketing e-mails worker (same service-role check). See docs/marketing-process.md.
+[functions.marketing-process]
+verify_jwt = true

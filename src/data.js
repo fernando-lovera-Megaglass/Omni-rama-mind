@@ -703,7 +703,7 @@ export function setField(type, id, field, value, opts = {}) {
     return;
   }
   validatePropertyValuesLocal(type, { [field]: value }, id);
-  const previousStatus = type === 'tickets' && field === 'status' ? findIn(type, id)?.status : undefined;
+  const previousValue = (type === 'tickets' && field === 'status') || (type === 'contacts' && field === 'lifecycle') ? findIn(type, id)?.[field] : undefined;
   if (dbLive) {
     const rec = (dbRows[type] || []).find((r) => Number(r.id) === Number(id));
     if (rec) rec[field] = value;
@@ -721,13 +721,13 @@ export function setField(type, id, field, value, opts = {}) {
         if (error) console.error('[supabase] update extra', type, error);
       }
     });
-    afterSet(type, id, field, value, opts, previousStatus);
+    afterSet(type, id, field, value, opts, previousValue);
     return;
   }
   const o = getOverrides(type);
   o[id] = { ...(o[id] || {}), [field]: value };
   write(K(type, 'overrides'), o);
-  afterSet(type, id, field, value, opts, previousStatus);
+  afterSet(type, id, field, value, opts, previousValue);
 }
 
 // ---------- papelera (soft-delete): contacts, companies and deals keep their rows with deleted_at ----------
@@ -972,7 +972,16 @@ function afterAdd(type, rec, opts = {}) {
   if (type === 'tickets') { try { autoAssociateTicketCompany(rec); } catch (e) { console.error('[tickets: empresa del contacto]', e); } }
   return rec;
 }
-function afterSet(type, id, field, value, opts = {}, previousStatus) {
+function afterSet(type, id, field, value, opts = {}, previousValue) {
+  if (type === 'contacts' && field === 'lifecycle' && previousValue !== value) {
+    const stageId = lifecycleDef().stages.find((stage) => stage[1] === value)?.[0];
+    if (LIFECYCLE_IDS.includes(stageId) && stageId !== 'other') {
+      // Catalog datetime: retain the exact latest entry, including re-entry on the same day.
+      // setField persists this property in extra (or local overrides). It adds no history
+      // event: the caller's lifecycle "Propiedad actualizada" entry is sufficient.
+      setField(type, id, `hs_lifecyclestage_${stageId}_date`, new Date().toISOString());
+    }
+  }
   if (!opts.skipAutoCompany && type === 'contacts' && (field === 'email' || field === 'website') && value) { try { autoAssociateCompany(id); } catch (e) { console.error('[empresas automáticas]', e); } }
   if (type === 'contacts' && COMPANY_LINK_FIELDS.has(field)) { try { syncContactCompanies(id); } catch (e) { console.error('[contact_companies]', e); } }
   if (type === 'tickets' && field === 'contactId' && value) { try { autoAssociateTicketCompany(id); } catch (e) { console.error('[tickets: empresa del contacto]', e); } }
@@ -988,7 +997,7 @@ function afterSet(type, id, field, value, opts = {}, previousStatus) {
       }
     }
     // A ticket changing status: on the ticket and on its contact and company.
-    if (type === 'tickets' && field === 'status' && previousStatus !== value) {
+    if (type === 'tickets' && field === 'status' && previousValue !== value) {
       const t = findIn('tickets', id);
       if (t) {
         const label = ticketStatusLabel(t.pipeline, value);

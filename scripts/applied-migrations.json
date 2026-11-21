@@ -133,6 +133,10 @@
     "status": "pendiente",
     "nota": "Solo código local; no aplicada a producción. Ver docs/sequence-process.md."
   },
+  "marketing-process.sql": {
+    "status": "pendiente",
+    "nota": "Solo código local; no aplicada a producción. Ver docs/marketing-process.md."
+  },
   "workflow_runs.sql": {
     "status": "aplicada",
     "at": "2026-11-20T17:45:42.402Z"
@@ -167,5 +171,9 @@
   "avatars-storage.sql": {
     "status": "aplicada",
     "at": "2026-11-21T12:53:43-0600"
+  },
+  "marketing-process.sql": {
+    "status": "aplicada",
+    "at": "2026-11-21T13:37:40-0600"
   }
 }

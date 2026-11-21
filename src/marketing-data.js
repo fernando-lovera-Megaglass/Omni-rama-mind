@@ -1,10 +1,14 @@
 // Marketing e-mails (Marketing › Correo): the marketing_emails table with Supabase, localStorage otherwise,
-// seeded with the same [Prueba] e-mails. Sending is simulated: the e-mail becomes "enviado" with realistic
-// metrics and every recipient gets an entry on its timeline. No real e-mail leaves the app.
+// seeded with the same [Prueba] e-mails. «Enviar ahora» is simulated: the e-mail becomes "enviado" with realistic
+// metrics and every recipient gets an entry on its timeline; no real e-mail leaves the browser. «Programar» only
+// marks it "programado": the server worker (supabase/functions/marketing-process, see docs/marketing-process.md)
+// sends it through the connected Gmail account when programado_para arrives, so scheduling freezes the recipient
+// ids and the sender account in `destinatarios` for it.
 import { allContacts, addActivities, dbIsLive } from './data.js';
 import { supabase } from './supabaseClient.js';
 import { reportDbError } from './db-report.js';
 import { segments, segmentMembers } from './segments-data.js';
+import { accountByEmail } from './connected-emails.js';
 import { renderEmailHtml, templateById, cloneModules } from './marketing-templates.js';
 
 export const ME = 'Fernando L.';
@@ -109,6 +113,8 @@ export function createEmail({ nombre, tipo = 'normal', plantilla = 'blank', asun
 export function updateEmail(id, patch, { by = ME } = {}) {
   const e = rows.find((x) => x.id === id);
   if (!e) return null;
+  // Changing the audience or the sender of an e-mail that stays scheduled refreshes the snapshot the worker uses.
+  if ((patch.destinatarios || patch.deEmail) && (patch.estado || e.estado) === 'programado' && !(patch.destinatarios && Array.isArray(patch.destinatarios.ids))) patch = { ...patch, destinatarios: scheduledRecipients({ ...e, ...patch }) };
   Object.assign(e, patch, { updatedAt: new Date().toISOString(), updatedBy: by });
   e.htmlContent = renderEmailHtml(e);
   persist(e);
@@ -146,14 +152,29 @@ export function simulateMetrics(enviados, rnd = Math.random) {
   const clics = Math.min(aperturas, Math.round(entregados * (rnd() * 0.04)));
   return { entregados, aperturas, clics };
 }
-// "Enviar ahora" / "Programar". Nothing leaves the app: the e-mail is marked sent (or scheduled) and each
-// recipient gets a timeline entry.
+// A scheduled e-mail is sent later by the server worker (supabase/functions/marketing-process), which cannot
+// evaluate an active segment in SQL: freeze now who receives it (contact ids) and which connected Gmail account
+// signs as the sender (the real active account whose address is deEmail, if any; otherwise the worker matches
+// de_email itself). `kind`/`id` stay so the editor keeps showing the chosen audience.
+export function scheduledRecipients(e, now = new Date()) {
+  const base = e.destinatarios && typeof e.destinatarios === 'object' ? e.destinatarios : { kind: 'all' };
+  const sender = accountByEmail(e.deEmail);
+  return {
+    kind: base.kind === 'segment' ? 'segment' : 'all',
+    ...(base.kind === 'segment' ? { id: base.id } : {}),
+    ids: recipientsOf(e).map((c) => Number(c.id)).filter(Number.isFinite),
+    snapshotAt: now.toISOString(),
+    senderAccountId: sender && sender.real && sender.status === 'active' ? sender.id : null,
+  };
+}
+// "Enviar ahora" / "Programar". «Enviar ahora» never leaves the app: the e-mail is marked sent and each recipient
+// gets a timeline entry. «Programar» marks it scheduled with the snapshot the worker needs.
 export function sendEmail(id, { at, by = ME, rnd } = {}) {
   const e = rows.find((x) => x.id === id);
   if (!e) return null;
   if (checklist(e).some((c) => !c.ok)) return null;
   const now = new Date();
-  if (at && new Date(at) > now) return updateEmail(id, { estado: 'programado', programadoPara: new Date(at).toISOString() }, { by });
+  if (at && new Date(at) > now) return updateEmail(id, { estado: 'programado', programadoPara: new Date(at).toISOString(), destinatarios: scheduledRecipients(e, now) }, { by });
   const people = recipientsOf(e);
   const metrics = simulateMetrics(people.length, rnd);
   const sent = updateEmail(id, { estado: 'enviado', enviadoAt: now.toISOString(), programadoPara: null, enviados: people.length, ...metrics }, { by });

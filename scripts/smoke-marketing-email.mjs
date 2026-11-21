@@ -172,6 +172,12 @@ const sched = M.createEmail({ nombre: 'Programado de prueba', asunto: 'Asunto', 
 const later = M.sendEmail(sched.id, { at: new Date(Date.now() + 86400000).toISOString() });
 log('scheduled:', later.estado, '|', later.programadoPara && later.programadoPara.slice(0, 10));
 if (later.estado !== 'programado' || !later.programadoPara) fail('schedule');
+// scheduling freezes the recipients and the sender account for the server worker (marketing-process)
+const snap = later.destinatarios || {};
+if (snap.kind !== 'all' || !Array.isArray(snap.ids) || snap.ids.length !== M.recipientsOf(later).length || !snap.ids.every((x) => typeof x === 'number') || !snap.snapshotAt || !('senderAccountId' in snap)) fail(`snapshot for the worker: ${JSON.stringify(snap).slice(0, 120)}`);
+log('snapshot for the worker:', snap.ids.length, 'contact ids |', snap.senderAccountId || 'sender matched by de_email');
+const unsched = M.updateEmail(sched.id, { estado: 'borrador', programadoPara: null });
+if (unsched.estado !== 'borrador' || !Array.isArray(unsched.destinatarios.ids)) fail('unscheduling keeps the audience');
 const bad = M.createEmail({ nombre: 'Sin asunto', asunto: '', plantilla: 'plain' });
 if (M.sendEmail(bad.id)) fail('an incomplete e-mail cannot be sent');
 
