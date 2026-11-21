@@ -1375,6 +1375,10 @@ const BUILDERS = { contacts: buildContact, companies: buildCompany, deals: build
 const baseCache = {};
 let version = 0;
 const bump = () => { version += 1; };
+// Preferences can be changed in another tab while the marketing editor stays open.
+if (typeof window !== 'undefined') window.addEventListener('storage', (event) => {
+  if (!dbLive && (event.key === null || event.key.startsWith('crm:'))) bump();
+});
 function baseRecords(type) {
   if (!baseCache[type]) {
     baseCache[type] = dbLive

@@ -15,4 +15,5 @@ function render() {
   };
 }
 window.addEventListener('hashchange', render);
+window.addEventListener('storage', render);
 render();

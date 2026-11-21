@@ -25,6 +25,9 @@ const state = {
   pendingTipo: 'normal', tplCat: '', tplQ: '',
   addTab: 'modules', editing: null, saveTimer: null, saveStatus: '',
 };
+window.addEventListener('storage', () => {
+  if (state.view === 'review') renderReview();
+});
 const pct = (n) => `${Number(n).toLocaleString('es-ES', { maximumFractionDigits: 1 })} %`;
 const syncUrl = () => { const u = new URLSearchParams(); u.set('view', state.view); if (state.id && ['editor', 'review'].includes(state.view)) u.set('id', state.id); if (state.view === 'manage' && state.estado !== 'all') u.set('estado', state.estado); history.replaceState(null, '', `?${u}`); };
 

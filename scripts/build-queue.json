@@ -704,10 +704,11 @@
     },
     {
       "id": "gap-ui-marketing-filtros-nativos",
-      "status": "pending",
+      "status": "done",
       "createdAt": "2026-11-20T13:33:46-06:00",
       "lane": "claude",
-      "instruction": "Marketing > Correo filtra con tres <select> nativos (#mk-folder, #mk-tipo, #mk-by en src/marketing-email.js 70-72; handlers en 341-343) mientras el resto de la app usa chips con menú desplegable (src/filter-chip.js, o el patrón filterChip/.qchip de src/calls.js 173-182). gap-ui-filtros-nativos-fuera-de-listas unificó los selects de inbox, ficha, workflows, plantillas y secuencias, pero dejó marketing fuera de su alcance: los select nativos tienen alto, borde y tipografía distintos y desentonan en la barra de herramientas. Cómo debe verse según HubSpot: tres chips de filtro con caret que abren un .menu__panel y muestran el valor activo en el propio chip (p. ej. «Carpeta: Promociones»), igual que los filtros Dirección/Actividad asignada a de Llamadas. Criterio de aceptación: no queda ningún <select> en la barra de filtros de Marketing > Correo; los tres filtros (carpeta, tipo, actualizado por) se ven y comportan como los chips de Llamadas, con is-set cuando tienen valor, y filtran igual que antes. No despliegues nada a producción; solo código local."
+      "instruction": "Marketing > Correo filtra con tres <select> nativos (#mk-folder, #mk-tipo, #mk-by en src/marketing-email.js 70-72; handlers en 341-343) mientras el resto de la app usa chips con menú desplegable (src/filter-chip.js, o el patrón filterChip/.qchip de src/calls.js 173-182). gap-ui-filtros-nativos-fuera-de-listas unificó los selects de inbox, ficha, workflows, plantillas y secuencias, pero dejó marketing fuera de su alcance: los select nativos tienen alto, borde y tipografía distintos y desentonan en la barra de herramientas. Cómo debe verse según HubSpot: tres chips de filtro con caret que abren un .menu__panel y muestran el valor activo en el propio chip (p. ej. «Carpeta: Promociones»), igual que los filtros Dirección/Actividad asignada a de Llamadas. Criterio de aceptación: no queda ningún <select> en la barra de filtros de Marketing > Correo; los tres filtros (carpeta, tipo, actualizado por) se ven y comportan como los chips de Llamadas, con is-set cuando tienen valor, y filtran igual que antes. No despliegues nada a producción; solo código local.",
+      "completedAt": "2026-11-21T14:06:02-0600"
     },
     {
       "id": "gap-ui-filtros-iconos-tipo-propiedad",
