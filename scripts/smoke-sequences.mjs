@@ -57,7 +57,8 @@ const heads = qa('.seqs__table thead th').map(text).filter(Boolean);
 if (heads.join('|') !== 'Nombre|Total inscritos|Tasa de respuesta|Tasa de reuniones|Propietario|Fecha de modificación') fail(`columns: ${heads.join('|')}`);
 if (rows().length !== 3 || !qa('[data-folder-row]').map((r) => r.dataset.folderRow).includes('Ventas')) fail('rows / folders');
 const r0 = rows()[0];
-if (!/^\d+$/.test(text(r0.children[2])) || !text(r0.children[3]).includes('%') || !text(r0.children[4]).includes('%') || !/hace|ayer|ahora/.test(text(r0.children[6]))) fail(`row cells: ${text(r0)}`);
+// Date rule of the tables (src/data.js): short date «6 nov 2026» in the cell, full date-time in the tooltip.
+if (!/^\d+$/.test(text(r0.children[2])) || !text(r0.children[3]).includes('%') || !text(r0.children[4]).includes('%') || !/^\d{1,2} [a-z]{3} \d{4}$/.test(text(r0.children[6])) || !/^\d{1,2} [a-z]{3} \d{4} \d{2}:\d{2}$/.test(r0.children[6].querySelector('[title]')?.getAttribute('title') || '')) fail(`row cells: ${text(r0)}`);
 if (qa('[data-id] .menu__item').slice(0, 4).map(text).join('|') !== 'Editar|Clonar|Mover|Eliminar') fail('row actions');
 click(q('[data-folder-toggle="Ventas"]'));
 if (rows().length !== 1 || q('[data-folder-toggle="Ventas"]').getAttribute('aria-expanded') !== 'false') fail('folder collapse');

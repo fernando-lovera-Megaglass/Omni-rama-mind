@@ -8,7 +8,7 @@ import { boot } from './page.js';
 import { toast, wireMenus, closeMenus } from './shell.js';
 import { ownerHtml } from './owner.js';
 import { emptyStateHtml } from './empty-state.js';
-import { allContacts, relativeTimeFine, formatDate } from './data.js';
+import { allContacts, formatDate, dateCellHtml } from './data.js';
 import { ready, templates, templateById, folders, owners, createTemplate, updateTemplate, cloneTemplate, deleteTemplates, moveTemplates, setShared, createFolder, stats, bodyText, templatesCsv, LIBRARY, ME } from './templates-data.js';
 import { getSignature, editSignature, signatureHtmlOf } from './compose.js';
 import { openTokenPicker, chipHtml, markersToChips, chipsToMarkers, renderTokens, contextFromRecord, plainText, insertAtCaret, insertIntoField, trackCaret } from './tokens.js';
@@ -25,7 +25,6 @@ const params = new URLSearchParams(location.search);
 const state = { q: '', owner: '', folder: null, sort: { key: 'updatedAt', dir: -1 }, page: 1, pageSize: 25, selected: new Set() };
 let editor = null;
 const COLS = [['name', 'Nombre'], ['ownerId', 'Propietario'], ['createdAt', 'Fecha de creación'], ['updatedAt', 'Fecha de modificación']];
-const fullDate = (iso) => { const d = new Date(iso); return `${formatDate(d)} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
 const plural = (n, s, p) => `${n} ${n === 1 ? s : p}`;
 const sender = () => { const s = getSignature(); return { name: s.name, email: s.email }; };
 
@@ -106,8 +105,8 @@ function renderTable() {
               <button class="menu__item menu__item--danger" type="button" data-act="delete" data-id="${esc(t.id)}">Eliminar</button>
             </div></div></div></td>
           <td>${ownerHtml(t.ownerId)}</td>
-          <td title="${esc(fullDate(t.createdAt))}">${esc(relativeTimeFine(t.createdAt))}</td>
-          <td title="${esc(fullDate(t.updatedAt))}">${esc(relativeTimeFine(t.updatedAt))}</td>
+          <td>${dateCellHtml(t.createdAt)}</td>
+          <td>${dateCellHtml(t.updatedAt)}</td>
         </tr>`).join('') : `<tr><td colspan="5"><div class="tpls__empty">${emptyStateHtml({ art: 'templates', title: all.length ? 'Ninguna plantilla coincide con los filtros' : 'Todavía no hay plantillas', text: all.length ? 'Prueba con otra búsqueda o quita los filtros para ver todas las plantillas.' : 'Las plantillas ahorran tiempo al escribir correos que se repiten. Crea la primera y aparecerá aquí.', action: { label: 'Nueva plantilla', attrs: 'data-ta="new-scratch"' } })}</div></td></tr>`}</tbody>
     </table>`;
   const n = state.selected.size;

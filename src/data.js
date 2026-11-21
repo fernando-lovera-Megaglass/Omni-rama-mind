@@ -397,10 +397,29 @@ export function strip(s) {
   return String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 }
 
+// ---------- the date rule of every table ----------
+// A date column (creation, modification, last activity, due, close…) shows the short standard date,
+// «12 nov 2026» (formatDate), the same in every module — Contactos, Empresas, Negocios, Tickets, Tareas,
+// Llamadas, Plantillas, Secuencias — and carries the full date and time, «12 nov 2026 14:32»
+// (formatDateTime), in the cell's tooltip (title). Relative wording («hace 2 días») is for timelines
+// and activity feeds, not for table columns.
 export function formatDate(d) {
   if (!d) return '—';
   const x = d instanceof Date ? d : new Date(d);
   return `${x.getDate()} ${MONTHS[x.getMonth()]} ${x.getFullYear()}`;
+}
+export function formatDateTime(d) {
+  if (!d) return '—';
+  const x = d instanceof Date ? d : new Date(d);
+  if (Number.isNaN(x.getTime())) return '—';
+  return `${formatDate(x)} ${String(x.getHours()).padStart(2, '0')}:${String(x.getMinutes()).padStart(2, '0')}`;
+}
+// A table cell for a date: short date with the full date-time as tooltip (the shared rule above).
+export function dateCellHtml(d) {
+  if (!d) return '<span class="muted">—</span>';
+  const x = d instanceof Date ? d : new Date(d);
+  if (Number.isNaN(x.getTime())) return '<span class="muted">—</span>';
+  return `<span class="cell__date" title="${formatDateTime(x)}">${formatDate(x)}</span>`;
 }
 
 export function formatShortDate(d) {

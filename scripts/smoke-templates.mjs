@@ -46,7 +46,8 @@ if (text($('tpl-count')) !== '3 creados') fail(`counter: ${text($('tpl-count'))}
 if (!names().includes('[Prueba] Seguimiento de propuesta')) fail('seed name missing');
 const heads = [...document.querySelectorAll('.tpls__table thead th button')].map(text);
 ['Nombre', 'Propietario', 'Fecha de creación', 'Fecha de modificación'].forEach((h) => { if (!heads.some((x) => x.startsWith(h))) fail(`column ${h} missing`); });
-if (!/hace|ayer|ahora/.test(text(rows()[0].children[4]))) fail('relative modification date missing');
+// Date rule of the tables (src/data.js): short date «6 nov 2026» in the cell, full date-time in the tooltip.
+if (!/^\d{1,2} [a-z]{3} \d{4}$/.test(text(rows()[0].children[4])) || !/^\d{1,2} [a-z]{3} \d{4} \d{2}:\d{2}$/.test(rows()[0].children[4].querySelector('[title]')?.getAttribute('title') || '')) fail('modification date missing (short date + tooltip)');
 const folderBtns = [...document.querySelectorAll('#tpl-folders [data-folder]')].map(text);
 if (!folderBtns.some((f) => f.startsWith('Ventas') && f.endsWith('2'))) fail(`folders: ${folderBtns.join(' | ')}`);
 if (!q('[data-ta="new-folder"]') || !q('[data-ta="analyze"]') || !q('[data-ta="export"]') || !q('[data-ta="new-scratch"]') || !q('[data-ta="new-library"]')) fail('header buttons missing');
@@ -140,7 +141,9 @@ input($('tpe-subject'), 'Asunto editado para {{contacto.empresa}}');
 click($('tpe-save'));
 if (T.templateById(created.id).subject !== 'Asunto editado para {{contacto.empresa}}') fail('edit not saved');
 if (location.search.includes('id=')) fail('URL should be cleared after closing');
-if (!/ahora mismo|hace \d+ minutos?/.test(text(rows().find((r) => r.dataset.id === created.id).children[4]))) fail('modification date not refreshed');
+// Table date rule (src/data.js): short date in the cell, full date-time in the tooltip.
+const modCell = rows().find((r) => r.dataset.id === created.id).children[4];
+if (text(modCell) !== data.formatDate(new Date()) || !modCell.querySelector('[title]') || !modCell.querySelector('[title]').getAttribute('title').startsWith(data.formatDate(new Date()))) fail(`modification date not refreshed: ${text(modCell)}`);
 log('edit: name link opens the editor, change saved, modification date refreshed');
 
 // 4) Clone

@@ -11,7 +11,7 @@ import { ownerHtml } from './owner.js';
 import { emptyStateHtml } from './empty-state.js';
 import { enhanceOwnerSelects, refreshOwnerSelects } from './owner-select.js';
 import { enhancePhoneInputs, displayPhone } from './phone.js';
-import { addRecord, deleteRecords, restoreAll, restoreRecords, trashedRecords, mergeRecords, softDeletes, getPrefs, setPrefs, getViewStore, setViewStore, matches, strip, toCsv, download, formatDate, formatMoney, formatShortDate, relativeTime, setField, TODAY, ALL, OWNERS, TASK_TYPES, ensureAll, ensureTrash, ensureAllActivities, isLazy, setPageRows } from './data.js';
+import { formatDateTime, addRecord, deleteRecords, restoreAll, restoreRecords, trashedRecords, mergeRecords, softDeletes, getPrefs, setPrefs, getViewStore, setViewStore, matches, strip, toCsv, download, formatDate, formatMoney, formatShortDate, relativeTime, setField, TODAY, ALL, OWNERS, TASK_TYPES, ensureAll, ensureTrash, ensureAllActivities, isLazy, setPageRows } from './data.js';
 import { serverListEnabled, fetchPage, listClient } from './server-list.js';
 import { findDuplicateGroups, suggestedKeep, formatFixes } from './duplicates.js';
 import { segments as allSegments, addSegment, addStaticMembers, segmentMembers } from './segments-data.js';
@@ -251,12 +251,15 @@ export function mountList(cfg) {
     if (key === 'domain' || key === 'website') return 'url';
     return '';
   }
+  // Date columns follow the shared table rule (data.js): short date in the cell, full date-time as tooltip.
+  const isDateColumn = (c) => (props[c.key] && ['date', 'datetime'].includes(props[c.key].kind)) || /Date$|^due$|^created$|^lastActivity$/.test(c.key);
   const cellHtml = (c, r) => {
     if (props[c.key]?.sensitive) return sensitiveValue(r[c.key]);
     if (c.render) return c.render(r);
     const k = kindForLink(c.key);
     const v = r[c.key];
     if (k && v !== undefined && v !== null && v !== '') return linkHtml(k, String(v));
+    if (isDateColumn(c) && v && !Number.isNaN(new Date(v).getTime())) return `<span class="cell__date" title="${esc(formatDateTime(v))}">${esc(cellText(c, r))}</span>`;
     return esc(cellText(c, r));
   };
   // The number a cell counts as on the colour scale: sort value (numbers, money, dates as timestamps) or nothing.

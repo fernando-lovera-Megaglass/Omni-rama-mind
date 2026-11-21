@@ -1,5 +1,11 @@
 # Progreso — Omni CRM
 
+## 2026-11-21 (sesión 6) · Una sola regla de fechas en las tablas
+
+- **Regla** (documentada en `src/data.js` junto a `formatDate`): toda columna de fecha de una tabla (creación, modificación, última actividad, vencimiento, cierre…) muestra la fecha estándar corta **«12 nov 2026»** —la que ya usaban Contactos, Empresas, Negocios, Tickets y Tareas— y lleva la fecha y hora completas **«12 nov 2026 14:32»** en el tooltip (`title`). El texto relativo («hace 2 días») queda para cronologías y actividad, no para columnas. Nuevos `formatDateTime(d)` y `dateCellHtml(d)` (celda con tooltip).
+- Aplicada en **Llamadas** («Fecha de actividad»: desaparece el `fmtWhen` propio con «Hoy a la(s) 14:32» / «17 nov 2026 14:32»; la exportación CSV sigue en ISO), **Plantillas** (creación y modificación: antes «hace 2 d» con la fecha solo en el tooltip) y **Secuencias** (modificación y «Próximo paso» de los inscritos). El motor de listas añade ahora el tooltip con fecha y hora a las columnas de fecha de todas las listas (contactos, empresas, negocios, tickets, tareas), así que la misma fecha se lee igual en todos los módulos con la fecha completa a mano.
+- Pruebas: `scripts/smoke-date-format.mjs` (la misma marca de tiempo se lee «12 nov 2026» con tooltip «12 nov 2026 14:32» en Contactos, Llamadas, Plantillas y Secuencias; una llamada de hoy muestra su fecha, no «Hoy a la(s)…»; ningún módulo conserva un formato propio) y `smoke-templates` / `smoke-sequences` ajustadas a la regla.
+
 ## 2026-11-21 (sesión 6) · Estados vacíos con ilustración, título y acción
 
 - Nuevo componente compartido `src/empty-state.js` (`emptyStateHtml`): ilustración centrada (SVG en línea dibujado con `currentColor` y el acento de marca, con el icono del módulo en la insignia, así que se tiñe bien en el tema oscuro), título, texto de apoyo y botón de acción primario (y uno secundario opcional); variante compacta para paneles estrechos.

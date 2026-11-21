@@ -6,7 +6,7 @@ import { ACT_ICONS } from './action-icons.js';
 // (call_logs) con las registradas a mano en las fichas (actividades de tipo "call").
 import { boot } from './page.js';
 import { toast, wireMenus, closeMenus } from './shell.js';
-import { allContacts, allActivities, OWNERS, toCsv, download, dbIsLive } from './data.js';
+import { allContacts, allActivities, OWNERS, toCsv, download, dbIsLive, dateCellHtml } from './data.js';
 import { supabase } from './supabaseClient.js';
 import { displayPhone } from './phone.js';
 import { ownerHtml } from './owner.js';
@@ -56,13 +56,6 @@ function fmtDuration(sec) {
   if (m < 60) return `${m} ${m === 1 ? 'minuto' : 'minutos'}`;
   const h = Math.floor(m / 60);
   return `${h} h ${m % 60 ? `${m % 60} min` : ''}`.trim();
-}
-function fmtWhen(ts) {
-  const d = new Date(ts);
-  const today = new Date();
-  const time = d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
-  if (d.toDateString() === today.toDateString()) return `Hoy a la(s) ${time}`;
-  return `${d.toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })} ${time}`;
 }
 const contactName = (id) => {
   const c = allContacts().find((x) => String(x.id) === String(id));
@@ -166,7 +159,7 @@ function cellHtml(r, key) {
     case 'title': return `<span class="calls__call-title">${esc(r.title)}</span>${r.recording ? ` <button class="calls-play" type="button" data-play="${esc(r.callSid)}" title="Escuchar la grabación">▶ Grabación</button>` : ''}${r.transcript ? ` <button class="calls-play" type="button" data-transcript="${esc(r.id)}" title="Ver la transcripción">${state.openTranscripts.has(r.id) ? '▾' : '▸'} Transcripción</button>` : r.recording ? ` <button class="calls-play" type="button" data-transcribe="${esc(r.callSid)}" title="Transcribir con IA">Transcribir</button>` : ''}`;
     case 'owner': return `${ownerHtml(r.owner)}`;
     case 'durationSec': return `${esc(fmtDuration(r.durationSec))}`;
-    case 'when': return `${esc(fmtWhen(r.when))}`;
+    case 'when': return dateCellHtml(r.when); // the table rule: «12 nov 2026», full date-time in the tooltip
     case 'status': return `<span class="tag">${esc(r.status || '—')}</span>`;
     case 'direction': return `${r.direction ? `<span class="calls__direction">${r.direction === 'outbound' ? ACT_ICONS.outbound : ACT_ICONS.inbound} ${DIRECTION_LABEL[r.direction] || esc(r.direction)}</span>` : '—'}`;
     default: return esc(r[key] || '—');
