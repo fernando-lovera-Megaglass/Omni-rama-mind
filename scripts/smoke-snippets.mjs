@@ -54,7 +54,7 @@ if (q('#snp-q').placeholder !== 'Buscar' || $('snp-owner').value !== '' || !q('f
 if (!rows()[0].querySelector('[data-act="clone"]') || !rows()[0].querySelector('[data-act="move"]') || !rows()[0].querySelector('[data-act="delete"]') || rows()[0].querySelector('[data-act="share"]')) fail('row actions');
 // shared pager (src/pagination.js): Anterior / numbers / Siguiente and the «N por página» menu, no native select
 if (!q('#snp-pager .pager .pager__btn[data-pagination-page]') || !q('#snp-pager .pager__num.is-active[aria-current="page"]') || q('#snp-pager select') || q('#snp-size') || q('#snp-pager [aria-current="false"]')) fail('pager should be the shared pagination component');
-if ([...document.querySelectorAll('#snp-pager [data-pagination-size]')].map((b) => b.dataset.paginationSize).join(',') !== '10,25,50,100' || !text(q('#snp-pager .pager__sizemenu > button')).startsWith('10 por página')) fail('size menu must offer 10/25/50/100 and start at 10');
+if ([...document.querySelectorAll('#snp-pager [data-pagination-size]')].map((b) => b.dataset.paginationSize).join(',') !== '10,25,50,100' || !text(q('#snp-pager .pager__sizemenu > button')).startsWith('25 por página')) fail('size menu must offer 10/25/50/100 and start at 25 (the initial size)');
 if (!rows().some((r) => text(r).includes('#horario'))) fail('shortcut not shown');
 log('list loads: 3 seeded snippets, counter, columns, actions, pager');
 

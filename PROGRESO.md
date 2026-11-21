@@ -1,5 +1,12 @@
 # Progreso — Omni CRM
 
+## 2026-11-21 (sesión 6) · Paginadores unificados: Fragmentos, Ajustes y Etiquetas de negocio usan `src/pagination.js`
+
+- `src/pagination.js`: `pagination()` admite `sizes` (por defecto 25/50/100) y siempre ofrece el tamaño actual, así los módulos que empezaban en 10 lo conservan.
+- `src/snippets.js`: desaparece el `.pager` artesanal (números limitados a 5, `aria-current="false"`, `<select id="snp-size">`); `pagination()` + `bindPagination()` con tamaños 10/25/50/100 (empieza en 25, su tamaño inicial de siempre). `src/settings.js`: usuarios, propiedades y vistas de registro (esta ahora pagina de verdad con `rvPage`/`rvSize`) renderizan el componente en `<div data-pager="users|props|rv">` y `render()` lo enlaza; se van `.ppager`, los `link-btn` «‹ Anterior / Siguiente ›» y los handlers `data-upage/usize/props-page/props-size`. `src/deal-tags-ui.js`: `.dtags__pager` («‹ Anterior · 1 · Siguiente ›» + `<select id="dtags-size">`) → componente, re-enlazado tras cada render del panel.
+- `src/app.css`: se eliminan `.pager__size`, `.ppager*`, `.dtags__pager`, `.dtags__pagenum`; `.spager` solo aporta el margen.
+- Pruebas: `scripts/smoke-pagers-unified.mjs` (estática: ningún `.ppager`/`.dtags__pager`/`#snp-size`/handlers viejos en `src/`, los tres módulos usan el componente, elipsis y opción 10; DOM: Fragmentos 10→página 3→25, usuarios 25 conservado, propiedades 6 páginas y página 2 conservada, vistas de registro, etiquetas 50 conservado). `smoke-snippets` y `smoke-settings` ajustadas al componente; `smoke-deal-tags`, `smoke-filter-chips`, `smoke-dark-theme` OK. Chrome: los cuatro paginadores con `.pager`, sin `<select>`, menú 10/25/50/100.
+
 ## 2026-11-21 (sesión 6) · Tarjetas del tablero: reloj, información, vista previa y alerta como iconos de línea
 
 - `src/action-icons.js`: nuevos `clock`, `info`, `alert` y `preview` (24 viewBox, trazo 1,8 px, `currentColor`), el mismo set que ya usan las acciones de correo/nota y el tipo de actividad de la tarjeta.

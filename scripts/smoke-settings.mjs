@@ -92,7 +92,7 @@ click(document.querySelector('[data-props-sort="used"]'));
 click(document.querySelector('[data-props-sort="used"]'));
 log('sorted by usage desc first:', document.querySelector('.proptable tbody .olink').textContent, '| used:', document.querySelector('.proptable tbody tr td:nth-child(5)').textContent.trim());
 click(document.querySelector('[data-props-set="user"][data-value="system"]'));
-click(document.querySelector('[data-props-size="50"]'));
+click(document.querySelector('[data-pager="props"] [data-pagination-size="50"]'));
 log('50 per page rows:', document.querySelectorAll('.proptable tbody tr').length);
 click(document.querySelector('[data-props-tab="groups"]'));
 log('groups tab rows:', document.querySelectorAll('.spane tbody tr').length);

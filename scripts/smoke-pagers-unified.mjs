@@ -62,23 +62,26 @@ await S.ready;
 for (let i = 1; i <= 23; i += 1) S.createSnippet({ name: `Pag ${String(i).padStart(2, '0')}`, body: '<p>x</p>', shortcut: `pag${i}` });
 await import(resolve(srcDir, 'snippets.js'));
 await wait(40);
-let pager = checkPager('snippets', q('#snp-pager'), { size: 10 });
+// Fragmentos starts at 25 per page (its original initial size); 10 stays available in the menu.
+checkPager('snippets', q('#snp-pager'), { size: 25 });
 const snpRows = () => qa('#snp-rows tr[data-id]').length;
-if (snpRows() !== 10 || qa('#snp-pager .pager__num').length !== 3) fail(`snippets: 10 per page, 3 pages (${snpRows()} / ${qa('#snp-pager .pager__num').length})`);
+const snpTotal = S.snippets().length; // 23 created + the seeded ones
+if (snpRows() !== 25 || qa('#snp-pager .pager__num').length !== Math.ceil(snpTotal / 25)) fail(`snippets: 25 per page (${snpRows()} rows / ${qa('#snp-pager .pager__num').length} pages for ${snpTotal})`);
+click(q('#snp-pager [data-pagination-size="10"]'));
+if (snpRows() !== 10 || qa('#snp-pager .pager__num').length !== Math.ceil(snpTotal / 10) || !q('#snp-pager [data-pagination-page="1"].is-active')) fail('snippets: 10 per page from the menu');
 click(q('#snp-pager [data-pagination-page="3"]'));
-if (!q('#snp-pager [data-pagination-page="3"].is-active') || snpRows() !== 6) fail('snippets: page 3 keeps 6 rows');
+if (!q('#snp-pager [data-pagination-page="3"].is-active') || snpRows() !== Math.min(10, snpTotal - 20)) fail('snippets: page 3 keeps its rows');
 click(q('#snp-pager [data-pagination-size="25"]'));
-if (snpRows() !== 25 || !q('#snp-pager [data-pagination-page="1"].is-active') || qa('#snp-pager .pager__num').length !== 2) fail('snippets: 25 per page resets to page 1');
-log('snippets: shared pager, page 3 then 25 per page');
+if (snpRows() !== 25 || !q('#snp-pager [data-pagination-page="1"].is-active')) fail('snippets: 25 per page resets to page 1');
+log(`snippets: shared pager over ${snpTotal} snippets, 10 per page → page 3 → back to 25`);
 
 // ---- Ajustes: usuarios, propiedades y vistas de registro ----
 useDom('<main id="settings-root"></main>', 'http://localhost/settings/');
 await import(resolve(srcDir, 'settings.js'));
 await wait(60);
-location.hash = '#users-teams';
+location.hash = '#account-users';
 window.dispatchEvent(new window.Event('hashchange'));
 await wait(40);
-if (!q('[data-pager="users"] .pager')) { const a = qa('a.snav__item').find((x) => /usuarios/i.test(x.textContent)); if (a) { click(a); await wait(40); } }
 const usersPager = q('[data-pager="users"]');
 if (!usersPager) fail('settings: users pager slot');
 checkPager('settings users', usersPager, { size: 10 });
@@ -86,11 +89,11 @@ click(usersPager.querySelector('[data-pagination-size="25"]'));
 await wait(20);
 if (!text(q('[data-pager="users"] .pager__sizemenu > button')).startsWith('25 por página')) fail('settings users: size kept in state after re-render');
 log('settings users: shared pager, 25 per page kept');
-location.hash = '#obj-contacts:properties';
+location.hash = '#data-properties';
 window.dispatchEvent(new window.Event('hashchange'));
 await wait(40);
 const propsPager = q('[data-pager="props"]');
-if (!propsPager) fail('settings: properties pager slot (hash #obj-contacts:properties)');
+if (!propsPager) fail('settings: properties pager slot (hash #data-properties)');
 checkPager('settings props', propsPager, { size: 10 });
 const propPages = qa('[data-pager="props"] .pager__num').length;
 if (propPages < 2) fail('settings props: contacts have more than one page of properties');
