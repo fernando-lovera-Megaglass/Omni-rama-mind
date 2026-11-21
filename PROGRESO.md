@@ -1,5 +1,14 @@
 # Progreso — Omni CRM
 
+## 2026-11-21 (sesión 6) · Pipelines de tickets con «Reglas del pipeline» y «Automatizar» (como negocios)
+
+- `src/ticket-rules.js` (nuevo, sin DOM): catálogo `TICKET_PIPE_RULES` (`noBack`, `lockClosed`), `TICKET_PIPE_AUTOS` (`task`, `notify`), `TICKET_REQUIRED_PROPS` (Propietario del ticket, Prioridad, Fuente, Contacto asociado, Descripción); `ticketMoveRefusal(ticket, de, a)` (cerrado bloqueado → retroceso → propiedades obligatorias con el mensaje «Para pasar a "X" completa: …», «Sin asignar» cuenta como vacío) y `runTicketAutomation(ticket, estado)` (tarea de seguimiento para el propietario asociada al ticket y su contacto, y/o notificación).
+- `src/data.js`: la definición de pipeline de tickets lleva `rules` / `required` / `automation` con la misma forma que negocios (`newTicketPipelineDef`, `normalizeTicketDef`); se guardan con el pipeline en localStorage y viajarán en `pipelines.extra` cuando manden las tablas.
+- `src/settings.js`: el editor «Administrar» de un pipeline de tickets tiene pestañas **Configurar** (estados), **Reglas del pipeline** (checkboxes + «Propiedades obligatorias por estado» con su modal) y **Automatizar** (acciones al entrar en cada estado), reutilizando la UI y las clases de negocios; handlers `data-tpipe-sub`, `data-tpipe-rule`, `data-tpipe-auto`, `tpipe-required`.
+- `src/tickets.js` (tablero): `canMove` → `ticketMoveRefusal` (list.js muestra el mensaje y no mueve); `onMove` → `runTicketAutomation` con toasts de tarea/notificación.
+- Pruebas: `scripts/smoke-ticket-rules.mjs` (Ajustes: pestañas, regla, modal de obligatorias y automatización persistidas en la definición; tablero: arrastrar sin propietario a «Cerrado» se rechaza con el mensaje, con propietario entra y crea «Seguimiento: … (Cerrado)» para el propietario; noBack y lockClosed rechazan; la tarea aparece en la lista de Tareas). `smoke-ticket-*`, `smoke-tickets-trash`, `smoke-settings`, `smoke-deal-close` OK. Chrome: pestañas Reglas/Automatizar renderizadas.
+- Fuera de alcance (igual que el estado actual de negocios): el cambio de estado desde el editor inline de la lista o la ficha no pasa por las reglas; solo el tablero.
+
 ## 2026-11-21 (sesión 6) · Papelera de tickets («Restaurar registros eliminados») como contactos, empresas y negocios
 
 - `src/data.js`: `tickets` entra en `SOFT_DELETE` (las tareas siguen fuera, como en el original); `CAMEL_TO_DB`/`TABLE_COLS` de tickets incluyen `deletedAt` ↔ `deleted_at`. Eliminar desde la lista o la ficha escribe `deleted_at` (modo local: `DELETED_AT_KEY`) en vez de borrar; `trashedRecords`, `restoreRecords`, `ensureTrash` y la exclusión `deleted_at is null` de `fetchTable` y `server-list.js` ya son genéricas por `softDeletes(type)`. Red de seguridad: si la base aún no tiene la columna (migración pendiente), `fetchTable` detecta el error, recarga sin el filtro y deja ese tipo en borrado directo con un aviso en consola, sin romper la lista.

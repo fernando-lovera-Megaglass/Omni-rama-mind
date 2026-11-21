@@ -64,9 +64,10 @@ mountList({
     canMove: (r, from, to) => ticketMoveRefusal(r, from, to),
     // Automation of the status just entered (Automatizar): follow-up task for the owner and/or notification.
     onMove: (r, to, label) => {
-      const done = runTicketAutomation(r, to, label);
+      const clean = String(label || '').replace(/\s*✓$/, ''); // the board marks closed columns with «✓»
+      const done = runTicketAutomation(r, to, clean);
       if (done.task) toast(`Tarea de seguimiento creada para ${r.owner}`);
-      if (done.notified) toast(`Notificación enviada a ${r.owner}: "${r.name}" ahora está en "${label}"`);
+      if (done.notified) toast(`Notificación enviada a ${r.owner}: "${r.name}" ahora está en "${clean}"`);
     },
   },
   editors: {
