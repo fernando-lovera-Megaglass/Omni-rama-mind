@@ -1260,6 +1260,104 @@
       "createdAt": "2026-11-21T13:25:00-06:00",
       "lane": "codex",
       "instruction": "LÓGICA + UX (Empresas, enriquecimiento por dominio). HubSpot: al crear una empresa con dominio, la ficha se enriquece automáticamente con el logotipo público de la empresa y el sitio web; el logo aparece en la ficha, la lista y las tarjetas de asociación (con iniciales si no hay). Omni HOY: el dominio no aprovecha nada — «Crear empresa» (src/create-company.js) solo detecta duplicados; los avatares de empresa son siempre iniciales (ficha src/record.js rec-avatar ~línea 208, la lista y las tarjetas de asociación); y al crear una empresa desde la ficha de un contacto, el cajón de asociaciones (KIND_META.companies en src/record.js ~línea 1269) no prellena el dominio con el del correo del contacto, que es lo que HubSpot hace. Pasos: (1) al guardar o editar el dominio de una empresa, guardar logoUrl en extra: `https://www.google.com/s2/favicons?domain=<dominio>&sz=128` con respaldo inmediato a iniciales si la imagen falla (onerror → avatar actual); nada de datos inventados — solo el logo público; (2) helper companyAvatarHtml(company, size) (junto a src/owner.js) y usarlo en la cabecera de la ficha, la primera columna de la lista de empresas, las tarjetas de asociación de otras fichas y la vista previa; (3) si la empresa tiene propiedad «Sitio web» vacía y dominio, rellenarla con https://<dominio> al guardar (sin pisar valores existentes); (4) en el cajón de asociaciones, al «Crear nueva» empresa desde un contacto con correo, prellenar Dominio con el dominio del correo (excluir dominios gratuitos como ya hace la auto-asociación de src/data.js). Criterio de aceptación: crear la empresa «acme.com» → la ficha y la lista muestran el favicon (y si el dominio no resuelve imagen, se ven las iniciales como antes); crear empresa desde la ficha de un contacto con correo @acme.com trae el dominio prellenado; quitar el dominio a una empresa la devuelve a las iniciales. No despliegues nada a producción; solo código local."
+    },
+    {
+      "id": "gap-smoke-paginadores-regresion",
+      "status": "pending",
+      "instruction": "smoke-templates («pager state wrong on page 1») y smoke-server-pagination («pager must show the last page from the exact count») fallan desde el commit 6fbcb5f (paginadores inconsistentes). Criterio: ambas pasan. Ejecuta la(s) prueba(s) con node scripts/<smoke>.mjs hasta que pasen. Verifica si es regresión del código o prueba desactualizada por un cambio intencional; corrige lo que corresponda. No despliegues nada a producción; solo código local.",
+      "createdAt": "2026-11-21T16:25:45-06:00",
+      "lane": "claude"
+    },
+    {
+      "id": "gap-smoke-calls-elemento-faltante",
+      "status": "pending",
+      "instruction": "smoke-calls falla con «missing element to click» tras las pruebas de chips y pie. Criterio: smoke-calls pasa. Ejecuta la(s) prueba(s) con node scripts/<smoke>.mjs hasta que pasen. Verifica si es regresión del código o prueba desactualizada por un cambio intencional; corrige lo que corresponda. No despliegues nada a producción; solo código local.",
+      "createdAt": "2026-11-21T16:25:45-06:00",
+      "lane": "codex"
+    },
+    {
+      "id": "gap-smoke-bulk-assign",
+      "status": "pending",
+      "instruction": "smoke-bulk falla en «assign»: la asignación masiva no funciona como espera la prueba. Criterio: smoke-bulk pasa. Ejecuta la(s) prueba(s) con node scripts/<smoke>.mjs hasta que pasen. Verifica si es regresión del código o prueba desactualizada por un cambio intencional; corrige lo que corresponda. No despliegues nada a producción; solo código local.",
+      "createdAt": "2026-11-21T16:25:45-06:00",
+      "lane": "claude"
+    },
+    {
+      "id": "gap-smoke-currency-registro",
+      "status": "pending",
+      "instruction": "smoke-currency falla en «record should show the new currency right away». Criterio: smoke-currency pasa. Ejecuta la(s) prueba(s) con node scripts/<smoke>.mjs hasta que pasen. Verifica si es regresión del código o prueba desactualizada por un cambio intencional; corrige lo que corresponda. No despliegues nada a producción; solo código local.",
+      "createdAt": "2026-11-21T16:25:45-06:00",
+      "lane": "codex"
+    },
+    {
+      "id": "gap-smoke-company-hierarchy-fila",
+      "status": "pending",
+      "instruction": "smoke-company-hierarchy falla en «row shape for the table». Criterio: la prueba pasa. Ejecuta la(s) prueba(s) con node scripts/<smoke>.mjs hasta que pasen. Verifica si es regresión del código o prueba desactualizada por un cambio intencional; corrige lo que corresponda. No despliegues nada a producción; solo código local.",
+      "createdAt": "2026-11-21T16:25:45-06:00",
+      "lane": "claude"
+    },
+    {
+      "id": "gap-smoke-custom-props-writer",
+      "status": "pending",
+      "instruction": "smoke-custom-props falla en «saving should persist through the writer» (contacts, in_form, options Norte/Sur, group_name). Criterio: la prueba pasa. Ejecuta la(s) prueba(s) con node scripts/<smoke>.mjs hasta que pasen. Verifica si es regresión del código o prueba desactualizada por un cambio intencional; corrige lo que corresponda. No despliegues nada a producción; solo código local.",
+      "createdAt": "2026-11-21T16:25:45-06:00",
+      "lane": "codex"
+    },
+    {
+      "id": "gap-smoke-dedupe-skip",
+      "status": "pending",
+      "instruction": "smoke-dedupe falla en «skip duplicates choice» (stats created:2, updated:2, failed:1; contacts 420→422). Criterio: la prueba pasa. Ejecuta la(s) prueba(s) con node scripts/<smoke>.mjs hasta que pasen. Verifica si es regresión del código o prueba desactualizada por un cambio intencional; corrige lo que corresponda. No despliegues nada a producción; solo código local.",
+      "createdAt": "2026-11-21T16:25:45-06:00",
+      "lane": "claude"
+    },
+    {
+      "id": "gap-smoke-import-map-en",
+      "status": "pending",
+      "instruction": "smoke-import falla en «english fallback auto-map», posible regresión del commit de importación multiarchivo (2853737). Criterio: la prueba pasa. Ejecuta la(s) prueba(s) con node scripts/<smoke>.mjs hasta que pasen. Verifica si es regresión del código o prueba desactualizada por un cambio intencional; corrige lo que corresponda. No despliegues nada a producción; solo código local.",
+      "createdAt": "2026-11-21T16:25:45-06:00",
+      "lane": "codex"
+    },
+    {
+      "id": "gap-smoke-invitations-reemplazo",
+      "status": "pending",
+      "instruction": "smoke-invitations falla en «the sample users must be replaced». Criterio: la prueba pasa. Ejecuta la(s) prueba(s) con node scripts/<smoke>.mjs hasta que pasen. Verifica si es regresión del código o prueba desactualizada por un cambio intencional; corrige lo que corresponda. No despliegues nada a producción; solo código local.",
+      "createdAt": "2026-11-21T16:25:45-06:00",
+      "lane": "claude"
+    },
+    {
+      "id": "gap-smoke-phone-guardado-celda",
+      "status": "pending",
+      "instruction": "smoke-phone falla en «cell save: +57 1 321 4008». Criterio: la prueba pasa. Ejecuta la(s) prueba(s) con node scripts/<smoke>.mjs hasta que pasen. Verifica si es regresión del código o prueba desactualizada por un cambio intencional; corrige lo que corresponda. No despliegues nada a producción; solo código local.",
+      "createdAt": "2026-11-21T16:25:45-06:00",
+      "lane": "codex"
+    },
+    {
+      "id": "gap-smoke-task-queue-barra",
+      "status": "pending",
+      "instruction": "smoke-task-queue falla en «bar should reflect the completed task». Criterio: la prueba pasa. Ejecuta la(s) prueba(s) con node scripts/<smoke>.mjs hasta que pasen. Verifica si es regresión del código o prueba desactualizada por un cambio intencional; corrige lo que corresponda. No despliegues nada a producción; solo código local.",
+      "createdAt": "2026-11-21T16:25:45-06:00",
+      "lane": "claude"
+    },
+    {
+      "id": "gap-smoke-views-error",
+      "status": "pending",
+      "instruction": "smoke-views falla sin línea FAIL clara (posible excepción). Captura el error real y corrige. Criterio: la prueba pasa. Ejecuta la(s) prueba(s) con node scripts/<smoke>.mjs hasta que pasen. Verifica si es regresión del código o prueba desactualizada por un cambio intencional; corrige lo que corresponda. No despliegues nada a producción; solo código local.",
+      "createdAt": "2026-11-21T16:25:45-06:00",
+      "lane": "codex"
+    },
+    {
+      "id": "gap-smoke-company-record-etapa",
+      "status": "pending",
+      "instruction": "smoke-company-record falla en «inline stage update»: la edición en línea de etapa en la ficha de empresa no funciona como espera la prueba (posible regresión de los commits de pipelines/reglas de etapa de ayer). Criterio: la prueba pasa. Ejecuta la(s) prueba(s) con node scripts/<smoke>.mjs hasta que pasen. Verifica si es regresión del código o prueba desactualizada por un cambio intencional; corrige lo que corresponda. No despliegues nada a producción; solo código local.",
+      "createdAt": "2026-11-21T16:25:45-06:00",
+      "lane": "claude"
+    },
+    {
+      "id": "gap-smoke-record-inline-tarjeta",
+      "status": "pending",
+      "instruction": "smoke-record-inline falla en «the customised card should show the chosen properties in order»: la tarjeta personalizada del registro no muestra las propiedades elegidas en orden. Criterio: la prueba pasa. Ejecuta la(s) prueba(s) con node scripts/<smoke>.mjs hasta que pasen. Verifica si es regresión del código o prueba desactualizada por un cambio intencional; corrige lo que corresponda. No despliegues nada a producción; solo código local.",
+      "createdAt": "2026-11-21T16:25:45-06:00",
+      "lane": "codex"
     }
   ]
 }
