@@ -37,6 +37,8 @@ export async function processDue(store, send, now = new Date(), limits = {}) {
         // Reserve the index first: a crash between here and `progress` loses at most this one message, never duplicates it.
         if (!(await store.reserve(email, i + 1))) { stopped = true; break; }
         const person = people[i];
+        // Keep the stable recipient indexes across batches; skipping must not create an activity.
+        if (store.canSend && !(await store.canSend(person))) { i++; continue; }
         try {
           const receipt = await send(email, sender, person);
           await store.progress(email, i + 1, true, null, person, receipt);
@@ -55,4 +57,13 @@ export async function processDue(store, send, now = new Date(), limits = {}) {
     }
   }
   return results;
+}
+
+// Personalize the footer saved by the editor for each scheduled recipient.
+export function recipientHtml(email, person) {
+  return String(email.html_content || '').replace(/href=(['"])([^'"<>]*\/marketing\/preferences\/[^'"<>]*)\1/g, (_match, quote, href) => {
+    const url = new URL(href.replace(/&amp;/g, '&'));
+    url.hash = new URLSearchParams({ c: String(person.contact_id), e: String(email.id) }).toString();
+    return `href=${quote}${url.href.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;')}${quote}`;
+  });
 }

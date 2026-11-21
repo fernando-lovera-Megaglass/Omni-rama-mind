@@ -61,12 +61,14 @@ export function applyConditions(query, type, conditions, { kindOf } = {}) {
     const v = c.value;
     const n1 = Number(v);
     const n2 = Number(c.value2);
-    if (type === 'contacts' && c.key === 'marketingOptOut' && ['in', 'anyof', 'is'].includes(op)) {
-      const vals = list(v);
+    if (type === 'contacts' && c.key === 'marketingOptOut' && ['in', 'anyof', 'is', 'nin', 'noneof', 'not'].includes(op)) {
+      const selected = list(v);
+      const vals = ['nin', 'noneof', 'not'].includes(op) ? ['Sí', 'No'].filter(value => !selected.includes(value)) : selected;
       const clauses = [];
       if (vals.includes('Sí')) clauses.push(`${column}.eq.Sí`, `${column}.eq.true`);
       if (vals.includes('No')) clauses.push(`${column}.is.null`, `${column}.eq.No`, `${column}.eq.false`, `${column}.eq.`);
       if (clauses.length) { query = query.or(clauses.join(',')); applied += 1; }
+      else if (selected.length) { query = query.in(column, []); applied += 1; }
       return;
     }
     if (op === 'filled') { query = query.not(column, 'is', null).neq(column, ''); applied += 1; return; }

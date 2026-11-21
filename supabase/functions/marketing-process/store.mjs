@@ -12,6 +12,10 @@ export function createStore(db) {
     claim: async (id) => (await checked(db.rpc('marketing_claim', { p_id: id })))[0],
     run: (id) => checked(db.from('marketing_email_runs').select('*').eq('email_id', id).single()),
     recipients: (id) => checked(db.rpc('marketing_recipients', { p_id: id })),
+    canSend: async (person) => {
+      const contact = await checked(db.from('contacts').select('extra').eq('id', person.contact_id).maybeSingle());
+      return Boolean(contact) && ![true, 'true', 'Sí'].includes(contact.extra?.marketingOptOut);
+    },
     // Messages already sent today (UTC) across campaigns: approximated by the runs touched today.
     sentToday: async (now) => {
       const day = new Date(now);

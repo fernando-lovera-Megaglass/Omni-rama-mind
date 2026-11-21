@@ -18,6 +18,10 @@
   --c-tag-new: #e5f5f8;
   --c-tag-open: #fdf3e1;
   --c-tag-done: #e5f8f6;
+  --c-soft: #eaf0f6;         /* hover suave, paneles secundarios, pistas */
+  --c-soft-2: #e6ebf0;       /* avatares neutros, píldoras */
+  --c-teal-soft: #d6efec;    /* selección con hover */
+  --c-paper: #fafbfc;        /* previsualizaciones casi blancas */
 
   --fs-xs: 12.8px;
   --fs-sm: 14px;
@@ -143,21 +147,23 @@
 [data-theme="dark"] .dint__art--import span:nth-child(1),
 [data-theme="dark"] .dint__art--transfer span:nth-child(3),
 [data-theme="dark"] .table-wrap::-webkit-scrollbar-thumb { background: #4a5767; }
+[data-theme="dark"] .othumb__img i:first-child { background: #5d6c7e; }
 [data-theme="dark"] .wfe__canvaswrap { background: radial-gradient(circle, #2f3b49 1px, transparent 1px) 0 0 / 18px 18px; }
+[data-theme="dark"] .recent__art { background: radial-gradient(circle at 50% 50%, var(--c-head) 0 38%, transparent 39%), linear-gradient(135deg, #3f2a16 0 50%, var(--c-head) 50%); }
 [data-theme="dark"] .custom-library { --bg: var(--c-white); }
 [data-theme="dark"] .custom-library input,
 [data-theme="dark"] .custom-library select,
 [data-theme="dark"] .subtasks__add input { border-color: var(--c-border); }
 
 /* Tintes de estado: teal (avisos, burbujas salientes, barra de selección masiva) */
-[data-theme="dark"] .dint__notic,
+[data-theme="dark"] .dint__notice,
 [data-theme="dark"] .advc--assoc,
 [data-theme="dark"] .seqs__banner,
 [data-theme="dark"] .mv__banner,
 [data-theme="dark"] .lcbanner,
 [data-theme="dark"] .lcinfo,
 [data-theme="dark"] .msg--out .msg__bubble,
-[data-theme="dark"] .bulkbar {
+[data-theme="dark"] .bulk {
   background: var(--c-tag-new);
   border-color: #2f5f68;
 }
@@ -172,7 +178,7 @@
 [data-theme="dark"] .enr__ph,
 [data-theme="dark"] .enr__warn,
 [data-theme="dark"] .ph,
-[data-theme="dark"] .gmail-notice,
+[data-theme="dark"] .cw__notice,
 [data-theme="dark"] .seqstep__pause,
 [data-theme="dark"] .wfn--trigger .wfn__ico,
 [data-theme="dark"] .wfn--flow .wfn__ico,

@@ -9,7 +9,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { PGlite } from '@electric-sql/pglite';
-import { processDue, noRecipientsMessage } from '../supabase/functions/marketing-process/processor.mjs';
+import { processDue, noRecipientsMessage, recipientHtml } from '../supabase/functions/marketing-process/processor.mjs';
 
 const db = new PGlite();
 await db.exec(`create role anon; create role authenticated; create role service_role;
@@ -128,6 +128,21 @@ const r7 = await processDue({ ...store, sender: async () => { throw new Error('N
 assert.deepEqual(r7.map((r) => [r.id, r.status]), [[deferred.id, 'error']]);
 assert.match((await runOf(deferred.id)).last_error, /cuenta de Gmail/);
 assert.equal((await get(deferred.id)).estado, 'programado');
+
+// A contact opts out after scheduling, including between batches. No send or activity.
+const opted = await add('Bajas entre lotes');
+const guarded = { ...store, canSend: async (person) => Number(person.contact_id) !== 2 };
+await processDue(guarded, send, now, { perRun: 1 });
+await processDue(guarded, send, now, { perRun: 1 });
+assert.deepEqual(sentTo('Bajas entre lotes'), ['ana@example.invalid', 'carla@example.invalid']);
+assert.equal((await get(opted.id)).enviados, 2);
+assert.equal((await query("select * from activities where record_id=2 and extra->>'marketingEmailId'=$1", [opted.id])).length, 0);
+const allOut = await add('Todos de baja');
+await processDue({ ...store, canSend: async () => false }, send, now);
+assert.equal((await get(allOut.id)).enviados, 0);
+assert.equal((await get(allOut.id)).estado, 'programado');
+assert.equal((await runOf(allOut.id)).status, 'error', 'zero sends remain available for review');
+assert.equal(recipientHtml({ id: 'campaign', html_content: '<a href="http://localhost/marketing/preferences/#c=&amp;e=campaign">Baja</a>' }, { contact_id: 2 }), '<a href="http://localhost/marketing/preferences/#c=2&amp;e=campaign">Baja</a>');
 
 // ===== 7) Permissions: only the service role may run the RPCs =====
 await db.exec('set role anon');

@@ -50,6 +50,8 @@ assert.ok(data.activitiesFor('contacts', contact.id).some(a => a.text === 'Se di
 let expression;
 applyConditions({ or(v) { expression = v; return this; } }, 'contacts', [{ key: 'marketingOptOut', op: 'anyof', value: 'No' }]);
 assert.ok(expression.includes('is.null'));
+applyConditions({ or(v) { expression = v; return this; } }, 'contacts', [{ key: 'marketingOptOut', op: 'noneof', value: 'Sí' }]);
+assert.ok(expression.includes('is.null'), 'not opted out includes contacts without stored preference');
 location.hash = 'c=invalid';
 window.dispatchEvent(new dom.window.Event('hashchange'));
 assert.equal(document.querySelector('form'), null);

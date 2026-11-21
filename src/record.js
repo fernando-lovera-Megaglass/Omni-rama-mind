@@ -190,7 +190,7 @@ mount.innerHTML = `
               <button class="menu__item" type="button" data-act="summarize"><span class="ai-spark">✦</span> Resumir</button>
               <div class="menu__sep"></div>
               <button class="menu__item" type="button" data-act="google">Buscar en Google <span class="ext">↗</span></button>
-              <button class="menu__item" type="button" data-act="unsubscribe">Cancelación de suscripción a correos</button>
+              ${type === 'contacts' ? '<button class="menu__item" type="button" data-act="unsubscribe">Gestionar suscripción de marketing</button>' : ''}
               <div class="menu__sep"></div>
               <button class="menu__item" type="button" data-act="restore-activity">Restaurar actividades eliminadas</button>
               <button class="menu__item" type="button" data-act="access">Ver acceso a los registros</button>
@@ -1823,9 +1823,9 @@ function runAction(act) {
       break;
     case 'unsubscribe':
       openModal(
-        'Cancelación de suscripción a correos',
-        `<p>Al cancelar la suscripción, <strong>${esc(name)}</strong> dejará de recibir correos de marketing y de ventas uno a uno desde esta cuenta.</p><p class="muted">Podrás volver a suscribirlo desde sus propiedades de correo.</p>`,
-        `<button class="btn btn--primary" type="button" data-confirm="unsubscribe">Cancelar suscripción</button><button class="btn btn--ghost" type="button" data-close>Volver</button>`,
+        'Suscripción de marketing',
+        `<p><strong>${esc(name)}</strong> ${rec.marketingOptOut === 'Sí' ? 'volverá a recibir correos de marketing' : 'dejará de recibir correos de marketing' }.</p><p class="muted">Podrás volver a suscribirlo desde sus propiedades de correo.</p>`,
+        `<button class="btn btn--primary" type="button" data-confirm="unsubscribe">${rec.marketingOptOut === 'Sí' ? 'Reactivar suscripción' : 'Confirmar baja'}</button><button class="btn btn--ghost" type="button" data-close>Volver</button>`,
       );
       break;
     case 'restore-activity':
@@ -1936,9 +1936,9 @@ $('rec-modal').addEventListener('click', async (e) => {
       if (what === 'activity-restore') openActivityTrash(); else closeModal();
     } catch (error) { toast(error.message); b.disabled = false; }
   } else if (what === 'unsubscribe') {
-    save('hs_email_optout', 'Sí', 'Se dio de baja de todos los correos');
+    await save('marketingOptOut', rec.marketingOptOut === 'Sí' ? 'No' : 'Sí');
     closeModal();
-    toast(`${cfg.title(rec)} ya no recibirá correos.`);
+    toast(rec.marketingOptOut === 'Sí' ? 'Baja de marketing guardada' : 'Suscripción de marketing reactivada');
   } else if (what === 'merge') {
     const otherId = $('merge-target').value;
     const other = findRecord(type, otherId);
