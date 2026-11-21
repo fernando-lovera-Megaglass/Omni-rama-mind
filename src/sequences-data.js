@@ -329,6 +329,36 @@ export function enroll({ sequenceId, contact, placeholders = {}, enrolledBy = ME
 }
 // The contact's enrolment still running in that sequence (active or paused), if any.
 export const activeEnrollment = (contactId, sequenceId) => { const e = enrollRows.find((x) => String(x.contactId) === String(contactId) && x.sequenceId === sequenceId && (x.status === 'active' || x.status === 'paused')); return e ? out(e) : null; };
+export function pauseEnrollment(id) {
+  const e = enrollRows.find(x => x.id === id);
+  if (!e || e.status !== 'active') return null;
+  const now = new Date();
+  e.extra = { ...e.extra, pauseRemainingMs: Math.max(0, (Date.parse(e.nextStepAt) || now.getTime()) - now.getTime()) };
+  e.status = 'paused';
+  e.updatedAt = now.toISOString();
+  persistEnr(e);
+  enrollmentActivity(e, 'Inscripción en pausa', now);
+  return out(e);
+}
+export function resumeEnrollment(id) {
+  const e = enrollRows.find(x => x.id === id);
+  if (!e || e.status !== 'paused') return null;
+  const now = new Date();
+  let next = new Date(now.getTime() + Math.max(0, Number(e.extra?.pauseRemainingMs) || 0));
+  if ([0, 6].includes(next.getDay())) next = businessDaysFrom(next, 1);
+  e.nextStepAt = e.extra?.waiting_task ? null : next.toISOString();
+  e.status = 'active';
+  e.updatedAt = now.toISOString();
+  delete e.extra?.pauseRemainingMs;
+  persistEnr(e);
+  enrollmentActivity(e, 'Inscripción reanudada', now);
+  return out(e);
+}
+function enrollmentActivity(e, label, now) {
+  addActivity({ type: 'system', when: now.getTime(), who: e.enrolledBy, text: label,
+    recordType: 'contacts', recordId: e.contactId,
+    extra: { sequenceId: e.sequenceId, enrollmentId: e.id, subject: label } });
+}
 export function unenroll(enrollmentId) {
   const e = enrollRows.find((x) => x.id === enrollmentId);
   if (!e) return null;
@@ -398,7 +428,7 @@ export function series(metric = 'meetings', freq = 'week', filters = {}) {
 }
 // Scheduled steps (the "Programado" tab): active enrolments and when their next step is due.
 export function scheduled() {
-  return enrollRows.filter((e) => e.status === 'active' && (e.nextStepAt || e.extra?.waiting_task)).map((e) => { const s = rows.find((x) => x.id === e.sequenceId); const st = s ? s.steps[Math.min(e.currentStep, s.steps.length) - 1] : null; return { ...out(e), sequenceName: s ? s.name : '', stepLabel: st ? `${e.currentStep}. ${STEP_TYPES[st.type].label}` : '', auto: st ? isAuto(st) : false }; }).sort((a, b) => new Date(a.nextStepAt) - new Date(b.nextStepAt));
+  return enrollRows.filter((e) => (e.status === 'active' || e.status === 'paused')).map((e) => { const s = rows.find((x) => x.id === e.sequenceId); const st = s ? s.steps[Math.min(e.currentStep, s.steps.length) - 1] : null; return { ...out(e), sequenceName: s ? s.name : '', stepLabel: st ? `${e.currentStep}. ${STEP_TYPES[st.type].label}` : '', auto: st ? isAuto(st) : false }; }).sort((a, b) => new Date(a.nextStepAt) - new Date(b.nextStepAt));
 }
 
 // Task extra is unpacked into top-level fields by data.js in connected mode.

@@ -1,3 +1,4 @@
+import { ready as sequencesReady, scheduled, sequenceById, pauseEnrollment, resumeEnrollment, unenroll } from './sequences-data.js';
 import { propertyEditor } from './property-editor.js';
 import { changeDealStage } from './deal-close.js';
 import { ACTIVITY_COMPANY_SETTING, activityAssociations, saveAssociatedActivity } from './activity-associations.js';
@@ -145,6 +146,7 @@ boot({ root, active: 'crm', sub: cfg.sub, title: cfg.label });
 const id = new URLSearchParams(location.search).get('id');
 // The timeline loads only this record's activities (record_type + record_id), not the whole table.
 await ensureActivitiesFor(type, id);
+await sequencesReady;
 // Llamadas reales de Twilio ligadas a esta ficha (aparecen en la cronología con grabación y
 // transcripción), como en la pestaña «Llamadas» del original.
 let callLogs = [];
@@ -1165,6 +1167,18 @@ function renderRight() {
       return html ? html.replace('<div class="card', `<div data-lcard="${esc(cid)}" class="card`) : '';
     })
     .join('');
+  if (type === 'contacts') {
+    const card = document.createElement('section');
+    card.className = 'card';
+    card.innerHTML = '<h3>Secuencias</h3>' + scheduled().filter(e => String(e.contactId) === String(id)).map(e => `<div><strong>${esc(e.sequenceName)}</strong><p>Paso ${e.currentStep} de ${sequenceById(e.sequenceId)?.steps.length || 0} · ${esc(e.stepLabel)}</p><p>${e.status === 'paused' ? 'En pausa' : e.nextStepAt ? esc(new Date(e.nextStepAt).toLocaleString()) : 'Esperando la tarea'}</p><button data-seq-action="${e.status === 'paused' ? 'resume' : 'pause'}" data-id="${esc(e.id)}">${e.status === 'paused' ? 'Reanudar' : 'Pausar'}</button><button data-seq-action="cancel" data-id="${esc(e.id)}">Cancelar inscripción</button></div>`).join('');
+    card.addEventListener('click', event => {
+      const b = event.target.closest('[data-seq-action]');
+      if (!b) return;
+      ({ pause: pauseEnrollment, resume: resumeEnrollment, cancel: unenroll })[b.dataset.seqAction](b.dataset.id);
+      renderRight(); renderTimeline();
+    });
+    $('rec-right').appendChild(card);
+  }
   addGrips($('rec-right'));
   renderLead();
 }

@@ -8,7 +8,7 @@ import { toast, wireMenus, closeMenus } from './shell.js';
 import { ownerHtml } from './owner.js';
 import { emptyStateHtml } from './empty-state.js';
 import { relativeTimeFine, formatDate, formatMoney, dateCellHtml } from './data.js';
-import { ready, sequences, trashedSequences, sequenceById, folders, owners, createFolder, cloneSequence, deleteSequences, restoreSequences, moveSequences, sequencesCsv, sequenceMetrics, bannerDismissed, dismissBanner, analytics, series, filterOptions, FILTER_KEYS, SERIES_METRICS, FREQUENCIES, scheduled, unenroll, ME } from './sequences-data.js';
+import { ready, sequences, trashedSequences, sequenceById, folders, owners, createFolder, cloneSequence, deleteSequences, restoreSequences, moveSequences, sequencesCsv, sequenceMetrics, bannerDismissed, dismissBanner, analytics, series, filterOptions, FILTER_KEYS, SERIES_METRICS, FREQUENCIES, scheduled, unenroll, pauseEnrollment, resumeEnrollment, ME } from './sequences-data.js';
 
 boot({ root: '../', active: 'sales', sub: 'Secuencias', title: 'Secuencias' });
 await ready;
@@ -137,9 +137,9 @@ function renderScheduled() {
   const list = scheduled();
   $('seq-tab').innerHTML = `
     <section class="tpls__main">
-      <div class="tpls__filters"><span class="muted">${plural(list.length, 'paso programado', 'pasos programados')} para las inscripciones activas.</span></div>
-      <div class="table-wrap"><table class="table tpls__table seqs__table"><thead><tr><th>Contacto</th><th>Secuencia</th><th>Siguiente paso</th><th>Programado para</th><th>Ejecución</th><th>Inscrito por</th><th></th></tr></thead>
-      <tbody id="seq-sched">${list.length ? list.map((e) => `<tr data-enr="${esc(e.id)}"><td><a class="tpls__name" href="../contacts/record/?id=${esc(e.contactId)}">${esc(e.contactName)}</a>${e.companyName ? `<span class="muted tpls__folderchip">${esc(e.companyName)}</span>` : ''}</td><td>${esc(e.sequenceName)}</td><td>${esc(e.stepLabel)}</td><td>${e.extra?.waiting_task ? 'esperando la tarea' : dateCellHtml(e.nextStepAt)}</td><td><span class="tag ${e.auto ? 'tag--open' : 'tag--new'}">${e.auto ? 'Automática' : 'Manual'}</span></td><td>${ownerHtml(e.enrolledBy)}</td><td><button class="link-btn" type="button" data-unenroll="${esc(e.id)}">Cancelar inscripción</button></td></tr>`).join('') : '<tr><td colspan="7"><div class="tpls__empty">No hay pasos programados.</div></td></tr>'}</tbody></table></div>
+      <div class="tpls__filters"><span class="muted">${plural(list.length, 'paso programado', 'pasos programados')} para las inscripciones activas y en pausa.</span></div>
+      <div class="table-wrap"><table class="table tpls__table seqs__table"><thead><tr><th><input type="checkbox" id="enr-all" aria-label="Seleccionar inscripciones"></th><th>Contacto</th><th>Secuencia</th><th>Siguiente paso</th><th>Programado para</th><th>Ejecución</th><th>Inscrito por</th><th></th></tr></thead>
+      <caption>${[['pause','Pausar'],['resume','Reanudar'],['cancel','Cancelar inscripción']].map(([a,l]) => `<button class="btn btn--secondary" data-enr-bulk="${a}">${l} seleccionadas</button>`).join('')}</caption><tbody id="seq-sched">${list.length ? list.map((e) => `<tr data-enr="${esc(e.id)}"><td><input type="checkbox" data-enr-select="${esc(e.id)}" aria-label="Seleccionar ${esc(e.contactName)}"></td><td><a class="tpls__name" href="../contacts/record/?id=${esc(e.contactId)}">${esc(e.contactName)}</a>${e.companyName ? `<span class="muted tpls__folderchip">${esc(e.companyName)}</span>` : ''}</td><td>${esc(e.sequenceName)}</td><td>${esc(e.stepLabel)}</td><td> ${e.status === 'paused' ? '<span class="tag">En pausa</span>' : e.extra?.waiting_task ? 'esperando la tarea' : dateCellHtml(e.nextStepAt)}</td><td><span class="tag ${e.auto ? 'tag--open' : 'tag--new'}">${e.auto ? 'Automática' : 'Manual'}</span></td><td>${ownerHtml(e.enrolledBy)}</td><td><button class="link-btn" type="button" data-enr-action="${e.status === 'paused' ? 'resume' : 'pause'}" data-id="${esc(e.id)}">${e.status === 'paused' ? 'Reanudar' : 'Pausar'}</button> <button class="link-btn" type="button" data-unenroll="${esc(e.id)}">Cancelar inscripción</button></td></tr>`).join('') : '<tr><td colspan="7"><div class="tpls__empty">No hay pasos programados.</div></td></tr>'}</tbody></table></div>
     </section>`;
 }
 function renderAutomate() {
@@ -202,6 +202,12 @@ function onModalClick(e) {
   if (a === 'create-folder') { const f = createFolder($('seqf-name').value); if (!f) { toast('Escribe el nombre de la carpeta.'); return; } closeModal(); render(); toast(`Carpeta «${f.name}» creada`); } else if (a === 'confirm-move') { const ids = se.dataset.ids.split(',').filter(Boolean); const n = moveSequences(ids, $('seqm-folder').value); closeModal(); state.selected.clear(); render(); toast(`${plural(n, 'secuencia movida', 'secuencias movidas')}`); } else if (a === 'confirm-delete') { const ids = se.dataset.ids.split(',').filter(Boolean); const n = deleteSequences(ids); ids.forEach((id) => state.selected.delete(id)); closeModal(); render(); toast(`${plural(n, 'secuencia enviada', 'secuencias enviadas')} a la papelera`); } else if (a === 'restore') { restoreSequences([se.dataset.id]); closeModal(); render(); toast('Secuencia restaurada'); }
 }
 page.addEventListener('click', (e) => {
+  const action = e.target.closest('[data-enr-action], [data-enr-bulk]');
+  if (action) {
+    const ids = action.dataset.enrBulk ? [...page.querySelectorAll('[data-enr-select]:checked')].map(x => x.dataset.enrSelect) : [action.dataset.id];
+    const fn = { pause: pauseEnrollment, resume: resumeEnrollment, cancel: unenroll }[action.dataset.enrBulk || action.dataset.enrAction];
+    ids.forEach(fn); renderScheduled(); return;
+  }
   const tab = e.target.closest('[data-tab]');
   if (tab) { state.tab = tab.dataset.tab; params.set('tab', state.tab); history.replaceState(null, '', `?${params}`); render(); return; }
   const tabLink = e.target.closest('[data-tab-link]');
@@ -235,6 +241,7 @@ page.addEventListener('click', (e) => {
 page.addEventListener('input', (e) => { if (e.target.id === 'seq-q') { state.q = e.target.value; state.page = 1; const el = e.target; renderManage(); const q = $('seq-q'); if (q && q !== el) { q.focus(); q.setSelectionRange(q.value.length, q.value.length); } } });
 page.addEventListener('change', (e) => {
   const t = e.target;
+  if (t.id === 'enr-all') page.querySelectorAll('[data-enr-select]').forEach(x => { x.checked = t.checked; });
   if (t.id === 'seq-owner') { state.owner = t.value; state.page = 1; renderManage(); } else if (t.id === 'seq-metric') { state.metric = t.value; renderAnalyze(); } else if (t.id === 'seq-freq') { state.freq = t.value; renderAnalyze(); } else if (t.id === 'seq-check-all') { visible().slice((state.page - 1) * state.size, state.page * state.size).forEach((s) => (t.checked ? state.selected.add(s.id) : state.selected.delete(s.id))); renderManage(); } else if (t.dataset.sel) { if (t.checked) state.selected.add(t.dataset.sel); else state.selected.delete(t.dataset.sel); renderManage(); }
 });
 

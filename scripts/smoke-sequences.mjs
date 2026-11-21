@@ -257,4 +257,18 @@ data.setField('tasks', finalEnrollment.task.id, 'status', 'done');
 for (let i = 0; i < 50 && S.enrollments().find(e => e.id === finalEnrollment.enrollment.id).status !== 'finished'; i++) await wait(10);
 if (S.enrollments().find(e => e.id === finalEnrollment.enrollment.id).status !== 'finished') fail('task status hook finishes last manual step');
 console.log('[secuencias] OK');
+{
+// Pause/resume retains position and persists the remaining delay.
+const running = S.scheduled().find(e => e.status === 'active');
+const paused = S.pauseEnrollment(running.id);
+if (paused.status !== 'paused' || paused.currentStep !== running.currentStep || paused.extra.pauseRemainingMs < 0) fail('pause state');
+if (!JSON.parse(localStorage.getItem('crm:sequence_enrollments')).some(e => e.id === running.id && e.status === 'paused')) fail('pause persistence');
+const resumed = S.resumeEnrollment(running.id);
+if (resumed.status !== 'active' || resumed.currentStep !== running.currentStep) fail('resume state');
+if (resumed.nextStepAt && ([0, 6].includes(new Date(resumed.nextStepAt).getDay()) || Date.parse(resumed.nextStepAt) < Date.now() - 1000)) fail('resume business day');
+log('pause/resume persistence, position and business day OK');
+
+}
+
 process.exit(0);
+

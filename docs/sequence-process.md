@@ -71,3 +71,15 @@ ni la anon key ni una sesión normal de usuario pueden ejecutarla.
   Las RPC de ejecución y la tabla de ejecuciones están restringidas a service role.
   `sequence_complete_task` admite los roles CRM existentes y valida tarea completada,
   vínculo, paso y marcador bajo bloqueo antes de avanzar.
+
+## Pausa y reanudación
+Programado y la tarjeta Secuencias del contacto permiten pausar, reanudar y cancelar.
+Programado también permite seleccionar inscripciones para operaciones masivas.
+La pausa conserva el paso y guarda el plazo restante en extra.pauseRemainingMs.
+Reanudar calcula ahora + plazo restante y desplaza sábados y domingos al lunes
+a la misma hora local. Las tareas pendientes conservan su marcador y fecha nula.
+Ambas transiciones registran una actividad en la cronología. Las pausadas siguen
+visibles sin cuenta atrás y el filtro de estado de Análisis incluye «En pausa».
+Las consultas y RPC del ejecutor exigen status = 'active': una inscripción pausada
+no se ejecuta aunque su fecha anterior haya vencido. Un envío ya en vuelo no puede
+retirarse.
