@@ -1186,10 +1186,10 @@ h1 {
 
 .table th {
   background: var(--c-head);
-  font-size: var(--fs-xs);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
+  font-size: var(--fs-sm);
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
   color: var(--c-text);
   height: 44px;
 }
@@ -7577,20 +7577,15 @@ th.th:hover .th__more,
   width: 2px;
 }
 
+/* The one heading style of every object table (lists, Llamadas, Plantillas, Secuencias, Fragmentos, Segmentos,
+   Workflows, Marketing): sentence case, regular weight, fs-sm, on --c-head (like the original's «Nombre», «Cargo»,
+   «Correo»). There is no uppercase/bold variant any more (.table--standard was removed). */
 .table thead th {
   text-transform: none;
   letter-spacing: 0;
   font-weight: 400;
   color: var(--c-text);
   font-size: var(--fs-sm);
-}
-
-/* Standard list headings, independent of the compact list variant above. */
-.table.table--standard thead th {
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
-  font-weight: 600;
-  font-size: var(--fs-xs);
 }
 
 .col-guide {

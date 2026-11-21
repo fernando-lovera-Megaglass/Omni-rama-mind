@@ -27,10 +27,27 @@ document.querySelector('#global-results').addEventListener('click', e => { e.pre
 key('ArrowDown'); key('ArrowDown'); key('Enter');
 assert.match(opened, /tasks\/record\/\?id=1/);
 key('ArrowUp'); assert.equal(input.getAttribute('aria-activedescendant'), 'global-hit-0');
+await search('Tarea');
+key('Enter'); assert.match(opened, /tasks\/record\/\?id=0/);
+key('ArrowUp');
+assert.equal(input.getAttribute('aria-activedescendant'), 'global-hit-3');
+key('Enter'); assert.equal(new URL(opened).searchParams.get('q'), 'Tarea');
+assert.equal(new URL(opened).pathname, '/tasks/');
+// Choose the object by total matches, not by the number of visible suggestions.
+data.allContacts = () => Array.from({ length: 4 }, (_, i) => ({ id: i, name: `Tarea contacto ${i}` }));
+await search('Tarea');
+assert.equal(document.querySelectorAll('#global-results a').length, 8);
+assert.equal(new URL(document.querySelector('.global-search__all').href).pathname, '/tasks/');
 key('Escape'); assert.equal(input.getAttribute('aria-expanded'), 'false');
 key('/', document.body); assert.equal(document.activeElement, input);
 input.blur(); const local = document.createElement('input'); local.id = 'row-search'; document.body.append(local);
 key('/', document.body); assert.notEqual(document.activeElement, input);
+document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true, cancelable: true }));
+assert.equal(document.activeElement, input);
+local.focus();
+key('/', local); assert.equal(document.activeElement, local);
+local.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true, cancelable: true }));
+assert.equal(document.activeElement, local);
 input.value = 'Tarea'; input.dispatchEvent(new Event('input')); key('Escape');
 await new Promise(r => setTimeout(r, 0)); assert.equal(input.getAttribute('aria-expanded'), 'false');
 assert.equal(matchesSearch({ phone: '+52 55 1234 5678' }, 'abc123', ['phone']), false);

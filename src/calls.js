@@ -208,7 +208,7 @@ function render() {
       ${rows === null
         ? '<p class="muted calls__empty">Cargando llamadas…</p>'
         : slice.length
-          ? `<div class="table-wrap"><table class="table table--standard">
+          ? `<div class="table-wrap"><table class="table">
               <thead><tr>
                 ${state.columns.map((key) => `<th class="th" aria-sort="${state.sort.key === key ? (state.sort.dir === 1 ? 'ascending' : 'descending') : 'none'}">
                   <div class="th__inner"><span class="th__label">${COLUMNS.find(([k]) => k === key)[1]}</span>
