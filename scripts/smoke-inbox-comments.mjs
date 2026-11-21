@@ -32,7 +32,7 @@ const ctrlEnter = () => $('inbox-reply').elements.body.dispatchEvent(new window.
 
 // static: the note branch of the submit handler has no Gmail send
 const src = readFileSync(resolve(here, '../src/inbox.js'), 'utf8');
-const noteBranch = src.slice(src.indexOf("composeMode(state.selected) === 'note'"), src.indexOf('const m = sendMessage(state.selected'));
+const noteBranch = src.slice(src.indexOf("composeMode(state.activeId) === 'note'"), src.indexOf('const m = sendMessage(state.activeId'));
 if (!noteBranch.includes('addInternalNote(') || /sendMail|sendMessage\(/.test(noteBranch)) fail('the comment branch must only call addInternalNote (no sendMail / sendMessage)');
 log('static: comment branch → addInternalNote only');
 

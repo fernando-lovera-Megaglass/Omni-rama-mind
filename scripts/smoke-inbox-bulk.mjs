@@ -1,0 +1,91 @@
+// Smoke test for the inbox «Responder | Comentario» tabs: a comment is an internal note (addInternalNote): it shows
+// in the thread as a yellow bubble «Comentario interno · <autor>», is never sent (no sendMessage / Gmail: a fetch
+// spy stays silent and the code path has no sendMail), does not reopen a closed conversation nor move it, lands on
+// the contact timeline as a note linking the conversation, Ctrl+Enter works in both tabs, the tab is remembered
+// per conversation during the session and «Responder» still sends as before. Run: node scripts/smoke-inbox-comments.mjs
+import { JSDOM } from 'jsdom';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, resolve } from 'node:path';
+
+const here = dirname(fileURLToPath(import.meta.url));
+const log = (...a) => console.log('[inbox-bulk]', ...a);
+const fail = (msg) => { console.error(`[inbox-bulk] FAIL: ${msg}`); process.exit(1); };
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+const mem = {};
+const dom = new JSDOM('<!doctype html><body class="app"><aside id="sidenav"></aside><header id="topbar"></header><main class="content content--inbox" id="inbox-root"></main><div id="scrim"></div></body>', { url: 'http://localhost/inbox/', pretendToBeVisual: true });
+for (const k of ['window', 'document', 'location', 'history', 'HTMLElement', 'Event', 'CustomEvent', 'KeyboardEvent', 'FormData', 'URL', 'Blob', 'MutationObserver']) globalThis[k] = dom.window[k];
+globalThis.localStorage = { getItem: (k) => (k in mem ? mem[k] : null), setItem: (k, v) => { mem[k] = String(v); }, removeItem: (k) => { delete mem[k]; }, key: (i) => Object.keys(mem)[i] ?? null, get length() { return Object.keys(mem).length; } };
+Object.defineProperty(globalThis, 'navigator', { value: { clipboard: { writeText() {} } }, configurable: true });
+dom.window.HTMLElement.prototype.scrollIntoView = function () {};
+dom.window.HTMLElement.prototype.scrollBy = function () {};
+dom.window.matchMedia = () => ({ matches: false, addEventListener() {}, removeEventListener() {} });
+let networkCalls = 0;
+globalThis.fetch = async () => { networkCalls += 1; throw new Error('network blocked in the test'); };
+const $ = (id) => document.getElementById(id);
+const q = (s) => document.querySelector(s);
+const qa = (s) => [...document.querySelectorAll(s)];
+const text = (el) => (el ? el.textContent.replace(/\s+/g, ' ').trim() : '');
+const click = (el) => { if (!el) fail('missing element to click'); el.dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true })); };
+const submit = () => $('inbox-reply').dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true }));
+const ctrlEnter = () => $('inbox-reply').elements.body.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Enter', ctrlKey: true, bubbles: true, cancelable: true }));
+
+const Conv = await import('../src/conversations-data.js');
+await Conv.ready;
+const { state } = await import('../src/inbox.js');
+const assert = (ok, message) => { if (!ok) fail(message); };
+const change = (el, value) => { el.value = value; el.dispatchEvent(new Event('change', { bubbles: true })); };
+const action = (name) => click(q(`[data-bulk="${name}"]`));
+const badgeOK = () => assert(Number(q('[data-nav-badge="inbox"]').textContent) === Conv.unreadCount(), 'badge matches unread count');
+const active = state.activeId;
+const draft = $('inbox-reply').elements.body;
+draft.value = 'Borrador intacto';
+const ids = qa('[data-select]').map((el) => el.dataset.select);
+assert(ids.length === 3, 'three open seed conversations');
+qa('[data-select]').forEach(click);
+assert(state.selected.size === 3 && state.activeId === active, 'checkboxes select three without changing thread');
+assert($('inbox-reply').elements.body === draft && draft.value === 'Borrador intacto', 'selection preserves editor');
+assert($('inbox-select-all').checked && !$('inbox-bulk').hidden, 'header and toolbar');
+change($('inbox-bulk-assign'), 'Sofía R.');
+assert(ids.every((id) => Conv.conversationById(id).assignedTo === 'Sofía R.'), 'bulk assigned to Sofia');
+assert(state.selected.size === 3, 'assignment keeps selection for closing');
+action('closed');
+assert(ids.every((id) => Conv.conversationById(id).status === 'closed'), 'all three closed');
+assert(Conv.unreadCount() === 0, 'closing clears unread count');
+badgeOK();
+assert($('toast').textContent.includes('3 conversaciones cerradas'), 'result toast');
+assert(state.activeId === active && $('inbox-reply').elements.body.value === 'Borrador intacto', 'open conversation and draft preserved');
+change($('inbox-status'), '');
+change($('inbox-channel'), 'email');
+click($('inbox-select-all'));
+const emailIds = qa('[data-select]').map((el) => el.dataset.select);
+assert(emailIds.length === 2 && state.selected.size === 2 && emailIds.every((id) => state.selected.has(id)), 'select all limited to channel');
+action('open');
+action('unread');
+assert(emailIds.every((id) => Conv.conversationById(id).unread), 'mark unread including outgoing last message');
+badgeOK();
+action('read');
+assert(emailIds.every((id) => !Conv.conversationById(id).unread), 'mark read');
+badgeOK();
+action('snoozed');
+assert(emailIds.every((id) => Conv.conversationById(id).status === 'snoozed'), 'snooze');
+click(q('[data-select]'));
+assert($('inbox-select-all').indeterminate, 'partial selection');
+action('clear');
+assert(state.selected.size === 0 && $('inbox-bulk').hidden, 'deselect');
+// Actions on another thread must not rebuild the active editor.
+const other = qa('[data-select]').find((el) => el.dataset.select !== state.activeId);
+const editor = $('inbox-reply');
+click(other);
+action('unread');
+assert($('inbox-reply') === editor, 'unrelated action leaves thread DOM intact');
+change($('inbox-channel'), 'whatsapp');
+assert(state.selected.size === 0, 'filter change clears hidden selection');
+click($('inbox-select-all'));
+const deleted = [...state.selected];
+action('delete');
+assert(deleted.every((id) => !Conv.conversationById(id) && Conv.messagesOf(id).length === 0), 'delete conversations and messages');
+assert(JSON.parse(mem['crm:conversations']).every((c) => !deleted.includes(c.id)), 'local persistence');
+assert(networkCalls === 0, 'no network calls');
+console.log('[inbox-bulk] OK');
+process.exit(0);

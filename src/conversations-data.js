@@ -111,7 +111,7 @@ const contactOf = (id) => (id ? allContacts().find((c) => Number(c.id) === Numbe
 // The last real message (internal comments never drive the preview, the unread mark or the order).
 const lastOf = (id) => msgs.filter((m) => m.conversationId === id && m.kind !== 'note').sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0] || null;
 export const isInternalNote = (m) => Boolean(m && m.kind === 'note');
-const isUnread = (c, last) => c.status !== 'closed' && Boolean(last) && last.direction === 'in' && (!c.readAt || new Date(c.lastMessageAt) > new Date(c.readAt));
+const isUnread = (c, last) => c.status !== 'closed' && Boolean(last) && (!c.readAt || (last.direction === 'in' && new Date(c.lastMessageAt) > new Date(c.readAt)));
 const decorate = (c) => { const last = lastOf(c.id); return { ...c, contact: contactOf(c.contactId), lastMessage: last, unread: isUnread(c, last) }; };
 export function conversations() {
   return rows.map(decorate).sort((a, b) => new Date(b.lastMessageAt) - new Date(a.lastMessageAt));
@@ -225,3 +225,31 @@ export function setConversationStatus(id, status) {
   c.status = status;
   persistConv(c);
 }
+
+export function markUnread(id) {
+  const c = rows.find((x) => x.id === id);
+  if (!c) return;
+  c.readAt = null;
+  persistConv(c);
+}
+export function deleteConversation(id) {
+  if (!rows.some((c) => c.id === id)) return;
+  rows = rows.filter((c) => c.id !== id);
+  msgs = msgs.filter((m) => m.conversationId !== id);
+  const notes = readLocal(LS_N);
+  if (Array.isArray(notes)) localStorage.setItem(LS_N, JSON.stringify(notes.filter((m) => m.conversationId !== id)));
+  if (live) enqueue(async () => {
+    const { error } = await supabase.from('conversations').delete().eq('id', id);
+    if (error) throw error;
+  }); else saveLocal();
+}
+// Reuse individual writes so bulk actions have the same persistence behavior.
+function forConversations(ids, operation) {
+  const existing = [...new Set(ids)].filter((id) => rows.some((c) => c.id === id));
+  existing.forEach(operation);
+  return existing.length;
+}
+export const bulkAssignConversations = (ids, who) => forConversations(ids, (id) => assignConversation(id, who));
+export const bulkSetConversationStatus = (ids, status) => STATUS_LABELS[status] ? forConversations(ids, (id) => setConversationStatus(id, status)) : 0;
+export const bulkMarkConversationsRead = (ids, read = true) => forConversations(ids, read ? markRead : markUnread);
+export const bulkDeleteConversations = (ids) => forConversations(ids, deleteConversation);

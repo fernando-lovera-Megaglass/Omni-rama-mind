@@ -19513,3 +19513,16 @@ td[data-key="deal_tags"] .dtag {
 #global-results .is-active { background: var(--c-row-hover); color: var(--c-dark); outline: 2px solid #0091ae; outline-offset: -2px; }
 #global-results .global-search__all { position: sticky; bottom: 0; background: var(--c-white); border-top: 1px solid var(--c-border); white-space: normal; }
 #global-results .global-search__all.is-active { background: var(--c-row-hover); }
+
+/* Inbox bulk selection: checkbox overlays the avatar without nesting in a button. */
+.inbox__bulk[hidden], .inbox__tabs[hidden] { display: none; }
+.inbox__bulk { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 12px 16px; border-bottom: 1px solid #dfe3eb; }
+.inbox__bulk strong { flex-basis: 100%; }
+.inbox__bulk label { display: flex; align-items: center; gap: 8px; }
+.inbox__bulk select { max-width: 190px; padding: 5px; }
+.inbox__select-all { display: flex; align-items: center; gap: 8px; padding: 8px 16px; font-size: 12px; }
+.inbox__item { position: relative; }
+.inbox__check { position: absolute; z-index: 1; top: 19px; left: 33px; width: 20px; height: 20px; margin: 0; opacity: 0; cursor: pointer; }
+.inbox__item:hover .inbox__check, .inbox__item:focus-within .inbox__check, .has-selection .inbox__check { opacity: 1; }
+.inbox__item:hover .avatar, .inbox__item:focus-within .avatar, .has-selection .inbox__item .avatar { visibility: hidden; }
+@media (hover: none) { .inbox__check { opacity: 1; } .inbox__item .avatar { visibility: hidden; } }

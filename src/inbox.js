@@ -7,7 +7,7 @@ import { ownerHtml } from './owner.js';
 import { emptyStateHtml } from './empty-state.js';
 import { enhanceOwnerSelects } from './owner-select.js';
 import { allCompanies, allContacts, relativeTimeFine, formatDate, initials, colorFor } from './data.js';
-import { ready, conversations, conversationById, messagesOf, sendMessage, addInternalNote, isInternalNote, createConversation, markRead, assignConversation, setConversationStatus, unreadCount, CHANNELS, STATUS_LABELS, ASSIGNEES, ME } from './conversations-data.js';
+import { ready, conversations, conversationById, messagesOf, sendMessage, addInternalNote, isInternalNote, createConversation, markRead, bulkAssignConversations, bulkSetConversationStatus, bulkMarkConversationsRead, bulkDeleteConversations, assignConversation, setConversationStatus, unreadCount, CHANNELS, STATUS_LABELS, ASSIGNEES, ME } from './conversations-data.js';
 import { ready as gmailReady, hasGmail, sendMail } from './gmail.js';
 import { syncInbox, gmailThreadFor } from './gmail-inbox.js';
 
@@ -19,7 +19,7 @@ const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<
 const $ = (id) => document.getElementById(id);
 const params = new URLSearchParams(location.search);
 // compose: the editor tab («reply» | «note») chosen per conversation, remembered for the session.
-const state = { who: 'all', status: 'open', channel: '', q: '', selected: params.get('id') || null, compose: new Map() };
+const state = { who: 'all', status: 'open', channel: '', q: '', activeId: params.get('id') || null, selected: new Set(), compose: new Map() };
 const composeMode = (id) => state.compose.get(id) || 'reply';
 const excerpt = (s, n = 70) => { const t = String(s || '').replace(/\s+/g, ' ').trim(); return t.length > n ? `${t.slice(0, n - 1)}…` : t; };
 const timeOf = (iso) => { const d = new Date(iso); return `${formatDate(d)} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
@@ -38,11 +38,23 @@ root.innerHTML = `
         <button class="inbox__tab" type="button" role="tab" data-who="unassigned">Sin asignar</button>
         <button class="inbox__tab" type="button" role="tab" data-who="mine">Asignados a mí</button>
       </div>
+      <div id="inbox-bulk" class="inbox__bulk" role="toolbar" aria-label="Acciones masivas" hidden>
+        <strong id="inbox-selected-count" aria-live="polite"></strong>
+        <label>Asignar a <select id="inbox-bulk-assign" aria-label="Asignar conversaciones seleccionadas"><option value="" disabled selected>Elegir usuario</option><option value="Sin asignar">Sin asignar</option>${ASSIGNEES.map((o) => `<option value="${esc(o)}">${esc(o)}</option>`).join('')}</select></label>
+        <button type="button" class="btn btn--ghost btn--sm" data-bulk="read">Marcar leído</button>
+        <button type="button" class="btn btn--ghost btn--sm" data-bulk="unread">Marcar no leído</button>
+        <button type="button" class="btn btn--ghost btn--sm" data-bulk="closed">Cerrar</button>
+        <button type="button" class="btn btn--ghost btn--sm" data-bulk="open">Reabrir</button>
+        <button type="button" class="btn btn--ghost btn--sm" data-bulk="snoozed">Posponer</button>
+        <button type="button" class="btn btn--ghost btn--sm" data-bulk="delete">Eliminar</button>
+        <button type="button" class="btn btn--ghost btn--sm" data-bulk="clear">Deseleccionar</button>
+      </div>
       <div class="inbox__filters">
         <filter-chip id="inbox-status" aria-label="Estado"><template><option value="">Todos los estados</option><option value="open" selected>Abiertos</option><option value="closed">Cerrados</option><option value="snoozed">Pospuestos</option></template></filter-chip>
         <filter-chip id="inbox-channel" aria-label="Canal"><template><option value="">Todos los canales</option>${Object.entries(CHANNELS).map(([k, c]) => `<option value="${k}">${c.label}</option>`).join('')}</template></filter-chip>
       </div>
       <div class="search search--sm inbox__search"><span class="ico ico--search" aria-hidden="true"></span><input type="search" id="inbox-q" placeholder="Buscar conversaciones" aria-label="Buscar conversaciones" autocomplete="off" /></div>
+      <label class="inbox__select-all"><input type="checkbox" id="inbox-select-all" /> Seleccionar todo lo visible</label>
       <ul class="inbox__items" id="inbox-items"></ul>
     </aside>
     <section class="inbox__thread" id="inbox-thread" aria-live="polite"></section>
@@ -96,17 +108,19 @@ function visible() {
 }
 function renderList() {
   const list = visible();
-  // With nothing listed (search or filters without matches) no conversation stays selected: the thread pane
-  // shows its empty state. A conversation that just left the list (closed, reassigned) stays open until
-  // another one is picked, as before.
-  if (state.selected && (!conversationById(state.selected) || !list.length)) state.selected = null;
-  if (!state.selected && list.length) state.selected = list[0].id;
+  // Selection is always limited to the current filters; keep the open thread independent.
+  const ids = new Set(list.map((c) => c.id));
+  for (const id of state.selected) if (!ids.has(id)) state.selected.delete(id);
+  if (state.activeId && !conversationById(state.activeId)) state.activeId = null;
+  if (!state.activeId && list.length) state.activeId = list[0].id;
+  renderSelection(list);
   root.querySelectorAll('.inbox__tab').forEach((t) => { t.classList.toggle('is-active', t.dataset.who === state.who); t.setAttribute('aria-selected', String(t.dataset.who === state.who)); });
   $('inbox-items').innerHTML = list.length
     ? list.map((c) => {
       const ch = CHANNELS[c.channel] || CHANNELS.email;
       const who = c.contact ? c.contact.name : (c.lastMessage && c.lastMessage.author) || 'Sin contacto';
-      return `<li class="inbox__item${c.id === state.selected ? ' is-active' : ''}${c.unread ? ' is-unread' : ''}" data-id="${esc(c.id)}">
+      return `<li class="inbox__item${c.id === state.activeId ? ' is-active' : ''}${c.unread ? ' is-unread' : ''}" data-id="${esc(c.id)}">
+        <input class="inbox__check" type="checkbox" data-select="${esc(c.id)}" aria-label="Seleccionar ${esc(c.subject)}" ${state.selected.has(c.id) ? 'checked' : ''} />
         <button class="inbox__itembtn" type="button">
           <span class="inbox__dot" style="background:${ch.color}" title="${esc(ch.label)}" aria-label="${esc(ch.label)}"></span>
           <span class="avatar avatar--sm" style="background:${c.contact ? colorFor(c.contact.id) : '#7c98b6'}" aria-hidden="true">${esc(initials(who))}</span>
@@ -120,8 +134,49 @@ function renderList() {
     }).join('')
     : `<li class="inbox__empty">${emptyStateHtml({ art: 'inbox', compact: true, title: 'No hay conversaciones', text: 'Ninguna conversación coincide con estos filtros. Las nuevas aparecen aquí al llegar.', action: { label: 'Nueva conversación', attrs: 'data-inbox="new"' } })}</li>`;
 }
+function renderSelection(list = visible()) {
+  const count = state.selected.size;
+  root.querySelector('.inbox__tabs').hidden = count > 0;
+  $('inbox-bulk').hidden = !count;
+  $('inbox-selected-count').textContent = `${count} seleccionadas`;
+  $('inbox-items').classList.toggle('has-selection', count > 0);
+  const all = $('inbox-select-all');
+  all.disabled = !list.length;
+  all.checked = list.length > 0 && list.every((c) => state.selected.has(c.id));
+  all.indeterminate = count > 0 && !all.checked;
+  root.querySelectorAll('[data-select]').forEach((box) => { box.checked = state.selected.has(box.dataset.select); });
+}
+function applyBulk(action, who) {
+  if (action === 'clear') { state.selected.clear(); renderSelection(); return; }
+  const ids = [...state.selected];
+  if (!ids.length) return;
+  const affectsOpen = state.selected.has(state.activeId);
+  const draft = $('inbox-reply')?.elements.body.value;
+  let count;
+  let result;
+  if (action === 'assign') {
+    count = bulkAssignConversations(ids, who);
+    result = who === 'Sin asignar' ? 'sin asignar' : `asignadas a ${who}`;
+  } else if (action === 'read' || action === 'unread') {
+    count = bulkMarkConversationsRead(ids, action === 'read');
+    result = action === 'read' ? 'marcadas como leídas' : 'marcadas como no leídas';
+  } else if (action === 'delete') {
+    count = bulkDeleteConversations(ids);
+    result = 'eliminadas';
+  } else if (STATUS_LABELS[action]) {
+    count = bulkSetConversationStatus(ids, action);
+    result = { closed: 'cerradas', open: 'reabiertas', snoozed: 'pospuestas' }[action];
+  } else return;
+  renderList();
+  if (affectsOpen) {
+    renderThread(); renderSide();
+    if (action !== 'delete' && draft !== undefined && $('inbox-reply')) $('inbox-reply').elements.body.value = draft;
+  }
+  refreshBadge();
+  toast(`${count} conversaciones ${result}`);
+}
 function renderThread() {
-  const c = state.selected ? conversationById(state.selected) : null;
+  const c = state.activeId ? conversationById(state.activeId) : null;
   const el = $('inbox-thread');
   if (!c) { el.innerHTML = `<div class="inbox__placeholder">${emptyStateHtml({ art: 'inbox', title: 'Selecciona una conversación', text: 'Elige un hilo de la lista para leerlo y responder, o empieza uno nuevo.', action: { label: 'Nueva conversación', attrs: 'data-inbox="new"' } })}</div>`; return; }
   const ch = CHANNELS[c.channel] || CHANNELS.email;
@@ -148,7 +203,7 @@ function renderThread() {
   box.scrollTop = box.scrollHeight;
 }
 function renderSide() {
-  const c = state.selected ? conversationById(state.selected) : null;
+  const c = state.activeId ? conversationById(state.activeId) : null;
   const el = $('inbox-side');
   if (!c) { el.innerHTML = ''; return; }
   const contact = c.contact;
@@ -176,7 +231,7 @@ function renderSide() {
 }
 function renderAll() { renderList(); renderThread(); renderSide(); refreshBadge(); }
 function select(id) {
-  state.selected = id;
+  state.activeId = id;
   markRead(id);
   if (history.replaceState) history.replaceState(null, '', `?id=${encodeURIComponent(id)}`);
   renderAll();
@@ -187,7 +242,7 @@ function openNew() {
   const form = $('inbox-new');
   form.reset();
   $('inbox-new-error').hidden = true;
-  const c = state.selected ? conversationById(state.selected) : null;
+  const c = state.activeId ? conversationById(state.activeId) : null;
   if (c && c.contactId) form.elements.contactId.value = String(c.contactId);
   m.classList.add('is-open');
   m.setAttribute('aria-hidden', 'false');
@@ -196,16 +251,19 @@ function openNew() {
 function closeNew() { const m = modal(); m.classList.remove('is-open'); m.setAttribute('aria-hidden', 'true'); }
 
 root.addEventListener('click', (e) => {
+  if (e.target.closest('[data-select]')) return;
+  const bulk = e.target.closest('[data-bulk]');
+  if (bulk) { applyBulk(bulk.dataset.bulk); return; }
   const item = e.target.closest('.inbox__item[data-id]');
   if (item) { select(item.dataset.id); return; }
   const tab = e.target.closest('.inbox__tab[data-who]');
-  if (tab) { state.who = tab.dataset.who; state.selected = null; renderAll(); return; }
+  if (tab) { state.who = tab.dataset.who; state.selected.clear(); renderAll(); return; }
   const act = e.target.closest('[data-inbox]');
   if (act) {
     const a = act.dataset.inbox;
     if (a === 'new') { openNew(); return; }
     if (a === 'sync') { syncGmail(act); return; }
-    const c = state.selected ? conversationById(state.selected) : null;
+    const c = state.activeId ? conversationById(state.activeId) : null;
     if (!c) return;
     if (a === 'toggle-status') {
       const next = c.status === 'closed' ? 'open' : 'closed';
@@ -222,18 +280,29 @@ root.addEventListener('click', (e) => {
   if (e.target.closest('[data-bm="close"]')) { e.preventDefault(); closeNew(); }
 });
 root.addEventListener('change', (e) => {
-  if (e.target.id === 'inbox-status') { state.status = e.target.value; state.selected = null; renderAll(); }
-  else if (e.target.id === 'inbox-channel') { state.channel = e.target.value; state.selected = null; renderAll(); }
-  else if (e.target.id === 'inbox-assign' && state.selected) { assignConversation(state.selected, e.target.value); toast(e.target.value ? `Asignada a ${e.target.value}` : 'Conversación sin asignar'); renderAll(); }
+  if (e.target.matches('[data-select]')) {
+    const id = e.target.dataset.select;
+    if (e.target.checked) state.selected.add(id); else state.selected.delete(id);
+    renderSelection(); return;
+  }
+  if (e.target.id === 'inbox-select-all') {
+    state.selected = new Set(e.target.checked ? visible().map((c) => c.id) : []);
+    renderSelection(); return;
+  }
+  if (e.target.id === 'inbox-bulk-assign') { applyBulk('assign', e.target.value); e.target.value = ''; return; }
+
+  if (e.target.id === 'inbox-status') { state.status = e.target.value; state.selected.clear(); renderAll(); }
+  else if (e.target.id === 'inbox-channel') { state.channel = e.target.value; state.selected.clear(); renderAll(); }
+  else if (e.target.id === 'inbox-assign' && state.activeId) { assignConversation(state.activeId, e.target.value); toast(e.target.value ? `Asignada a ${e.target.value}` : 'Conversación sin asignar'); renderAll(); }
 });
-root.addEventListener('input', (e) => { if (e.target.id === 'inbox-q') { const before = state.selected; state.q = e.target.value; renderList(); if (state.selected !== before) { renderThread(); renderSide(); } } });
+root.addEventListener('input', (e) => { if (e.target.id === 'inbox-q') { const before = state.activeId; state.q = e.target.value; renderList(); if (state.activeId !== before) { renderThread(); renderSide(); } } });
 // «Responder | Comentario»: the tab is remembered per conversation; the draft survives the switch.
 root.addEventListener('click', (e) => {
   const tab = e.target.closest('[data-compose]');
-  if (!tab || !state.selected) return;
+  if (!tab || !state.activeId) return;
   const ta = $('inbox-reply') && $('inbox-reply').elements.body;
   const draft = ta ? ta.value : '';
-  state.compose.set(state.selected, tab.dataset.compose === 'note' ? 'note' : 'reply');
+  state.compose.set(state.activeId, tab.dataset.compose === 'note' ? 'note' : 'reply');
   renderThread();
   const ta2 = $('inbox-reply') && $('inbox-reply').elements.body;
   if (ta2) { ta2.value = draft; ta2.focus(); }
@@ -246,10 +315,10 @@ root.addEventListener('submit', (e) => {
   if (e.target.id === 'inbox-reply') {
     e.preventDefault();
     const body = e.target.elements.body.value.trim();
-    if (!body || !state.selected) return;
-    if (composeMode(state.selected) === 'note') {
+    if (!body || !state.activeId) return;
+    if (composeMode(state.activeId) === 'note') {
       // «Comentario»: internal, never leaves the CRM (no sendMessage, no Gmail), the thread keeps its status.
-      const n = addInternalNote(state.selected, { body, author: ME });
+      const n = addInternalNote(state.activeId, { body, author: ME });
       if (!n) return;
       toast('Comentario guardado');
       renderAll();
@@ -257,10 +326,10 @@ root.addEventListener('submit', (e) => {
       if (ta2) ta2.focus();
       return;
     }
-    const m = sendMessage(state.selected, { body, direction: 'out', author: ME });
+    const m = sendMessage(state.activeId, { body, direction: 'out', author: ME });
     if (!m) return;
     // A conversation imported from Gmail answers in the same Gmail thread, from the connected account.
-    const th = gmailThreadFor(state.selected);
+    const th = gmailThreadFor(state.activeId);
     if (th && th.fromEmail) sendMail({ accountId: th.accountId, to: th.fromEmail, subject: /^re:/i.test(th.subject) ? th.subject : `Re: ${th.subject}`, html: `<p>${esc(body).replace(/\n/g, '<br>')}</p>`, text: body, threadId: th.threadId, inReplyTo: th.rfcMessageId, references: th.rfcMessageId }).then(() => toast('Respuesta enviada por Gmail')).catch((e2) => toast(`No se pudo enviar por Gmail: ${e2.message}`));
     toast('Mensaje enviado');
     renderAll();
@@ -287,6 +356,6 @@ root.addEventListener('submit', (e) => {
 });
 
 renderAll();
-if (state.selected) markRead(state.selected), renderAll();
+if (state.activeId) markRead(state.activeId), renderAll();
 
 export { state, renderAll };
