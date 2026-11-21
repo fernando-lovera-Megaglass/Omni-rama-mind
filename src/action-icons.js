@@ -44,6 +44,18 @@ export const ACT_ICONS = {
   system: ico('<circle cx="12" cy="12" r="3.2"/><path d="M12 2.8v2.6M12 18.6v2.6M2.8 12h2.6M18.6 12h2.6M5.5 5.5l1.8 1.8M16.7 16.7l1.8 1.8M18.5 5.5l-1.8 1.8M7.3 16.7l-1.8 1.8"/>'),
 };
 
+// CRM objects (Ajustes › Objetos: selector and object pages): the same line set as the side navigation
+// (24×24, 1.8 stroke, currentColor, so the dark theme tints them like every other icon) instead of emoji.
+export const OBJECT_ICONS = {
+  contacts: ACT_ICONS.user,
+  companies: ico('<path d="M4 20.5V5a1.5 1.5 0 0 1 1.5-1.5h8A1.5 1.5 0 0 1 15 5v15.5"/><path d="M15 9.5h3.5A1.5 1.5 0 0 1 20 11v9.5M3 20.5h18"/><path d="M7.5 7.5h1.5M11 7.5h1.5M7.5 11h1.5M11 11h1.5M7.5 14.5h1.5M11 14.5h1.5M9.5 20.5v-3h2.5v3"/>'),
+  deals: ACT_ICONS.deal,
+  tickets: ACT_ICONS.ticket,
+  tasks: ACT_ICONS.task,
+  products: ico('<path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z"/><path d="M4 7.5l8 4.5 8-4.5M12 12v9"/>'),
+  custom: ico('<rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><path d="M17 14v6M14 17h6"/>'),
+};
+
 // Property field types (Ajustes › Propiedades › Crear propiedad): one minimalist icon per kind.
 export const FIELD_ICONS = {
   text: ico('<path d="M5 6.5V5h14v1.5M12 5v14M9 19h6"/>'),

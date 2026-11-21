@@ -10104,8 +10104,16 @@ textarea.cellpop__input {
 .objsel__ico {
   position: absolute;
   left: 14px;
-  font-size: 15px;
+  display: inline-flex;
+  width: 18px;
+  height: 18px;
+  color: var(--c-muted);
   pointer-events: none;
+}
+
+.objsel__ico svg {
+  width: 18px;
+  height: 18px;
 }
 
 .objsel__pick .ginput {

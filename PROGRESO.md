@@ -1,5 +1,10 @@
 # Progreso — Omni CRM
 
+## 2026-11-21 (sesión 6) · Ajustes › Objetos con iconos de línea en vez de emoji
+
+- `src/action-icons.js`: nuevo `OBJECT_ICONS` (contacto = persona, empresa = edificio, negocio, ticket, tarea, producto = caja, objeto personalizado) con el mismo trazo que el resto de iconos (viewBox 24, 1,8 px, `currentColor`, así el tema oscuro los tiñe como a los demás). `src/settings.js` los usa en `OBJ_META` (antes 👤 🏢 🤝 🎫 ☑ 📦 ◫) y el selector «Seleccionar un objeto» (`.objsel__ico`) pinta el SVG a 18 px en color atenuado.
+- Prueba: `scripts/smoke-object-icons.mjs` (cada página de objeto muestra un SVG del set compartido —contactos = `ACT_ICONS.user`, negocios/tickets/tareas los mismos que la cronología— y no queda ningún emoji en Ajustes › Objetos).
+
 ## 2026-11-21 (sesión 6) · Columna «Etapa del negocio» sin el pipeline repetido
 
 - `src/deals.js`: la celda de etapa muestra solo el nombre de la etapa (antes «OFERTA A+W (FUERZA DE VENTAS)» en cada fila, duplicando la columna «Pipeline»); conserva el verde de ganado / rojo de perdido y los modos punto e insignia de «Definir los colores de visualización», el `title` lleva solo la etapa y el ancho por defecto baja de 250 a 190 px (menos scroll horizontal). La columna «Pipeline», el filtro y la edición en línea no cambian; el ordenamiento por etapa pasa a seguir el nombre mostrado (antes ordenaba por la clave interna). Ojo: tres etapas reales de la cuenta llevan paréntesis propios («Cotización trabajada (Enviada)», «Contacto concretado (llamada, coreo, visita)», «Fabricación Aluminio ( Corte, Armado, Envidriado)»): la prueba comprueba que la celda nunca repite el nombre del pipeline, no que no haya paréntesis.

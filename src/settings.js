@@ -1,7 +1,7 @@
 import { supabase } from './supabaseClient.js';
 import { createSettingsStore, managedSetting } from './settings-store.js';
 import { FORECAST_CATEGORIES, stageForecastCategory } from './data.js';
-import { ACT_ICONS } from './action-icons.js';
+import { ACT_ICONS, OBJECT_ICONS } from './action-icons.js';
 import { integrationsPaneHtml, mountIntegrations } from './settings-integrations.js';
 import { mountMfaSettings, ssoUnavailable } from './mfa-settings.js';
 // Account settings (the gear in the top bar): a full settings tree with a pane per section.
@@ -939,13 +939,14 @@ function persistPipelines(defs, msg) {
 
 // ---------- Objetos: one page, object selector + tabs ----------
 const OBJ_META = {
-  contacts: { s: 'Contacto', p: 'Contactos', desc: 'Almacena información sobre una persona que interactúa con tu negocio.', icon: '👤' },
-  companies: { s: 'Empresa', p: 'Empresas', desc: 'Almacena información sobre una organización o un negocio.', icon: '🏢' },
-  deals: { s: 'Negocio', p: 'Negocios', desc: 'Realiza un seguimiento del progreso, la propiedad y otros detalles de una transacción con un cliente o una empresa.', icon: '🤝' },
-  tickets: { s: 'Ticket', p: 'Tickets', desc: 'Realiza un seguimiento de las solicitudes de ayuda de tus clientes.', icon: '🎫' },
-  tasks: { s: 'Tarea', p: 'Tareas', desc: 'Actividades pendientes asignadas a los usuarios de tu cuenta.', icon: '☑' },
-  products: { s: 'Producto', p: 'Productos', desc: 'Bienes y servicios que vendes, para usarlos en negocios y cotizaciones.', icon: '📦' },
-  custom: { s: 'Objeto personalizado', p: 'Objetos personalizados', desc: 'Objetos que defines tú para almacenar datos que no encajan en los objetos estándar.', icon: '◫' },
+  // icon: the line icon of the object (src/action-icons.js OBJECT_ICONS, same set as the side navigation).
+  contacts: { s: 'Contacto', p: 'Contactos', desc: 'Almacena información sobre una persona que interactúa con tu negocio.', icon: OBJECT_ICONS.contacts },
+  companies: { s: 'Empresa', p: 'Empresas', desc: 'Almacena información sobre una organización o un negocio.', icon: OBJECT_ICONS.companies },
+  deals: { s: 'Negocio', p: 'Negocios', desc: 'Realiza un seguimiento del progreso, la propiedad y otros detalles de una transacción con un cliente o una empresa.', icon: OBJECT_ICONS.deals },
+  tickets: { s: 'Ticket', p: 'Tickets', desc: 'Realiza un seguimiento de las solicitudes de ayuda de tus clientes.', icon: OBJECT_ICONS.tickets },
+  tasks: { s: 'Tarea', p: 'Tareas', desc: 'Actividades pendientes asignadas a los usuarios de tu cuenta.', icon: OBJECT_ICONS.tasks },
+  products: { s: 'Producto', p: 'Productos', desc: 'Bienes y servicios que vendes, para usarlos en negocios y cotizaciones.', icon: OBJECT_ICONS.products },
+  custom: { s: 'Objeto personalizado', p: 'Objetos personalizados', desc: 'Objetos que defines tú para almacenar datos que no encajan en los objetos estándar.', icon: OBJECT_ICONS.custom },
 };
 const AMOUNT_MODES = ['Total adeudado en el cierre (versión anterior)', 'Valor total del contrato', 'Valor anual del contrato', 'Valor mensual recurrente', 'Importe fijo'];
 const CLOSE_PERIODS = ['Este mes', 'Este trimestre', 'Este año', 'El mes que viene'];
