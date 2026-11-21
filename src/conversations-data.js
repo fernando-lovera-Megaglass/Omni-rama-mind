@@ -139,7 +139,7 @@ export function sendMessage(id, { body, direction = 'out', author = ME, when } =
   const text = String(body || '').trim();
   if (!c || !text) return null;
   const now = when || new Date().toISOString();
-  const m = { id: uuid(), conversationId: id, direction, body: text, author: author || (direction === 'out' ? ME : 'Contacto'), createdAt: now };
+  const m = { id: uuid(), conversationId: id, direction, kind: 'message', body: text, author: author || (direction === 'out' ? ME : 'Contacto'), createdAt: now };
   msgs.push(m);
   c.lastMessageAt = now;
   if (direction === 'out') { c.readAt = now; if (c.status === 'closed') c.status = 'open'; } // a reply reopens a closed thread
