@@ -1025,10 +1025,12 @@
     },
     {
       "id": "gap-ui-plantillas-buscador-compositor",
-      "status": "pending",
+      "status": "done",
       "lane": "codex",
       "createdAt": "2026-11-21T01:20:00-06:00",
-      "instruction": "UX (Compositor de correo). HubSpot: el desplegable «Plantillas» del compositor tiene un campo «Buscar plantillas» arriba que filtra al escribir y ordena por uso/recencia. Omni HOY: tplPanelHtml (src/compose.js línea 40) pinta la lista plana de todas las plantillas sin búsqueda; el menú de Secuencias del mismo compositor sí tiene buscador cuando hay más de 5 (línea 45, data-seq-search): plantillas quedó atrás y con 30 plantillas hay que leerlas una a una. Cambios paso a paso: 1) Añadir el campo de búsqueda al panel de plantillas reutilizando el patrón del de secuencias (compose__seqsearch) filtrando por nombre y asunto en minúsculas al teclear; mantener «Administrar plantillas» al pie y estado vacío «Sin resultados para 'x'». 2) Ordenar la lista por uso reciente cuando exista el contador del ítem gap-ui-plantillas-seguimiento-uso (mientras tanto, por updatedAt desc). Criterio: scripts/smoke-compose.mjs extendido: con 6+ plantillas, escribir «cot» deja visibles solo las coincidentes, y elegir una sigue insertando asunto y cuerpo con los tokens resueltos. No despliegues nada a producción; solo código local."
+      "instruction": "UX (Compositor de correo). HubSpot: el desplegable «Plantillas» del compositor tiene un campo «Buscar plantillas» arriba que filtra al escribir y ordena por uso/recencia. Omni HOY: tplPanelHtml (src/compose.js línea 40) pinta la lista plana de todas las plantillas sin búsqueda; el menú de Secuencias del mismo compositor sí tiene buscador cuando hay más de 5 (línea 45, data-seq-search): plantillas quedó atrás y con 30 plantillas hay que leerlas una a una. Cambios paso a paso: 1) Añadir el campo de búsqueda al panel de plantillas reutilizando el patrón del de secuencias (compose__seqsearch) filtrando por nombre y asunto en minúsculas al teclear; mantener «Administrar plantillas» al pie y estado vacío «Sin resultados para 'x'». 2) Ordenar la lista por uso reciente cuando exista el contador del ítem gap-ui-plantillas-seguimiento-uso (mientras tanto, por updatedAt desc). Criterio: scripts/smoke-compose.mjs extendido: con 6+ plantillas, escribir «cot» deja visibles solo las coincidentes, y elegir una sigue insertando asunto y cuerpo con los tokens resueltos. No despliegues nada a producción; solo código local.",
+      "completedAt": "2026-11-21T17:20:25-0600",
+      "completedBy": "codex"
     },
     {
       "id": "gap-backend-re-secuencias-produccion-congelada",
