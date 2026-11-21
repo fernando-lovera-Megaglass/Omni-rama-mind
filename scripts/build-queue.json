@@ -781,10 +781,11 @@
     },
     {
       "id": "gap-ui-re-paginadores-residuales",
-      "status": "pending",
+      "status": "done",
       "createdAt": "2026-11-20T15:29:40-06:00",
       "lane": "claude",
-      "instruction": "El fix gap-ui-paginadores-inconsistentes creó el componente compartido src/pagination.js y lo aplicó a las listas, Plantillas, Secuencias, Llamadas y Workflows, pero quedan tres paginadores artesanales: Fragmentos (src/snippets.js 103-111: .pager propio con números limitados a 5, aria-current=\"false\" inválido y un <select> nativo «Por página»), Ajustes (src/settings.js 326 usuarios, 578 propiedades y 1111: patrón .ppager/.ppager__num con botones redondos y link-btn «‹ Anterior / Siguiente ›», tipografía distinta) y Etiquetas de negocio (src/deal-tags-ui.js 32: .dtags__pager con «‹ Anterior · 1 · Siguiente ›» y otro <select> nativo de tamaño). Cómo debe verse: los tres sitios usan pagination() + bindPagination() de src/pagination.js (números con elipsis, menú «N por página» con .menu__panel, opciones 25/50/100 — conserva el 10 de Fragmentos/Ajustes si ya es su tamaño inicial, añadiéndolo a las opciones del componente si hace falta). Criterio de aceptación: no quedan las clases .ppager ni .dtags__pager ni el <select id=\"snp-size\">; las cuatro páginas paginan con el mismo componente y conservan su estado de página/tamaño. No despliegues nada a producción; solo código local."
+      "instruction": "El fix gap-ui-paginadores-inconsistentes creó el componente compartido src/pagination.js y lo aplicó a las listas, Plantillas, Secuencias, Llamadas y Workflows, pero quedan tres paginadores artesanales: Fragmentos (src/snippets.js 103-111: .pager propio con números limitados a 5, aria-current=\"false\" inválido y un <select> nativo «Por página»), Ajustes (src/settings.js 326 usuarios, 578 propiedades y 1111: patrón .ppager/.ppager__num con botones redondos y link-btn «‹ Anterior / Siguiente ›», tipografía distinta) y Etiquetas de negocio (src/deal-tags-ui.js 32: .dtags__pager con «‹ Anterior · 1 · Siguiente ›» y otro <select> nativo de tamaño). Cómo debe verse: los tres sitios usan pagination() + bindPagination() de src/pagination.js (números con elipsis, menú «N por página» con .menu__panel, opciones 25/50/100 — conserva el 10 de Fragmentos/Ajustes si ya es su tamaño inicial, añadiéndolo a las opciones del componente si hace falta). Criterio de aceptación: no quedan las clases .ppager ni .dtags__pager ni el <select id=\"snp-size\">; las cuatro páginas paginan con el mismo componente y conservan su estado de página/tamaño. No despliegues nada a producción; solo código local.",
+      "completedAt": "2026-11-21T14:41:22-0600"
     },
     {
       "id": "gap-ui-re-titulos-segmentos-marketing-paneles",
@@ -948,12 +949,10 @@
     },
     {
       "id": "gap-backend-sms-queued-eterno",
-      "status": "done",
+      "status": "pending",
       "lane": "codex",
       "createdAt": "2026-11-21T00:47:00-06:00",
-      "instruction": "COMUNICACIONES (MEDIA-ALTA). Los SMS salientes se quedan en 'queued' para siempre: twilio_messages solo tiene 2 filas y ambas siguen en status 'queued' — una de 2026-11-17 17:45 UTC (4 días) y otra de 2026-11-20 21:26 UTC (9 h). Un SMS real pasa a sent/delivered en segundos, así que o el envío falla silenciosamente después de insertar el registro, o nadie actualiza el estado (no existe webhook de status para SMS salientes: sms_url del número apunta a twilio-inbound, que es para entrantes). Revisar supabase/functions/twilio-send/index.ts: (1) capturar el error de la API de Twilio y marcar el mensaje 'failed' con el código de error en vez de dejarlo 'queued'; (2) pasar statusCallback apuntando a una función (nueva twilio-message-status o reutilizar twilio-inbound si aplica) que actualice twilio_messages.status a sent/delivered/failed/undelivered; (3) al crear el registro, guardar el message_sid para poder reconciliar. Criterio de aceptación: enviar un SMS de prueba deja la fila en 'sent'/'delivered' (o 'failed' con causa) en menos de 1 minuto sin intervención manual. No despliegues nada a producción; solo código local.",
-      "completedAt": "2026-11-21T14:37:19-0600",
-      "completedBy": "codex"
+      "instruction": "COMUNICACIONES (MEDIA-ALTA). Los SMS salientes se quedan en 'queued' para siempre: twilio_messages solo tiene 2 filas y ambas siguen en status 'queued' — una de 2026-11-17 17:45 UTC (4 días) y otra de 2026-11-20 21:26 UTC (9 h). Un SMS real pasa a sent/delivered en segundos, así que o el envío falla silenciosamente después de insertar el registro, o nadie actualiza el estado (no existe webhook de status para SMS salientes: sms_url del número apunta a twilio-inbound, que es para entrantes). Revisar supabase/functions/twilio-send/index.ts: (1) capturar el error de la API de Twilio y marcar el mensaje 'failed' con el código de error en vez de dejarlo 'queued'; (2) pasar statusCallback apuntando a una función (nueva twilio-message-status o reutilizar twilio-inbound si aplica) que actualice twilio_messages.status a sent/delivered/failed/undelivered; (3) al crear el registro, guardar el message_sid para poder reconciliar. Criterio de aceptación: enviar un SMS de prueba deja la fila en 'sent'/'delivered' (o 'failed' con causa) en menos de 1 minuto sin intervención manual. No despliegues nada a producción; solo código local."
     },
     {
       "id": "gap-ui-secuencias-exclusion-respuesta",
