@@ -86,6 +86,24 @@ export const LEGACY_TO_REAL = LEGACY_STAGE_MAP[DEFAULT_PIPELINE_NAME];
 export const CLOSED_STAGES = ['won', 'lost', 'deleted', 'cotizacion_duplicada', 'muestras', 'instaladores', 'cierre_obra'];
 export const isClosedStage = (key) => CLOSED_STAGES.includes(key);
 export const isOpenDeal = (r) => !isClosedStage(r.stage);
+// Closed in a given pipeline: the built-in won / lost keys or any stage whose forecast category is won / lost.
+export function dealStageIsClosed(pipeline, key) {
+  if (isClosedStage(key)) return true;
+  const stage = (typeof stagesFor === 'function' ? stagesFor(pipeline) : []).find((s) => s[0] === key);
+  return Boolean(stage) && ['won', 'lost'].includes(stageForecastCategory(stage));
+}
+// «Fecha de cierre» must become today when the deal closes with no date or a date still ahead of today. "Today"
+// is the real calendar day (like the closeDate automation of deal-close.js and the timeline stamps), at noon so
+// the day never shifts across time zones.
+export const todayNoonIso = () => { const n = new Date(); return new Date(n.getFullYear(), n.getMonth(), n.getDate(), 12, 0, 0, 0).toISOString(); };
+export function closeDateNeedsToday(closeDate) {
+  if (!closeDate) return true;
+  const d = new Date(closeDate);
+  if (Number.isNaN(d.getTime())) return true;
+  const n = new Date();
+  const endOfToday = new Date(n.getFullYear(), n.getMonth(), n.getDate(), 23, 59, 59, 999);
+  return d > endOfToday;
+}
 export const TICKET_STATUSES = [
   ['new', 'Nuevo', 'tag--new'],
   ['waiting', 'En espera de contacto', 'tag--open'],
@@ -1055,6 +1073,15 @@ function afterSet(type, id, field, value, opts = {}, previousValue) {
         logSystem('deals', d.id, `Etapa cambiada a «${label}».`, { stage: value });
         if (d.contactId) logSystem('contacts', d.contactId, `Negocio «${d.name}» pasó a la etapa «${label}».`, { deal: d.id, stage: value });
         if (d.companyId) logSystem('companies', d.companyId, `Negocio «${d.name}» pasó a la etapa «${label}».`, { deal: d.id, stage: value });
+        // Closing the deal (won, lost or any closed stage of its pipeline) fixes «Fecha de cierre» to today when it
+        // is empty or still in the future, as the original does; a past close date is kept and reopening never
+        // touches it. The write goes through setField (its own afterSet has no stage branch, so no recursion) and
+        // leaves a system entry on the timeline instead of a property-history row.
+        if (dealStageIsClosed(d.pipeline, value) && closeDateNeedsToday(d.closeDate)) {
+          const today = todayNoonIso();
+          setField('deals', id, 'closeDate', today);
+          logSystem('deals', d.id, `Fecha de cierre fijada a «${formatDate(today)}» al cerrar el negocio.`, { closeDate: today, stage: value });
+        }
       }
     }
     // A ticket changing status: on the ticket and on its contact and company.
