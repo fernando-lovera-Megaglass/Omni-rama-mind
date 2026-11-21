@@ -6,7 +6,8 @@ import { toast, setNavBadge, linkHtml } from './shell.js';
 import { ownerHtml } from './owner.js';
 import { emptyStateHtml } from './empty-state.js';
 import { enhanceOwnerSelects } from './owner-select.js';
-import { allCompanies, allContacts, relativeTimeFine, formatDate, initials, colorFor } from './data.js';
+import { mountCreateTicket } from './create-ticket.js';
+import { addActivity, allCompanies, allContacts, relativeTimeFine, formatDate, initials, colorFor } from './data.js';
 import { ready, conversations, conversationById, messagesOf, sendMessage, addInternalNote, isInternalNote, createConversation, markRead, bulkAssignConversations, bulkSetConversationStatus, bulkMarkConversationsRead, bulkDeleteConversations, assignConversation, setConversationStatus, unreadCount, CHANNELS, STATUS_LABELS, ASSIGNEES, ME } from './conversations-data.js';
 import { ready as gmailReady, hasGmail, sendMail } from './gmail.js';
 import { syncInbox, gmailThreadFor } from './gmail-inbox.js';
@@ -75,6 +76,27 @@ root.innerHTML = `
       <div class="bmodal__foot"><button class="btn btn--primary" type="submit" form="inbox-new">Crear conversación</button><button class="btn btn--ghost" type="button" data-bm="close">Cancelar</button></div>
     </div>
   </div>`;
+
+const ticketPanel = mountCreateTicket({
+  root, fromConversation: true,
+  onCreated(ticket, conversation) {
+    const href = `../tickets/record/?id=${encodeURIComponent(ticket.id)}`;
+    addActivity({ type: 'note', recordType: 'tickets', recordId: ticket.id,
+      text: `Ticket creado desde la conversación "${conversation.subject}"`, who: ME, when: Date.now(),
+      extra: { conversationId: conversation.id, href: `../inbox/?id=${encodeURIComponent(conversation.id)}` } });
+    addInternalNote(conversation.id, { body: `Se creó el ticket ${ticket.name} (${href})`, author: ME });
+    const draft = $('inbox-reply')?.elements.body.value;
+    renderAll();
+    if (draft !== undefined && $('inbox-reply')) $('inbox-reply').elements.body.value = draft;
+    toast('Ticket creado');
+    const link = document.createElement('a');
+    link.href = href;
+    link.textContent = 'Ver ticket';
+    $('toast').append(' · ', link);
+  },
+});
+// Only turn internal ticket record paths into links; message content remains escaped.
+const noteHtml = (body) => esc(body).replace(/\.\.\/tickets\/record\/\?id=\d+/g, (href) => `<a href="${href}">${href}</a>`);
 
 // «Sincronizar Gmail» appears once a real Google account is connected (src/gmail.js): it brings the latest INBOX
 // messages, turns them into conversations and logs them on the matching contacts.
@@ -187,7 +209,7 @@ function renderThread() {
     </header>
     <div class="inbox__messages" id="inbox-messages">
       ${msgs.map((m) => (isInternalNote(m)
-    ? `<div class="msg msg--note"><div class="msg__bubble">${esc(m.body)}</div><div class="msg__meta">Comentario interno · ${esc(m.author)} · <span title="${esc(timeOf(m.createdAt))}">${esc(relativeTimeFine(m.createdAt))}</span></div></div>`
+    ? `<div class="msg msg--note"><div class="msg__bubble">${noteHtml(m.body)}</div><div class="msg__meta">Comentario interno · ${esc(m.author)} · <span title="${esc(timeOf(m.createdAt))}">${esc(relativeTimeFine(m.createdAt))}</span></div></div>`
     : `<div class="msg msg--${m.direction}"><div class="msg__bubble">${esc(m.body)}</div><div class="msg__meta">${esc(m.author)} · <span title="${esc(timeOf(m.createdAt))}">${esc(relativeTimeFine(m.createdAt))}</span></div></div>`)).join('') || '<p class="muted">Todavía no hay mensajes.</p>'}
     </div>
     ${(() => { const mode = composeMode(c.id); const note = mode === 'note'; return `
@@ -223,6 +245,8 @@ function renderSide() {
       <h3 class="card__title">Acciones</h3>
       <label class="field"><span>Asignar a</span><select id="inbox-assign" data-owner-select><option value="">Sin asignar</option>${ASSIGNEES.map((o) => `<option value="${esc(o)}" ${c.assignedTo === o ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select></label>
       <div class="inbox__actions">
+        <button class="btn btn--ghost btn--sm" type="button" data-inbox="create-ticket" ${contact ? '' : 'disabled aria-describedby="inbox-ticket-hint" title="Asocia un contacto a la conversación para crear un ticket"'}>Crear ticket</button>
+        ${contact ? '' : '<small id="inbox-ticket-hint" class="muted">Asocia un contacto a la conversación para crear un ticket.</small>'}
         <button class="btn btn--ghost btn--sm" type="button" data-inbox="toggle-status">${c.status === 'closed' ? 'Reabrir' : 'Marcar como cerrado'}</button>
         <button class="btn btn--ghost btn--sm" type="button" data-inbox="snooze">${c.status === 'snoozed' ? 'Quitar posposición' : 'Posponer'}</button>
       </div>
@@ -265,6 +289,12 @@ root.addEventListener('click', (e) => {
     if (a === 'sync') { syncGmail(act); return; }
     const c = state.activeId ? conversationById(state.activeId) : null;
     if (!c) return;
+    if (a === 'create-ticket') {
+      if (!c.contact || ticketPanel.isOpen()) return;
+      ticketPanel.open({ id: c.id, subject: c.subject, name: c.subject, contactId: c.contactId,
+        source: CHANNELS[c.channel]?.label || 'Correo', owner: c.assignedTo || 'Sin asignar' });
+      return;
+    }
     if (a === 'toggle-status') {
       const next = c.status === 'closed' ? 'open' : 'closed';
       setConversationStatus(c.id, next);

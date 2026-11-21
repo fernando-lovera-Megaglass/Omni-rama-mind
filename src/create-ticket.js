@@ -13,11 +13,11 @@ import { findAssociable } from './create-deal.js';
 import { enhanceOwnerSelects, refreshOwnerSelects } from './owner-select.js';
 
 export const FIELD_ORDER = ['name', 'pipeline', 'status', 'description', 'source', 'priority', 'owner'];
-export const SOURCES = ['Correo', 'Formulario', 'Chat', 'Teléfono'];
+export const SOURCES = ['Correo', 'Formulario', 'Chat', 'Teléfono', 'WhatsApp'];
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const KIND_WORD = { contacts: 'Contacto', companies: 'Empresa' };
 
-export function mountCreateTicket({ root = document.getElementById('list-root') || document.body, list = null, onCreated = null } = {}) {
+export function mountCreateTicket({ root = document.getElementById('list-root') || document.body, list = null, onCreated = null, fromConversation = false } = {}) {
   const pipelines = ticketPipelines();
   const labels = assocLabels();
   const el = document.createElement('div');
@@ -63,6 +63,8 @@ export function mountCreateTicket({ root = document.getElementById('list-root') 
   const createBtn = el.querySelector('#ct-create');
   const anotherBtn = el.querySelector('#ct-create-another');
   const errorEl = el.querySelector('#ct-error');
+  let opening = 0;
+  let context = null;
   const state = { open: false, busy: false, contacts: [], companies: [] };
   const isOpen = () => state.open;
   const read = () => { const d = {}; new FormData(form).forEach((v, k) => { d[k] = String(v).trim(); }); return d; };
@@ -78,10 +80,11 @@ export function mountCreateTicket({ root = document.getElementById('list-root') 
     form.elements.status.value = keep && statuses.some((s) => s[0] === keep) ? keep : firstOpenTicketStatus(pipeline);
   };
   const setOwner = () => {
+    const version = opening;
     const sel = form.elements.owner;
     sel.value = ownerForUser(null);
     refreshOwnerSelects(form);
-    if (authEnabled()) currentUser().then((u) => { if (u && isOpen()) { sel.value = ownerForUser(u); refreshOwnerSelects(form); } }).catch(() => {});
+    if (authEnabled()) currentUser().then((u) => { if (u && isOpen() && version === opening && !context?.owner) { sel.value = ownerForUser(u); refreshOwnerSelects(form); } }).catch(() => {});
   };
   // ---- associations (same search as the deal panel: name, e-mail or domain, up to 6 hits) ----
   const labelOptions = (kind) => (kind === 'contacts' ? labels.filter((l) => l !== 'Principal') : labels);
@@ -139,13 +142,20 @@ export function mountCreateTicket({ root = document.getElementById('list-root') 
     update();
   };
   function open(prefill) {
+    opening += 1;
+    context = prefill || {};
     reset();
-    const p = prefill || {};
+    const p = context;
     if (p.pipeline && pipelines.includes(p.pipeline)) form.elements.pipeline.value = p.pipeline;
     fillStatuses(p.status);
     ['name', 'description', 'source', 'priority', 'owner'].forEach((k) => { if (p[k] !== undefined && p[k] !== null && p[k] !== '') form.elements[k].value = p[k]; });
     if (p.contactId) pick('contacts', p.contactId);
     if (p.companyId) pick('companies', p.companyId);
+    if (fromConversation) {
+      el.querySelectorAll('.cd-section input, .cd-section button, .cd-section select').forEach((control) => { control.disabled = true; });
+      anotherBtn.hidden = true;
+    }
+    refreshOwnerSelects(form);
     update();
     state.open = true;
     el.classList.add('is-open');
@@ -154,7 +164,10 @@ export function mountCreateTicket({ root = document.getElementById('list-root') 
     setTimeout(() => { if (isOpen()) form.elements.name?.focus?.(); }, 50);
   }
   function close() {
+    if (state.busy) return;
     state.open = false;
+    opening += 1;
+    context = null;
     el.classList.remove('is-open');
     el.setAttribute('aria-hidden', 'true');
     document.body.classList.remove('has-slideover');
@@ -194,19 +207,21 @@ export function mountCreateTicket({ root = document.getElementById('list-root') 
     showError('');
     try {
       const rec = build();
+      if (fromConversation && (!context?.contactId || !findRecord('contacts', context.contactId))) throw new Error('La conversación necesita un contacto asociado.');
       await validatePropertyValues('tickets', rec);
       // data.js logs «Ticket creado a partir de Creación manual» on the ticket and associates the contact's primary
       // company when none was chosen; the entries on the contacts / companies follow the panel's checkboxes.
-      const made = await addRecord('tickets', rec, { waitForSave: true, origin: 'Creación manual', logAssoc: false });
+      const made = await addRecord('tickets', rec, { waitForSave: true, origin: fromConversation ? 'Bandeja de entrada' : 'Creación manual', logAssoc: false });
       const logOn = (kind, id, suffix = '') => addActivity({ type: 'created', recordType: kind, recordId: Number(id), text: `Ticket «${rec.name}» creado y asociado a ${kind === 'contacts' ? 'este contacto' : 'esta empresa'}${suffix}.`, who: 'Tú', when: Date.now(), extra: { ticketId: made.id } });
       state.contacts.forEach((c) => { if (c.log) logOn('contacts', c.id, c.label && c.label !== 'Sin etiqueta' ? ` (${c.label})` : ''); });
       state.companies.forEach((c) => { if (c.log) logOn('companies', c.id, c.label && c.label !== 'Sin etiqueta' ? ` (${c.label})` : ''); });
       // The company data.js attached automatically (the contact's primary one) gets its entry too, once.
       const saved = findRecord('tickets', made.id) || made;
       if (saved.companyId && !state.companies.some((c) => Number(c.id) === Number(saved.companyId))) logOn('companies', saved.companyId, ' (empresa principal del contacto)');
-      toast('Ticket creado');
+      if (!fromConversation) toast('Ticket creado');
       if (list && typeof list.render === 'function') list.render();
-      if (onCreated) onCreated(saved);
+      if (onCreated) await onCreated(saved, context);
+      busy(false);
       if (another) { reset(); setTimeout(() => { if (isOpen()) form.elements.name?.focus?.(); }, 0); } else close();
     } catch (e) {
       showError(`No se pudo crear el ticket: ${e.message || e}`);
@@ -244,6 +259,6 @@ export function mountCreateTicket({ root = document.getElementById('list-root') 
     else if (act === 'remove') { state[b.dataset.kind] = state[b.dataset.kind].filter((c) => Number(c.id) !== Number(b.dataset.id)); if (b.dataset.kind === 'companies' && state.companies.length && !state.companies.some((c) => c.label === 'Principal')) state.companies[0].label = 'Principal'; renderAssoc(b.dataset.kind); }
     else if (act === 'more') { const input = el.querySelector(`#ct-${b.dataset.kind}-q`); input.focus(); renderResults(b.dataset.kind); }
   });
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && isOpen()) close(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && isOpen() && !state.busy) close(); });
   return { open, close, isOpen, el, state, build };
 }
