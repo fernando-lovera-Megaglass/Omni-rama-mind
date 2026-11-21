@@ -161,5 +161,9 @@
   "rls_team.sql": {
     "status": "aplicada",
     "at": "2026-11-21T12:21:00-0600"
+  },
+  "avatars-storage.sql": {
+    "status": "aplicada",
+    "at": "2026-11-21T12:53:43-0600"
   }
 }

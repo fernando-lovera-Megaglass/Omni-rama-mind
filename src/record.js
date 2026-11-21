@@ -1,4 +1,5 @@
-import { prepareDealStage } from './deal-close.js';
+import { propertyEditor } from './property-editor.js';
+import { changeDealStage } from './deal-close.js';
 import { ACTIVITY_COMPANY_SETTING, activityAssociations, saveAssociatedActivity } from './activity-associations.js';
 import './filter-chip.js';
 import { validatePropertyValues } from './data.js';
@@ -521,16 +522,8 @@ function displayValue(f, r) {
   if (kind === 'tel' || (props[key] && props[key].kind === 'phone')) return linkHtml('phone', v);
   return esc(v);
 }
-function editor(f, r) {
-  const [key, , kind, options] = f;
-  const v = r[key] ?? '';
-  // Owner / user properties get the avatar dropdown (src/owner-select.js) on top of the native select.
-  if (kind === 'select') return `<select data-edit="${key}"${key === 'owner' || (props[key] && props[key].kind === 'user') ? ' data-owner-select' : ''}>${options.map((o) => `<option value="${esc(o[0])}" ${String(o[0]) === String(v) ? 'selected' : ''}>${esc(o[1])}</option>`).join('')}</select>`;
-  if (kind === 'textarea') return `<textarea data-edit="${key}" rows="3">${esc(v)}</textarea>`;
-  if (kind === 'date') return `<input data-edit="${key}" type="date" value="${dateInput(v)}" />`;
-  if (kind === 'datetime') return `<input data-edit="${key}" type="datetime-local" value="${datetimeInput(v)}" />`;
-  return `<input data-edit="${key}" type="${kind || 'text'}" value="${esc(v)}" />`;
-}
+const editor = (f, r) => propertyEditor(f, r, props);
+
 function propValue(p, v) {
   if (p?.sensitive) return sensitiveValue(v);
   if (p && p.kind === 'user') return ownerHtml(v, 'sm');
@@ -1749,9 +1742,10 @@ function cancelEdit(form) {
 }
 async function save(key, value, label) {
   try { await validatePropertyValues(type, { [key]: value }, { id: rec.id }); } catch (e) { toast(e.message); return; }
-  if (type === 'deals' && key === 'stage' && !await prepareDealStage(rec, value)) { renderAll(); return; }
   const from = rec[key];
-  setField(type, rec.id, key, value);
+  if (type === 'deals' && key === 'stage') {
+    if (!await changeDealStage(rec, value)) { renderAll(); return; }
+  } else setField(type, rec.id, key, value);
   // A reminder set again (after it was shown) must fire again: the checker in src/task-reminders.js watches it.
   if (type === 'tasks' && key === 'reminderAt' && rec.reminderFiredAt) setField(type, rec.id, 'reminderFiredAt', '');
   // A ticket moved to another pipeline takes that pipeline's statuses (first open one if its status is not there).
@@ -2411,8 +2405,7 @@ if (!rec) {
       const dealId = stageSel.dataset.dealStage;
       const label = (stageSel.options[stageSel.selectedIndex] || {}).textContent || stageSel.value;
       const nextStage = stageSel.value;
-      if (!await prepareDealStage(findRecord('deals', dealId), nextStage)) { renderRight(); return; }
-      setField('deals', dealId, 'stage', nextStage);
+      if (!await changeDealStage(findRecord('deals', dealId), nextStage)) { renderRight(); return; }
       renderTimeline(); // data.js logs the stage change here and on the deal (system entries)
       toast(`Etapa actualizada: ${label}`);
       renderRight();

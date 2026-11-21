@@ -154,20 +154,6 @@ const list = mountList({
     scope: (rows, st) => { const p = boardPipeline(st); return rows.filter((r) => (r.pipeline || defs[0].name) === p); },
     // Rules defined in Configuración › Objetos › Negocios › Pipelines › Reglas del pipeline.
     canMove: (r, from, to) => dealMoveRefusal(r, to),
-    // After a drop: the entry date of the stage (days-in-stage counter), the timeline entry, then the
-    // automations defined in the pipeline's "Automatizar" tab. The stage itself is already saved.
-    onMove: (r, to, label) => {
-      setField('deals', r.id, 'stageEnteredAt', TODAY.toISOString()); // the stage change itself is logged by data.js (system entry)
-      const d = defOf(r.pipeline);
-      const a = (d.automation || {})[to];
-      if (!a) return;
-      if (a.task) {
-        addRecord('tasks', { name: `Seguimiento: ${r.name} (${label})`, type: 'Llamada', priority: 'medium', status: 'todo', owner: r.owner, due: new Date(TODAY.getTime() + 2 * 86400000).toISOString(), contact: '', contactId: r.contactId || '', dealId: r.id, lastActivity: TODAY.toISOString() });
-        toast(`Tarea de seguimiento creada para ${r.owner}`);
-      }
-      if (a.notify) toast(`Notificación enviada a ${r.owner}: "${r.name}" ahora está en "${label}"`);
-      if (a.closeDate) setField('deals', r.id, 'closeDate', TODAY.toISOString());
-    },
     footer: columnFooter,
     card: dealCard,
     lines: (r) => [
