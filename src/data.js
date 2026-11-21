@@ -1548,12 +1548,65 @@ function activityToDb(ev) {
   };
 }
 
-export function activitiesFor(recordType, recordId) {
-  if (!activitiesLive) return read(ACT_NOTES_KEY(recordType, recordId), []);
-  return activityRows
-    .filter((a) => a.recordType === recordType && a.recordId === Number(recordId))
-    .sort((a, b) => b.when - a.when);
+const ACT_TRASH_KEY = (type, id) => `crm:${type}:activity-trash:${id}`;
+const editableActivity = (a) => ['note', 'call', 'email', 'meeting', 'message'].includes(a.type);
+function localActivities(key, recordType, recordId) {
+  const rows = read(key, []);
+  let changed = false;
+  rows.forEach((a) => {
+    if (!a.id) { a.id = `${recordType}:${recordId}:${a.type}:${a.when}:${a.extra?.callSid || a.text}`; changed = true; }
+    a.recordType = recordType; a.recordId = Number(recordId);
+  });
+  if (changed) write(key, rows);
+  return rows;
 }
+export function activitiesFor(recordType, recordId) {
+  const rows = activitiesLive ? activityRows.filter((a) => a.recordType === recordType && a.recordId === Number(recordId))
+    : localActivities(ACT_NOTES_KEY(recordType, recordId), recordType, recordId);
+  return rows.filter((a) => !a.extra?.deletedAt).sort((a, b) => Number(!!b.extra?.pinned) - Number(!!a.extra?.pinned) || b.when - a.when);
+}
+export function deletedActivitiesFor(recordType, recordId, includeExpired = false) {
+  const rows = activitiesLive ? activityRows.filter((a) => a.recordType === recordType && a.recordId === Number(recordId))
+    : localActivities(ACT_TRASH_KEY(recordType, recordId), recordType, recordId);
+  return rows.filter((a) => a.extra?.deletedAt && (includeExpired || Date.now() - a.extra.deletedAt < 90 * 86400000))
+    .sort((a, b) => b.extra.deletedAt - a.extra.deletedAt);
+}
+async function mutateActivity(id, changes, action = 'update') {
+  const mutate = (a) => {
+    if (!editableActivity(a)) throw new Error('Esta actividad del sistema no se puede modificar.');
+    if (action === 'restore' && Date.now() - a.extra?.deletedAt >= 90 * 86400000) throw new Error('El plazo de restauración ha vencido.');
+    const next = { ...a, ...changes, extra: { ...a.extra, ...changes.extra } };
+    if (action === 'delete') next.extra.deletedAt = Date.now();
+    if (action === 'restore') delete next.extra.deletedAt;
+    return next;
+  };
+  if (activitiesLive) return dbWrite(async () => {
+    const a = activityRows.find((row) => String(row.id) === String(id));
+    if (!a) throw new Error('Actividad no encontrada.');
+    const next = mutate(a);
+    const { data, error } = await supabase.from('activities').update(activityToDb(next)).eq('id', a.id).select('id').single();
+    if (error || !data) throw error || new Error('No se pudo guardar la actividad.');
+    Object.assign(a, next);
+    return a;
+  });
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    const match = /^crm:([^:]+):(notes|activity-trash):(.+)$/.exec(key);
+    if (!match) continue;
+    const rows = localActivities(key, match[1], match[3]);
+    const index = rows.findIndex((a) => String(a.id) === String(id));
+    if (index < 0) continue;
+    const next = mutate(rows[index]);
+    const target = next.extra.deletedAt ? ACT_TRASH_KEY(match[1], match[3]) : ACT_NOTES_KEY(match[1], match[3]);
+    if (target === key) { rows[index] = next; write(key, rows); }
+    else { write(target, [next, ...read(target, [])]); rows.splice(index, 1); write(key, rows); }
+    return next;
+  }
+  throw new Error('Actividad no encontrada.');
+}
+export const updateActivity = (id, changes) => mutateActivity(id, Object.fromEntries(Object.entries(changes).filter(([key]) => ['text', 'when', 'extra'].includes(key))));
+export const deleteActivity = (id) => mutateActivity(id, {}, 'delete');
+export const restoreActivity = (id) => mutateActivity(id, {}, 'restore');
 
 // Resolve optimistic and legacy entries before attaching a foreign-key comment.
 export async function activityIdForComment(ev, recordType, recordId, create = true) {
@@ -1565,7 +1618,11 @@ export async function activityIdForComment(ev, recordType, recordId, create = tr
     .eq('record_type', recordType).eq('record_id', recordId).eq('type', ev.type)
     .eq('occurred_at', payload.occurred_at).eq('text', payload.text).limit(1);
   if (error) throw error;
-  if (rows.length) return rows[0].id;
+  if (rows.length) {
+    const cached = activityRows.find((a) => !a.id && a.recordType === recordType && a.recordId === Number(recordId) && a.type === ev.type && a.when === ev.when && a.text === ev.text);
+    if (cached) cached.id = rows[0].id;
+    return rows[0].id;
+  }
   if (!create) return null;
   const { data, error: insertError } = await supabase.from('activities').insert(payload).select('id').single();
   if (insertError) throw insertError;
@@ -1586,7 +1643,7 @@ export function addActivity(ev) {
   }
   const key = ACT_NOTES_KEY(ev.recordType, ev.recordId);
   const list = read(key, []);
-  list.unshift({ type: ev.type, when: ev.when, who: ev.who, text: ev.text, extra: ev.extra || {} });
+  list.unshift({ id: ev.id || crypto.randomUUID(), type: ev.type, when: ev.when, who: ev.who, text: ev.text, extra: ev.extra || {} });
   write(key, list);
 }
 // Many entries at once (a marketing e-mail sent to hundreds of contacts): one insert per 200 rows.
@@ -1708,7 +1765,7 @@ export const lineItemsTotal = (rows) => rows.reduce((s, r) => s + (Number(r.quan
 // Every activity of the account (the reports count calls and emails by date). In localStorage mode the
 // per-record keys are scanned; a storage without key enumeration (tests) simply yields none.
 export function allActivities() {
-  if (activitiesLive) return activityRows.slice();
+  if (activitiesLive) return activityRows.filter((a) => !a.extra?.deletedAt);
   const out = [];
   try {
     for (let i = 0; i < (localStorage.length || 0); i += 1) {

@@ -15,7 +15,7 @@ import {
   STATUSES, LIFECYCLES, SOURCES, OWNERS, TICKET_STATUSES, PRIORITIES, TASK_TYPES, TASK_STATUSES,
   ticketStatusesFor, ticketStatusLabel, firstOpenTicketStatus, ticketPipelines, stagesFor, allDealStages, dealStageLabel, dealStageProb, isClosedStage,
   formatDate, formatMoney, initials, colorFor, labelOf, toCsv, download, TODAY, assocLabels, CURRENCY_DEFS, CURRENCY_CODES, relativeTimeFine,
-  activitiesFor, ensureActivitiesFor, addActivity, historyFor, addHistoryEntry, getSetting, setSetting, settingsLive, settingScope, lineItemsFor, fetchLineItems, lineItemsTotal,
+  activitiesFor, ensureActivitiesFor, addActivity, updateActivity, deleteActivity, restoreActivity, deletedActivitiesFor, activityIdForComment, historyFor, addHistoryEntry, getSetting, setSetting, settingsLive, settingScope, lineItemsFor, fetchLineItems, lineItemsTotal,
   parentCompanyOf, childCompaniesOf, isCompanyDescendant, dbIsLive,
 } from './data.js';
 import { supabase } from './supabaseClient.js';
@@ -188,7 +188,7 @@ mount.innerHTML = `
               <button class="menu__item" type="button" data-act="google">Buscar en Google <span class="ext">↗</span></button>
               <button class="menu__item" type="button" data-act="unsubscribe">Cancelación de suscripción a correos</button>
               <div class="menu__sep"></div>
-              <button class="menu__item" type="button" data-act="restore-activity">Restaurar actividad <span class="ext">↗</span></button>
+              <button class="menu__item" type="button" data-act="restore-activity">Restaurar actividades eliminadas</button>
               <button class="menu__item" type="button" data-act="access">Ver acceso a los registros</button>
               <button class="menu__item" type="button" data-act="merge">Fusionar</button>
               <button class="menu__item" type="button" data-act="clone">Clonar</button>
@@ -405,7 +405,7 @@ $('rec-modal').addEventListener('click', (e) => {
 const CALL_OUTCOMES = ['Conectado', 'Ocupado', 'Dejó mensaje en directo', 'Dejó mensaje de voz', 'No contesta', 'Número equivocado'];
 const MEETING_LOCS = ['Llamada telefónica', 'Videoconferencia', 'Dirección'];
 const LOG_DURATIONS = [5, 10, 15, 30, 45, 60];
-const LOG_KINDS = { call: 'llamada', meeting: 'reunión', email: 'correo', message: 'mensaje' };
+const LOG_KINDS = { note: 'nota', call: 'llamada', meeting: 'reunión', email: 'correo', message: 'mensaje' };
 const localDateStr = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 const localTimeStr = (d) => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 function plusBusinessDays(n) {
@@ -417,9 +417,11 @@ function plusBusinessDays(n) {
   }
   return d;
 }
-function openLogModal(kind, { schedule = false, channel = '' } = {}) {
+let editingActivity = null;
+function openLogModal(kind, { schedule = false, channel = '', activity = null } = {}) {
+  editingActivity = activity;
   const name = cfg.title(rec);
-  const base = schedule ? new Date(TODAY.getTime() + 2 * 86400000) : new Date();
+  const base = activity ? new Date(activity.when) : schedule ? new Date(TODAY.getTime() + 2 * 86400000) : new Date();
   const whenRow = `<div class="adv-row adv-row--two"><label class="field"><span>Fecha</span><input id="log-date" type="date" value="${localDateStr(base)}" /></label><label class="field"><span>Hora</span><input id="log-time" type="time" value="${schedule ? '10:00' : localTimeStr(base)}" /></label></div>`;
   const outcomeRow = `<label class="field"><span>Resultado</span><select id="log-outcome">${CALL_OUTCOMES.map((o) => `<option>${o}</option>`).join('')}</select></label>`;
   const dirRow = `<label class="field"><span>Dirección</span><select id="log-direction"><option>Saliente</option><option>Entrante</option></select></label>`;
@@ -427,7 +429,9 @@ function openLogModal(kind, { schedule = false, channel = '' } = {}) {
   const followRow = `<label class="log-follow"><input type="checkbox" id="log-followup" /> Crear una tarea de seguimiento</label>
     <div class="log-follow__date" id="log-followup-row" hidden><label class="field"><span>Fecha de la tarea</span><input id="log-followup-date" type="date" value="${localDateStr(plusBusinessDays(2))}" /></label></div>`;
   let body = '';
-  if (kind === 'call') {
+  if (kind === 'note') {
+    body = `${whenRow}<label class="field"><span>Nota</span><textarea id="log-notes" rows="5"></textarea></label>`;
+  } else if (kind === 'call') {
     body = `${whenRow}
       <div class="adv-row adv-row--two">${dirRow}${outcomeRow}</div>
       <label class="field"><span>Duración</span>${durSelect(15)}</label>
@@ -450,13 +454,30 @@ function openLogModal(kind, { schedule = false, channel = '' } = {}) {
       ${dirRow}
       <label class="field"><span>Texto del mensaje</span><textarea id="log-notes" rows="3" placeholder="Mensaje enviado por ${esc(channel)}"></textarea></label>`;
   }
-  const verb = schedule ? 'Programar' : 'Registrar';
+  const verb = activity ? 'Guardar' : schedule ? 'Programar' : 'Registrar';
   const what = kind === 'message' ? 'mensaje' : LOG_KINDS[kind];
   openModal(
     `${verb} ${kind === 'message' ? `mensaje de ${channel}` : what}`,
     body,
     `<button class="btn btn--primary" type="button" data-confirm="logact" data-kind="${kind}" data-schedule="${schedule ? '1' : ''}" data-channel="${esc(channel)}">${verb} ${what}</button><button class="btn btn--ghost" type="button" data-close>Cancelar</button>`,
   );
+  if (activity) {
+    const x = activity.extra || {};
+    let title = x.title ?? x.subject ?? '';
+    let notes = x.notes ?? activity.text;
+    if (x.notes == null && ['email', 'meeting'].includes(kind)) {
+      const original = activity.text.replace(/^Reunión programada: /, '');
+      if (!title) title = original.split(' — ')[0];
+      notes = original === title ? '' : original.startsWith(`${title} — `) ? original.slice(title.length + 3) : original;
+    }
+    const values = { 'log-notes': notes, 'log-title': title, 'log-outcome': x.outcome, 'log-direction': x.direction, 'log-duration': x.durationMin, 'log-location': x.locationType };
+    for (const [key, value] of Object.entries(values)) {
+      const input = $(key);
+      if (!input || value == null) continue;
+      if (input.tagName === 'SELECT' && ![...input.options].some((o) => o.value === String(value))) input.add(new Option(String(value), String(value)));
+      input.value = value;
+    }
+  }
 }
 
 function displayValue(f, r) {
@@ -1392,10 +1413,11 @@ let actWho = ''; // '' | 'Tú' | owner name | 'Sistema'
 const actDateOk = (ev) => { if (actDate === '') return true; const n = Number(actDate); const start = new Date(); start.setHours(0, 0, 0, 0); return new Date(ev.when).getTime() >= start.getTime() - n * 86400000; };
 function allEvents() {
   const real = loadNotes();
-  const base = real.length ? real : sampleEvents();
+  const deleted = deletedActivitiesFor(type, id, true);
+  const base = [...real, ...sampleEvents().filter((e) => e.type === 'created' && !real.some((a) => a.type === 'created'))];
   // Mezclar las llamadas reales de Twilio: si una actividad ya trae su callSid (la pantalla de
   // cierre la guardó), solo se enriquece con grabación/transcripción; si no, entra como evento.
-  const loggedSids = new Set(base.map((a) => a.extra && a.extra.callSid).filter(Boolean));
+  const loggedSids = new Set([...base, ...deleted].map((a) => a.extra && a.extra.callSid).filter(Boolean));
   const enriched = base.map((a) => {
     const sid = a.extra && a.extra.callSid;
     const log = sid ? callLogs.find((l) => l.call_sid === sid) : null;
@@ -1416,7 +1438,7 @@ function allEvents() {
       transcript: l.transcript || '',
     },
   }));
-  return [...enriched, ...callEvs].sort((a, b) => b.when - a.when);
+  return [...enriched, ...callEvs].sort((a, b) => Number(!!b.extra?.pinned) - Number(!!a.extra?.pinned) || b.when - a.when);
 }
 function renderTimeline() {
   const q = actQuery.toLowerCase();
@@ -1462,16 +1484,32 @@ function renderTimeline() {
       <span class="timeline__ico" aria-hidden="true">${ev.type === 'call' && ev.extra?.direction === 'Entrante' ? ACT_ICONS.inbound : ICONS[ev.type] || ACT_ICONS.more}</span>
       <div class="timeline__body">
         <button class="timeline__head" type="button" aria-expanded="${openEvents.has(evKey(ev))}">
-          <span class="timeline__title">${esc(titleOf(ev))}</span>
+          <span class="timeline__title">${ev.extra?.pinned ? '📌 Fijada · ' : ''}${esc(titleOf(ev))}</span>
           <span class="timeline__chev" aria-hidden="true">⌄</span>
         </button>
         <div class="timeline__meta"><strong>${esc(ev.who)}</strong> · <span title="${esc(fmtWhen(ev))}">${esc(relativeTimeFine(ev.when))}</span></div>
         <div class="timeline__text">${esc(ev.text)}</div>
-        <div class="timeline__detail"><div class="muted">${esc(fmtWhen(ev))}</div>${extraTags(ev)}${callMedia(ev)}</div>
-        <div data-comments-key="${esc(evKey(ev))}"></div>
+        <div class="timeline__detail">${['note', 'call', 'email', 'meeting', 'message'].includes(ev.type) ? `<details><summary aria-label="Acciones de actividad">⋯</summary>${[['edit', 'Editar'], ['pin', ev.extra?.pinned ? 'Desfijar' : 'Fijar en la parte superior'], ['delete', 'Eliminar']].map(([action, label]) => `<button type="button" class="btn btn--ghost" data-activity-action="${action}" data-activity-key="${esc(evKey(ev))}">${label}</button>`).join('')}</details>` : ''}<div class="muted">${esc(fmtWhen(ev))}</div>${extraTags(ev)}${callMedia(ev)}</div>
+        ${['system', 'prop', 'created'].includes(ev.type) ? '' : `<div data-comments-key="${esc(evKey(ev))}"></div>`}
       </div>
     </li>`;
   $('rec-timeline').innerHTML = events.length ? events.map(item).join('') : '<li class="muted">Sin actividades que coincidan.</li>';
+  if ($('rec-timeline-short')) $('rec-timeline-short').innerHTML = allEvents().filter((e) => e.type === 'task' || e.type === 'email').slice(0, 2).map(item).join('');
+  document.querySelectorAll('[data-activity-action]').forEach((button) => button.addEventListener('click', async () => {
+    const ev = allEvents().find((a) => evKey(a) === button.dataset.activityKey);
+    if (!ev) return;
+    button.disabled = true;
+    try {
+      if (!ev.id) {
+        if (dbIsLive()) ev.id = await activityIdForComment(ev, type, id);
+        else { addActivity({ ...ev, recordType: type, recordId: id }); ev.id = activitiesFor(type, id).find((a) => a.extra?.callSid === ev.extra?.callSid)?.id; }
+      }
+      if (button.dataset.activityAction === 'edit') openLogModal(ev.type, { activity: ev, channel: ev.extra?.channel || '' });
+      else if (button.dataset.activityAction === 'pin') { await updateActivity(ev.id, { extra: { pinned: !ev.extra?.pinned } }); renderTimeline(); }
+      else openModal('Eliminar actividad', '<p>La actividad se podrá restaurar durante 90 días.</p>', `<button class="btn btn--danger" data-confirm="activity-delete" data-id="${esc(ev.id)}">Eliminar</button><button class="btn btn--ghost" data-close>Cancelar</button>`);
+    } catch (error) { toast(error.message); }
+    finally { button.disabled = false; }
+  }));
   $('rec-timeline').querySelectorAll('[data-playcall]').forEach((b) => b.addEventListener('click', (e) => {
     e.stopPropagation();
     playRecording(b, b.dataset.playcall);
@@ -1498,7 +1536,6 @@ function renderTimeline() {
       },
     });
   }));
-  if ($('rec-timeline-short')) $('rec-timeline-short').innerHTML = allEvents().filter((e) => e.type === 'task' || e.type === 'email').slice(0, 2).map(item).join('');
   document.querySelectorAll('[data-comments-key]').forEach((container) => {
     const ev = allEvents().find((entry) => evKey(entry) === container.dataset.commentsKey);
     if (ev) mountActivityComments(container, ev, type, id);
@@ -1768,7 +1805,7 @@ function runAction(act) {
       );
       break;
     case 'restore-activity':
-      openModal('Restaurar actividad', '<p class="muted">No hay actividades eliminadas en los últimos 90 días para este registro.</p>');
+      openActivityTrash();
       break;
     case 'access':
       openModal(
@@ -1858,11 +1895,23 @@ function runAction(act) {
   }
 }
 
+function openActivityTrash() {
+  const rows = deletedActivitiesFor(type, id);
+  openModal('Restaurar actividades eliminadas', '<p>Actividades eliminadas en los últimos 90 días.</p>' + (rows.length ? `<table class="mini-table"><tbody>${rows.map((a) => `<tr><td>${esc(KIND_TITLE[a.type])}</td><td>${esc(a.text)}</td><td><button class="btn btn--ghost" data-confirm="activity-restore" data-id="${esc(a.id)}">Restaurar</button></td></tr>`).join('')}</tbody></table>` : '<p class="muted">No hay actividades eliminadas.</p>'));
+}
+
 $('rec-modal').addEventListener('click', async (e) => {
   const b = e.target.closest('[data-confirm]');
   if (!b) return;
   const what = b.dataset.confirm;
-  if (what === 'unsubscribe') {
+  if (what === 'activity-delete' || what === 'activity-restore') {
+    b.disabled = true;
+    try {
+      await (what === 'activity-delete' ? deleteActivity(b.dataset.id) : restoreActivity(b.dataset.id));
+      renderTimeline();
+      if (what === 'activity-restore') openActivityTrash(); else closeModal();
+    } catch (error) { toast(error.message); b.disabled = false; }
+  } else if (what === 'unsubscribe') {
     save('hs_email_optout', 'Sí', 'Se dio de baja de todos los correos');
     closeModal();
     toast(`${cfg.title(rec)} ya no recibirá correos.`);
@@ -1927,15 +1976,17 @@ $('rec-modal').addEventListener('click', async (e) => {
     const dstr = $('log-date').value;
     const when = dstr ? new Date(`${dstr}T${$('log-time').value || '09:00'}`).getTime() : Date.now();
     const notes = ($('log-notes')?.value || '').trim();
-    const extra = {};
+    const extra = { notes };
     let text = '';
-    if (kind === 'call') {
+    if (kind === 'note') { text = notes;
+    } else if (kind === 'call') {
       extra.outcome = $('log-outcome').value;
       extra.direction = $('log-direction').value;
       extra.durationMin = Number($('log-duration').value);
       text = notes || `Llamada ${extra.direction.toLowerCase()} con ${name}.`;
     } else if (kind === 'meeting') {
       const title = $('log-title').value.trim() || `Reunión con ${name}`;
+      extra.title = title;
       extra.durationMin = Number($('log-duration').value);
       extra.locationType = $('log-location').value;
       if (!schedule) extra.outcome = $('log-outcome').value;
@@ -1949,7 +2000,11 @@ $('rec-modal').addEventListener('click', async (e) => {
       extra.channel = channel;
       text = notes || `Mensaje de ${channel} ${extra.direction.toLowerCase()}.`;
     }
-    addEvent({ type: kind, when, who: 'Tú', text, extra });
+    if (editingActivity) {
+      b.disabled = true;
+      try { await updateActivity(editingActivity.id, { when, text, extra }); renderTimeline(); }
+      catch (error) { toast(error.message); b.disabled = false; return; }
+    } else addEvent({ type: kind, when, who: 'Tú', text, extra });
     if ($('log-followup')?.checked && $('log-followup-date').value) {
       const contact = type === 'contacts' ? rec : byId(allContacts(), rec.contactId);
       const task = addRecord('tasks', {
@@ -1967,7 +2022,8 @@ $('rec-modal').addEventListener('click', async (e) => {
       renderAssoc();
     }
     closeModal();
-    toast(schedule ? 'Reunión programada' : 'Actividad registrada');
+    toast(editingActivity ? 'Actividad actualizada' : schedule ? 'Reunión programada' : 'Actividad registrada');
+    editingActivity = null;
   } else if (what === 'workflow') {
     b.disabled = true;
     b.textContent = 'Inscribiendo…';
