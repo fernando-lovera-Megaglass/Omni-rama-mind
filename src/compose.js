@@ -4,7 +4,7 @@
 import { toast, wireMenus, closeMenus } from './shell.js';
 import { ACT_ICONS } from './action-icons.js';
 import { addRecord, formatDate, TODAY, allContacts } from './data.js';
-import { ready as templatesReady, templates as savedTemplates, resolveTokens } from './templates-data.js';
+import { ready as templatesReady, templates as savedTemplates, resolveTokens, recordTemplateUse, bodyText } from './templates-data.js';
 import { openTokenPicker, chipHtml, chipsToMarkers, renderTokens, contextFromRecord, insertAtCaret, trackCaret } from './tokens.js';
 import { snippets as savedSnippets } from './snippets-data.js';
 import { attachSnippetAutocomplete } from './snippet-autocomplete.js';
@@ -280,6 +280,7 @@ function aiText(kind) {
 }
 
 function send(whenLabel) {
+  if (ctx?.sending) return;
   // Nothing goes out without a connected account: the wizard opens and the draft stays.
   if (!senders().length) { toast('Conecta tu correo para enviar'); openConnectWizard({ onConnected: reopenAfterConnect }); return; }
   // Personalisation tokens (chips or {{…}} markers) become the contact's real data when the e-mail goes out.
@@ -297,6 +298,7 @@ function send(whenLabel) {
   const account = sender[2];
   // A real Google account sends through the Gmail API (scheduled sends stay simulated: Gmail has no scheduling).
   if (account && account.real && !whenLabel) { sendViaGmail(account, sender, subject, recipients); return; }
+  if (!whenLabel && ctx.templateId) void recordTemplateUse(ctx.templateId);
   logSent(sender, whenLabel, subject, recipients, {});
   finishSend(sender, whenLabel, recipients);
 }
@@ -305,14 +307,20 @@ function logSent(sender, whenLabel, subject, recipients, extra) {
 }
 const splitAddresses = (s) => String(s || '').split(/[,;]/).map((x) => x.trim()).filter(Boolean);
 async function sendViaGmail(account, sender, subject, recipients) {
+  const sendingCtx = ctx;
+  sendingCtx.sending = true;
+  const templateId = ctx.templateId;
   const btn = el.querySelector('[data-cm="send"]');
   if (btn) { btn.disabled = true; btn.textContent = 'Enviando…'; }
   try {
     const r = await sendMail({ accountId: account.id, to: ctx.recipients.map((x) => x.email).filter(Boolean), cc: splitAddresses(ctx.cc), bcc: splitAddresses(ctx.bcc), subject, html: `${ctx.body || ''}${signatureFor(account, loadSig())}`, fromName: sender[0] });
-    if (!ctx) return;
+    if (templateId) void recordTemplateUse(templateId);
+    if (ctx !== sendingCtx || el.hidden) return;
     logSent(sender, '', subject, recipients, { via: 'gmail', gmailId: r.id || '', threadId: r.threadId || '' });
     finishSend(sender, '', recipients, 'Gmail');
   } catch (e) {
+    sendingCtx.sending = false;
+    if (ctx !== sendingCtx) return;
     toast(`No se pudo enviar por Gmail: ${e.message}`);
     if (btn) { btn.disabled = false; btn.textContent = 'Enviar'; }
   }
@@ -381,6 +389,7 @@ function wire() {
       const sender = currentSender();
       const who = { name: sender[0], email: sender[1] };
       const contact = tokenContact();
+      ctx.templateId = tp.id;
       ctx.subject = resolveTokens(tp.subject, contact, who);
       ctx.body = resolveTokens(tp.body, contact, who);
       render();
@@ -435,6 +444,9 @@ function wire() {
     const fdays = t.closest('[data-fdays]');
     if (fdays) { closeMenus(); syncFields(); ctx.followDays = Number(fdays.dataset.fdays); ctx.follow = true; render(); return; }
   });
+  el.addEventListener('input', (e) => {
+    if (e.target.id === 'cmp-text' && !bodyText(e.target.innerHTML) && !e.target.querySelector('img')) ctx.templateId = null;
+  });
   el.addEventListener('change', (e) => {
     const cb = e.target.closest('[data-assoc]');
     if (cb) { ctx.assoc[Number(cb.dataset.assoc)].on = cb.checked; syncFields(); render(); return; }
@@ -484,7 +496,7 @@ function syncFields() {
   const subj = el.querySelector('#cmp-subject');
   if (subj) ctx.subject = subj.value;
   const text = el.querySelector('#cmp-text');
-  if (text) ctx.body = text.innerHTML;
+  if (text) { ctx.body = text.innerHTML; if (!bodyText(ctx.body) && !text.querySelector('img')) ctx.templateId = null; }
   const cc = el.querySelector('#cmp-cc');
   if (cc) ctx.cc = cc.value;
   const bcc = el.querySelector('#cmp-bcc');
@@ -506,6 +518,7 @@ export function openCompose(options) {
     contactId: options.contactId || '',
     recipients: options.email ? [{ name: options.to, email: options.email }] : [],
     senderIdx: 0,
+    templateId: options.templateId || null,
     subject: options.subject || '',
     body: options.body || '',
     attachments: [],

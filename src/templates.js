@@ -25,7 +25,13 @@ const $ = (id) => document.getElementById(id);
 const params = new URLSearchParams(location.search);
 const state = { q: '', owner: '', folder: null, sort: { key: 'updatedAt', dir: -1 }, page: 1, pageSize: 25, selected: new Set() };
 let editor = null;
-const COLS = [['name', 'Nombre'], ['ownerId', 'Propietario'], ['createdAt', 'Fecha de creación'], ['updatedAt', 'Fecha de modificación']];
+const COLS = [['name', 'Nombre'], ['uses', 'Veces utilizada'], ['lastUsedAt', 'Último uso'], ['ownerId', 'Propietario'], ['createdAt', 'Fecha de creación'], ['updatedAt', 'Fecha de modificación']];
+const relativeUse = (date) => {
+  if (!date) return 'Nunca';
+  const seconds = Math.max(0, Math.floor((Date.now() - new Date(date).getTime()) / 1000));
+  const [unit, size] = seconds >= 86400 ? ['day', 86400] : seconds >= 3600 ? ['hour', 3600] : seconds >= 60 ? ['minute', 60] : ['second', 1];
+  return new Intl.RelativeTimeFormat('es', { numeric: 'auto' }).format(-Math.floor(seconds / size), unit);
+};
 const plural = (n, s, p) => `${n} ${n === 1 ? s : p}`;
 const sender = () => { const s = getSignature(); return { name: s.name, email: s.email }; };
 
@@ -37,7 +43,7 @@ function visible() {
   const q = state.q.trim().toLowerCase();
   const list = templates().filter((t) => (state.folder === null || (t.folder || '') === state.folder) && (!state.owner || t.ownerId === state.owner) && (!q || `${t.name} ${t.subject}`.toLowerCase().includes(q)));
   const k = state.sort.key;
-  const val = (t) => (k === 'createdAt' || k === 'updatedAt' ? new Date(t[k] || 0).getTime() : String(t[k] || ''));
+  const val = (t) => (k === 'createdAt' || k === 'updatedAt' || k === 'lastUsedAt' ? new Date(t[k] || 0).getTime() : k === 'uses' ? Number(t.uses) || 0 : String(t[k] || ''));
   return list.sort((a, b) => { const av = val(a); const bv = val(b); return (typeof av === 'number' ? av - bv : av.localeCompare(bv, 'es')) * state.sort.dir; });
 }
 function renderPage() {
@@ -105,10 +111,11 @@ function renderTable() {
               <div class="menu__sep"></div>
               <button class="menu__item menu__item--danger" type="button" data-act="delete" data-id="${esc(t.id)}">Eliminar</button>
             </div></div></div></td>
+          <td>${t.uses || 0}</td><td title="${esc(t.lastUsedAt || '')}">${esc(relativeUse(t.lastUsedAt))}</td>
           <td>${ownerHtml(t.ownerId)}</td>
           <td>${dateCellHtml(t.createdAt)}</td>
           <td>${dateCellHtml(t.updatedAt)}</td>
-        </tr>`).join('') : `<tr><td colspan="5"><div class="tpls__empty">${emptyStateHtml({ art: 'templates', title: all.length ? 'Ninguna plantilla coincide con los filtros' : 'Todavía no hay plantillas', text: all.length ? 'Prueba con otra búsqueda o quita los filtros para ver todas las plantillas.' : 'Las plantillas ahorran tiempo al escribir correos que se repiten. Crea la primera y aparecerá aquí.', action: { label: 'Nueva plantilla', attrs: 'data-ta="new-scratch"' } })}</div></td></tr>`}</tbody>
+        </tr>`).join('') : `<tr><td colspan="7"><div class="tpls__empty">${emptyStateHtml({ art: 'templates', title: all.length ? 'Ninguna plantilla coincide con los filtros' : 'Todavía no hay plantillas', text: all.length ? 'Prueba con otra búsqueda o quita los filtros para ver todas las plantillas.' : 'Las plantillas ahorran tiempo al escribir correos que se repiten. Crea la primera y aparecerá aquí.', action: { label: 'Nueva plantilla', attrs: 'data-ta="new-scratch"' } })}</div></td></tr>`}</tbody>
     </table>`;
   const n = state.selected.size;
   $('tpl-bulk').innerHTML = n ? `<span>${plural(n, 'seleccionado', 'seleccionados')}</span><button class="btn btn--secondary btn--sm" type="button" data-ta="bulk-move">Mover</button><button class="btn btn--secondary btn--sm" type="button" data-ta="bulk-delete">Eliminar</button>` : '';
@@ -276,7 +283,7 @@ function openDeleteDialog(ids) {
 function openAnalyze() {
   const s = stats();
   const table = (title, obj) => `<h4>${title}</h4><table class="table tpls__stattable"><thead><tr><th>${title === 'Por propietario' ? 'Propietario' : 'Carpeta'}</th><th>Plantillas</th></tr></thead><tbody>${Object.entries(obj).sort((a, b) => b[1] - a[1]).map(([k, v]) => `<tr><td>${title === 'Por propietario' ? ownerHtml(k) : esc(k)}</td><td>${v}</td></tr>`).join('') || '<tr><td colspan="2" class="muted">Sin datos</td></tr>'}</tbody></table>`;
-  modal('Analizar plantillas', `<div class="tpls__stats"><div class="tpls__stat"><strong>${s.total}</strong><span class="muted">Plantillas</span></div><div class="tpls__stat"><strong>${s.shared}</strong><span class="muted">Compartidas con todos</span></div><div class="tpls__stat"><strong>${s.privateCount}</strong><span class="muted">Privadas</span></div></div>${table('Por propietario', s.byOwner)}${table('Por carpeta', s.byFolder)}<p class="muted">Las tasas de apertura y respuesta se calcularán a partir de los correos enviados con cada plantilla.</p>`, '<button class="btn btn--secondary" type="button" data-bm="close">Cerrar</button>', { size: 'wide' });
+  modal('Analizar plantillas', `<div class="tpls__stats"><div class="tpls__stat"><strong>${s.total}</strong><span class="muted">Plantillas</span></div><div class="tpls__stat"><strong>${s.shared}</strong><span class="muted">Compartidas con todos</span></div><div class="tpls__stat"><strong>${s.privateCount}</strong><span class="muted">Privadas</span></div></div><div class="tpls__stat"><strong>${s.mostUsed ? esc(s.mostUsed.name) : 'Sin usos todavía'}</strong><span>Plantilla más usada${s.mostUsed ? ` · ${s.mostUsed.uses} usos` : ''}</span></div><h4>Uso de plantillas</h4><table class="table" id="tpl-usage"><thead><tr><th>Nombre</th><th>Veces utilizada</th><th>Último uso</th></tr></thead><tbody>${s.usage.map((t) => `<tr><td>${esc(t.name)}</td><td>${t.uses}</td><td title="${esc(t.lastUsedAt || '')}">${esc(relativeUse(t.lastUsedAt))}</td></tr>`).join('') || '<tr><td colspan="3">Sin plantillas</td></tr>'}</tbody></table>${table('Por propietario', s.byOwner)}${table('Por carpeta', s.byFolder)}<p class="muted">Las tasas de apertura y respuesta se calcularán a partir de los correos enviados con cada plantilla.</p>`, '<button class="btn btn--secondary" type="button" data-bm="close">Cerrar</button>', { size: 'wide' });
 }
 function openLibrary() {
   modal('Biblioteca de plantillas', `<div class="tpls__lib">${LIBRARY.map((l) => `<div class="tpls__libitem"><div><strong>${esc(l.name)}</strong><p>${esc(bodyText(l.body).slice(0, 120))}…</p></div><button class="btn btn--secondary btn--sm" type="button" data-te="use-lib" data-id="${l.id}">Usar</button></div>`).join('')}</div>`, cancelBtn, { size: 'wide' });

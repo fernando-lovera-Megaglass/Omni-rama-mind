@@ -1158,15 +1158,29 @@ function syncContactCompanies(contactId) {
     if (error) console.error('[supabase] contact_companies insert', error);
   });
 }
-// Real activity counts per record (the catalog's "Número de actividades de ventas"), from the timeline.
+// Real activity counts per record, from the timeline: num_notes = «Número de actividades de ventas» (every
+// engagement logged: notes, calls, e-mails, meetings, tasks, messages; never system entries nor property changes),
+// num_contacted_notes = «Número de veces contactado» (calls, e-mails, meetings and messages with the contact;
+// marketing sends do not count). notes_last_contacted falls back to the latest of those when the record has none.
 function activityCounts(recordType) {
   const counts = new Map();
-  allActivities().forEach((a) => { if (a.recordType === recordType && a.type !== 'prop') counts.set(Number(a.recordId), (counts.get(Number(a.recordId)) || 0) + 1); });
+  allActivities().forEach((a) => {
+    if (a.recordType !== recordType || !ENGAGEMENT_TYPES.has(a.type)) return;
+    const id = Number(a.recordId);
+    const c = counts.get(id) || { all: 0, contacted: 0, lastContacted: '' };
+    c.all += 1;
+    if (CONTACT_TYPES.has(a.type) && !isMarketingActivity(a)) {
+      c.contacted += 1;
+      const w = whenIso(a.when);
+      if (w > c.lastContacted) c.lastContacted = w;
+    }
+    counts.set(id, c);
+  });
   return counts;
 }
 function withActivityCounts(r, counts) {
-  const n = counts.get(Number(r.id)) || 0;
-  return { ...r, num_notes: n, num_contacted_notes: n };
+  const c = counts.get(Number(r.id)) || { all: 0, contacted: 0, lastContacted: '' };
+  return { ...r, num_notes: c.all, num_contacted_notes: c.contacted, notes_last_contacted: r.notes_last_contacted || c.lastContacted || '' };
 }
 
 // ---------- sample values for every catalog property ----------
@@ -1255,7 +1269,7 @@ function augment(type, r) {
   return r;
 }
 // Properties the app really drives: a sample value would be acted upon (a fake reminder would fire).
-const REAL_ONLY = new Set(['marketingOptOut', 'marketingOptOutAt', 'marketingOptOutReason', 'reminderAt', 'reminderFiredAt', 'closedLostReason', 'closedWonReason']);
+const REAL_ONLY = new Set(['marketingOptOut', 'marketingOptOutAt', 'marketingOptOutReason', 'reminderAt', 'reminderFiredAt', 'closedLostReason', 'closedWonReason', 'notes_last_contacted']);
 
 // ---------- generators ----------
 function daysAgo(n) {
@@ -1751,7 +1765,45 @@ export async function activityIdForComment(ev, recordType, recordId, create = tr
   return data.id;
 }
 
-export function addActivity(ev) {
+// ---------- «Última actividad» / «Fecha del último contacto» follow the timeline (as in the original) ----------
+// Logging or receiving an engagement (note, e-mail, call, meeting, task, message…) moves the owner record's
+// lastActivity / lastActivityType; a contact's notes_last_contacted moves only for real contact activities
+// (call, e-mail, meeting, message), never for marketing sends. System entries and property changes never touch
+// them. Every writer (record forms, compose, calls, inbox / Gmail sync, marketing, sequences, workflows) goes
+// through addActivity / addActivities, so this is the single place.
+export const ENGAGEMENT_TYPES = new Set(['note', 'email', 'call', 'meeting', 'task', 'message', 'sms', 'whatsapp', 'linkedin']);
+export const CONTACT_TYPES = new Set(['call', 'email', 'meeting', 'message', 'sms', 'whatsapp', 'linkedin']);
+const isMarketingActivity = (ev) => Boolean(ev && ev.extra && ev.extra.marketingEmailId);
+const whenIso = (w) => { const d = new Date(w || Date.now()); return Number.isNaN(d.getTime()) ? new Date().toISOString() : d.toISOString(); };
+export function touchLastActivity(ev) {
+  if (!ev || !ENGAGEMENT_TYPES.has(ev.type) || !ALL[ev.recordType] || !ev.recordId) return false;
+  const rec = findRecord(ev.recordType, ev.recordId);
+  if (!rec) return false;
+  const when = whenIso(ev.when);
+  let moved = false;
+  // Only forward: an activity logged with an older date does not rewind the record.
+  if (!rec.lastActivity || new Date(when) >= new Date(rec.lastActivity)) {
+    setField(ev.recordType, ev.recordId, 'lastActivity', when);
+    setField(ev.recordType, ev.recordId, 'lastActivityType', ev.type);
+    moved = true;
+  }
+  if (ev.recordType === 'contacts' && CONTACT_TYPES.has(ev.type) && !isMarketingActivity(ev) && (!rec.notes_last_contacted || new Date(when) >= new Date(rec.notes_last_contacted))) {
+    setField('contacts', ev.recordId, 'notes_last_contacted', when);
+  }
+  return moved;
+}
+// A batch (a marketing blast): one touch per record, with its latest entry.
+function touchLastActivities(events) {
+  const latest = new Map();
+  events.forEach((ev) => {
+    if (!ev || !ENGAGEMENT_TYPES.has(ev.type)) return;
+    const k = `${ev.recordType}:${ev.recordId}`;
+    const cur = latest.get(k);
+    if (!cur || whenIso(ev.when) > whenIso(cur.when)) latest.set(k, ev);
+  });
+  latest.forEach((ev) => { try { touchLastActivity(ev); } catch (e) { console.error('[última actividad]', e); } });
+}
+function insertActivity(ev) {
   if (activitiesLive) {
     const row = { ...ev, recordId: Number(ev.recordId) };
     activityRows.unshift(row);
@@ -1767,6 +1819,10 @@ export function addActivity(ev) {
   list.unshift({ id: ev.id || crypto.randomUUID(), type: ev.type, when: ev.when, who: ev.who, text: ev.text, extra: ev.extra || {} });
   write(key, list);
 }
+export function addActivity(ev) {
+  insertActivity(ev);
+  try { touchLastActivity(ev); } catch (e) { console.error('[última actividad]', e); }
+}
 // Many entries at once (a marketing e-mail sent to hundreds of contacts): one insert per 200 rows.
 export function addActivities(events) {
   if (!events.length) return;
@@ -1778,9 +1834,8 @@ export function addActivities(events) {
         if (error) console.error('[supabase] insert activities', error);
       }
     });
-    return;
-  }
-  events.forEach((ev) => addActivity(ev));
+  } else events.forEach((ev) => insertActivity(ev));
+  touchLastActivities(events);
 }
 
 export function historyFor(recordType, recordId) {

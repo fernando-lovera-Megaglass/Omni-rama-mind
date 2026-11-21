@@ -173,10 +173,14 @@ log('OAuth start: gmail-auth-url called with returnTo + login hint, browser sent
 // ===== 4) Composer: a real sender sends through gmail-send and logs «por Gmail» on the timeline =====
 const C = await import(resolve(here, '../src/compose.js'));
 const events = [];
+const usageData = await import(resolve(here, '../src/templates-data.js'));
+await usageData.ready;
+const usageId = usageData.templates()[0].id;
 fake.responses['gmail-send'] = { ok: true, id: 'msg-1', threadId: 'thr-1', from: 'real@gmail.com' };
 C.openCompose({ to: 'Ana Ruiz', email: 'ana.ruiz@cristalesnorte.com', contactId: 1, onSent: (ev) => events.push(ev) });
 await wait(10);
 if (!text(q('#compose .compose__frombtn')).includes('real@gmail.com')) fail(`the real account must be the sender: ${text(q('#compose .compose__frombtn'))}`);
+click(q(`[data-tpl="${usageId}"]`));
 input(q('#cmp-subject'), 'Prueba desde Omni');
 click(q('#compose [data-cm="send"]'));
 await wait(20);
@@ -184,12 +188,15 @@ const sendCall = fake.calls.find((c) => c.name === 'gmail-send');
 if (!sendCall || sendCall.body.accountId !== 'acc-1' || sendCall.body.to.join() !== 'ana.ruiz@cristalesnorte.com' || sendCall.body.subject !== 'Prueba desde Omni' || !/<div class="sig/.test(sendCall.body.html)) fail(`gmail-send call: ${JSON.stringify(sendCall && sendCall.body).slice(0, 300)}`);
 if (!events.length || events[0].type !== 'email' || events[0].extra.via !== 'gmail' || events[0].extra.gmailId !== 'msg-1' || !events[0].text.includes('enviado desde real@gmail.com por Gmail')) fail(`timeline event: ${JSON.stringify(events[0])}`);
 if (!$('compose').hidden || !toastText().includes('por Gmail')) fail('composer should close with the Gmail toast');
+if (usageData.templateById(usageId).uses !== 1) fail('confirmed Gmail send counts once');
 // a failure keeps the draft
 fake.responses['gmail-send'] = new Error('Gmail respondió 403');
 C.openCompose({ to: 'Ana Ruiz', email: 'ana.ruiz@cristalesnorte.com', contactId: 1, onSent: (ev) => events.push(ev) });
 await wait(10);
+click(q(`[data-tpl="${usageId}"]`));
 click(q('#compose [data-cm="send"]'));
 await wait(20);
+if (usageData.templateById(usageId).uses !== 1) fail('failed Gmail send must not count');
 if ($('compose').hidden || !toastText().includes('No se pudo enviar por Gmail') || events.length !== 1 || q('#compose [data-cm="send"]').disabled) fail('a failed send must keep the composer open');
 click(q('#compose [data-cm="close"]'));
 log('composer: real send through gmail-send (to, subject, html + signature), timeline «por Gmail», failure keeps the draft');

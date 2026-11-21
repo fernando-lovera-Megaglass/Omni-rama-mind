@@ -10,6 +10,10 @@ await db.exec(await readFile(new URL('../supabase/sequences.sql', import.meta.ur
 const migration = await readFile(new URL('../supabase/sequence-process.sql', import.meta.url), 'utf8');
 await db.exec(migration);
 await db.exec(migration); // Migration is repeatable.
+await db.exec(await readFile(new URL('../supabase/message_templates.sql', import.meta.url), 'utf8'));
+const usageMigration = await readFile(new URL('../supabase/message-template-usage.sql', import.meta.url), 'utf8');
+await db.exec(usageMigration);
+await db.exec(usageMigration);
 const query = async (sql, args = []) => (await db.query(sql, args)).rows;
 const [seq] = await query("insert into sequences(name) values('Local smoke') returning id");
 await query(`insert into sequence_steps(sequence_id, position, type, delay_days, subject, body, title) values
@@ -17,6 +21,9 @@ await query(`insert into sequence_steps(sequence_id, position, type, delay_days,
 ($1, 10, 'call', 1, '', '', 'Llamar a {{contacto.nombre}}')`, [seq.id]);
 const add = async (status = 'active', step = 1, due = '2020-01-01T00:00:00Z') => (await query(`insert into sequence_enrollments(sequence_id, contact_id, enrolled_by, status, current_step, next_step_at, placeholders)
 values ($1, 1, 'Local Tester', $2, $3, $4, '{"PRODUCT":"Demo"}') returning *`, [seq.id, status, step, due]))[0];
+const [usageTemplate] = await query("select id from message_templates limit 1");
+await query('update sequence_steps set template_id=$1 where sequence_id=$2', [usageTemplate.id, seq.id]);
+const usage = async () => (await query('select uses, last_used_at from message_templates where id=$1', [usageTemplate.id]))[0];
 const first = await add();
 const last = await add('active', 2);
 const terminals = await Promise.all(['replied', 'bounced', 'unsubscribed', 'paused', 'finished', 'unenrolled'].map((s) => add(s)));
@@ -47,6 +54,8 @@ assert.equal((await query('select * from tasks')).length, 1);
 for (const e of [...terminals, future]) assert.deepEqual(await get(e.id), e);
 await processDue(store, send, now);
 assert.equal(sends.length, 1);
+assert.equal(Number((await usage()).uses), 1);
+assert.ok((await usage()).last_used_at);
 assert.equal((await query('select * from tasks')).length, 1);
 // A final manual step stays pending across ticks, then finishes exactly once.
 const [lastTask] = await query('select * from tasks');
@@ -103,6 +112,7 @@ const inFlight = await add();
 await processDue(store, async (e) => { await query("update sequence_enrollments set status='unsubscribed' where id=$1", [e.id]); return { id: 'mock-in-flight' }; }, now);
 assert.equal((await get(inFlight.id)).status, 'unsubscribed');
 assert.equal((await get(inFlight.id)).current_step, 1);
+assert.equal(Number((await usage()).uses), 2, 'confirmed in-flight send counts; failures/cancellations/manual tasks do not');
 assert.equal(nextDate('2026-11-20T09:00:00Z', 1), '2026-11-23T09:00:00.000Z');
 assert.equal(nextDate('2026-11-20T09:00:00Z', 0), '2026-11-20T09:01:00.000Z');
 assert.throws(() => render('[[MISSING]]', first, contact, {}), /Unresolved/);

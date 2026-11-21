@@ -64,13 +64,13 @@ let rows = [];
 let folderRows = [];
 let queue = Promise.resolve();
 const enqueue = (fn) => { queue = queue.then(fn).catch((e) => reportDbError('plantillas', e)); return queue; };
-const fromDb = (r) => ({ id: r.id, name: r.name || '', subject: r.subject || '', body: r.body || '', ownerId: r.owner_id || '', folder: r.folder || '', shared: r.shared !== false, createdAt: r.created_at, updatedAt: r.updated_at || r.created_at });
-const toDb = (t) => ({ id: t.id, name: t.name, subject: t.subject, body: t.body, owner_id: t.ownerId, folder: t.folder || '', shared: Boolean(t.shared), created_at: t.createdAt, updated_at: t.updatedAt });
+const fromDb = (r) => ({ id: r.id, name: r.name || '', subject: r.subject || '', body: r.body || '', ownerId: r.owner_id || '', folder: r.folder || '', shared: r.shared !== false, uses: Number(r.uses) || 0, lastUsedAt: r.last_used_at || null, createdAt: r.created_at, updatedAt: r.updated_at || r.created_at });
+const toDb = (t) => ({ id: t.id, name: t.name, subject: t.subject, body: t.body, owner_id: t.ownerId, folder: t.folder || '', shared: Boolean(t.shared), uses: t.uses || 0, last_used_at: t.lastUsedAt || null, created_at: t.createdAt, updated_at: t.updatedAt });
 const saveLocal = () => { localStorage.setItem(LS_T, JSON.stringify(rows)); localStorage.setItem(LS_F, JSON.stringify(folderRows)); };
 function loadLocal() {
-  try { const t = JSON.parse(localStorage.getItem(LS_T)); const f = JSON.parse(localStorage.getItem(LS_F)); if (Array.isArray(t) && Array.isArray(f)) { rows = t; folderRows = f; return; } } catch { /* seed */ }
+  try { const t = JSON.parse(localStorage.getItem(LS_T)); const f = JSON.parse(localStorage.getItem(LS_F)); if (Array.isArray(t) && Array.isArray(f)) { rows = t.map((x) => ({ ...x, uses: Number(x.uses) || 0, lastUsedAt: x.lastUsedAt || null })); folderRows = f; return; } } catch { /* seed */ }
   const seed = seedTemplates();
-  rows = seed.templates;
+  rows = seed.templates.map((t) => ({ ...t, uses: 0, lastUsedAt: null }));
   folderRows = seed.folders;
   saveLocal();
 }
@@ -83,7 +83,7 @@ async function loadLive() {
   folderRows = (f || []).map((r) => ({ id: r.id, name: r.name, createdAt: r.created_at }));
   if (!rows.length && !folderRows.length) {
     const seed = seedTemplates();
-    rows = seed.templates; folderRows = seed.folders;
+    rows = seed.templates.map((t) => ({ ...t, uses: 0, lastUsedAt: null })); folderRows = seed.folders;
     const { error: e3 } = await supabase.from('message_template_folders').insert(folderRows.map((x) => ({ id: x.id, name: x.name, created_at: x.createdAt })));
     if (e3) console.error('[supabase] semilla de carpetas', e3);
     const { error: e4 } = await supabase.from('message_templates').insert(rows.map(toDb));
@@ -96,7 +96,24 @@ export const ready = (async () => {
   } else loadLocal();
 })();
 export const templatesLive = () => live;
-const persist = (t) => { if (live) enqueue(async () => { const { error } = await supabase.from('message_templates').upsert(toDb(t), { onConflict: 'id' }); if (error) throw error; }); else saveLocal(); };
+const persist = (t) => { if (live) enqueue(async () => { const { uses, last_used_at, ...content } = toDb(t); const { error } = await supabase.from('message_templates').upsert(content, { onConflict: 'id' }); if (error) throw error; }); else saveLocal(); };
+
+// Increment atomically in Supabase; keep a local backup even when the remote write fails.
+export function recordTemplateUse(id) {
+  const t = rows.find((x) => x.id === id);
+  if (!t) return Promise.resolve(null);
+  t.uses = (Number(t.uses) || 0) + 1;
+  t.lastUsedAt = new Date().toISOString();
+  saveLocal();
+  if (!live) return Promise.resolve({ ...t });
+  return enqueue(async () => {
+    const { data, error } = await supabase.rpc('record_template_use', { p_id: id });
+    if (error) throw error;
+    const saved = data?.[0];
+    if (saved) { t.uses = Number(saved.uses); t.lastUsedAt = saved.last_used_at; saveLocal(); }
+    return { ...t };
+  });
+}
 
 // ---------- reads ----------
 export function templates() { return rows.map((t) => ({ ...t })).sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)); }
@@ -121,7 +138,7 @@ export function createTemplate({ name, subject = '', body = '', folder = '', sha
   const n = String(name || '').trim();
   if (!n || !bodyText(body)) return null;
   const now = new Date().toISOString();
-  const t = { id: uuid(), name: n, subject: String(subject || ''), body: String(body || ''), ownerId, folder: folder || '', shared: Boolean(shared), createdAt: now, updatedAt: now };
+  const t = { id: uuid(), name: n, subject: String(subject || ''), body: String(body || ''), ownerId, folder: folder || '', shared: Boolean(shared), uses: 0, lastUsedAt: null, createdAt: now, updatedAt: now };
   rows.unshift(t);
   persist(t);
   return { ...t };
@@ -139,7 +156,7 @@ export function cloneTemplate(id, { ownerId = ME } = {}) {
   const src = rows.find((x) => x.id === id);
   if (!src) return null;
   const now = new Date().toISOString();
-  const t = { ...src, id: uuid(), name: `${src.name} (copia)`, ownerId, createdAt: now, updatedAt: now };
+  const t = { ...src, uses: 0, lastUsedAt: null, id: uuid(), name: `${src.name} (copia)`, ownerId, createdAt: now, updatedAt: now };
   rows.unshift(t);
   persist(t);
   return { ...t };
@@ -157,12 +174,13 @@ export const setShared = (id, shared) => { const t = rows.find((x) => x.id === i
 // CSV for "Exportar" (the list as filtered on screen).
 export function templatesCsv(list = templates()) {
   const cell = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
-  const head = ['Nombre', 'Asunto', 'Propietario', 'Carpeta', 'Compartida', 'Fecha de creación', 'Fecha de modificación'];
-  return [head.map(cell).join(','), ...list.map((t) => [t.name, t.subject, t.ownerId, t.folder, t.shared ? 'Compartido con todos' : 'Privado', t.createdAt, t.updatedAt].map(cell).join(','))].join('\n');
+  const head = ['Nombre', 'Veces utilizada', 'Último uso', 'Asunto', 'Propietario', 'Carpeta', 'Compartida', 'Fecha de creación', 'Fecha de modificación'];
+  return [head.map(cell).join(','), ...list.map((t) => [t.name, t.uses || 0, t.lastUsedAt || '', t.subject, t.ownerId, t.folder, t.shared ? 'Compartido con todos' : 'Privado', t.createdAt, t.updatedAt].map(cell).join(','))].join('\n');
 }
 export function stats() {
   const byOwner = {};
   const byFolder = {};
   rows.forEach((t) => { byOwner[t.ownerId || '--'] = (byOwner[t.ownerId || '--'] || 0) + 1; byFolder[t.folder || 'Sin carpeta'] = (byFolder[t.folder || 'Sin carpeta'] || 0) + 1; });
-  return { total: rows.length, shared: rows.filter((t) => t.shared).length, privateCount: rows.filter((t) => !t.shared).length, byOwner, byFolder, latest: templates().slice(0, 5) };
+  const usage = templates().sort((a, b) => b.uses - a.uses || a.name.localeCompare(b.name, 'es'));
+  return { usage, mostUsed: usage.find((t) => t.uses > 0) || null, total: rows.length, shared: rows.filter((t) => t.shared).length, privateCount: rows.filter((t) => !t.shared).length, byOwner, byFolder, latest: templates().slice(0, 5) };
 }

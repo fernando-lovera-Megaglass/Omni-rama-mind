@@ -7,7 +7,8 @@ import { toast, wireMenus, closeMenus } from './shell.js';
 import { ready, PREBUILT, DYNAMIC, prebuiltByKey, STEP_TYPES, EXCLUSION_CRITERIA, stats, stepDay, isAuto, isEmail, replyIndex, createSequence, updateSequence, sequenceById, folders, createFolder } from './sequences-data.js';
 import { openTokenPicker, chipHtml, markersToChips, chipsToMarkers, insertAtCaret, trackCaret } from './tokens.js';
 
-await ready;
+import { ready as templatesReady, templates, templateById } from './templates-data.js';
+await Promise.all([ready, templatesReady]);
 const root = document.getElementById('seqed-root');
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const $ = (id) => document.getElementById(id);
@@ -103,6 +104,7 @@ function stepHtml(st, i) {
       ${open ? `<div class="seqstep__body">
         ${emailStep ? `
           <div class="seqstep__meta"><span class="seqstep__version">Versión A</span><span class="muted seqstep__tpl">${esc(st.templateName || 'Correo sin plantilla')}</span>${i > 0 ? `<label class="seqstep__reply"><input type="checkbox" data-reply="${esc(st.id)}" ${st.replyToPrevious ? 'checked' : ''} /> RESPUESTA (${st.replyToPrevious ? reply : reply + 1})<small class="muted">envía este correo como respuesta en el hilo del correo anterior</small></label>` : ''}</div>
+          <label class="tpe__field"><span>Plantilla de mensaje</span><select data-template="${esc(st.id)}"><option value="">Sin plantilla</option>${templates().map((t) => `<option value="${esc(t.id)}" ${st.templateId === t.id ? 'selected' : ''}>${esc(t.name)}</option>`).join('')}</select></label>
           ${manual ? `<label class="tpe__field"><span>Título de la tarea</span><input data-title="${esc(st.id)}" value="${esc(st.title)}" placeholder="P. ej. Enviar correo de seguimiento" /></label>` : ''}
           <label class="tpe__field"><span>Asunto</span><input data-subject="${esc(st.id)}" value="${esc(st.subject)}" placeholder="Asunto del correo" /></label>
           <div class="tpe__field"><span>Cuerpo</span>
@@ -223,6 +225,13 @@ root.addEventListener('input', (e) => {
   else if (t.id === 'seqed-name') { state.name = t.value; $('seqed-title').textContent = state.name || BLANK_TITLE; state.dirty = true; } else if (t.id === 'seqed-description') { state.description = t.value; state.dirty = true; }
 });
 root.addEventListener('change', (e) => {
+  if (e.target.dataset.template) {
+    const st = state.steps.find((s) => s.id === e.target.dataset.template);
+    const t = templateById(e.target.value);
+    st.templateId = t?.id || null; st.templateName = t?.name || '';
+    if (t) { st.subject = t.subject; st.body = t.body; }
+    state.dirty = true; renderFlow(); return;
+  }
   const t = e.target;
   if (t.dataset.reply) { const st = stepOf(t.dataset.reply); if (st) { st.replyToPrevious = t.checked; state.dirty = true; renderFlow(); } } else if (t.dataset.excl) { state.exclusion = [...root.querySelectorAll('[data-excl]:checked')].map((c) => c.dataset.excl); refreshMetrics(); state.dirty = true; } else if (t.id === 'seqed-folder') { state.folder = t.value; state.dirty = true; } else if (t.dataset.delayInput) { const st = stepOf(t.dataset.delayInput); if (st) { st.delayDays = Math.max(0, Math.min(60, Number(t.value) || 0)); state.dirty = true; refreshMetrics(); } }
 });

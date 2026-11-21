@@ -47,7 +47,7 @@ if (!names().includes('[Prueba] Seguimiento de propuesta')) fail('seed name miss
 const heads = [...document.querySelectorAll('.tpls__table thead th button')].map(text);
 ['Nombre', 'Propietario', 'Fecha de creación', 'Fecha de modificación'].forEach((h) => { if (!heads.some((x) => x.startsWith(h))) fail(`column ${h} missing`); });
 // Date rule of the tables (src/data.js): short date «6 nov 2026» in the cell, full date-time in the tooltip.
-if (!/^\d{1,2} [a-z]{3} \d{4}$/.test(text(rows()[0].children[4])) || !/^\d{1,2} [a-z]{3} \d{4} \d{2}:\d{2}$/.test(rows()[0].children[4].querySelector('[title]')?.getAttribute('title') || '')) fail('modification date missing (short date + tooltip)');
+if (!/^\d{1,2} [a-z]{3} \d{4}$/.test(text(rows()[0].children[6])) || !/^\d{1,2} [a-z]{3} \d{4} \d{2}:\d{2}$/.test(rows()[0].children[6].querySelector('[title]')?.getAttribute('title') || '')) fail('modification date missing (short date + tooltip)');
 const folderBtns = [...document.querySelectorAll('#tpl-folders [data-folder]')].map(text);
 if (!folderBtns.some((f) => f.startsWith('Ventas') && f.endsWith('2'))) fail(`folders: ${folderBtns.join(' | ')}`);
 if (!q('[data-ta="new-folder"]') || !q('[data-ta="analyze"]') || !q('[data-ta="export"]') || !q('[data-ta="new-scratch"]') || !q('[data-ta="new-library"]')) fail('header buttons missing');
@@ -143,7 +143,7 @@ click($('tpe-save'));
 if (T.templateById(created.id).subject !== 'Asunto editado para {{contacto.empresa}}') fail('edit not saved');
 if (location.search.includes('id=')) fail('URL should be cleared after closing');
 // Table date rule (src/data.js): short date in the cell, full date-time in the tooltip.
-const modCell = rows().find((r) => r.dataset.id === created.id).children[4];
+const modCell = rows().find((r) => r.dataset.id === created.id).children[6];
 if (text(modCell) !== data.formatDate(new Date()) || !modCell.querySelector('[title]') || !modCell.querySelector('[title]').getAttribute('title').startsWith(data.formatDate(new Date()))) fail(`modification date not refreshed: ${text(modCell)}`);
 log('edit: name link opens the editor, change saved, modification date refreshed');
 
@@ -217,7 +217,7 @@ if (rows().length !== 1 || !names()[0].includes('Presentación')) fail('search f
 input($('tpl-q'), '');
 change($('tpl-owner'), 'Sofía R.');
 // The owner cell renders avatar + name (src/owner.js), so the name lives in .owner__name.
-if (rows().length !== 1 || text(rows()[0].children[2].querySelector('.owner__name')) !== 'Sofía R.' || !rows()[0].children[2].querySelector('.owner .avatar')) fail('owner filter failed');
+if (rows().length !== 1 || text(rows()[0].children[4].querySelector('.owner__name')) !== 'Sofía R.' || !rows()[0].children[4].querySelector('.owner .avatar')) fail('owner filter failed');
 change($('tpl-owner'), '');
 click(q('[data-sort="name"]'));
 const asc = names();
@@ -238,24 +238,19 @@ if (T.templateById(created.id) || text($('tpl-count')) !== '3 creados') fail('bu
 for (let i = 1; i <= 30; i += 1) T.createTemplate({ name: `Masiva ${String(i).padStart(2, '0')}`, body: '<p>Cuerpo</p>' });
 input($('tpl-q'), '');
 if (rows().length !== 25 || text($('tpl-count')) !== '33 creados') fail(`page size: ${rows().length}`);
-if (!q('[data-page="next"]') || q('[data-page="next"]').disabled || !q('[data-page="first"]').disabled) fail('pager state wrong on page 1');
-click(q('[data-page="next"]'));
-if (rows().length !== 8 || !q('[data-page="2"]').classList.contains('is-active')) fail('page 2 failed');
-if (!q('[data-page="last"]').disabled) fail('Última should be disabled on the last page');
-click(q('[data-page="first"]'));
-if (rows().length !== 25 || !q('[data-page="1"]').classList.contains('is-active')) fail('Primero failed');
-change($('tpl-size'), '10');
-if (rows().length !== 10 || !q('[data-page="4"]')) fail('page size change failed');
-click(q('[data-page="last"]'));
-if (rows().length !== 3) fail('Última failed');
+if (q('#tpl-pager .pager__btn').disabled !== true) fail('previous disabled on page 1');
+click(q('#tpl-pager .pager__num[data-pagination-page="2"]'));
+if (rows().length !== 8) fail('page 2 failed');
+click(q('#tpl-pager [data-pagination-size="50"]'));
+if (rows().length !== 33) fail('page size change failed');
 T.deleteTemplates(T.templates().filter((t) => t.name.startsWith('Masiva')).map((t) => t.id));
-change($('tpl-size'), '25');
+click(q('#tpl-pager [data-pagination-size="25"]'));
 if (rows().length !== 3) fail('cleanup failed');
-log('multi-select + bulk delete; pagination Primero/Anterior/Siguiente/Última with 33 templates');
+log('multi-select + bulk delete; shared pagination with 33 templates');
 
 // 11) Exportar (CSV) and Analizar
 const csv = T.templatesCsv();
-if (!csv.startsWith('"Nombre","Asunto","Propietario"') || csv.split('\n').length !== 4) fail('CSV wrong');
+if (!csv.startsWith('"Nombre","Veces utilizada","Último uso","Asunto","Propietario"') || csv.split('\n').length !== 4) fail('CSV wrong');
 let clicked = 0;
 dom.window.URL.createObjectURL = () => 'blob:tpl';
 dom.window.URL.revokeObjectURL = () => {};
@@ -291,5 +286,30 @@ if (!body.includes(ownerFirst)) fail('owner token not resolved in composer');
 if (C.emailTemplates().length !== 3) fail('emailTemplates() should expose the saved templates');
 log(`composer: template inserted for ${contact.name} with resolved tokens`);
 
+if (T.templateById(seed.id).uses !== 0) fail('insertion must not count');
+click(q('[data-cm="send"]'));
+if (T.templateById(seed.id).uses !== 1 || !T.templateById(seed.id).lastUsedAt) fail('send must record use');
+const saved = JSON.parse(mem['crm:message_templates']).find((t) => t.id === seed.id);
+if (saved.uses !== 1 || !saved.lastUsedAt) fail('usage local backup');
+C.openCompose({ to: contact.name, email: contact.email, contactId: contact.id });
+click(q(`[data-tpl="${seed.id}"]`));
+click(q('[data-cm="close"]'));
+if (T.templateById(seed.id).uses !== 1) fail('cancel must not count');
+C.openCompose({ to: contact.name, email: contact.email, contactId: contact.id });
+click(q(`[data-tpl="${seed.id}"]`));
+$('cmp-text').innerHTML = '';
+click(q('[data-cm="send"]'));
+if (T.templateById(seed.id).uses !== 1) fail('erased template must not count');
+const other = T.templates().find((t) => t.id !== seed.id);
+for (let i = 0; i < 12; i++) await T.recordTemplateUse(other.id);
+click(q('[data-sort="uses"]'));
+if (rows()[0].dataset.id !== other.id) fail('usage descending numeric sort');
+click(q('[data-sort="uses"]'));
+if (rows().at(-1).dataset.id !== other.id) fail('usage ascending sort');
+click(q('[data-ta="analyze"]'));
+if (!text(q('#tpl-usage tbody tr')).includes(other.name) || !text($('tpl-modal-body')).includes('Plantilla más usada')) fail('usage analysis');
+if (!T.templatesCsv().includes('"12"')) fail('usage CSV values');
+const copied = T.cloneTemplate(other.id);
+if (copied.uses !== 0 || copied.lastUsedAt !== null) fail('clone resets usage');
 console.log('[plantillas] OK');
 process.exit(0);
