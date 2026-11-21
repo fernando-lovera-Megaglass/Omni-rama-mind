@@ -125,7 +125,7 @@ const movedCard = document.querySelector('.kcard[data-id="' + migrated.id + '"]'
 if (movedCard.querySelector('.kcard__days')) fail('a freshly moved deal has no stale counter');
 
 // Closing on the board asks for required values and runs automation once.
-defs[0].required.lost = ['Importe'];
+defs[0].required.lost = ['Importe', 'closed_lost_reason'];
 defs[0].automation.lost = { task: true };
 data.saveDealPipelineDefs(defs);
 data.setField('deals', migrated.id, 'amount', '');
@@ -135,6 +135,12 @@ ev('drop', colOf('lost'));
 const closeModal = document.getElementById('deal-close-modal');
 if (!closeModal || data.findRecord('deals', migrated.id).stage !== toKey) fail('close must wait for the dialog');
 closeModal.querySelector('[data-edit="amount"]').value = '1200';
+closeModal.querySelector('textarea').value = '   ';
+closeModal.querySelector('form').dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true }));
+await new Promise((resolve) => setTimeout(resolve, 0));
+if (!closeModal.isConnected || data.findRecord('deals', migrated.id).stage !== toKey) fail('board must reject a blank required reason');
+if (data.findRecord('deals', migrated.id).amount !== '' || data.allTasks().filter(t => Number(t.dealId) === Number(migrated.id)).length !== tasksBefore) fail('rejected close must not save fields or run automation');
+if (!closeModal.querySelector('[data-error]').textContent.includes('Motivo del cierre perdido')) fail('board must explain which required reason is missing');
 closeModal.querySelector('textarea').value = 'Sin presupuesto';
 closeModal.querySelector('form').dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true }));
 await new Promise((resolve) => setTimeout(resolve, 0));
