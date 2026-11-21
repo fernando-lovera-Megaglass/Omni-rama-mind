@@ -1,5 +1,11 @@
 # Progreso — Omni CRM
 
+## 2026-11-21 (sesión 6) · Un solo estilo de encabezado de tabla (Llamadas igual que Contactos)
+
+- **Problema**: convivían dos estilos: `.table thead th` (caja normal, peso 400, `--fs-sm`) para todas las tablas de objetos y la excepción `.table.table--standard thead th` (MAYÚSCULAS, 600, `--fs-xs`) que solo usaba Llamadas; además la regla base `.table th` seguía declarando mayúsculas/600/xs y dependía de la sobrescritura posterior.
+- `src/app.css`: se elimina la regla `.table--standard`; la regla base `.table th` pasa a caja normal, peso 400, `--fs-sm`, espaciado 0 (conserva fondo `--c-head` y 44 px) y `.table thead th` queda como la única regla documentada del encabezado. `src/calls.js`: la tabla es `.table` a secas, con sus menús ⋮ de columna y el «+» fijo intactos. (`.mini-table th`, las mini tablas de las tarjetas de ficha, no es una tabla de objetos y no cambia.)
+- Pruebas: `scripts/smoke-table-head-style.mjs` (estática: una sola regla `.table thead th` con esos valores, ninguna `.table--standard` en CSS ni en módulos; DOM: la tabla de Llamadas es `.table`, mismas celdas `th.th › .th__inner › .th__label` que Contactos, ⋮ y «+» presentes; encabezados en caja normal en ambos). Chrome (claro y oscuro): estilos computados del encabezado de Contactos y Llamadas idénticos (caja, peso, tamaño, espaciado, color, alto, fondo).
+
 ## 2026-11-21 (sesión 6) · Barras del editor de texto sin emoji: enlace, imagen y adjuntar como iconos de línea
 
 - `src/action-icons.js`: nuevos iconos `image`, `attach`, `expand` y `shrink` con el mismo trazo (24×24, 1,8 px, `currentColor`) que el `link` existente.
