@@ -35,3 +35,7 @@ Las filas antiguas no reciben retroactivamente este StatusCallback; se deben
 reconciliar por su message_sid consultando Twilio en un trabajo autorizado aparte.
 Un fallo de transporte puede ser ambiguo: failed registra el error observado,
 pero no demuestra que Twilio no aceptara el SMS. No se reenvía automáticamente.
+
+Si después de un fallo de transporte llega un callback firmado, este guarda el SID
+y corrige el estado provisional. Solo se recuperan fallos sin SID; los estados
+terminales confirmados por Twilio conservan su estado y causa.

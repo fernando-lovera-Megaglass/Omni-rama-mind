@@ -294,10 +294,13 @@ const TICKET_SEED_PIPE = [0, 0, 1, 2, 0, 1, 3];
 const cloneTicketPipe = (p) => ({ ...p, stages: p.stages.map((s) => [...s]) });
 const ticketPipeId = (name) => 200000 + (Math.abs(Array.from(String(name)).reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 11)) % 700000);
 const ticketStage = (s) => [String(s[0]), String(s[1]), s[2] === 'closed' ? 'closed' : 'open'];
+// rules / required / automation share the deal pipelines' shape (src/ticket-rules.js): { noBack, lockClosed },
+// { [status]: [property labels] } and { [status]: { task, notify } }. They travel with the definition
+// (localStorage now; pipelines.extra jsonb when the pipelines tables take over).
 export function newTicketPipelineDef(name, stages) {
-  return { id: ticketPipeId(name), name, desc: '', stages: (stages || DEFAULT_TICKET_STATUSES).map(ticketStage) };
+  return { id: ticketPipeId(name), name, desc: '', stages: (stages || DEFAULT_TICKET_STATUSES).map(ticketStage), rules: {}, required: {}, automation: {} };
 }
-const normalizeTicketDef = (p) => ({ ...p, id: p.id || ticketPipeId(p.name), desc: p.desc || '', stages: Array.isArray(p.stages) && p.stages.length ? p.stages.map(ticketStage) : DEFAULT_TICKET_STATUSES.map(ticketStage) });
+const normalizeTicketDef = (p) => ({ ...p, id: p.id || ticketPipeId(p.name), desc: p.desc || '', stages: Array.isArray(p.stages) && p.stages.length ? p.stages.map(ticketStage) : DEFAULT_TICKET_STATUSES.map(ticketStage), rules: { ...(p.rules || {}) }, required: { ...(p.required || {}) }, automation: { ...(p.automation || {}) } });
 export function ticketPipelineDefs() {
   try {
     const saved = JSON.parse(localStorage.getItem(TICKET_PIPELINES_KEY));

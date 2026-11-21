@@ -36,11 +36,11 @@ async function moduleAt(path, deps = {}) {
 const shared = await moduleAt('supabase/functions/_shared/twilio.ts', {fetch: async(url,opts) => {
   calls++;
   assert.ok(opts.signal instanceof AbortSignal, 'Outgoing send must have a deadline');
-  if (apiFailure) throw apiFailure;
   const form = new URLSearchParams(opts.body);
   callback = form.get('StatusCallback');
   assert.equal(form.get('To'),'+15550000002');
   assert.ok(callback.includes('/twilio-message-status?message_id='));
+  if (apiFailure) throw apiFailure;
   if (onSend) await onSend();
   return Response.json(apiResponse.body,{status:apiResponse.status});
 }});
@@ -80,6 +80,17 @@ assert.equal((await sendRequest()).status,502); assert.equal(rows[0].status,'fai
 reset(); apiFailure=new Error('Network disconnected'); await sendRequest(); assert.equal(rows[0].status,'failed'); assert.match(rows[0].error,/Network disconnected/);
 reset(); apiFailure=new DOMException('Timed out','TimeoutError');
 assert.equal((await sendRequest()).status,504); assert.equal(rows[0].status,'failed'); assert.match(rows[0].error,/timeout.*20 segundos/); assert.equal(calls,1);
+// A late signed receipt resolves an ambiguous timeout and preserves the provider SID.
+assert.equal((await receipt('delivered', {}, 'invalid')).status,403);
+assert.equal(rows[0].status,'failed'); assert.equal(rows[0].message_sid,null);
+assert.equal((await receipt('sent')).status,204);
+assert.equal(rows[0].status,'sent'); assert.equal(rows[0].message_sid,sid); assert.equal(rows[0].error,null);
+await receipt('delivered'); assert.equal(rows[0].status,'delivered');
+// Provider failures remain terminal when further receipts arrive.
+reset(); apiFailure=new DOMException('Timed out','TimeoutError'); await sendRequest();
+await receipt('undelivered',{ErrorCode:'30003'});
+assert.equal(rows[0].message_sid,sid); assert.match(rows[0].error,/30003/);
+await receipt('sent'); assert.equal(rows[0].status,'undelivered'); assert.match(rows[0].error,/30003/);
 // Exercise a genuinely hanging HTTP request with a short local deadline.
 const hanging = await moduleAt('supabase/functions/_shared/twilio.ts', {fetch: async (_url, opts) => new Promise((_resolve, reject) => {
   opts.signal.addEventListener('abort', () => reject(opts.signal.reason), {once:true});

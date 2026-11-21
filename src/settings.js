@@ -25,6 +25,7 @@ import { paneHtml as connectedEmailsPane, mountConnectedEmails } from './connect
 import { paneChannels as paneIbChannels, paneInboxes as paneIbInboxes, paneAvailability as paneIbAvailability, paneSpam as paneIbSpam, mountInboxSettings } from './inbox-settings-ui.js';
 import { ready as inboxSettingsReady } from './inbox-settings.js';
 import { dealTagsPaneHtml, pipelineTagsHtml, mountDealTags } from './deal-tags-ui.js';
+import { TICKET_PIPE_RULES, TICKET_PIPE_AUTOS, TICKET_REQUIRED_PROPS } from './ticket-rules.js';
 import { tagsForPipeline, ready as dealTagsReady } from './deal-tags.js';
 import { twilioPaneHtml, mountTwilioPane, twilioReady } from './twilio-ui.js';
 import { getTheme, setTheme } from './theme.js';
@@ -634,7 +635,9 @@ function objectPipelineHtml(type) {
   return '<p class="muted">Este objeto no usa pipelines. Los ciclos de vida se gestionan en la propiedad "Etapa del ciclo de vida".</p>';
 }
 // ---------- Ticket pipelines: each one with its own statuses (open or closed), as in the original ----------
-Object.assign(state, { tpipeEdit: null });
+// The per-pipeline editor has the original's tabs: Configurar (statuses), Reglas del pipeline (rules and
+// required properties per status) and Automatizar (task / notification when a ticket enters a status).
+Object.assign(state, { tpipeEdit: null, tpipeSub: 'configure' });
 function ticketPipelinesHtml() {
   const defs = ticketPipelineDefs();
   const counts = ticketPipelineCounts();

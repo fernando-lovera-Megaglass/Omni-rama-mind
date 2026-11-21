@@ -1,5 +1,7 @@
 import { boot } from './page.js';
 import { mountList, tag, link, ownerHtml } from './list.js';
+import { toast } from './shell.js';
+import { ticketMoveRefusal, runTicketAutomation } from './ticket-rules.js';
 import { allTickets, allContacts, PRIORITIES, OWNERS, formatDate, labelOf, classOf, TODAY, ticketPipelines, ticketStatusesFor, allTicketStatuses, ticketStatusLabel, ticketStatusClass, isTicketOpen, firstOpenTicketStatus, ticketPipelineCounts } from './data.js';
 
 boot({ root: '../', active: 'crm', sub: 'Tickets', title: 'Tickets' });
@@ -57,6 +59,15 @@ mountList({
       ['Creado', formatDate(r.created)],
     ],
     sub: (r) => (r.contact ? { name: r.contact, href: `../contacts/record/?id=${r.contactId}` } : null),
+    // Pipeline rules (Ajustes › Objetos › Tickets › Pipelines › Reglas): no going back, no moving closed tickets,
+    // required properties before entering a status; the refusal message is shown by list.js.
+    canMove: (r, from, to) => ticketMoveRefusal(r, from, to),
+    // Automation of the status just entered (Automatizar): follow-up task for the owner and/or notification.
+    onMove: (r, to, label) => {
+      const done = runTicketAutomation(r, to, label);
+      if (done.task) toast(`Tarea de seguimiento creada para ${r.owner}`);
+      if (done.notified) toast(`Notificación enviada a ${r.owner}: "${r.name}" ahora está en "${label}"`);
+    },
   },
   editors: {
     status: statusOptions(),
