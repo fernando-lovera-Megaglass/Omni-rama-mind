@@ -1,8 +1,11 @@
-// "Inscribir en una secuencia" — from a contact record (Más) or from the e-mail composer's Secuencias tab:
-// choose the sequence (or arrive with one preselected) and who enrols, pick the start date/time, fill the
-// placeholders its e-mails need, see every step with the tokens resolved for this contact, and confirm —
-// the enrolment is created, the first step scheduled and the timeline gets its entry (sequences-data.enroll).
-// A contact already active in that sequence gets a warning and the option to re-enrol (cancels the current one).
+// "Inscribir en una secuencia" — from a contact record (Más), from the e-mail composer's Secuencias tab, or for
+// a selection of contacts from the list's bulk bar: choose the sequence (or arrive with one preselected) and who
+// enrols, pick the start date/time, fill the placeholders its e-mails need once (shared values), see every step
+// with the tokens resolved for a contact (a selector switches the previewed contact when there are several), and
+// confirm — one enrolment per contact (first step scheduled or its task created, timeline entry; sequences-data
+// .enroll). A single contact already active in that sequence gets a warning and the option to re-enrol; with
+// several contacts the ones already active are skipped and counted. Contacts without e-mail are enrolled too but
+// the summary says their e-mail steps will be skipped (the processor does not send to them).
 import { toast } from './shell.js';
 import { ready, sequences, sequenceById, STEP_TYPES, stepDay, isAuto, isEmail, placeholdersOf, fillPlaceholders, enroll, unenroll, activeEnrollment, ME } from './sequences-data.js';
 import { OWNERS, formatDate } from './data.js';
@@ -18,14 +21,19 @@ const $ = (id) => document.getElementById(id);
 const pad = (n) => String(n).padStart(2, '0');
 const localDate = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 const localTime = (d) => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+const hasEmail = (c) => /\S+@\S+\.\S+/.test(String((c && c.email) || ''));
+const nameOf = (c) => (c && (c.name || c.first)) || 'el contacto';
 let dlg = null;
+const previewContact = () => dlg.contacts[Math.min(dlg.previewIndex, dlg.contacts.length - 1)];
+const isMulti = () => dlg.contacts.length > 1;
 
-export async function openEnrollDialog({ contact, onEnrolled, sequenceId = '' } = {}) {
+export async function openEnrollDialog({ contact, contacts, onEnrolled, sequenceId = '' } = {}) {
   await ready;
-  if (!contact || contact.id === undefined || contact.id === null || contact.id === '') { toast('Abre la ficha de un contacto para inscribirlo en una secuencia.'); return null; }
+  const people = (Array.isArray(contacts) ? contacts : contact ? [contact] : []).filter((c) => c && c.id !== undefined && c.id !== null && c.id !== '');
+  if (!people.length) { toast('Abre la ficha de un contacto o selecciona contactos para inscribirlos en una secuencia.'); return null; }
   const list = sequences().filter((s) => s.steps.length);
   const now = new Date();
-  dlg = { contact, onEnrolled, sequenceId: list.some((s) => s.id === sequenceId) ? sequenceId : '', by: ME, placeholders: {}, date: localDate(now), time: localTime(now), reenroll: false };
+  dlg = { contacts: people, previewIndex: 0, onEnrolled, sequenceId: list.some((s) => s.id === sequenceId) ? sequenceId : '', by: ME, placeholders: {}, date: localDate(now), time: localTime(now), reenroll: false };
   let m = $('enr-modal');
   if (!m) {
     m = document.createElement('div');
@@ -37,10 +45,15 @@ export async function openEnrollDialog({ contact, onEnrolled, sequenceId = '' } 
     m.addEventListener('change', onInput);
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && m.classList.contains('is-open')) close(); });
   }
-  const who = contact.name || contact.first || 'el contacto';
-  m.innerHTML = `<div class="bmodal__scrim" data-bm="close"></div><div class="bmodal__panel bmodal__panel--wide" role="dialog" aria-modal="true" aria-labelledby="enr-title"><div class="bmodal__head"><h3 id="enr-title">Inscribir a ${esc(who)} en una secuencia</h3><button class="bmodal__close" type="button" data-bm="close" aria-label="Cerrar">×</button></div><div class="bmodal__body enr">
+  const multi = isMulti();
+  const n = people.length;
+  const title = multi ? `Inscribir ${n} contactos en una secuencia` : `Inscribir a ${esc(nameOf(people[0]))} en una secuencia`;
+  const activeCount = (s) => people.filter((c) => activeEnrollment(c.id, s.id)).length;
+  const optionNote = (s) => { const k = activeCount(s); return !k ? '' : multi ? ` · ${k} ya inscrito${k === 1 ? '' : 's'}` : ' · ya inscrito'; };
+  m.innerHTML = `<div class="bmodal__scrim" data-bm="close"></div><div class="bmodal__panel bmodal__panel--wide" role="dialog" aria-modal="true" aria-labelledby="enr-title"><div class="bmodal__head"><h3 id="enr-title">${title}</h3><button class="bmodal__close" type="button" data-bm="close" aria-label="Cerrar">×</button></div><div class="bmodal__body enr">
+    ${multi ? `<details class="enr__contacts" id="enr-contacts"><summary><strong>${n} contactos seleccionados</strong> <span class="muted">· ${people.filter(hasEmail).length} con correo</span></summary><ul>${people.map((c) => `<li>${esc(nameOf(c))}${hasEmail(c) ? ` <span class="muted">${esc(c.email)}</span>` : ' <span class="tag tag--open">sin correo</span>'}</li>`).join('')}</ul></details>` : ''}
     <div class="enr__row">
-      <label class="field"><span>Secuencia</span><select id="enr-seq"><option value="">Seleccionar una secuencia</option>${list.map((s) => `<option value="${esc(s.id)}" ${s.id === dlg.sequenceId ? 'selected' : ''}>${esc(s.name)} (${s.steps.length} pasos)${activeEnrollment(contact.id, s.id) ? ' · ya inscrito' : ''}</option>`).join('')}</select></label>
+      <label class="field"><span>Secuencia</span><select id="enr-seq"><option value="">Seleccionar una secuencia</option>${list.map((s) => `<option value="${esc(s.id)}" ${s.id === dlg.sequenceId ? 'selected' : ''}>${esc(s.name)} (${s.steps.length} pasos)${optionNote(s)}</option>`).join('')}</select></label>
       <label class="field"><span>Inscribir como</span><select id="enr-by" data-owner-select>${OWNERS.filter((o) => o !== 'Sin asignar').map((o) => `<option value="${esc(o)}" ${o === ME ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select></label>
     </div>
     <div class="enr__row enr__row--start">
@@ -50,7 +63,7 @@ export async function openEnrollDialog({ contact, onEnrolled, sequenceId = '' } 
     </div>
     <div id="enr-warn"></div>
     <div id="enr-ph"></div>
-    <div id="enr-preview" class="enr__preview"><p class="muted enr__hint">Elige una secuencia para ver sus pasos con los datos de ${esc(contact.first || contact.name || 'este contacto')}.</p></div>
+    <div id="enr-preview" class="enr__preview"><p class="muted enr__hint">${hintText()}</p></div>
   </div><div class="bmodal__foot"><button class="btn btn--primary" type="button" id="enr-confirm" data-enr="confirm" disabled>Inscribir</button><button class="btn btn--secondary" type="button" data-bm="close">Cancelar</button></div></div>`;
   enhanceOwnerSelects(m);
   m.classList.add('is-open');
@@ -62,26 +75,44 @@ export async function openEnrollDialog({ contact, onEnrolled, sequenceId = '' } 
 export function closeEnrollDialog() { close(); }
 export const enrollDialogOpen = () => { const m = $('enr-modal'); return Boolean(m && m.classList.contains('is-open')); };
 function close() { const m = $('enr-modal'); if (m) { m.classList.remove('is-open'); m.setAttribute('aria-hidden', 'true'); } dlg = null; }
+const hintText = () => (isMulti() ? `Elige una secuencia para ver sus pasos con los datos de los contactos seleccionados.` : `Elige una secuencia para ver sus pasos con los datos de ${esc(previewContact().first || previewContact().name || 'este contacto')}.`);
+// Who, of the selection, is already running in the sequence; who lacks an e-mail (if the sequence sends any).
+const skipped = (seq) => dlg.contacts.filter((c) => activeEnrollment(c.id, seq.id));
+const noEmail = (seq) => (seq.steps.some((s) => s.type === 'auto_email') ? dlg.contacts.filter((c) => !hasEmail(c)) : []);
 function renderWarning(seq) {
   const box = $('enr-warn');
-  const active = seq ? activeEnrollment(dlg.contact.id, seq.id) : null;
+  if (!seq) { box.innerHTML = ''; return; }
+  if (isMulti()) {
+    const k = skipped(seq).length;
+    const m = noEmail(seq).length;
+    box.innerHTML = [
+      k ? `<div class="enr__warn" role="alert"><strong>${k} contacto${k === 1 ? '' : 's'} ya ${k === 1 ? 'está inscrito' : 'están inscritos'} en esta secuencia</strong> y se omitirá${k === 1 ? '' : 'n'}${k === dlg.contacts.length ? ': no queda nadie por inscribir' : ''}.</div>` : '',
+      m ? `<div class="enr__warn enr__warn--soft" role="alert"><strong>${m} contacto${m === 1 ? '' : 's'} sin correo</strong>: se inscribe${m === 1 ? '' : 'n'} pero sus pasos de correo se omitirán.</div>` : '',
+    ].join('');
+    return;
+  }
+  const c = previewContact();
+  const active = activeEnrollment(c.id, seq.id);
   if (!active) { box.innerHTML = ''; return; }
-  box.innerHTML = `<div class="enr__warn" role="alert"><strong>${esc(dlg.contact.first || dlg.contact.name || 'Este contacto')} ya tiene una inscripción ${active.status === 'paused' ? 'en pausa' : 'activa'} en esta secuencia</strong> (desde el ${esc(formatDate(new Date(active.enrolledAt)))}, paso ${active.currentStep} de ${seq.steps.length}).<label class="snp__check"><input type="checkbox" id="enr-reenroll" ${dlg.reenroll ? 'checked' : ''} /> Reinscribir: cancelar la inscripción actual y empezar de nuevo</label></div>`;
+  box.innerHTML = `<div class="enr__warn" role="alert"><strong>${esc(c.first || c.name || 'Este contacto')} ya tiene una inscripción ${active.status === 'paused' ? 'en pausa' : 'activa'} en esta secuencia</strong> (desde el ${esc(formatDate(new Date(active.enrolledAt)))}, paso ${active.currentStep} de ${seq.steps.length}).<label class="snp__check"><input type="checkbox" id="enr-reenroll" ${dlg.reenroll ? 'checked' : ''} /> Reinscribir: cancelar la inscripción actual y empezar de nuevo</label></div>`;
 }
 function renderPreview() {
   const box = $('enr-preview');
   const seq = dlg.sequenceId ? sequenceById(dlg.sequenceId) : null;
   const phBox = $('enr-ph');
   renderWarning(seq);
-  if (!seq) { box.innerHTML = `<p class="muted enr__hint">Elige una secuencia para ver sus pasos con los datos de ${esc(dlg.contact.first || dlg.contact.name || 'este contacto')}.</p>`; phBox.innerHTML = ''; phBox.dataset.seq = ''; syncConfirm(); return; }
+  if (!seq) { box.innerHTML = `<p class="muted enr__hint">${hintText()}</p>`; phBox.innerHTML = ''; phBox.dataset.seq = ''; syncConfirm(); return; }
   const names = placeholdersOf(seq);
   if (phBox.dataset.seq !== seq.id) {
     phBox.dataset.seq = seq.id;
-    phBox.innerHTML = names.length ? `<fieldset class="enr__ph"><legend>Marcadores de posición</legend><p class="muted">Completa el contenido que piden los correos de esta secuencia.</p>${names.map((n) => `<label class="field"><span>${esc(n)}</span><input data-ph="${esc(n)}" value="${esc(dlg.placeholders[n] || '')}" placeholder="Texto para «${esc(n)}»" /></label>`).join('')}</fieldset>` : '';
+    phBox.innerHTML = names.length ? `<fieldset class="enr__ph"><legend>Marcadores de posición</legend><p class="muted">${isMulti() ? 'Un mismo texto para todos los contactos seleccionados.' : 'Completa el contenido que piden los correos de esta secuencia.'}</p>${names.map((n) => `<label class="field"><span>${esc(n)}</span><input data-ph="${esc(n)}" value="${esc(dlg.placeholders[n] || '')}" placeholder="Texto para «${esc(n)}»" /></label>`).join('')}</fieldset>` : '';
   }
-  const ctx = contextFromRecord('contacts', dlg.contact, { owner: dlg.by });
+  const c = previewContact();
+  const ctx = contextFromRecord('contacts', c, { owner: dlg.by });
   const resolve = (text) => renderTokens(fillPlaceholders(text, dlg.placeholders), ctx);
+  const picker = isMulti() ? `<label class="field enr__previewfor"><span>Vista previa para</span><select id="enr-preview-contact">${dlg.contacts.map((x, i) => `<option value="${i}" ${i === dlg.previewIndex ? 'selected' : ''}>${esc(nameOf(x))}</option>`).join('')}</select></label>` : '';
   box.innerHTML = `<h4 class="enr__h">${esc(seq.name)} <span class="muted">· ${seq.steps.length} pasos · ${stepDay(seq.steps, seq.steps.length - 1)} días</span></h4>
+    ${picker}
     <p class="muted enr__from" id="enr-from">${senderEmail() ? `Los correos se enviarán desde <strong>${esc(senderEmail())}</strong>.` : 'No hay ninguna cuenta de correo conectada: conéctala en Ajustes › General › Correo para que se envíen los correos.'}</p>
     <ol class="enr__steps">${seq.steps.map((st, i) => { const t = STEP_TYPES[st.type]; return `<li class="enr__step"><div class="enr__stephead"><span class="seqstep__ico" aria-hidden="true">${t.icon}</span><strong>${i + 1}. ${esc(t.label)}</strong><span class="muted">Día ${stepDay(seq.steps, i)}</span>${isAuto(st) ? '<span class="tag tag--open">Automático</span>' : '<span class="seqstep__pause seqstep__pause--sm">Pausa la secuencia</span>'}</div>${isEmail(st) ? `<div class="enr__mail"><div><span class="muted">Asunto:</span> ${esc(resolve(st.subject) || '(sin asunto)')}</div><div class="enr__body">${resolve(st.body)}</div></div>` : `<div class="enr__task">${esc(resolve(st.title) || t.label)}${st.body ? `<div class="muted">${esc(plainText(resolve(st.body)))}</div>` : ''}</div>`}</li>`; }).join('')}</ol>`;
   syncConfirm();
@@ -95,29 +126,61 @@ function syncConfirm() {
   if (!b || !dlg) return;
   const seq = dlg.sequenceId ? sequenceById(dlg.sequenceId) : null;
   const missing = seq ? placeholdersOf(seq).filter((n) => !String(dlg.placeholders[n] || '').trim()) : [];
-  const blocked = seq && activeEnrollment(dlg.contact.id, seq.id) && !dlg.reenroll;
+  const blocked = seq && (isMulti() ? skipped(seq).length === dlg.contacts.length : activeEnrollment(previewContact().id, seq.id) && !dlg.reenroll);
   b.disabled = !seq || missing.length > 0 || Boolean(blocked);
-  b.title = blocked ? 'Marca «Reinscribir» para volver a inscribir al contacto' : missing.length ? `Completa: ${missing.join(', ')}` : '';
+  b.title = blocked ? (isMulti() ? 'Todos los contactos seleccionados ya están inscritos' : 'Marca «Reinscribir» para volver a inscribir al contacto') : missing.length ? `Completa: ${missing.join(', ')}` : '';
+  if (seq && isMulti()) { const n = dlg.contacts.length - skipped(seq).length; b.textContent = n > 0 && n < dlg.contacts.length ? `Inscribir ${n} de ${dlg.contacts.length}` : `Inscribir ${dlg.contacts.length}`; }
 }
 function onInput(e) {
   if (!dlg) return;
   const t = e.target;
   if (t.id === 'enr-seq') { dlg.sequenceId = t.value; dlg.reenroll = false; renderPreview(); } else if (t.id === 'enr-by') { dlg.by = t.value; renderPreview(); } else if (t.id === 'enr-date') dlg.date = t.value;
   else if (t.id === 'enr-time') dlg.time = t.value;
+  else if (t.id === 'enr-preview-contact') { dlg.previewIndex = Number(t.value) || 0; renderPreview(); }
   else if (t.id === 'enr-reenroll') { dlg.reenroll = t.checked; syncConfirm(); } else if (t.dataset.ph) { dlg.placeholders[t.dataset.ph] = t.value; if (e.type === 'change') renderPreview(); else syncConfirm(); }
 }
 function onClick(e) {
   if (e.target.closest('[data-bm="close"]')) { e.preventDefault(); close(); return; }
   if (!e.target.closest('[data-enr="confirm"]') || !dlg) return;
-  const active = activeEnrollment(dlg.contact.id, dlg.sequenceId);
-  if (active && !dlg.reenroll) { syncConfirm(); return; }
-  if (active) unenroll(active.id);
-  const result = enroll({ sequenceId: dlg.sequenceId, contact: dlg.contact, placeholders: dlg.placeholders, enrolledBy: dlg.by, now: startDate(), from: senderEmail(), senderAccountId: activeAccounts().find((a) => a.real)?.id || null });
-  if (!result) { toast('No se pudo inscribir al contacto.'); return; }
+  const seq = sequenceById(dlg.sequenceId);
+  if (!seq) return;
+  const common = { sequenceId: dlg.sequenceId, placeholders: dlg.placeholders, enrolledBy: dlg.by, now: startDate(), from: senderEmail(), senderAccountId: activeAccounts().find((a) => a.real)?.id || null };
+  if (!isMulti()) {
+    const c = previewContact();
+    const active = activeEnrollment(c.id, dlg.sequenceId);
+    if (active && !dlg.reenroll) { syncConfirm(); return; }
+    if (active) unenroll(active.id);
+    const result = enroll({ ...common, contact: c });
+    if (!result) { toast('No se pudo inscribir al contacto.'); return; }
+    const cb = dlg.onEnrolled;
+    close();
+    toast(`${result.enrollment.contactName} inscrito en «${result.sequence.name}»${result.task ? ' · tarea creada' : ''}`);
+    // Record pages re-render their timeline on this (the composer path has no callback of its own).
+    document.dispatchEvent(new (document.defaultView.CustomEvent)('crm:enrolled', { detail: result }));
+    if (cb) cb(result);
+    return;
+  }
+  // Several contacts: one enrolment each; the ones already active in the sequence are skipped and counted.
+  const results = [];
+  let skippedN = 0;
+  let failed = 0;
+  for (const c of dlg.contacts) {
+    if (activeEnrollment(c.id, dlg.sequenceId)) { skippedN += 1; continue; }
+    const r = enroll({ ...common, contact: c });
+    if (r) results.push(r); else failed += 1;
+  }
+  const withoutEmail = noEmail(seq).filter((c) => results.some((r) => String(r.enrollment.contactId) === String(c.id))).length;
+  const tasks = results.filter((r) => r.task).length;
   const cb = dlg.onEnrolled;
+  const total = dlg.contacts.length;
   close();
-  toast(`${result.enrollment.contactName} inscrito en «${result.sequence.name}»${result.task ? ' · tarea creada' : ''}`);
-  // Record pages re-render their timeline on this (the composer path has no callback of its own).
-  document.dispatchEvent(new (document.defaultView.CustomEvent)('crm:enrolled', { detail: result }));
-  if (cb) cb(result);
+  const bits = [`Inscritos ${results.length} de ${total} en «${seq.name}»`];
+  if (skippedN) bits.push(`${skippedN} ${skippedN === 1 ? 'contacto ya estaba inscrito y se omitió' : 'contactos ya estaban inscritos y se omitieron'}`);
+  if (withoutEmail) bits.push(`${withoutEmail} sin correo: sus pasos de correo se omitirán`);
+  if (tasks) bits.push(`${tasks} ${tasks === 1 ? 'tarea creada' : 'tareas creadas'}`);
+  if (failed) bits.push(`${failed} no se pudieron inscribir`);
+  toast(bits.join(' · '));
+  const summary = { sequence: seq, results, enrolled: results.length, skipped: skippedN, withoutEmail, tasks, failed, total };
+  document.dispatchEvent(new (document.defaultView.CustomEvent)('crm:enrolled', { detail: summary }));
+  if (cb) cb(summary);
 }

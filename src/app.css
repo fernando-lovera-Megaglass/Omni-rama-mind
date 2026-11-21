@@ -16112,6 +16112,36 @@ body.has-slideover {
   font-size: var(--fs-xs);
 }
 
+/* Several contacts at once (bulk «Inscribir en secuencia»): the collapsible list and the preview picker */
+.enr__contacts {
+  margin-bottom: var(--sp-10);
+  padding: var(--sp-8) 12px;
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-md);
+  background: var(--c-head);
+}
+
+.enr__contacts summary {
+  cursor: pointer;
+}
+
+.enr__contacts ul {
+  margin: var(--sp-8) 0 0;
+  padding-left: var(--sp-20);
+  max-height: 160px;
+  overflow: auto;
+  font-size: var(--fs-sm);
+}
+
+.enr__previewfor {
+  max-width: 320px;
+  margin-bottom: var(--sp-8);
+}
+
+.enr__warn--soft {
+  margin-top: var(--sp-8);
+}
+
 .enr__warn {
   padding: var(--sp-10) 12px;
   border: 1px solid #f5c26b;

@@ -466,6 +466,7 @@ export function mountList(cfg) {
           ${bulkActions.includes('edit') ? '<button class="bulk__btn" type="button" data-action="bulk-edit"><span aria-hidden="true">✎</span> Editar</button>' : ''}
           ${bulkActions.includes('delete') ? '<button class="bulk__btn" type="button" data-action="delete"><span aria-hidden="true">🗑</span> Eliminar</button>' : ''}
           ${bulkActions.includes('tasks') ? '<button class="bulk__btn" type="button" data-action="bulk-tasks"><span aria-hidden="true">+</span> Crear tareas</button>' : ''}
+          ${bulkActions.includes('enroll') ? '<button class="bulk__btn" type="button" data-action="bulk-enroll"><span aria-hidden="true">⇢</span> Inscribir en secuencia</button>' : ''}
           ${bulkActions.includes('segment') ? '<button class="bulk__btn" type="button" data-action="bulk-segment"><span aria-hidden="true">≡</span> Agregar a segmento</button>' : ''}
           ${bulkActions.includes('export') ? '<button class="bulk__btn" type="button" data-action="bulk-export"><span aria-hidden="true">↧</span> Exportar</button>' : ''}
         </span>
@@ -2969,6 +2970,11 @@ export function mountList(cfg) {
           render();
         },
       });
+    } else if (a === 'bulk-enroll') {
+      // «Inscribir en secuencia» for the selection: the enrol dialog takes every selected contact at once
+      // (sequence-enroll.js skips the ones already active in that sequence and reports the counts).
+      const rows = cfg.rows().filter((r) => state.selected.has(Number(r.id)));
+      import('./sequence-enroll.js').then((m) => m.openEnrollDialog({ contacts: rows, onEnrolled: () => { state.selected.clear(); render(); } })).catch((e) => toast(`No se pudo abrir la inscripción: ${e.message || e}`));
     } else if (a === 'bulk-segment') {
       const n = state.selected.size;
       const statics = allSegments().filter((s) => s.object === cfg.type && s.type === 'static');
