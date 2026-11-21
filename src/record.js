@@ -16,7 +16,7 @@ import { boot } from './page.js';
 import { toast, wireMenus, closeMenus, linkHtml, wireLinkTooltips } from './shell.js';
 import {
   findRecord, setField, deleteRecords, addRecord, allContacts, allCompanies, allDeals, allTickets, allTasks, ALL,
-  STATUSES, LIFECYCLES, SOURCES, OWNERS, TICKET_STATUSES, PRIORITIES, TASK_TYPES, TASK_STATUSES,
+  STATUSES, LIFECYCLES, SOURCES, OWNERS, TICKET_STATUSES, PRIORITIES, TASK_TYPES, TASK_STATUSES, RECUR_OPTIONS,
   ticketStatusIsClosed, ticketStatusesFor, ticketStatusLabel, firstOpenTicketStatus, ticketPipelines, stagesFor, allDealStages, dealStageLabel, dealStageProb, isClosedStage,
   formatDate, formatMoney, initials, colorFor, labelOf, toCsv, download, TODAY, assocLabels, CURRENCY_DEFS, CURRENCY_CODES, relativeTimeFine,
   activitiesFor, ensureActivitiesFor, addActivity, updateActivity, deleteActivity, restoreActivity, deletedActivitiesFor, activityIdForComment, historyFor, addHistoryEntry, getSetting, setSetting, settingsLive, settingScope, lineItemsFor, fetchLineItems, lineItemsTotal,
@@ -133,7 +133,7 @@ const CONFIG = {
     title: (r) => r.name, subtitle: (r) => `${r.type} · vence ${formatDate(r.due)}`, mail: () => '',
     fields: [
       ['status', 'Estado', 'select', opt(TASK_STATUSES.map(([k, l]) => [k, l]))], ['type', 'Tipo de tarea', 'select', opt(TASK_TYPES)], ['due', 'Fecha de vencimiento', 'date'], ['reminderAt', 'Recordatorio', 'datetime'],
-      ['priority', 'Prioridad', 'select', opt(PRIORITIES.map(([k, l]) => [k, l]))], ['owner', 'Asignada a', 'select', ownerOpts], ['created', 'Fecha de creación', 'date-ro'],
+      ['priority', 'Prioridad', 'select', opt(PRIORITIES.map(([k, l]) => [k, l]))], ['owner', 'Asignada a', 'select', ownerOpts], ['recur', 'Repetir', 'select', opt(RECUR_OPTIONS)], ['created', 'Fecha de creación', 'date-ro'],
     ],
     highlights: (r) => [['Vence', formatDate(r.due)], ['Estado', labelOf(TASK_STATUSES, r.status)], ['Prioridad', labelOf(PRIORITIES, r.priority)], ['Recordatorio', r.reminderAt ? `${reminderText(r.reminderAt)}${r.reminderFiredAt ? ' · avisado' : ''}` : '--']],
     assoc: (r) => [['Contactos', r.contactId ? [byId(allContacts(), r.contactId)].filter(Boolean) : [], 'contacts']],
@@ -514,7 +514,7 @@ function openLogModal(kind, { schedule = false, channel = '', activity = null } 
 
 function displayValue(f, r) {
   const [key, , kind, options] = f;
-  const v = r[key];
+  const v = key === 'recur' ? ((r.recur && r.recur.freq) || '') : r[key]; // the recurrence is stored as { freq }
   if (props[key]?.sensitive) return sensitiveValue(v);
   if (kind === 'calc') return esc(typeof options === 'function' ? options(r) : '--'); // calculated (e.g. "Negocios asociados")
   if (key === 'owner' || (props[key] && props[key].kind === 'user')) return ownerHtml(v, 'sm');
@@ -529,7 +529,8 @@ function displayValue(f, r) {
   if (kind === 'tel' || (props[key] && props[key].kind === 'phone')) return linkHtml('phone', v);
   return esc(v);
 }
-const editor = (f, r) => propertyEditor(f, r, props);
+// «Repetir» of tasks is stored as { freq }: the dropdown edits the frequency string (data.js normalises it back).
+const editor = (f, r) => propertyEditor(f, f[0] === 'recur' ? { ...r, recur: (r.recur && r.recur.freq) || '' } : r, props);
 
 function propValue(p, v) {
   if (p?.sensitive) return sensitiveValue(v);
