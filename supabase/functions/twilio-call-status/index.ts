@@ -56,7 +56,7 @@ Deno.serve(handle(async (req) => {
     const recordingUrl = `${params.RecordingUrl}.mp3`;
     const { error: updateError } = await service.from('call_logs').update({ recording_url: recordingUrl }).eq('id', log.id);
     if (updateError) throw updateError;
-    // Transcripción automática (Whisper) si hay OPENAI_API_KEY: corre en segundo plano.
+    // Transcripción automática en segundo plano; una clave ausente también deja diagnóstico.
     if (!log.transcript) background(transcribeCallLog(service, { id: log.id, connection_id: log.connection_id!, recording_url: recordingUrl, transcript: null }));
     return new Response('<Response></Response>', { headers: { 'Content-Type': 'text/xml' } });
   }

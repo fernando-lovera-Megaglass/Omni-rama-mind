@@ -2,6 +2,7 @@
 import { readFileSync } from 'node:fs';
 import { transform } from 'esbuild';
 import assert from 'node:assert/strict';
+import { createHmac, webcrypto } from 'node:crypto';
 import { JSDOM } from 'jsdom';
 let key, mode, row, requests, logs, pending;
 const account = 'AC' + 'a'.repeat(32);
@@ -10,13 +11,13 @@ const service = { from(table) {
   const q = { select() { return q; }, eq() { return q; }, maybeSingle() { return q; }, update(p) { patch=p; return q; }, then(resolve) {
     if (patch && (mode === 'db-down' || (mode === 'save-fail' && patch.transcript))) return resolve({ error: { message: 'database unavailable' } });
     if (patch) Object.assign(row, patch);
-    resolve({data: table === 'call_logs' ? row : table === 'twilio_connections' ? { account_sid: account } : { auth_token: 'private-token' }, error:null});
+    resolve({data: table === 'call_logs' ? row : table === 'twilio_connections' ? { id: 'connection', account_sid: account } : { auth_token: 'private-token' }, error:null});
   } }; return q;
 } };
 const source = readFileSync('supabase/functions/_shared/twilio.ts','utf8').replace(/^import .*;$/mg,'').replace(/^export \{.*;$/mg,'');
 const {code} = await transform(source,{loader:'ts',format:'cjs'});
 const module = {exports:{}};
-new Function('module','Deno','fetch','console','globalThis',code)(module,{env:{get:()=>key}},async url => {
+new Function('module','Deno','fetch','console','globalThis','crypto',code)(module,{env:{get:()=>key}},async url => {
   requests++;
   if (url.includes('api.twilio.com')) {
     if (mode === 'network') throw new Error('private-token');
@@ -25,7 +26,7 @@ new Function('module','Deno','fetch','console','globalThis',code)(module,{env:{g
   if (mode === 'invalid') return Response.json({error:{message:'secret-key'}},{status:401});
   if (mode === 'empty') return Response.json({text:''});
   return Response.json({text:'  Transcripción de prueba  '});
-},{error: value=>logs.push(JSON.parse(value))},{EdgeRuntime:{waitUntil:p=>{pending=p;}}});
+},{error: value=>logs.push(JSON.parse(value))},{EdgeRuntime:{waitUntil:p=>{pending=p;}}},webcrypto);
 const {transcribeCallLog,background}=module.exports;
 function reset(next) {
   mode=next; key=next === 'missing' ? undefined : 'fake-key'; requests=0; logs=[];
@@ -47,6 +48,47 @@ assert.equal(row.extra.transcript_error.http_status,401);
 mode='success'; assert.equal(await transcribeCallLog(service,row),'Transcripción de prueba');
 assert.equal(row.transcript,'Transcripción de prueba'); assert.equal(row.extra.transcript_error,undefined); assert.equal(row.extra.direction,'inbound');
 const before=requests; key=undefined; assert.equal(await transcribeCallLog(service,row),row.transcript); assert.equal(requests,before);
+// Exercise the recording webhook with the real helper and background lifetime handling.
+let handler;
+const publicUrl = 'https://local.example/functions/v1/twilio-call-status';
+const callbackSource = readFileSync('supabase/functions/twilio-call-status/index.ts', 'utf8').replace(/^import .*;$/mg, '');
+const callbackCode = (await transform(callbackSource, {loader:'ts'})).code;
+const dependencies = {
+  ...module.exports,
+  handle: fn => fn,
+  serviceClient: () => service,
+  fail: (message, status = 400) => new Response(message, {status}),
+};
+new Function('Deno', ...Object.keys(dependencies), callbackCode)(
+  {env:{get:()=> 'https://local.example'}, serve:fn=>{handler=fn;}}, ...Object.values(dependencies));
+for (const scenario of ['missing', 'invalid', 'success']) {
+  reset(scenario);
+  row.recording_url = null;
+  pending = undefined;
+  const params = {
+    AccountSid: account, CallSid: 'CA' + '1'.repeat(32),
+    RecordingSid: 'RE' + '2'.repeat(32),
+    RecordingUrl: `https://api.twilio.com/2010-04-01/Accounts/${account}/Recordings/RE${'2'.repeat(32)}`,
+  };
+  const signature = createHmac('sha1', 'private-token')
+    .update(publicUrl + Object.keys(params).sort().map(k=>k+params[k]).join('')).digest('base64');
+  const response = await handler(new Request(publicUrl, {
+    method:'POST', headers:{'X-Twilio-Signature':signature}, body:new URLSearchParams(params),
+  }));
+  assert.equal(response.status, 200);
+  assert.ok(pending, 'recording callback must schedule background transcription');
+  await pending;
+  assert.equal(row.recording_url, params.RecordingUrl + '.mp3');
+  if (scenario === 'success') {
+    assert.equal(row.transcript, 'Transcripción de prueba');
+    assert.equal(row.extra.transcript_error, undefined);
+    assert.deepEqual(logs, []);
+  } else {
+    assert.equal(row.transcript, null);
+    assert.equal(row.extra.transcript_error.code, scenario === 'missing' ? 'configuration' : 'openai');
+    assert.ok(logs.some(log=>log.event === 'call_transcription_failed' && log.call_log_id === row.id));
+  }
+}
 // Render the actual title cell to check visible errors, retry action and HTML escaping.
 const calls=readFileSync('src/calls.js','utf8');
 const expression=calls.match(/case 'title': return (.*);/)[1];
@@ -57,4 +99,4 @@ assert.match(dom.window.document.querySelector('[role=status]').textContent,/Tra
 assert.equal(dom.window.document.querySelector('[data-transcribe]').textContent,'Reintentar transcripción');
 assert.equal(dom.window.document.querySelector('img'),null);
 assert.match(calls,/recording_url,transcript,extra/);
-console.log('PASS: missing/invalid key, download/network/empty response, database failures, background evidence, successful retry and cleanup, idempotency, UI error/retry/escaping. No remote services used.');
+console.log('PASS: signed recording webhook with real background transcription, missing/invalid key, download/network/empty response, database failures, background evidence, successful retry and cleanup, idempotency, UI error/retry/escaping. No remote services used.');

@@ -71,7 +71,7 @@ order by started_at desc;
 ```
 
 Smoke sin red ni secretos: `node scripts/smoke-call-transcription.mjs`. Ejecuta el helper real
-con audio, respuestas HTTP y base simulados: clave ausente/inválida, descarga fallida, error de
+y el webhook de grabación firmado con audio, respuestas HTTP y base simulados: clave ausente/inválida, descarga fallida, error de
 red, respuesta vacía, fallo de persistencia y éxito tras reintento. Comprueba también que la UI
 muestra el error escapado y el botón de reintento. Esto verifica los caminos locales, no la
 validez de una clave remota ni una transcripción real de Whisper.
