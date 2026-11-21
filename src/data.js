@@ -672,6 +672,7 @@ function validatePropertyValuesLocal(type, fields, id = null) {
 
 export function setField(type, id, field, value, opts = {}) {
   validatePropertyValuesLocal(type, { [field]: value }, id);
+  const previousStatus = type === 'tickets' && field === 'status' ? findIn(type, id)?.status : undefined;
   if (dbLive) {
     const rec = (dbRows[type] || []).find((r) => Number(r.id) === Number(id));
     if (rec) rec[field] = value;
@@ -689,13 +690,13 @@ export function setField(type, id, field, value, opts = {}) {
         if (error) console.error('[supabase] update extra', type, error);
       }
     });
-    afterSet(type, id, field, value, opts);
+    afterSet(type, id, field, value, opts, previousStatus);
     return;
   }
   const o = getOverrides(type);
   o[id] = { ...(o[id] || {}), [field]: value };
   write(K(type, 'overrides'), o);
-  afterSet(type, id, field, value, opts);
+  afterSet(type, id, field, value, opts, previousStatus);
 }
 
 // ---------- papelera (soft-delete): contacts, companies and deals keep their rows with deleted_at ----------
@@ -940,7 +941,7 @@ function afterAdd(type, rec, opts = {}) {
   if (type === 'tickets') { try { autoAssociateTicketCompany(rec); } catch (e) { console.error('[tickets: empresa del contacto]', e); } }
   return rec;
 }
-function afterSet(type, id, field, value, opts = {}) {
+function afterSet(type, id, field, value, opts = {}, previousStatus) {
   if (!opts.skipAutoCompany && type === 'contacts' && (field === 'email' || field === 'website') && value) { try { autoAssociateCompany(id); } catch (e) { console.error('[empresas automáticas]', e); } }
   if (type === 'contacts' && COMPANY_LINK_FIELDS.has(field)) { try { syncContactCompanies(id); } catch (e) { console.error('[contact_companies]', e); } }
   if (type === 'tickets' && field === 'contactId' && value) { try { autoAssociateTicketCompany(id); } catch (e) { console.error('[tickets: empresa del contacto]', e); } }
@@ -953,6 +954,16 @@ function afterSet(type, id, field, value, opts = {}) {
         logSystem('deals', d.id, `Etapa cambiada a «${label}».`, { stage: value });
         if (d.contactId) logSystem('contacts', d.contactId, `Negocio «${d.name}» pasó a la etapa «${label}».`, { deal: d.id, stage: value });
         if (d.companyId) logSystem('companies', d.companyId, `Negocio «${d.name}» pasó a la etapa «${label}».`, { deal: d.id, stage: value });
+      }
+    }
+    // A ticket changing status: on the ticket and on its contact and company.
+    if (type === 'tickets' && field === 'status' && previousStatus !== value) {
+      const t = findIn('tickets', id);
+      if (t) {
+        const label = ticketStatusLabel(t.pipeline, value);
+        logSystem('tickets', t.id, `Estado cambiado a «${label}».`, { status: value });
+        if (t.contactId) logSystem('contacts', t.contactId, `Ticket «${t.name}» pasó al estado «${label}».`, { ticket: t.id, status: value });
+        if (t.companyId) logSystem('companies', t.companyId, `Ticket «${t.name}» pasó al estado «${label}».`, { ticket: t.id, status: value });
       }
     }
     // A task completed: on the task's contact and deal.

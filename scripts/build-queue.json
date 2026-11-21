@@ -398,10 +398,11 @@
     },
     {
       "id": "gap-autenticaci-n-rls-por-usuario-activo-paso-2",
-      "status": "pending",
+      "status": "done",
       "instruction": "RLS estricto por usuario: el PASO 2 de supabase/auth.sql sigue comentado (cada usuario vería solo sus datos).\n\nCambio pedido: aplica el PASO 2 (políticas owner-only) en una migración nueva, verificando antes qué tablas comparten datos entre usuarios del equipo para no romper la operación (si la cuenta es multiusuario con datos compartidos, propón políticas por equipo en vez de por usuario y documéntalo en el PR/commit). Corre scripts/smoke-auth.mjs y las pruebas de listas. No despliegues a producción.",
       "createdAt": "2026-11-19T17:12:33-06:00",
-      "lane": "claude"
+      "lane": "claude",
+      "completedAt": "2026-11-21T12:20:59-0600"
     },
     {
       "id": "gap-ui-llamadas-tema-oscuro",
@@ -775,12 +776,10 @@
     },
     {
       "id": "gap-ui-re-titulos-segmentos-marketing-paneles",
-      "status": "done",
+      "status": "pending",
       "createdAt": "2026-11-20T15:29:44-06:00",
       "lane": "codex",
-      "instruction": "El fix gap-ui-titulos-pagina-inconsistentes dejó tres cabeceras fuera del patrón .page-title (22px, peso 600, src/app.css 155-161): Segmentos pinta <h1>Segmentos</h1> sin clase (src/segments.js 51) y su regla .seg__head h1 (src/app.css 2291-2294) lo deja en 24px peso 500; Marketing › Correo usa .page-head con un h1 sin clase (src/marketing-email.js 64 y 125) que hereda el h1 base (22px pero peso 500, src/app.css 147-152); e Informes › Paneles usa .dash-title h1 (reports/index.html 30) sin regla de fuente propia, también 22px/500. Además el h1 de Segmentos lleva al lado un .seg__count con peso 600 que compite con el título. Cómo debe verse: las tres cabeceras usan la clase .page-title (y page-title--with-count donde haya contador), 22px peso 600, como Contactos, Plantillas o Llamadas; retira .seg__head h1 o redúcela al mismo patrón. Criterio de aceptación: los títulos de Segmentos, Correo de marketing y Paneles miden 22px y peso 600 en el inspector, y no queda ninguna regla .seg__head h1 con 24px. No despliegues nada a producción; solo código local.",
-      "completedAt": "2026-11-21T12:15:50-0600",
-      "completedBy": "codex"
+      "instruction": "El fix gap-ui-titulos-pagina-inconsistentes dejó tres cabeceras fuera del patrón .page-title (22px, peso 600, src/app.css 155-161): Segmentos pinta <h1>Segmentos</h1> sin clase (src/segments.js 51) y su regla .seg__head h1 (src/app.css 2291-2294) lo deja en 24px peso 500; Marketing › Correo usa .page-head con un h1 sin clase (src/marketing-email.js 64 y 125) que hereda el h1 base (22px pero peso 500, src/app.css 147-152); e Informes › Paneles usa .dash-title h1 (reports/index.html 30) sin regla de fuente propia, también 22px/500. Además el h1 de Segmentos lleva al lado un .seg__count con peso 600 que compite con el título. Cómo debe verse: las tres cabeceras usan la clase .page-title (y page-title--with-count donde haya contador), 22px peso 600, como Contactos, Plantillas o Llamadas; retira .seg__head h1 o redúcela al mismo patrón. Criterio de aceptación: los títulos de Segmentos, Correo de marketing y Paneles miden 22px y peso 600 en el inspector, y no queda ninguna regla .seg__head h1 con 24px. No despliegues nada a producción; solo código local."
     },
     {
       "id": "gap-ui-biblioteca-informes-acciones",
@@ -791,12 +790,10 @@
     },
     {
       "id": "gap-ui-cronologia-editar-eliminar-actividad",
-      "status": "done",
+      "status": "pending",
       "createdAt": "2026-11-20T18:30:39-06:00",
       "lane": "codex",
-      "instruction": "HubSpot: cada entrada de la cronología de una ficha (nota, llamada, correo, reunión) tiene un menú de acciones con «Editar», «Fijar en la parte superior» y «Eliminar»; el borrado va a una papelera restaurable (~90 días). Omni HOY: en src/record.js la función `item` (~línea 1458) solo permite expandir la entrada y comentarla; no existe editar ni eliminar actividades (no hay updateActivity/deleteActivity en src/data.js; las únicas escrituras son addActivity/addActivities en las líneas ~1576-1605). Pasos: (1) en src/data.js añadir updateActivity(id, cambios), deleteActivity(id) con borrado lógico (extra.deletedAt, o columna deleted_at en la tabla activities con migración supabase/ sin aplicar; en modo localStorage moverla a una papelera por registro) y restoreActivity(id); (2) en src/record.js, en cada entrada expandida de tipo note/call/email/meeting/message, mostrar un menú ⋯ con «Editar» (reabre openLogModal con los valores cargados y guarda vía updateActivity), «Fijar/Desfijar» (extra.pinned=true; las fijadas se pintan primero con una marca) y «Eliminar» (confirmación, la saca de la lista y la manda a la papelera); (3) acceso a «Restaurar actividades eliminadas» desde el menú ⋮ de la ficha, con lista y botón Restaurar por fila; (4) las entradas de sistema (type system/prop) no se editan ni eliminan, solo se expanden. Criterio de aceptación: registrar una llamada, editarla (cambiar resultado y notas) y ver el cambio persistido tras recargar; eliminarla y restaurarla desde la papelera; fijar una nota y verla arriba con marca; la entrada de creación del registro no ofrece Editar/Eliminar. No despliegues nada a producción; solo código local.",
-      "completedAt": "2026-11-21T12:13:27-0600",
-      "completedBy": "codex"
+      "instruction": "HubSpot: cada entrada de la cronología de una ficha (nota, llamada, correo, reunión) tiene un menú de acciones con «Editar», «Fijar en la parte superior» y «Eliminar»; el borrado va a una papelera restaurable (~90 días). Omni HOY: en src/record.js la función `item` (~línea 1458) solo permite expandir la entrada y comentarla; no existe editar ni eliminar actividades (no hay updateActivity/deleteActivity en src/data.js; las únicas escrituras son addActivity/addActivities en las líneas ~1576-1605). Pasos: (1) en src/data.js añadir updateActivity(id, cambios), deleteActivity(id) con borrado lógico (extra.deletedAt, o columna deleted_at en la tabla activities con migración supabase/ sin aplicar; en modo localStorage moverla a una papelera por registro) y restoreActivity(id); (2) en src/record.js, en cada entrada expandida de tipo note/call/email/meeting/message, mostrar un menú ⋯ con «Editar» (reabre openLogModal con los valores cargados y guarda vía updateActivity), «Fijar/Desfijar» (extra.pinned=true; las fijadas se pintan primero con una marca) y «Eliminar» (confirmación, la saca de la lista y la manda a la papelera); (3) acceso a «Restaurar actividades eliminadas» desde el menú ⋮ de la ficha, con lista y botón Restaurar por fila; (4) las entradas de sistema (type system/prop) no se editan ni eliminan, solo se expanden. Criterio de aceptación: registrar una llamada, editarla (cambiar resultado y notas) y ver el cambio persistido tras recargar; eliminarla y restaurarla desde la papelera; fijar una nota y verla arriba con marca; la entrada de creación del registro no ofrece Editar/Eliminar. No despliegues nada a producción; solo código local."
     },
     {
       "id": "gap-ui-tickets-papelera",
