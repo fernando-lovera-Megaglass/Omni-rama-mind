@@ -6,6 +6,7 @@ import './filter-chip.js';
 import { boot } from './page.js';
 import { toast, wireMenus, closeMenus } from './shell.js';
 import { ownerHtml } from './owner.js';
+import { emptyStateHtml } from './empty-state.js';
 import { relativeTimeFine, formatDate, formatMoney } from './data.js';
 import { ready, sequences, trashedSequences, sequenceById, folders, owners, createFolder, cloneSequence, deleteSequences, restoreSequences, moveSequences, sequencesCsv, sequenceMetrics, bannerDismissed, dismissBanner, analytics, series, filterOptions, FILTER_KEYS, SERIES_METRICS, FREQUENCIES, scheduled, unenroll, ME } from './sequences-data.js';
 
@@ -78,7 +79,7 @@ function renderManage() {
       <div class="table-wrap">
         <table class="table tpls__table seqs__table">
           <thead><tr><th class="table__check"><input type="checkbox" id="seq-check-all" aria-label="Seleccionar todo" ${rows.length && rows.every((s) => state.selected.has(s.id)) ? 'checked' : ''} /></th><th>Nombre</th><th>Total inscritos</th><th>Tasa de respuesta</th><th>Tasa de reuniones</th><th>Propietario</th><th>Fecha de modificación</th></tr></thead>
-          <tbody id="seq-rows">${list.length ? `${(byFolder[''] || []).map(row).join('')}${folderNames.map(folderRow).join('')}` : `<tr><td colspan="7"><div class="tpls__empty">${sequences().length ? 'Ninguna secuencia coincide con los filtros.' : 'Todavía no hay secuencias. Crea la primera con «Crear secuencia».'}</div></td></tr>`}</tbody>
+          <tbody id="seq-rows">${list.length ? `${(byFolder[''] || []).map(row).join('')}${folderNames.map(folderRow).join('')}` : `<tr><td colspan="7"><div class="tpls__empty">${emptyStateHtml({ art: 'sequences', title: sequences().length ? 'Ninguna secuencia coincide con los filtros' : 'Todavía no hay secuencias', text: sequences().length ? 'Prueba con otra búsqueda o quita los filtros para ver todas las secuencias.' : 'Una secuencia envía correos y crea tareas en el orden y los días que definas. Crea la primera y aparecerá aquí.', action: { label: 'Crear secuencia', href: 'create/', attrs: 'data-ta="create"' } })}</div></td></tr>`}</tbody>
         </table>
       </div>
       ${pagination({ page: state.page, pages, size: state.size })}

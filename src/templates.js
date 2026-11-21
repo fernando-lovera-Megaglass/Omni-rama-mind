@@ -7,6 +7,7 @@ import './filter-chip.js';
 import { boot } from './page.js';
 import { toast, wireMenus, closeMenus } from './shell.js';
 import { ownerHtml } from './owner.js';
+import { emptyStateHtml } from './empty-state.js';
 import { allContacts, relativeTimeFine, formatDate } from './data.js';
 import { ready, templates, templateById, folders, owners, createTemplate, updateTemplate, cloneTemplate, deleteTemplates, moveTemplates, setShared, createFolder, stats, bodyText, templatesCsv, LIBRARY, ME } from './templates-data.js';
 import { getSignature, editSignature, signatureHtmlOf } from './compose.js';
@@ -107,7 +108,7 @@ function renderTable() {
           <td>${ownerHtml(t.ownerId)}</td>
           <td title="${esc(fullDate(t.createdAt))}">${esc(relativeTimeFine(t.createdAt))}</td>
           <td title="${esc(fullDate(t.updatedAt))}">${esc(relativeTimeFine(t.updatedAt))}</td>
-        </tr>`).join('') : `<tr><td colspan="5"><div class="tpls__empty">${all.length ? 'Ninguna plantilla coincide con los filtros.' : 'Todavía no hay plantillas. Crea la primera con «Nueva plantilla».'}</div></td></tr>`}</tbody>
+        </tr>`).join('') : `<tr><td colspan="5"><div class="tpls__empty">${emptyStateHtml({ art: 'templates', title: all.length ? 'Ninguna plantilla coincide con los filtros' : 'Todavía no hay plantillas', text: all.length ? 'Prueba con otra búsqueda o quita los filtros para ver todas las plantillas.' : 'Las plantillas ahorran tiempo al escribir correos que se repiten. Crea la primera y aparecerá aquí.', action: { label: 'Nueva plantilla', attrs: 'data-ta="new-scratch"' } })}</div></td></tr>`}</tbody>
     </table>`;
   const n = state.selected.size;
   $('tpl-bulk').innerHTML = n ? `<span>${plural(n, 'seleccionado', 'seleccionados')}</span><button class="btn btn--secondary btn--sm" type="button" data-ta="bulk-move">Mover</button><button class="btn btn--secondary btn--sm" type="button" data-ta="bulk-delete">Eliminar</button>` : '';

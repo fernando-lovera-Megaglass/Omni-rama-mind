@@ -294,6 +294,7 @@ mount.innerHTML = `
           </div>
           <form class="note" id="note-form">
             <textarea name="note" rows="3" placeholder="Escribe una nota..." aria-label="Nueva nota"></textarea>
+            ${logAssociationsHtml()}
             <div class="note__foot"><button class="btn btn--primary btn--sm" type="submit">Guardar nota</button></div>
           </form>
           <ul class="timeline" id="rec-timeline"></ul>
@@ -422,18 +423,22 @@ function plusBusinessDays(n) {
   return d;
 }
 let editingActivity = null;
-let logAssociationOptions = [];
 function logAssociationsHtml() {
+  if (!rec) return '';
   let enabled = getSetting(ACTIVITY_COMPANY_SETTING);
   if (enabled == null && !dbIsLive()) {
     try { enabled = JSON.parse(localStorage.getItem(ACTIVITY_COMPANY_SETTING)); } catch { /* Default enabled. */ }
   }
-  logAssociationOptions = activityAssociations(type, rec, {
+  const options = activityAssociations(type, rec, {
     contacts: allContacts(), companies: allCompanies(), deals: allDeals(), tickets: allTickets(),
   }, (ticket) => ticketStatusIsClosed(ticket.pipeline, ticket.status), enabled !== false);
   return `<fieldset><legend>Asociado a</legend>
     <label class="log-follow"><input type="checkbox" checked disabled /> ${esc(cfg.singular)}: ${esc(cfg.title(rec))} (registro actual)</label>
-    ${logAssociationOptions.map((r, i) => `<label class="log-follow"><input type="checkbox" data-log-association="${i}" ${r.checked ? 'checked' : ''} /> ${esc(CONFIG[r.type].singular)}: ${esc(r.name)}</label>`).join('')}</fieldset>`;
+    ${options.map((r) => `<label class="log-follow"><input type="checkbox" data-log-association="${esc(r.type)}" data-association-id="${esc(r.id)}" ${r.checked ? 'checked' : ''} /> ${esc(CONFIG[r.type].singular)}: ${esc(r.name)}</label>`).join('')}</fieldset>`;
+}
+function selectedActivityAssociations(container) {
+  return [...container.querySelectorAll('[data-log-association]:checked')]
+    .map((input) => ({ type: input.dataset.logAssociation, id: input.dataset.associationId }));
 }
 function activityOriginHtml(ev) {
   const origin = ev.extra?.associatedFrom;
@@ -2026,8 +2031,7 @@ $('rec-modal').addEventListener('click', async (e) => {
     } else {
       if (b.disabled) return;
       b.disabled = true;
-      const targets = [...$('rec-modal').querySelectorAll('[data-log-association]:checked')]
-        .map((input) => logAssociationOptions[Number(input.dataset.logAssociation)]).filter(Boolean);
+      const targets = selectedActivityAssociations($('rec-modal'));
       saveAssociatedActivity({ type: kind, when, who: 'Tú', text, extra }, { type, id, name }, targets, addActivity);
       renderTimeline();
     }
@@ -2359,7 +2363,9 @@ if (!rec) {
       // Any {{objeto.propiedad}} left in the note becomes this record's data.
       const text = renderTokens(ta.value.trim(), contextFromRecord(type, rec));
       if (!text) return;
-      addEvent({ type: 'note', when: Date.now(), who: 'Tú', text });
+      saveAssociatedActivity({ type: 'note', when: Date.now(), who: 'Tú', text },
+        { type, id, name: cfg.title(rec) }, selectedActivityAssociations(e.target), addActivity);
+      renderTimeline();
       ta.value = '';
       toast('Nota guardada');
       return;

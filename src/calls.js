@@ -10,6 +10,8 @@ import { allContacts, allActivities, OWNERS, toCsv, download, dbIsLive } from '.
 import { supabase } from './supabaseClient.js';
 import { displayPhone } from './phone.js';
 import { ownerHtml } from './owner.js';
+import { emptyStateHtml } from './empty-state.js';
+import { openDialer } from './call.js';
 
 boot({ root: '../', active: 'crm', sub: 'Llamadas', title: 'Llamadas' });
 
@@ -45,6 +47,7 @@ const state = {
   openTranscripts: new Set(), // filas con la transcripción desplegada
 };
 
+const callFiltersOn = () => Boolean(state.q || state.direction || state.owner || state.dateRange || state.duration || (state.view && state.view !== 'all'));
 function fmtDuration(sec) {
   const s = Number(sec) || 0;
   if (!s) return '—';
@@ -240,7 +243,7 @@ function render() {
             </table></div>
             ${pagination({ page: state.page, pages, size: state.size })}
             <p class="muted calls__count">${total.toLocaleString('es-MX')} ${total === 1 ? 'llamada' : 'llamadas'}</p>`
-          : '<p class="muted calls__empty">No hay llamadas con estos filtros. Las llamadas que hagas con el marcador o registres en las fichas aparecen aquí.</p>'}
+          : `<div class="calls__empty">${emptyStateHtml({ art: 'calls', title: callFiltersOn() ? 'No hay llamadas con estos filtros' : 'Todavía no hay llamadas', text: 'Las llamadas que hagas con el marcador o registres en las fichas aparecen aquí.', action: { label: 'Abrir el marcador', attrs: 'data-calls="dial"' }, secondary: callFiltersOn() ? { label: 'Borrar filtros', attrs: 'data-calls="clear"' } : null })}</div>`}
     </div>`;
   wireMenus(root);
   root.querySelectorAll('[data-sort]').forEach((button) => button.addEventListener('click', () => {
@@ -285,6 +288,11 @@ function render() {
     state[button.dataset.callFilter] = button.dataset.value;
     state.page = 1;
     render();
+  }));
+  // Empty state actions: open the dialer, or clear the search and the filters.
+  root.querySelectorAll('[data-calls]').forEach((button) => button.addEventListener('click', () => {
+    if (button.dataset.calls === 'dial') { openDialer(); return; }
+    if (button.dataset.calls === 'clear') { state.q = ''; state.direction = ''; state.owner = ''; state.dateRange = ''; state.duration = ''; state.view = 'all'; state.page = 1; render(); }
   }));
   bindPagination(root, ({ page, size }) => { state.page = page; if (size) state.size = size; render(); });
   const exp = $('calls-export');

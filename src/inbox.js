@@ -4,6 +4,7 @@ import './filter-chip.js';
 import { boot } from './page.js';
 import { toast, setNavBadge, linkHtml } from './shell.js';
 import { ownerHtml } from './owner.js';
+import { emptyStateHtml } from './empty-state.js';
 import { enhanceOwnerSelects } from './owner-select.js';
 import { allCompanies, allContacts, relativeTimeFine, formatDate, initials, colorFor } from './data.js';
 import { ready, conversations, conversationById, messagesOf, sendMessage, createConversation, markRead, assignConversation, setConversationStatus, unreadCount, CHANNELS, STATUS_LABELS, ASSIGNEES, ME } from './conversations-data.js';
@@ -112,12 +113,12 @@ function renderList() {
         </button>
       </li>`;
     }).join('')
-    : '<li class="inbox__empty muted">No hay conversaciones con estos filtros.</li>';
+    : `<li class="inbox__empty">${emptyStateHtml({ art: 'inbox', compact: true, title: 'No hay conversaciones', text: 'Ninguna conversación coincide con estos filtros. Las nuevas aparecen aquí al llegar.', action: { label: 'Nueva conversación', attrs: 'data-inbox="new"' } })}</li>`;
 }
 function renderThread() {
   const c = state.selected ? conversationById(state.selected) : null;
   const el = $('inbox-thread');
-  if (!c) { el.innerHTML = '<div class="inbox__placeholder"><p class="muted">Selecciona una conversación o crea una nueva con «+».</p></div>'; return; }
+  if (!c) { el.innerHTML = `<div class="inbox__placeholder">${emptyStateHtml({ art: 'inbox', title: 'Selecciona una conversación', text: 'Elige un hilo de la lista para leerlo y responder, o empieza uno nuevo.', action: { label: 'Nueva conversación', attrs: 'data-inbox="new"' } })}</div>`; return; }
   const ch = CHANNELS[c.channel] || CHANNELS.email;
   const msgs = messagesOf(c.id);
   el.innerHTML = `

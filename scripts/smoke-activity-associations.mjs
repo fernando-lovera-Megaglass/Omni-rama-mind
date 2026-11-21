@@ -40,4 +40,15 @@ for (const type of ['deals', 'tickets']) {
   assert.ok(!rows.some((r) => r.type === type && r.id === records[type][0].id));
   assert.ok(!rows.some((r) => r.id === 91006));
 }
+// All manual activity kinds preserve content, origin and independent stored IDs.
+for (const kind of ['note', 'email', 'meeting']) {
+  const payload = { ...event, type: kind, text: `Prueba ${kind}`, extra: { notes: 'Contenido', subject: 'Asunto' } };
+  saveAssociatedActivity(payload, origin, selected, addActivity);
+  const copies = [['contacts', 91001], ['companies', 91002], ['deals', 91003]]
+    .map(([type, id]) => activitiesFor(type, id).find((row) => row.type === kind));
+  assert.equal(new Set(copies.map((row) => row.id)).size, 3);
+  assert.ok(copies.every((row) => row.text === payload.text && row.extra.notes === 'Contenido'));
+  assert.equal(copies[0].extra.associatedFrom, undefined);
+  assert.equal(copies[1].extra.associatedFromName, contact.name);
+}
 console.log('Activity association acceptance checks passed.');

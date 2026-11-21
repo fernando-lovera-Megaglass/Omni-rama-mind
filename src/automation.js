@@ -6,6 +6,7 @@ import './filter-chip.js';
 // nuevo creador) that opens the editor.
 import { boot } from './page.js';
 import { toast, wireMenus, closeMenus } from './shell.js';
+import { emptyStateHtml } from './empty-state.js';
 import { relativeTimeFine, formatDate } from './data.js';
 import { ready, workflows, deletedWorkflows, workflowById, creators, folders, createFolder, views, saveView, deleteView, issues, needsReview, problemsOf, createWorkflow, cloneWorkflow, deleteWorkflows, restoreWorkflows, moveWorkflows, unpublish, matchingRecords, analytics, health, performance, enrollmentsOf, TEMPLATES, draftFromPrompt, OBJECT_TYPES, OBJECT_LABEL, STATUS_LABELS, ACTION_DEFS, ACTION_CATALOG, ENROLL_CAP } from './workflows-data.js';
 import { ready as engineReady, publishWorkflow, ESTADO_LABELS } from './workflow-engine.js';
@@ -107,7 +108,7 @@ function renderWorkflows() {
                 <div class="menu__sep"></div>
                 <button class="menu__item menu__item--danger" type="button" data-act="delete" data-id="${esc(w.id)}">Eliminar</button>`}</div></div></div></td>
             <td>${statusHtml(w)}</td><td>${esc(w.folder || '--')}</td><td class="wfl__desc" title="${esc(w.description)}">${esc(w.description || '--')}</td><td>${esc(OBJECT_LABEL[w.objectType] || w.objectType)}</td>
-          </tr>`).join('') : `<tr><td colspan="6"><div class="tpls__empty">${state.view === 'deleted' ? 'No hay workflows eliminados.' : all.length ? 'Ningún workflow coincide con los filtros.' : 'Todavía no hay workflows. Crea el primero con «Crear workflow».'}</div></td></tr>`}</tbody>
+          </tr>`).join('') : `<tr><td colspan="6"><div class="tpls__empty">${emptyStateHtml({ art: 'workflows', title: state.view === 'deleted' ? 'No hay workflows eliminados' : all.length ? 'Ningún workflow coincide con los filtros' : 'Todavía no hay workflows', text: state.view === 'deleted' ? 'Los workflows que elimines se guardan aquí para poder restaurarlos.' : all.length ? 'Prueba con otra búsqueda o quita los filtros para ver todos los workflows.' : 'Un workflow inscribe los registros que cumplen un desencadenante y ejecuta acciones por ti. Crea el primero y aparecerá aquí.', action: state.view === 'deleted' ? { label: 'Ver todos los workflows', attrs: 'data-view="all"' } : { label: 'Crear workflow', attrs: 'data-wa="new-blank"' } })}</div></td></tr>`}</tbody>
       </table></div>
       ${pagination({ page: state.page, pages, size: state.size })}
     </section>`;

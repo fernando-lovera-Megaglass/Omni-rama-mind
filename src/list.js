@@ -8,6 +8,7 @@ import { sensitiveValue } from './property-privacy.js';
 import { wireMenus, closeMenus, toast, linkHtml, wireLinkTooltips } from './shell.js';
 import { ACT_ICONS, FIELD_ICONS } from './action-icons.js';
 import { ownerHtml } from './owner.js';
+import { emptyStateHtml } from './empty-state.js';
 import { enhanceOwnerSelects, refreshOwnerSelects } from './owner-select.js';
 import { enhancePhoneInputs, displayPhone } from './phone.js';
 import { addRecord, deleteRecords, restoreAll, restoreRecords, trashedRecords, mergeRecords, softDeletes, getPrefs, setPrefs, getViewStore, setViewStore, matches, strip, toCsv, download, formatDate, formatMoney, formatShortDate, relativeTime, setField, TODAY, ALL, OWNERS, TASK_TYPES, ensureAll, ensureTrash, ensureAllActivities, isLazy, setPageRows } from './data.js';
@@ -476,7 +477,7 @@ export function mountList(cfg) {
       </div>
       <div class="kanban" id="kanban" hidden></div>
       <div class="table-wrap-tail">
-        <p class="empty" id="empty" hidden>No hay registros que coincidan con los filtros actuales.</p>
+        <div class="empty" id="empty" hidden></div>
       </div>
 
       <div id="list-pagination"></div>
@@ -1246,6 +1247,17 @@ export function mountList(cfg) {
       )
       .join('');
     $('empty').hidden = list.length > 0 || state.mode === 'board' || (serving && !remote.sig);
+    if (!$('empty').hidden) {
+      // Illustration + title + help + «Crear …»: with filters or a search on, the help says so.
+      const filtersOn = Boolean(state.q) || Object.values(state.filters).some(Boolean) || state.advanced.some((c) => c.key) || (cfg.pipeline && state.pipeline);
+      const singular = (cfg.singular || cfg.type).toLowerCase();
+      $('empty').innerHTML = emptyStateHtml({
+        art: cfg.type,
+        title: filtersOn ? `No hay ${plural} que coincidan con los filtros` : `Todavía no hay ${plural}`,
+        text: filtersOn ? 'Prueba con otros filtros o borra la búsqueda para volver a ver todos los registros.' : `Crea ${/^[aeiou]/i.test(singular) ? 'el primer' : 'el primer'} ${singular} y aparecerá aquí.`,
+        action: { label: cfg.createLabel || `Crear ${singular}`, attrs: 'data-action="create"' },
+      });
+    }
     $('total-pill').textContent = `${total} ${plural}`;
     fitColumns();
     renderBoard(list);
