@@ -2,7 +2,8 @@
 // conversation_messages tables (supabase/conversations.sql); without them (or in local mode) in
 // localStorage, seeded with the same five [Prueba] conversations. Every message also lands on the
 // contact's timeline (activity type of the channel).
-import { allContacts, addActivity, dbIsLive, OWNERS } from './data.js';
+import { allContacts, addActivity, logSystem, dbIsLive, OWNERS } from './data.js';
+import { unenrollByReason, sequencesLoaded, ready as sequencesReady } from './sequences-data.js';
 import { supabase } from './supabaseClient.js';
 import { reportDbError } from './db-report.js';
 import { nextAvailableAssignee } from './inbox-settings.js';
@@ -146,7 +147,25 @@ export function sendMessage(id, { body, direction = 'out', author = ME, when } =
   if (live) enqueue(async () => { const { error } = await supabase.from('conversation_messages').insert(msgToDb(m)); if (error) throw error; });
   persistConv(c);
   logOnContact(c, m);
+  if (direction === 'in' && c.contactId) replyUnenroll(c, now);
   return m;
+}
+// A contact who writes back (Gmail sync, inbox) stops the sequences that cancel on reply («Respondió»), as the
+// original does: the enrolment ends, the timeline says so and the record refreshes. Runs as soon as the sequence
+// data is loaded (right away on pages that already have it).
+export function replyUnenroll(c, when = new Date().toISOString()) {
+  const apply = () => {
+    let hits = [];
+    try { hits = unenrollByReason(c.contactId, 'replied', { now: when }); } catch (e) { console.error('[secuencias] cancelar por respuesta', e); return []; }
+    for (const h of hits) {
+      logSystem('contacts', c.contactId, `Respondió a la secuencia «${h.sequenceName}»: inscripción cancelada.`, { sequenceId: h.sequenceId, enrollmentId: h.id, conversationId: c.id, reason: 'replied' });
+    }
+    if (hits.length && typeof document !== 'undefined' && document.defaultView) document.dispatchEvent(new document.defaultView.CustomEvent('crm:enrolled', { detail: { reason: 'replied', enrollments: hits } }));
+    return hits;
+  };
+  if (sequencesLoaded()) return apply();
+  sequencesReady.then(apply).catch((e) => console.error('[secuencias] cancelar por respuesta', e));
+  return [];
 }
 // «Comentario»: an internal note of the team inside the thread. Never sent (no Gmail), it does not mark the
 // conversation as answered, nor reopens a closed one, nor moves it in the list; it lands on the contact's timeline

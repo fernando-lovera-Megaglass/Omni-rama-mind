@@ -215,12 +215,15 @@ async function loadLive() {
     if (e7) console.error('[supabase] semilla de inscripciones', e7);
   }
 }
+let loaded = false;
 export const ready = (async () => {
   if (live) {
     try { await loadLive(); } catch (e) { live = false; console.error('[supabase] tablas de secuencias no disponibles; secuencias en localStorage.', e); loadLocal(); }
   } else loadLocal();
+  loaded = true;
 })();
 export const sequencesLive = () => live;
+export const sequencesLoaded = () => loaded;
 
 // ---------- reads ----------
 const out = (s) => clone(s);
@@ -365,6 +368,28 @@ export function unenroll(enrollmentId) {
   e.status = 'unenrolled'; e.nextStepAt = null; e.updatedAt = new Date().toISOString();
   persistEnr(e);
   return out(e);
+}
+// The exclusion criteria of a sequence (EXCLUSION_CRITERIA) applied: every active or paused enrolment of the
+// contact in a sequence that cancels on `reason` ends with that status ('replied' → «Respondió»…), no next
+// step, stats.<reason> = 1 and stats.<reason>At = now. Returns the enrolments it ended (with the sequence name)
+// so the caller can write the timeline and refresh the record. Nothing else is inferred.
+export function unenrollByReason(contactId, reason, { now = new Date().toISOString() } = {}) {
+  if (!EXCLUSION_CRITERIA.some(([k]) => k === reason) || !STATUS_LABELS[reason]) return [];
+  const when = new Date(now).toISOString();
+  const hits = [];
+  for (const e of enrollRows) {
+    if (String(e.contactId) !== String(contactId) || !(e.status === 'active' || e.status === 'paused')) continue;
+    const seq = rows.find((s) => s.id === e.sequenceId && !s.deletedAt);
+    if (!seq || !(seq.exclusion || []).includes(reason)) continue;
+    e.status = reason;
+    e.nextStepAt = null;
+    e.stats = { ...(e.stats || {}), [reason]: 1, [`${reason}At`]: when };
+    if (e.extra && e.extra.pauseRemainingMs !== undefined) delete e.extra.pauseRemainingMs;
+    e.updatedAt = when;
+    persistEnr(e);
+    hits.push({ ...out(e), sequenceName: seq.name });
+  }
+  return hits;
 }
 
 // ---------- analytics ----------

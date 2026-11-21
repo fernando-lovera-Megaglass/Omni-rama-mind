@@ -68,8 +68,12 @@ ni la anon key ni una sesión normal de usuario pueden ejecutarla.
   reserva fallida para reintentar. No borrar reservas a ciegas.
 - Se revalida el estado antes de enviar y se preserva cualquier estado terminal
   escrito durante el envío. No se puede cancelar un envío ya en vuelo.
-  Detectar automáticamente respuestas, rebotes o bajas requiere integrarlo con el
-  sincronizador/webhooks; este ejecutor respeta esos estados, no los infiere.
+  Las **respuestas** sí se detectan: todo mensaje entrante de un contacto (sincronización
+  de Gmail o bandeja, vía `createConversation`/`sendMessage` en `src/conversations-data.js`)
+  llama a `unenrollByReason(contactId, 'replied')` de `src/sequences-data.js`, que pasa a
+  «Respondió» las inscripciones activas o en pausa de las secuencias con el criterio
+  «Cancelar la inscripción cuando el contacto responde», anota la cronología y refresca la
+  ficha (`crm:enrolled`); el ejecutor ya no las toca. Rebotes y bajas siguen sin inferirse.
 - Las políticas abiertas existentes de las tablas CRM no se modifican aquí.
   Las RPC de ejecución y la tabla de ejecuciones están restringidas a service role.
   `sequence_complete_task` admite los roles CRM existentes y valida tarea completada,
