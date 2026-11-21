@@ -4,8 +4,7 @@ import { dealForecastLabel } from './data.js';
 import { boot } from './page.js';
 import { mountList, tag, link } from './list.js';
 import { ownerHtml, ownerAvatarHtml } from './owner.js';
-import { allDeals, allCompanies, allTasks, DEAL_STAGES, PRIORITIES, OWNERS, formatDate, formatMoney, formatMoneyShort, labelOf, classOf, TODAY, dealPipelines, dealPipelineDefs, stagesFor, allDealStages, isClosedStage, addRecord, setField, activitiesFor, CURRENCY_DEFS, CURRENCY_CODES, homeCurrency, toHomeCurrency } from './data.js';
-import { toast } from './shell.js';
+import { allDeals, allCompanies, allTasks, DEAL_STAGES, PRIORITIES, OWNERS, formatDate, formatMoney, formatMoneyShort, labelOf, classOf, TODAY, dealPipelines, dealPipelineDefs, stagesFor, allDealStages, isClosedStage, activitiesFor, CURRENCY_DEFS, CURRENCY_CODES, homeCurrency, toHomeCurrency } from './data.js';
 import { mountCreateDeal } from './create-deal.js';
 import { dealTagChips, tagsForDeal, ready as dealTagsReady } from './deal-tags.js';
 
@@ -16,7 +15,6 @@ const days = (iso) => (TODAY - new Date(iso)) / DAY;
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
 // Stages of the deal's own pipeline (each pipeline defines its stages and probabilities in Configuración › Objetos).
 const defs = dealPipelineDefs();
-const defOf = (pipeline) => defs.find((p) => p.name === pipeline) || defs[0];
 const stagesOf = (pipeline) => (defs.find((p) => p.name === pipeline) || { stages: DEAL_STAGES }).stages;
 // The stage's own name only (as the original: the pipeline has its own column, so the cell never repeats it).
 const stageLabel = (r) => labelOf(stagesOf(r.pipeline), r.stage) || labelOf(allDealStages(), r.stage) || String(r.stage || '');

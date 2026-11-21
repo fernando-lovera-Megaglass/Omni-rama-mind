@@ -110,7 +110,7 @@ ev('drop', colOf(toKey));
 await new Promise((resolve) => setTimeout(resolve, 0));
 const moved = data.allDeals().find((d) => d.id === migrated.id);
 log('after drop:', moved.stage, '| entered:', moved.stageEnteredAt, '| counts:', `${before.from}->${countOf(fromKey)}`, `${before.to}->${countOf(toKey)}`);
-if (moved.stage !== toKey || moved.stageEnteredAt !== data.TODAY.toISOString()) fail('dropping should update the stage and record when it entered');
+if (moved.stage !== toKey || !(Math.abs(Date.now() - new Date(moved.stageEnteredAt).getTime()) < 10000)) fail('dropping should update the stage and record when it entered');
 if (countOf(fromKey) !== before.from - 1 || countOf(toKey) !== before.to + 1) fail('column counts should follow the move');
 log('footers:', before.footFrom, '->', foot(fromKey)[0], '|', before.footTo, '->', foot(toKey)[0]);
 if (foot(fromKey)[0] === before.footFrom || foot(toKey)[0] === before.footTo) fail('the footers should be recalculated');
@@ -124,16 +124,24 @@ if (!acts[0] || acts[0].type !== 'system' || JSON.parse(mem['crm:deals:overrides
 const movedCard = document.querySelector('.kcard[data-id="' + migrated.id + '"]');
 if (movedCard.querySelector('.kcard__days')) fail('a freshly moved deal has no stale counter');
 
-// Closing on the board asks for a reason before committing the move.
+// Closing on the board asks for required values and runs automation once.
+defs[0].required.lost = ['Importe'];
+defs[0].automation.lost = { task: true };
+data.saveDealPipelineDefs(defs);
+data.setField('deals', migrated.id, 'amount', '');
+const tasksBefore = data.allTasks().filter(t => Number(t.dealId) === Number(migrated.id)).length;
 ev('dragstart', movedCard);
 ev('drop', colOf('lost'));
 const closeModal = document.getElementById('deal-close-modal');
 if (!closeModal || data.findRecord('deals', migrated.id).stage !== toKey) fail('close must wait for the dialog');
+closeModal.querySelector('[data-edit="amount"]').value = '1200';
 closeModal.querySelector('textarea').value = 'Sin presupuesto';
 closeModal.querySelector('form').dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true }));
 await new Promise((resolve) => setTimeout(resolve, 0));
 const closed = data.findRecord('deals', migrated.id);
 if (closed.stage !== 'lost' || closed.closedLostReason !== 'Sin presupuesto') fail('board must save reason and stage');
+
+if (closed.amount !== 1200 || data.allTasks().filter(t => Number(t.dealId) === Number(migrated.id)).length !== tasksBefore + 1) fail('board required amount and automation');
 
 // 6) Another pipeline keeps its own stages in the board.
 click(document.querySelector('[data-pipeline="SACA SUMINISTRO"]'));

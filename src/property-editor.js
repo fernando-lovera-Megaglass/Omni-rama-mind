@@ -1,6 +1,6 @@
 const esc = (s) => String(s ?? "").replace(/[&<>"\']/g, c => ({"&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "\'":"&#39;"}[c]));
-const dateInput = v => v ? String(v).slice(0, 10) : "";
-const datetimeInput = v => { if (!v) return ""; const d = new Date(v); return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16); };
+const dateInput = v => v ? new Date(v).toISOString().slice(0, 10) : "";
+import { datetimeInput } from './task-reminders.js';
 export function propertyEditor(f, r, props = {}) {
   const [key, , kind, options] = f;
   const v = r[key] ?? '';
