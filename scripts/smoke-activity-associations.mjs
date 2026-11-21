@@ -3,7 +3,7 @@ import { JSDOM } from 'jsdom';
 import { activityAssociations, saveAssociatedActivity } from '../src/activity-associations.js';
 const dom = new JSDOM('', { url: 'http://localhost/' });
 for (const key of ['window', 'document', 'localStorage']) globalThis[key] = key === 'window' ? dom.window : dom.window[key];
-const { addActivity, activitiesFor } = await import('../src/data.js');
+const { addActivity, activitiesFor, updateActivity } = await import('../src/data.js');
 const contact = { id: 91001, name: 'Contacto', companyId: 91002, assoc_companies: [91002, 91002, 91005] };
 const records = {
   contacts: [contact], companies: [{ id: 91002, name: 'Principal' }, { id: 91005, name: 'Secundaria' }],
@@ -33,6 +33,20 @@ saveAssociatedActivity({ ...event, text: 'Sin empresa' }, origin, selected.filte
 assert.equal(activitiesFor('contacts', 91001).length, 2);
 assert.equal(activitiesFor('deals', 91003).length, 2);
 assert.equal(activitiesFor('companies', 91002).length, 1);
+// Editing a copy must preserve the attribution shown in its timeline.
+const companyCall = activitiesFor('companies', 91002)[0];
+await updateActivity(companyCall.id, { text: 'Llamada revisada', extra: { notes: 'Revisión' } });
+const editedCall = activitiesFor('companies', 91002)[0];
+assert.deepEqual(editedCall.extra.associatedFrom, { type: 'contacts', id: contact.id });
+assert.equal(editedCall.extra.associatedFromName, contact.name);
+assert.equal(activitiesFor('contacts', contact.id)[1].text, event.text);
+// Reverse-only associations and string IDs are also selectable, without duplicates.
+const reverseOptions = activityAssociations('contacts', { id: '42', name: 'Inverso' }, {
+  companies: [{ id: 43, name: 'Empresa inversa', assoc_contacts: [42, '42'] }],
+  deals: [{ id: 44, name: 'Negocio inverso', assoc_contacts: ['42'] }],
+  tickets: [{ id: 45, name: 'Ticket cerrado', assoc_contacts: [42], status: 'closed' }],
+}, (ticket) => ticket.status === 'closed');
+assert.deepEqual(reverseOptions.map(({ type, id }) => [type, id]), [['companies', 43], ['deals', 44]]);
 for (const type of ['deals', 'tickets']) {
   const rows = activityAssociations(type, records[type][0], records, (t) => t.status === 'closed');
   assert.ok(rows.some((r) => r.type === 'contacts' && r.id === contact.id));
