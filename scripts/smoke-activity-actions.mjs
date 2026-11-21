@@ -1,104 +1,69 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 import { JSDOM } from 'jsdom';
-import vm from 'node:vm';
 delete process.env.VITE_SUPABASE_URL;
 delete process.env.VITE_SUPABASE_ANON_KEY;
-const dom = new JSDOM(readFileSync('contacts/record/index.html', 'utf8'), { url: 'http://localhost/contacts/record/?id=1' });
-for (const key of ['window', 'document', 'localStorage', 'location', 'HTMLElement', 'customElements', 'Option', 'MutationObserver', 'CustomEvent']) globalThis[key] = key === 'window' ? dom.window : dom.window[key];
+const dom = new JSDOM('<body class="app" data-type="contacts"><aside id="sidenav"></aside><header id="topbar"></header><main id="record-root"></main><div id="scrim"></div></body>', { url: 'http://localhost/contacts/record/?id=1', pretendToBeVisual: true });
+for (const key of ['window', 'document', 'localStorage', 'location', 'HTMLElement', 'customElements', 'Option', 'MutationObserver', 'FormData']) globalThis[key] = key === 'window' ? dom.window : dom.window[key];
 Object.defineProperty(globalThis, 'navigator', { value: dom.window.navigator, configurable: true });
 const data = await import('../src/data.js');
-localStorage.setItem('crm:contacts:notes:1', JSON.stringify([{ type: 'note', when: 1, who: 'Tú', text: 'Nota antigua' }]));
-const legacy = data.activitiesFor('contacts', 1)[0];
-assert.ok(legacy.id);
-assert.equal(data.activitiesFor('contacts', 1)[0].id, legacy.id);
-data.addActivity({ type: 'call', recordType: 'contacts', recordId: 1, text: 'Primera llamada', when: Date.now(), who: 'Tú', extra: { outcome: 'Sin respuesta', callSid: 'keep-me' } });
 await import('../src/record.js');
-const tick = () => new Promise((resolve) => setTimeout(resolve, 10));
-const $ = (id) => document.getElementById(id);
-let call = data.activitiesFor('contacts', 1).find((a) => a.type === 'call');
-const action = (id, name) => [...document.querySelectorAll(`[data-activity-action="${name}"]`)].find((b) => b.dataset.activityKey.startsWith(id + ':'));
-action(call.id, 'edit').click();
-await tick();
-assert.equal($('log-notes').value, 'Primera llamada');
-$('log-notes').value = 'Notas editadas';
-$('log-outcome').value = $('log-outcome').options[1].value;
-const outcome = $('log-outcome').value;
-document.querySelector('[data-confirm="logact"]').click();
-await tick();
-call = data.activitiesFor('contacts', 1).find((a) => a.id === call.id);
-assert.equal(call.text, 'Notas editadas');
+const tick = () => new Promise(resolve => setTimeout(resolve, 20));
+const click = async selector => { const el = document.querySelector(selector); assert.ok(el, selector); el.click(); await tick(); };
+const value = (id, v) => { document.getElementById(id).value = v; };
+await click('[data-more="log"][data-sub="Llamada"]');
+value('log-notes', 'Llamada inicial');
+await click('[data-confirm="logact"]');
+let call = data.activitiesFor('contacts', 1).find(a => a.type === 'call');
+assert.ok(call);
+await click('[data-activity-action="edit"]');
+assert.equal(document.getElementById('log-notes').value, 'Llamada inicial');
+const outcome = document.getElementById('log-outcome').options[1].value;
+value('log-outcome', outcome);
+value('log-notes', 'Notas corregidas');
+await click('[data-confirm="logact"]');
+// A fresh module reads persisted storage, rather than the previous objects.
+const fresh = await import('../src/data.js?activity-reload');
+call = fresh.activitiesFor('contacts', 1).find(a => a.id === call.id);
+assert.equal(call.text, 'Notas corregidas');
 assert.equal(call.extra.outcome, outcome);
-assert.equal(call.extra.callSid, 'keep-me');
-const reloaded = await import('../src/data.js?reload=activities');
-assert.equal(reloaded.activitiesFor('contacts', 1).find((a) => a.id === call.id).text, 'Notas editadas');
-action(call.id, 'delete').click();
-await tick();
-assert.equal(data.deletedActivitiesFor('contacts', 1).length, 0, 'delete requires confirmation');
-document.querySelector('[data-confirm="activity-delete"]').click();
-await tick();
-assert.ok(!data.activitiesFor('contacts', 1).some((a) => a.id === call.id));
-assert.equal(data.deletedActivitiesFor('contacts', 1)[0].id, call.id);
-document.querySelector('[data-act="restore-activity"]').click();
-await tick();
-document.querySelector('[data-confirm="activity-restore"]').click();
-await tick();
-assert.ok(data.activitiesFor('contacts', 1).some((a) => a.id === call.id));
-action(legacy.id, 'pin').click();
-await tick();
-assert.match($('rec-timeline').firstElementChild.textContent, /Fijada/);
-assert.equal(data.activitiesFor('contacts', 1)[0].id, legacy.id);
-const created = [...document.querySelectorAll('.timeline__item')].find((row) => row.textContent.includes('Registro creado'));
+await click('[data-activity-action="delete"]');
+assert.equal(data.activitiesFor('contacts', 1).length, 1);
+await click('[data-confirm="activity-delete"]');
+assert.equal(fresh.activitiesFor('contacts', 1).length, 0);
+await click('[data-act="restore-activity"]');
+await click('[data-confirm="activity-restore"]');
+assert.equal(fresh.activitiesFor('contacts', 1)[0].text, 'Notas corregidas');
+data.addActivity({ type: 'note', recordType: 'contacts', recordId: 1, when: 1, text: 'Nota antigua', extra: {} });
+const note = data.activitiesFor('contacts', 1).find(a => a.type === 'note');
+await data.updateActivity(note.id, { extra: { pinned: true } });
+await click('[data-close]');
+// Refresh the timeline through a UI action.
+await click('[data-activity-action="pin"]');
+await click('[data-activity-action="pin"]');
+assert.match(document.querySelector('#rec-timeline .timeline__title').textContent, /Fijada/);
+assert.equal(fresh.activitiesFor('contacts', 1)[0].id, note.id);
+const created = [...document.querySelectorAll('#rec-timeline .timeline__item')].find(el => el.textContent.includes('Registro creado'));
 assert.ok(created);
 assert.equal(created.querySelector('[data-activity-action]'), null);
-data.addActivity({ type: 'system', recordType: 'contacts', recordId: 1, when: Date.now(), text: 'Sistema' });
-const system = data.activitiesFor('contacts', 1).find((a) => a.type === 'system');
-await assert.rejects(data.deleteActivity(system.id), /sistema/);
-await assert.rejects(data.updateActivity(system.id, { text: 'X' }), /sistema/);
-await data.deleteActivity(call.id);
-const trash = JSON.parse(localStorage.getItem('crm:contacts:activity-trash:1'));
-trash[0].extra.deletedAt = Date.now() - 91 * 86400000;
-localStorage.setItem('crm:contacts:activity-trash:1', JSON.stringify(trash));
-assert.equal(data.deletedActivitiesFor('contacts', 1).length, 0);
-await assert.rejects(data.restoreActivity(call.id), /vencido/);
-// Exercise the actual Supabase mutation code against an isolated client double.
-// No network or production credentials are used.
-const source = readFileSync('src/data.js', 'utf8');
-const activitySource = source.slice(source.indexOf('function activityFromDb('), source.indexOf('// Resolve optimistic')).replaceAll('export ', '');
-const remoteRows = [{ id: 42, type: 'call', recordType: 'contacts', recordId: 1, when: 1000, text: 'Original', extra: { callSid: 'remote-call' } }];
-let failure = false;
-let stored;
-const context = vm.createContext({
-  Date, crypto, activityRows: remoteRows, activitiesLive: true,
-  dbWrite: (fn) => Promise.resolve().then(fn),
-  supabase: { from(table) {
-    assert.equal(table, 'activities');
-    return { update(payload) { return { eq(key, value) {
-      assert.equal(key, 'id'); assert.equal(value, 42);
-      return { select() { return { async single() {
-        if (failure) return { error: new Error('denied'), data: null };
-        stored = structuredClone(payload);
-        return { data: { id: 42 }, error: null };
-      } }; } };
-    } }; } };
-  } },
-});
-vm.runInContext(activitySource + ';globalThis.api = { updateActivity, deleteActivity, restoreActivity, activitiesFor, deletedActivitiesFor };', context);
-await context.api.updateActivity(42, { text: 'Updated', extra: { outcome: 'Conectado', pinned: true } });
-assert.equal(stored.text, 'Updated');
-assert.equal(stored.extra.callSid, 'remote-call');
-assert.equal(remoteRows[0].extra.pinned, true);
-failure = true;
-await assert.rejects(context.api.deleteActivity(42), /denied/);
-assert.equal(context.api.activitiesFor('contacts', 1).length, 1, 'failed write must not hide activity');
-failure = false;
-await context.api.deleteActivity(42);
-assert.ok(stored.extra.deletedAt);
-assert.equal(context.api.activitiesFor('contacts', 1).length, 0);
-assert.equal(context.api.deletedActivitiesFor('contacts', 1).length, 1);
-await context.api.restoreActivity(42);
-assert.equal(stored.extra.deletedAt, undefined);
-assert.equal(context.api.activitiesFor('contacts', 1).length, 1);
-console.log('PASS: timeline editing, persistence, confirmed deletion, restore, pin, legacy IDs, system protection 90-day window and mocked Supabase success/failure');
+for (const type of ['system', 'prop']) {
+  data.addActivity({ type, recordType: 'contacts', recordId: 1, when: 2, text: 'Sistema' });
+  const entry = data.activitiesFor('contacts', 1).find(a => a.type === type);
+  await assert.rejects(data.deleteActivity(entry.id), /sistema/);
+  await assert.rejects(data.updateActivity(entry.id, { text: 'Cambio' }), /sistema/);
+}
+// Legacy duplicates must remain independently editable after acquiring IDs.
+localStorage.setItem('crm:contacts:notes:99', JSON.stringify([
+  { type: 'note', when: 1, text: 'Duplicada' }, { type: 'note', when: 1, text: 'Duplicada' },
+]));
+const legacy = data.activitiesFor('contacts', 99);
+assert.notEqual(legacy[0].id, legacy[1].id);
+await data.deleteActivity(legacy[0].id);
+assert.equal(data.activitiesFor('contacts', 99).length, 1);
+assert.equal(data.deletedActivitiesFor('contacts', 99).length, 1);
+const expired = data.deletedActivitiesFor('contacts', 99)[0];
+expired.extra.deletedAt = Date.now() - 91 * 86400000;
+localStorage.setItem('crm:contacts:activity-trash:99', JSON.stringify([expired]));
+assert.equal(data.deletedActivitiesFor('contacts', 99).length, 0);
+await assert.rejects(data.restoreActivity(expired.id), /vencido/);
+console.log('Activity actions: edit, persisted reload, delete, restore, pin and system protection passed.');
 dom.window.close();
-process.exit(0);

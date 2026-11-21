@@ -1565,7 +1565,7 @@ function localActivities(key, recordType, recordId) {
   const rows = read(key, []);
   let changed = false;
   rows.forEach((a) => {
-    if (!a.id) { a.id = `${recordType}:${recordId}:${a.type}:${a.when}:${a.extra?.callSid || a.text}`; changed = true; }
+    if (!a.id) { a.id = crypto.randomUUID(); changed = true; }
     a.recordType = recordType; a.recordId = Number(recordId);
   });
   if (changed) write(key, rows);

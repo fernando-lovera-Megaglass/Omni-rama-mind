@@ -470,7 +470,7 @@ function openLogModal(kind, { schedule = false, channel = '', activity = null } 
       if (!title) title = original.split(' — ')[0];
       notes = original === title ? '' : original.startsWith(`${title} — `) ? original.slice(title.length + 3) : original;
     }
-    const values = { 'log-notes': notes, 'log-title': title, 'log-outcome': x.outcome, 'log-direction': x.direction, 'log-duration': x.durationMin, 'log-location': x.locationType };
+    const values = { 'log-notes': notes, 'log-title': title, 'log-outcome': x.outcome, 'log-direction': x.direction, 'log-duration': x.durationMin ?? (x.durationSec != null ? Number(x.durationSec) / 60 : undefined), 'log-location': x.locationType };
     for (const [key, value] of Object.entries(values)) {
       const input = $(key);
       if (!input || value == null) continue;
