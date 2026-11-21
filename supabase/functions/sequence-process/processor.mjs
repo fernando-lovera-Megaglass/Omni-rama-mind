@@ -56,8 +56,10 @@ export async function processDue(store, send, now = new Date()) {
       }
       let receipt = null;
       if (step.type === 'auto_email') {
-        if (!contact.email) throw new Error('Contact has no email');
-        receipt = await send(enrollment, step, { ...payload, to: contact.email });
+        // A contact without e-mail (enrolled in bulk with the warning) skips its e-mail steps instead of
+        // breaking the enrolment: the step advances with a receipt that says so (counted as processed).
+        if (!contact.email) receipt = { skipped: 'no_email' };
+        else receipt = await send(enrollment, step, { ...payload, to: contact.email });
       } else if (!['manual_email', 'call', 'task', 'inmail', 'connection'].includes(step.type)) {
         throw new Error(`Unknown step type: ${step.type}`);
       }
