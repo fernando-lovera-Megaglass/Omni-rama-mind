@@ -62,8 +62,12 @@ let queue = Promise.resolve();
 const enqueue = (fn) => { queue = queue.then(fn).catch((e) => reportDbError('conversaciones', e)); return queue; };
 const convFromDb = (r) => ({ id: r.id, subject: r.subject || '', channel: r.channel || 'email', status: r.status || 'open', assignedTo: r.assigned_to || '', contactId: r.contact_id ? Number(r.contact_id) : null, lastMessageAt: r.last_message_at, readAt: r.read_at || null, createdAt: r.created_at });
 const convToDb = (c) => ({ id: c.id, subject: c.subject, channel: c.channel, status: c.status, assigned_to: c.assignedTo || '', contact_id: c.contactId || null, last_message_at: c.lastMessageAt, read_at: c.readAt || null, created_at: c.createdAt });
-const msgFromDb = (m) => ({ id: m.id, conversationId: m.conversation_id, direction: m.direction, body: m.body || '', author: m.author || '', createdAt: m.created_at });
-const msgToDb = (m) => ({ id: m.id, conversation_id: m.conversationId, direction: m.direction, body: m.body, author: m.author, created_at: m.createdAt });
+// kind: 'message' (sent or received) or 'note' (an internal comment of the team: never sent, yellow in the thread).
+// Notes travel in the `kind` column (supabase/conversation-notes.sql); an older table without it keeps them in
+// this browser (LS_N) so the thread still shows them.
+const msgFromDb = (m) => ({ id: m.id, conversationId: m.conversation_id, direction: m.direction, kind: m.kind === 'note' ? 'note' : 'message', body: m.body || '', author: m.author || '', createdAt: m.created_at });
+const msgToDb = (m) => ({ id: m.id, conversation_id: m.conversationId, direction: m.direction, body: m.body, author: m.author, created_at: m.createdAt, ...(m.kind === 'note' ? { kind: 'note' } : {}) });
+const LS_N = 'crm:conversation_notes_local';
 const readLocal = (k) => { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } };
 const saveLocal = () => { localStorage.setItem(LS_C, JSON.stringify(rows)); localStorage.setItem(LS_M, JSON.stringify(msgs)); };
 function loadLocal() {
@@ -82,6 +86,9 @@ async function loadLive() {
   if (e2) throw e2;
   rows = (c || []).map(convFromDb);
   msgs = (m || []).map(msgFromDb);
+  // Internal comments kept locally while the `kind` column is missing on the database.
+  const localNotes = readLocal(LS_N);
+  if (Array.isArray(localNotes)) localNotes.forEach((n) => { if (!msgs.some((x) => x.id === n.id)) msgs.push(n); });
   if (!rows.length) {
     // The table exists but is empty: the same test conversations as the SQL seed.
     const seed = seedConversations();
@@ -100,7 +107,9 @@ export const conversationsLive = () => live;
 
 // ---------- reads ----------
 const contactOf = (id) => (id ? allContacts().find((c) => Number(c.id) === Number(id)) || null : null);
-const lastOf = (id) => msgs.filter((m) => m.conversationId === id).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0] || null;
+// The last real message (internal comments never drive the preview, the unread mark or the order).
+const lastOf = (id) => msgs.filter((m) => m.conversationId === id && m.kind !== 'note').sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0] || null;
+export const isInternalNote = (m) => Boolean(m && m.kind === 'note');
 const isUnread = (c, last) => c.status !== 'closed' && Boolean(last) && last.direction === 'in' && (!c.readAt || new Date(c.lastMessageAt) > new Date(c.readAt));
 const decorate = (c) => { const last = lastOf(c.id); return { ...c, contact: contactOf(c.contactId), lastMessage: last, unread: isUnread(c, last) }; };
 export function conversations() {
@@ -137,6 +146,33 @@ export function sendMessage(id, { body, direction = 'out', author = ME, when } =
   if (live) enqueue(async () => { const { error } = await supabase.from('conversation_messages').insert(msgToDb(m)); if (error) throw error; });
   persistConv(c);
   logOnContact(c, m);
+  return m;
+}
+// «Comentario»: an internal note of the team inside the thread. Never sent (no Gmail), it does not mark the
+// conversation as answered, nor reopens a closed one, nor moves it in the list; it lands on the contact's timeline
+// as a note with a link to the conversation.
+export function addInternalNote(id, { body, author = ME, when } = {}) {
+  const c = rows.find((x) => x.id === id);
+  const text = String(body || '').trim();
+  if (!c || !text) return null;
+  const now = when || new Date().toISOString();
+  const m = { id: uuid(), conversationId: id, direction: 'out', kind: 'note', body: text, author: author || ME, createdAt: now };
+  msgs.push(m);
+  if (live) {
+    enqueue(async () => {
+      const { error } = await supabase.from('conversation_messages').insert(msgToDb(m));
+      if (error && /kind/.test(error.message || '')) {
+        // Column not there yet (migration pending): keep the comment in this browser so the thread still shows it.
+        console.warn('[bandeja] falta la columna kind en conversation_messages (supabase/conversation-notes.sql pendiente): el comentario queda solo en este navegador.');
+        const local = readLocal(LS_N) || [];
+        local.push(m);
+        localStorage.setItem(LS_N, JSON.stringify(local));
+      } else if (error) throw error;
+    });
+  } else saveLocal();
+  if (c.contactId) {
+    addActivity({ type: 'note', recordType: 'contacts', recordId: Number(c.contactId), text: `Comentario interno en la conversación «${c.subject}» (../inbox/?id=${c.id}): ${excerpt(text, 140)}`, who: m.author, when: new Date(now).getTime(), extra: { channel: 'Bandeja de entrada', conversationId: c.id, href: `../inbox/?id=${c.id}`, internal: true } });
+  }
   return m;
 }
 export function createConversation({ contactId, channel = 'email', subject, body, direction = 'out', author = ME, assignedTo, when } = {}) {

@@ -7,7 +7,7 @@ import { ownerHtml } from './owner.js';
 import { emptyStateHtml } from './empty-state.js';
 import { enhanceOwnerSelects } from './owner-select.js';
 import { allCompanies, allContacts, relativeTimeFine, formatDate, initials, colorFor } from './data.js';
-import { ready, conversations, conversationById, messagesOf, sendMessage, createConversation, markRead, assignConversation, setConversationStatus, unreadCount, CHANNELS, STATUS_LABELS, ASSIGNEES, ME } from './conversations-data.js';
+import { ready, conversations, conversationById, messagesOf, sendMessage, addInternalNote, isInternalNote, createConversation, markRead, assignConversation, setConversationStatus, unreadCount, CHANNELS, STATUS_LABELS, ASSIGNEES, ME } from './conversations-data.js';
 import { ready as gmailReady, hasGmail, sendMail } from './gmail.js';
 import { syncInbox, gmailThreadFor } from './gmail-inbox.js';
 
@@ -18,7 +18,9 @@ const root = document.getElementById('inbox-root');
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const $ = (id) => document.getElementById(id);
 const params = new URLSearchParams(location.search);
-const state = { who: 'all', status: 'open', channel: '', q: '', selected: params.get('id') || null };
+// compose: the editor tab («reply» | «note») chosen per conversation, remembered for the session.
+const state = { who: 'all', status: 'open', channel: '', q: '', selected: params.get('id') || null, compose: new Map() };
+const composeMode = (id) => state.compose.get(id) || 'reply';
 const excerpt = (s, n = 70) => { const t = String(s || '').replace(/\s+/g, ' ').trim(); return t.length > n ? `${t.slice(0, n - 1)}…` : t; };
 const timeOf = (iso) => { const d = new Date(iso); return `${formatDate(d)} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
 const STATUS_CLASS = { open: 'tag--open', closed: 'tag--done', snoozed: 'tag--none' };
@@ -129,12 +131,19 @@ function renderThread() {
       <div class="inbox__threadtitle"><h2>${esc(c.subject)}</h2><div class="muted inbox__threadsub">${c.contact ? `<a href="../contacts/record/?id=${c.contact.id}">${esc(c.contact.name)}</a>` : 'Sin contacto'} · <span class="inbox__chan" style="--chan:${ch.color}">${esc(ch.label)}</span> <span class="tag ${STATUS_CLASS[c.status] || 'tag--none'}">${esc(STATUS_LABELS[c.status] || c.status)}</span> · ${c.assignedTo ? `asignada a ${ownerHtml(c.assignedTo)}` : ownerHtml('')}</div></div>
     </header>
     <div class="inbox__messages" id="inbox-messages">
-      ${msgs.map((m) => `<div class="msg msg--${m.direction}"><div class="msg__bubble">${esc(m.body)}</div><div class="msg__meta">${esc(m.author)} · <span title="${esc(timeOf(m.createdAt))}">${esc(relativeTimeFine(m.createdAt))}</span></div></div>`).join('') || '<p class="muted">Todavía no hay mensajes.</p>'}
+      ${msgs.map((m) => (isInternalNote(m)
+    ? `<div class="msg msg--note"><div class="msg__bubble">${esc(m.body)}</div><div class="msg__meta">Comentario interno · ${esc(m.author)} · <span title="${esc(timeOf(m.createdAt))}">${esc(relativeTimeFine(m.createdAt))}</span></div></div>`
+    : `<div class="msg msg--${m.direction}"><div class="msg__bubble">${esc(m.body)}</div><div class="msg__meta">${esc(m.author)} · <span title="${esc(timeOf(m.createdAt))}">${esc(relativeTimeFine(m.createdAt))}</span></div></div>`)).join('') || '<p class="muted">Todavía no hay mensajes.</p>'}
     </div>
-    <form class="inbox__reply" id="inbox-reply">
-      <textarea name="body" rows="3" placeholder="Escribe una respuesta…" aria-label="Respuesta"></textarea>
-      <div class="inbox__replyfoot"><span class="muted">${c.status === 'closed' ? 'La conversación está cerrada: al responder se reabre.' : 'Ctrl + Enter envía'}</span><button class="btn btn--primary" type="submit">Enviar</button></div>
-    </form>`;
+    ${(() => { const mode = composeMode(c.id); const note = mode === 'note'; return `
+    <form class="inbox__reply${note ? ' inbox__reply--note' : ''}" id="inbox-reply" data-mode="${mode}">
+      <div class="ptabs ptabs--sub inbox__composetabs" role="tablist" aria-label="Responder o comentar">
+        <button type="button" role="tab" class="${note ? '' : 'is-active'}" aria-selected="${!note}" data-compose="reply">Responder</button>
+        <button type="button" role="tab" class="${note ? 'is-active' : ''}" aria-selected="${note}" data-compose="note">Comentario</button>
+      </div>
+      <textarea name="body" rows="3" placeholder="${note ? 'Escribe un comentario interno…' : 'Escribe una respuesta…'}" aria-label="${note ? 'Comentario interno' : 'Respuesta'}"></textarea>
+      <div class="inbox__replyfoot"><span class="muted">${note ? 'Solo lo ve tu equipo: no se envía al contacto · Ctrl + Enter guarda' : c.status === 'closed' ? 'La conversación está cerrada: al responder se reabre.' : 'Ctrl + Enter envía'}</span><button class="btn btn--primary" type="submit">${note ? 'Comentar' : 'Enviar'}</button></div>
+    </form>`; })()}`;
   const box = $('inbox-messages');
   box.scrollTop = box.scrollHeight;
 }
@@ -218,6 +227,17 @@ root.addEventListener('change', (e) => {
   else if (e.target.id === 'inbox-assign' && state.selected) { assignConversation(state.selected, e.target.value); toast(e.target.value ? `Asignada a ${e.target.value}` : 'Conversación sin asignar'); renderAll(); }
 });
 root.addEventListener('input', (e) => { if (e.target.id === 'inbox-q') { const before = state.selected; state.q = e.target.value; renderList(); if (state.selected !== before) { renderThread(); renderSide(); } } });
+// «Responder | Comentario»: the tab is remembered per conversation; the draft survives the switch.
+root.addEventListener('click', (e) => {
+  const tab = e.target.closest('[data-compose]');
+  if (!tab || !state.selected) return;
+  const ta = $('inbox-reply') && $('inbox-reply').elements.body;
+  const draft = ta ? ta.value : '';
+  state.compose.set(state.selected, tab.dataset.compose === 'note' ? 'note' : 'reply');
+  renderThread();
+  const ta2 = $('inbox-reply') && $('inbox-reply').elements.body;
+  if (ta2) { ta2.value = draft; ta2.focus(); }
+});
 root.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && e.target.closest('#inbox-reply')) { e.preventDefault(); $('inbox-reply').requestSubmit ? $('inbox-reply').requestSubmit() : $('inbox-reply').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })); }
 });
@@ -227,6 +247,16 @@ root.addEventListener('submit', (e) => {
     e.preventDefault();
     const body = e.target.elements.body.value.trim();
     if (!body || !state.selected) return;
+    if (composeMode(state.selected) === 'note') {
+      // «Comentario»: internal, never leaves the CRM (no sendMessage, no Gmail), the thread keeps its status.
+      const n = addInternalNote(state.selected, { body, author: ME });
+      if (!n) return;
+      toast('Comentario guardado');
+      renderAll();
+      const ta2 = $('inbox-reply') && $('inbox-reply').elements.body;
+      if (ta2) ta2.focus();
+      return;
+    }
     const m = sendMessage(state.selected, { body, direction: 'out', author: ME });
     if (!m) return;
     // A conversation imported from Gmail answers in the same Gmail thread, from the connected account.

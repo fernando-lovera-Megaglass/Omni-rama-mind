@@ -6265,6 +6265,34 @@ td.cell--hl .cell__pen {
   border-color: #b9e0ea;
 }
 
+/* Internal comment («Comentario»): yellow, full width, never sent to the contact. */
+.msg--note {
+  align-self: stretch;
+  align-items: flex-start;
+  max-width: 100%;
+}
+
+.msg--note .msg__bubble {
+  background: var(--c-tag-open);
+  border-color: #f5c26b;
+}
+
+.msg--note .msg__meta {
+  color: #7a3e10;
+}
+
+[data-theme="dark"] .msg--note .msg__bubble { border-color: #75602e; }
+[data-theme="dark"] .msg--note .msg__meta { color: #f0b86a; }
+
+/* «Responder | Comentario» over the editor */
+.inbox__composetabs {
+  margin: 0 0 var(--sp-4);
+}
+
+.inbox__reply--note textarea {
+  background: var(--c-tag-open);
+}
+
 .msg__meta {
   margin-top: 2px;
   font-size: var(--fs-xs);

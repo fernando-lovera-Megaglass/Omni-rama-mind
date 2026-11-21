@@ -59,6 +59,10 @@
     "status": "aplicada",
     "at": "2026-11-14T12:48:55.681Z"
   },
+  "conversation-notes.sql": {
+    "status": "pendiente",
+    "nota": "Solo código local; no aplicada a producción. Añade kind ('message' | 'note') a conversation_messages para los comentarios internos de la bandeja."
+  },
   "marketing-emails.sql": {
     "status": "aplicada",
     "at": "2026-11-14T13:45:06.779Z"
