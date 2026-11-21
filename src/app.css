@@ -12960,6 +12960,19 @@ textarea.cellpop__input {
   margin-top: var(--sp-16);
 }
 
+.compose__files .chip-to > svg {
+  width: 14px;
+  height: 14px;
+  vertical-align: -3px;
+}
+
+.compose__tools .icon-btn > svg {
+  display: block;
+  width: 18px;
+  height: 18px;
+  margin: 0 auto;
+}
+
 /* signature */
 .sig {
   display: flex;

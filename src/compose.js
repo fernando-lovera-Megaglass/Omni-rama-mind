@@ -136,7 +136,7 @@ function render() {
       <button class="compose__chev" type="button" data-cm="collapse" aria-label="${collapsed ? 'Desplegar' : 'Contraer'}">${collapsed ? '›' : '⌄'}</button>
       <h2>Correo${collapsed && ctx.subject ? ` <span class="muted">· ${esc(ctx.subject)}</span>` : ''}</h2>
       <span class="compose__tools">
-        <button class="icon-btn" type="button" data-cm="expand" aria-label="${expanded ? 'Restaurar tamaño' : 'Ampliar'}">${expanded ? '⤡' : '⛶'}</button>
+        <button class="icon-btn" type="button" data-cm="expand" aria-label="${expanded ? 'Restaurar tamaño' : 'Ampliar'}">${expanded ? ACT_ICONS.shrink : ACT_ICONS.expand}</button>
         <button class="icon-btn" type="button" data-cm="close" aria-label="Cerrar">×</button>
       </span>
     </header>
@@ -182,7 +182,7 @@ function render() {
           <button class="menu__item" type="button" data-ai="thanks">✦ Agradecer la reunión</button>
         </div>
         ${signatureFor(sender[2], sig)}
-        ${ctx.attachments.length ? `<div class="compose__files">${ctx.attachments.map((f, i) => `<span class="chip-to">📎 ${esc(f)} <button type="button" data-rmfile="${i}" aria-label="Quitar">×</button></span>`).join('')}</div>` : ''}
+        ${ctx.attachments.length ? `<div class="compose__files">${ctx.attachments.map((f, i) => `<span class="chip-to">${ACT_ICONS.attach} ${esc(f)} <button type="button" data-rmfile="${i}" aria-label="Quitar">×</button></span>`).join('')}</div>` : ''}
       </div>
 
       <div class="compose__toolbar">

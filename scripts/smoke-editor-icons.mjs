@@ -9,7 +9,8 @@ import { dirname, resolve } from 'node:path';
 const here = dirname(fileURLToPath(import.meta.url));
 const log = (...a) => console.log('[editor-icons]', ...a);
 const fail = (msg) => { console.error(`[editor-icons] FAIL: ${msg}`); process.exit(1); };
-const EMOJI = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}]/u;
+// Emoji = Unicode Extended_Pictographic (🔗 🖼 📎 ⛶ …); typographic glyphs such as the assistant's ✦ spark, × or ⌄ are not.
+const EMOJI = /\p{Extended_Pictographic}/u;
 
 const { ACT_ICONS } = await import(resolve(here, '../src/action-icons.js'));
 for (const name of ['link', 'image']) {
@@ -42,6 +43,6 @@ for (const [file, [cls, buttons]] of Object.entries(TOOLBARS)) {
   log(`${file}: .${cls} without emoji; ${buttons.length} icon button(s) from ACT_ICONS`);
 }
 const css = readFileSync(resolve(here, '../src/app.css'), 'utf8');
-if (!/\.compose__toolbar > button > svg,\s*\.tpe__toolbar > button > svg/.test(css) || !/\.tpe__toolbar > button,[^{]*\{[^}]*display: inline-flex/.test(css)) fail('app.css must size the toolbar svg icons and center tpe toolbar buttons');
+if (!/\.compose__toolbar > button > svg,[\s\S]{0,160}\.tpe__toolbar > button > svg[^{]*\{[^}]*width: 18px/.test(css) || !/\.tpe__toolbar > button,[^{]*\{[^}]*display: inline-flex/.test(css)) fail('app.css must size the toolbar svg icons and center tpe toolbar buttons');
 log('app.css: toolbar icons sized 18 px and centred like the letter buttons');
 console.log('[editor-icons] OK');

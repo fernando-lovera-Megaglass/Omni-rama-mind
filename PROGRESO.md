@@ -1,5 +1,13 @@
 # Progreso — Omni CRM
 
+## 2026-11-21 (sesión 6) · Barras del editor de texto sin emoji: enlace, imagen y adjuntar como iconos de línea
+
+- `src/action-icons.js`: nuevos iconos `image`, `attach`, `expand` y `shrink` con el mismo trazo (24×24, 1,8 px, `currentColor`) que el `link` existente.
+- `src/compose.js` (compositor compartido de ficha y bandeja): «Insertar enlace» 🔗 → `ACT_ICONS.link`, «Insertar imagen» 🖼 → `ACT_ICONS.image`, «Adjuntar archivo» 📎 → `ACT_ICONS.attach` (también en los chips de adjuntos) y el botón Ampliar/Restaurar de la cabecera ⛶/⤡ → `expand`/`shrink`; con `aria-label`. `src/templates.js` (editor de plantillas): enlace e imagen con los mismos iconos. Por coherencia, los mismos 🔗/🖼 en el editor de fragmentos (`src/snippets.js`) y en el de firmas (`src/connected-emails-ui.js`). Los handlers no cambian.
+- `src/app.css`: los SVG de las barras miden 18 px y se centran como los botones de letra (`.tpe__toolbar > button` pasa a `inline-flex`); icono de 14 px en los chips de adjuntos y de 18 px en los botones de la cabecera del compositor.
+- Pruebas: `scripts/smoke-editor-icons.mjs` (estática: iconos con el trazo compartido; ninguna barra con `Extended_Pictographic`; cada botón de enlace/imagen/adjuntar renderiza `ACT_ICONS.*`; CSS de tamaño y centrado); `smoke-compose` y `smoke-templates` comprueban el SVG en los botones y la ausencia de emoji en la barra. Chrome (claro y oscuro): botones de 32 px (compositor) y 30 px (plantillas) con SVG de 18 px centrado; cero emoji en ambas barras. Quedan fuera a propósito: el ✦ del asistente (glifo tipográfico de la marca, no emoji) y los glifos de contenido que se insertan en el cuerpo del correo (📄 documento, 📅 reunión, 🧾 cotización) o en la firma.
+- Fallo preexistente del otro carril: `smoke-templates` cae después en «pager state wrong on page 1».
+
 ## 2026-11-21 (sesión 6) · Marketing › Correo: filtros como chips con menú (sin `<select>` nativos)
 
 - `src/marketing-email.js`: los tres `<select>` de la barra (carpeta, tipo, actualizado por) pasan a `<filter-chip>` (`src/filter-chip.js`, el mismo control que Bandeja, ficha, workflows, plantillas y secuencias; mismo patrón visual que los chips de Llamadas): chip `.qchip` con caret que abre un `.menu__panel`, muestra el valor activo en el propio chip («Carpeta: Promociones»), lleva `is-set` y la «×» para limpiar; «Actualizado por» usa `owner` (avatar + nombre). Conservan `id`, `value` y el evento `change`, así que el handler y el filtrado no cambian; se retira la regla CSS `.mk-toolbar select` que ya no aplica.
