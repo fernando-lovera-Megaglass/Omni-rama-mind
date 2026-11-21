@@ -1,5 +1,10 @@
 # Progreso — Omni CRM
 
+## 2026-11-21 (sesión 6) · Verificación de la migración de pipelines reales
+
+- Se comprobó en el proyecto (SQL de solo lectura con el token de gestión, que sí es válido) que `supabase/pipeline_stages_real.sql` ya está aplicada: 8 pipelines de negocios con sus 65 etapas (nombres, probabilidades y orden) y los 4 pipelines reales de tickets con sus 27 estados (nombres, orden, abierto/cerrado) coinciden con `scripts/hubspot-pipelines.snapshot.json`; el registro `scripts/applied-migrations.json` ya la tenía como aplicada (2026-11-20) y ahora guarda además la fecha y el resumen de la verificación.
+- Nuevo `scripts/verify-pipelines-migration.mjs [--apply] [--record]`: consulta `pipelines` + `pipeline_stages`, compara con la instantánea (recortando los espacios finales que traen cuatro etiquetas crudas de HubSpot, como «Cierre de obra »), lista cada diferencia, con `--apply` ejecuta la migración (idempotente) si falta algo y vuelve a verificar, y con `--record` anota el resultado en el registro. Prueba `scripts/smoke-pipelines-verify.mjs` (filas construidas desde la instantánea → OK; detecta pipelines de tickets ausentes, una probabilidad de muestra, una etapa renombrada y un estado cerrado guardado como abierto).
+
 ## 2026-11-21 (sesión 6) · Foto de perfil en toda la cuenta
 
 - **Perfil** (Configuración › General › Perfil): «Subir una imagen» abre el selector de archivo y un **recorte circular** (`src/avatar-crop.js`: la imagen dentro de un círculo, arrastrar para encuadrar, control de zoom 1–3×, salida cuadrada de 256 px por canvas; sin canvas se guarda tal cual) o «Usar mi Gravatar» (SHA-256 del correo, se comprueba que exista). Los datos del perfil ya no llevan el nombre, correo ni teléfono fijos de antes: salen del usuario con sesión (nombre del registro, correo) y, sin sesión, quedan vacíos hasta que la persona los escriba.

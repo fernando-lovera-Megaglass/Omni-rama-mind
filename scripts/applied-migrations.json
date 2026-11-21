@@ -139,7 +139,9 @@
   },
   "pipeline_stages_real.sql": {
     "status": "aplicada",
-    "at": "2026-11-20T17:47:19.233Z"
+    "at": "2026-11-20T17:47:19.233Z",
+    "verificada": "2026-11-21T19:00:36.539Z",
+    "verificacion": "SQL 2026-11-21: 8 pipelines de negocios / 65 etapas y 4 pipelines de tickets / 27 estados iguales a scripts/hubspot-pipelines.snapshot.json (nombres, probabilidades, orden, abierto/cerrado)."
   },
   "task_queues.sql": {
     "status": "aplicada",
