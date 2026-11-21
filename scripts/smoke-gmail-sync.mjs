@@ -15,7 +15,7 @@ const client = {
       select() { return q; }, eq() { return q; }, order() { return q; }, in() { return q; }, or() { return q; }, is() { return q; },
       maybeSingle() { single = true; return q; }, single() { single = true; return q; },
       update(value) { operation = 'update'; patch = value; return q; },
-      upsert(value) { operation = 'insert'; patch = value; return q; },
+      insert(value) { operation = 'insert'; patch = value; return q; },
       then(resolve, reject) {
         return Promise.resolve().then(() => {
           if (failure === `${table}:${operation}`) return { data: null, error: new Error('simulated storage failure') };
@@ -90,3 +90,19 @@ reset(); state.connected_accounts[0].status = 'disabled';
 assert.equal((await sync(request('POST'))).status, 409);
 assert.equal(refreshes, 0);
 console.log('Gmail sync regression passed: refresh, persistence, revoked grant, account status, recovery, disabled account.');
+
+// Verify fresh installs and repeat application of the SQL upgrade in local PostgreSQL.
+const { PGlite } = await import('@electric-sql/pglite');
+const db = new PGlite();
+await db.exec(`create role authenticated; create schema auth;
+create table auth.users(id uuid primary key);
+create function auth.uid() returns uuid language sql as 'select null::uuid';`);
+const sql = await readFile(new URL('../supabase/gmail.sql', import.meta.url), 'utf8');
+await db.exec(sql);
+await db.exec('alter table connected_accounts drop column last_sync_error, drop column last_sync_attempt_at');
+await db.exec(sql);
+await db.exec(sql);
+const columns = await db.query("select column_name from information_schema.columns where table_name='connected_accounts' and column_name in ('last_sync_error', 'last_sync_attempt_at')");
+assert.equal(columns.rows.length, 2);
+await db.close();
+console.log('Gmail SQL passed: fresh install, existing schema upgrade, repeat application.');

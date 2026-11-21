@@ -64,7 +64,7 @@ Deno.serve(handle(async (req) => {
       rows.fresh.forEach((r) => { r.contact_id = byEmail.get(String(r.from_email || '').toLowerCase()) || null; });
     }
     if (rows.fresh.length) {
-      const { error } = await service.from('inbox_messages').upsert(rows.fresh, { onConflict: 'account_id,gmail_id', ignoreDuplicates: true });
+      const { error } = await service.from('inbox_messages').insert(rows.fresh);
       if (error) throw error;
     }
     const now = new Date().toISOString();
