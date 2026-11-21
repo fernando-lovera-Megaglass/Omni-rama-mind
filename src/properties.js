@@ -653,6 +653,12 @@ export const PROPERTIES = {
       ['source', 'Fuente', 'enum', CHANNELS],
       ['hs_ticket_category', 'Categoría', 'enum', TICKET_CATEGORIES],
       ['hs_resolution', 'Resolución', 'enum', ['Problema resuelto', 'Función solicitada', 'Sin acción', 'Duplicado']],
+      // The account's 4 real custom ticket properties (HubSpot, hubspotDefined = false; see HUBSPOT_CUSTOM_METADATA.tickets
+      // and src/custom-properties.js): always in the catalog, even before the custom_properties table has them.
+      ['municipio', 'Municipio', 'text'],
+      ['vendedor_solicitante', 'Vendedor solicitante', 'enum', ['Fernando L.', 'Sofía R.', 'Diego G.', 'Laura M.']],
+      ['source_incoming_phone', 'Source Incoming Phone', 'text'],
+      ['source_incoming_expired', 'Source Incoming Expired', 'number'],
       ['created', 'Fecha de creación', 'datetime'],
       ['closed_date', 'Fecha de cierre', 'datetime'],
       ['hs_lastmodifieddate', 'Fecha de última modificación', 'datetime'],
@@ -743,7 +749,9 @@ export function saveCustomProperties(type, list) {
 export const formCustomProperties = (type) => customProperties(type).filter((p) => (p.visible || p.required) && !p.archived);
 export function propertyGroups(type) {
   const base = PROPERTIES[type] || [];
-  const custom = customProperties(type).filter((p) => !p.archived);
+  // A custom property that is also part of the base catalog (the account's real HubSpot ones) is listed once.
+  const baseKeys = new Set(base.flatMap((g) => g.items.map((i) => i[0])));
+  const custom = customProperties(type).filter((p) => !p.archived && !baseKeys.has(p.key));
   if (!custom.length) return base;
   const byGroup = {};
   custom.forEach((p) => {

@@ -1,5 +1,14 @@
 # Progreso — Omni CRM
 
+## 2026-11-21 (sesión 6) · Las 4 propiedades personalizadas reales de tickets
+
+**Fuente**: `GET /crm/v3/properties/tickets` con el token de `app/.hubspot-token` (nuevo `scripts/hubspot-properties.mjs <objeto> [--all] [--json …]`, el token nunca se imprime; instantánea en `scripts/hubspot-ticket-properties.snapshot.json`). De 214 propiedades, 4 no las define HubSpot, todas en el grupo «Información del ticket»: **Municipio** (texto), **Vendedor solicitante** (lista desplegable; en la cuenta no tiene opciones todavía, así que Omni ofrece los vendedores), **Source Incoming Phone** (texto, oculta en HubSpot) y **Source Incoming Expired** (número, oculta en HubSpot).
+
+- `src/properties.js`: las 4 entran en el catálogo de tickets (grupo «Información del ticket») y en `HUBSPOT_CUSTOM_METADATA.tickets` (tipo, tipo de campo, oculta). `src/custom-properties.js` las siembra también como propiedades personalizadas (`SEED_TICKET_PROPERTIES`, con la descripción real de «Vendedor solicitante»), y `propertyGroups` lista una sola vez una propiedad que esté a la vez en el catálogo base y entre las personalizadas.
+- `supabase/custom-properties-tickets.sql` (**sin aplicar**): las 4 filas en `custom_properties` (objeto `ticket`); los valores viven en la columna `extra` de `tickets`, así que no hace falta columna nueva.
+- Ficha del ticket: «Acerca de» muestra por defecto Municipio y Vendedor solicitante (editables: texto y desplegable con avatar); «Ver todas las propiedades» lista las 4 con su nombre real en «Información del ticket», editables (las dos ocultas de HubSpot solo ahí).
+- Pruebas: `scripts/smoke-ticket-custom-props.mjs` (catálogo = instantánea de la API, migración, ficha: edición de Municipio y Vendedor solicitante, panel con las 4 y búsqueda) y `scripts/smoke-hubspot-properties.mjs tickets`.
+
 ## 2026-11-20 (sesión 6) · Categoría «Eventos» del editor de segmentos con criterios reales
 
 La categoría «Eventos» del selector de categoría (Propiedades / Afiliaciones / Eventos) era una opción deshabilitada. Ahora ofrece **«Actividades, llamadas y correos (cronología)»** con criterios sobre la tabla `activities` (lo que muestra la cronología de cada registro) y los registros de llamadas de Twilio (`call_logs`):
