@@ -363,10 +363,11 @@
     },
     {
       "id": "gap-tickets-propiedades-personalizadas-reales-de-tic",
-      "status": "pending",
+      "status": "done",
       "instruction": "Faltan las 4 propiedades personalizadas reales de tickets (cobertura 0/4).\n\nPasos: GET https://api.hubapi.com/crm/v3/properties/tickets?limit=100 con el token de app/.hubspot-token; toma las 4 NO hubspotDefined; créalas en src/properties.js (grupo, etiqueta, tipo, opciones) y en Supabase si hace falta columna; que se vean y editen en la ficha del ticket y en «Ver todas las propiedades». Prueba smoke: las 4 aparecen con su nombre real en la ficha. No despliegues a producción.",
       "createdAt": "2026-11-19T17:12:33-06:00",
-      "lane": "claude"
+      "lane": "claude",
+      "completedAt": "2026-11-21T12:10:57-0600"
     },
     {
       "id": "custom-props-cobertura",
@@ -774,12 +775,10 @@
     },
     {
       "id": "gap-ui-re-titulos-segmentos-marketing-paneles",
-      "status": "done",
+      "status": "pending",
       "createdAt": "2026-11-20T15:29:44-06:00",
       "lane": "codex",
-      "instruction": "El fix gap-ui-titulos-pagina-inconsistentes dejó tres cabeceras fuera del patrón .page-title (22px, peso 600, src/app.css 155-161): Segmentos pinta <h1>Segmentos</h1> sin clase (src/segments.js 51) y su regla .seg__head h1 (src/app.css 2291-2294) lo deja en 24px peso 500; Marketing › Correo usa .page-head con un h1 sin clase (src/marketing-email.js 64 y 125) que hereda el h1 base (22px pero peso 500, src/app.css 147-152); e Informes › Paneles usa .dash-title h1 (reports/index.html 30) sin regla de fuente propia, también 22px/500. Además el h1 de Segmentos lleva al lado un .seg__count con peso 600 que compite con el título. Cómo debe verse: las tres cabeceras usan la clase .page-title (y page-title--with-count donde haya contador), 22px peso 600, como Contactos, Plantillas o Llamadas; retira .seg__head h1 o redúcela al mismo patrón. Criterio de aceptación: los títulos de Segmentos, Correo de marketing y Paneles miden 22px y peso 600 en el inspector, y no queda ninguna regla .seg__head h1 con 24px. No despliegues nada a producción; solo código local.",
-      "completedAt": "2026-11-21T12:05:56-0600",
-      "completedBy": "codex"
+      "instruction": "El fix gap-ui-titulos-pagina-inconsistentes dejó tres cabeceras fuera del patrón .page-title (22px, peso 600, src/app.css 155-161): Segmentos pinta <h1>Segmentos</h1> sin clase (src/segments.js 51) y su regla .seg__head h1 (src/app.css 2291-2294) lo deja en 24px peso 500; Marketing › Correo usa .page-head con un h1 sin clase (src/marketing-email.js 64 y 125) que hereda el h1 base (22px pero peso 500, src/app.css 147-152); e Informes › Paneles usa .dash-title h1 (reports/index.html 30) sin regla de fuente propia, también 22px/500. Además el h1 de Segmentos lleva al lado un .seg__count con peso 600 que compite con el título. Cómo debe verse: las tres cabeceras usan la clase .page-title (y page-title--with-count donde haya contador), 22px peso 600, como Contactos, Plantillas o Llamadas; retira .seg__head h1 o redúcela al mismo patrón. Criterio de aceptación: los títulos de Segmentos, Correo de marketing y Paneles miden 22px y peso 600 en el inspector, y no queda ninguna regla .seg__head h1 con 24px. No despliegues nada a producción; solo código local."
     },
     {
       "id": "gap-ui-biblioteca-informes-acciones",

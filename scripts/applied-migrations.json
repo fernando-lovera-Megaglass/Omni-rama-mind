@@ -153,5 +153,9 @@
     "status": "pospuesta_calidad_datos",
     "at": "2026-11-20T22:50:45.060Z",
     "nota": "Bloqueada a propósito: los correos duplicados en contacts se conservan para un ejercicio posterior de calidad de datos. Aplicar solo después de ese trabajo."
+  },
+  "custom-properties-tickets.sql": {
+    "status": "aplicada",
+    "at": "2026-11-21T12:05:57-0600"
   }
 }
