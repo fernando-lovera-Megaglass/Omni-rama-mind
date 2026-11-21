@@ -94,16 +94,23 @@ log('board columns (Cotizaciones Proyectos):', cols.join(' | '));
 if (cols.join('|') !== 'sin_contactar|primer_contacto|asignado_vendedor|generacion_cotizacion|instalacion_saca|generacion_negocio|cerrado') fail('board columns should be the pipeline statuses');
 click(document.querySelector('[data-action="mode-table"]'));
 click(document.querySelector('[data-action="create"]'));
-const form = document.querySelector('#create-form, form[data-create], .drawer form');
-if (!form) fail('create form missing');
+// «Crear ticket» is the slide-over of src/create-ticket.js: pipeline → statuses chained, contacts via search.
+const form = document.querySelector('#ct-form');
+if (!form || !document.getElementById('ct-panel').classList.contains('is-open')) fail('create panel missing');
 form.querySelector('[name="name"]').value = 'Ticket desde la lista';
+form.querySelector('[name="name"]').dispatchEvent(new dom.window.Event('input', { bubbles: true }));
 form.querySelector('[name="pipeline"]').value = 'Cotizaciones Acristala';
+form.querySelector('[name="pipeline"]').dispatchEvent(new dom.window.Event('change', { bubbles: true }));
 form.querySelector('[name="status"]').value = 'modificacion_cotizacion';
-form.querySelector('[name="contactId"]').value = String(contact.id);
+const cq = document.getElementById('ct-contacts-q');
+cq.value = contact.email || contact.name; cq.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+const hit = [...document.querySelectorAll('#ct-contacts-results button')].find((b) => Number(b.dataset.id) === Number(contact.id));
+if (!hit) fail('contact search in the panel');
+click(hit);
 submit(form);
 await new Promise((r) => setTimeout(r, 20)); // the create handler validates the properties before adding
 const made = data.allTickets().find((t) => t.name === 'Ticket desde la lista');
-log('created from the list:', made && `${made.pipeline} · ${made.status} · empresa ${made.company}`, '| toast:', document.getElementById('toast')?.textContent, '| form values:', form.querySelector('[name="pipeline"]').value, form.querySelector('[name="status"]').value, form.querySelector('[name="contactId"]').value);
+log('created from the list:', made && `${made.pipeline} · ${made.status} · empresa ${made.company}`, '| toast:', document.getElementById('toast')?.textContent, '| form values:', form.querySelector('[name="pipeline"]').value, form.querySelector('[name="status"]').value, '| contacts chosen:', document.querySelectorAll('#ct-contacts-list .cd-assoc__row').length);
 if (!made || made.pipeline !== 'Cotizaciones Acristala' || made.status !== 'modificacion_cotizacion' || Number(made.companyId) !== Number(company.id)) fail('create from the list with the contact\'s company');
 form.querySelector('[name="name"]')?.remove();
 

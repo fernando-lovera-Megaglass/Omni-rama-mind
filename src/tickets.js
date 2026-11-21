@@ -115,6 +115,17 @@ const list = mountList({
     { key: 'lastActivity', label: 'Última actividad', default: false, text: (r) => formatDate(r.lastActivity), sortValue: (r) => new Date(r.lastActivity).getTime() },
     { key: 'created', label: 'Fecha de creación', text: (r) => formatDate(r.created), sortValue: (r) => new Date(r.created).getTime() },
   ],
+  // The generic drawer markup still needs the field list (list.js renders it for every object); the person
+  // always gets the slide-over above, which also owns the associations (no more "first 30 contacts" select).
+  createFields: [
+    { name: 'name', label: 'Nombre del ticket', required: true },
+    { name: 'pipeline', label: 'Pipeline', type: 'select', options: ticketPipelines().map((p) => [p, p]) },
+    { name: 'status', label: 'Estado del ticket', type: 'select', options: statusOptions() },
+    { name: 'description', label: 'Descripción' },
+    { name: 'source', label: 'Fuente', type: 'select', options: ['Correo', 'Formulario', 'Chat', 'Teléfono'].map((x) => [x, x]) },
+    { name: 'priority', label: 'Prioridad', type: 'select', options: PRIORITIES.map(([k, l]) => [k, l]) },
+    { name: 'owner', label: 'Propietario del ticket', type: 'select', options: OWNERS.map((o) => [o, o]) },
+  ],
   // Sensible defaults (specification §7), shared with the panel: first pipeline and its first open status; a
   // status that does not belong to the chosen pipeline falls back to that first open status.
   normalize: (d) => {
