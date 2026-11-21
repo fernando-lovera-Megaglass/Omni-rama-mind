@@ -11,6 +11,9 @@ Usa PGlite (PostgreSQL en WASM, en memoria), carga `sequences.sql` y la nueva
 Simula únicamente el transporte Gmail y los datos del contacto; no usa `.env`, claves,
 Supabase remoto ni envía correos. Comprueba avance, último paso, tareas, terminales,
 futuros, concurrencia, fallo de envío, cancelación, permisos y días laborables.
+Los cinco tipos manuales se comprueban con un siguiente paso sin retraso: ninguno
+avanza mientras espera la tarea, ni duplica tareas en ticks posteriores. Dos
+solicitudes simultáneas de finalización solo reanudan una vez.
 
 ## Configuración e invocación programada local
 

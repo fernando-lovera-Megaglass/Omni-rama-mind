@@ -105,6 +105,32 @@ assert.equal(nextDate('2026-11-20T09:00:00Z', 1), '2026-11-23T09:00:00.000Z');
 assert.equal(nextDate('2026-11-20T09:00:00Z', 0), '2026-11-20T09:01:00.000Z');
 assert.throws(() => render('[[MISSING]]', first, contact, {}), /Unresolved/);
 assert.equal(render('{{contacto.nombre}}', first, { first: '<Ana>' }, {}, true), '&lt;Ana&gt;');
+// Every manual type must pause, including a zero-day following step. Concurrent
+// completion requests may advance only once, even when both see a completed task.
+for (const type of ['manual_email', 'call', 'task', 'inmail', 'connection']) {
+  const [sequence] = await query('insert into sequences(name) values($1) returning id', [`Pause ${type}`]);
+  await query(`insert into sequence_steps(sequence_id, position, type, delay_days) values
+    ($1, 0, $2, 0), ($1, 7, 'auto_email', 0)`, [sequence.id, type]);
+  const [enrollment] = await query(`insert into sequence_enrollments(sequence_id, contact_id, next_step_at)
+    values ($1, 1, '2020-01-01') returning *`, [sequence.id]);
+  const noSend = async () => assert.fail(`${type}: email sent while waiting for task`);
+  await processDue(store, noSend, now);
+  const [task] = await query("select * from tasks where extra->>'enrollmentId'=$1", [enrollment.id]);
+  assert.deepEqual(task.extra, { sequenceId: sequence.id, enrollmentId: enrollment.id, stepPosition: 0 });
+  assert.equal(task.type, type === 'call' ? 'Llamada' : type === 'manual_email' ? 'Correo' : 'Tarea');
+  assert.equal((await get(enrollment.id)).current_step, 1);
+  assert.equal((await get(enrollment.id)).next_step_at, null);
+  await processDue(store, noSend, new Date('2099-01-01'));
+  assert.equal((await query("select * from tasks where extra->>'enrollmentId'=$1", [enrollment.id])).length, 1);
+  await query("update tasks set status='done' where id=$1", [task.id]);
+  const completions = await Promise.all([complete(task, now.toISOString()), complete(task, now.toISOString())]);
+  assert.equal(completions.flat().length, 1, `${type}: completion advances exactly once`);
+  const advanced = await get(enrollment.id);
+  assert.equal(advanced.current_step, 2);
+  assert.equal(new Date(advanced.next_step_at).toISOString(), now.toISOString());
+  assert.equal(advanced.extra.waiting_task, undefined);
+  await query("update sequence_enrollments set status='paused' where id=$1", [enrollment.id]);
+}
 await db.exec('set role anon');
 await assert.rejects(() => query('select * from sequence_claim($1)', [first.id]), /permission denied/);
 await db.close();

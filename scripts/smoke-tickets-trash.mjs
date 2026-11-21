@@ -30,8 +30,8 @@ log('static: tickets soft-deleted (mapping, column, migration pendiente, server 
 const mem = {};
 globalThis.localStorage = { getItem: (k) => (k in mem ? mem[k] : null), setItem: (k, v) => { mem[k] = String(v); }, removeItem: (k) => { delete mem[k]; }, key: (i) => Object.keys(mem)[i] ?? null, get length() { return Object.keys(mem).length; } };
 Object.defineProperty(globalThis, 'navigator', { value: { clipboard: { writeText() {} } }, configurable: true });
-function useDom(main, url) {
-  const dom = new JSDOM(`<!doctype html><body class="app"><aside id="sidenav"></aside><header id="topbar"></header>${main}<div id="scrim"></div></body>`, { url, pretendToBeVisual: true });
+function useDom(main, url, type = '') {
+  const dom = new JSDOM(`<!doctype html><body class="app"${type ? ` data-type="${type}"` : ''}><aside id="sidenav"></aside><header id="topbar"></header>${main}<div id="scrim"></div></body>`, { url, pretendToBeVisual: true });
   for (const k of ['window', 'document', 'location', 'history', 'HTMLElement', 'Event', 'CustomEvent', 'FormData', 'URL', 'Blob', 'MutationObserver']) globalThis[k] = dom.window[k];
   dom.window.HTMLElement.prototype.scrollIntoView = function () {};
   dom.window.HTMLElement.prototype.scrollBy = function () {};
@@ -59,8 +59,12 @@ log('Acciones menu:', items.join(' | '));
 const target = data.allTickets().find((t) => rowIds().includes(Number(t.id)));
 if (!target) fail('a ticket of the first page');
 const before = { status: target.status, pipeline: target.pipeline, name: target.name };
-const rowDelete = q(`#table tbody tr[data-id="${target.id}"] [data-action="delete"]`);
-if (rowDelete) click(rowDelete); else data.deleteRecords('tickets', [target.id]);
+// the list deletes from the row's preview panel («Vista previa» › ⋮ › Eliminar), confirm() accepted above
+click(q(`#table tbody tr[data-id="${target.id}"] [data-preview="${target.id}"]`));
+await wait(30);
+const pvDelete = q('#preview [data-pv="delete"]');
+if (!pvDelete) fail('preview panel: Eliminar action');
+click(pvDelete);
 await wait(30);
 if (rowIds().includes(Number(target.id))) fail('deleted ticket still listed');
 if (data.allTickets().some((t) => Number(t.id) === Number(target.id))) fail('deleted ticket still in allTickets()');
@@ -89,7 +93,7 @@ if (data.trashedRecords('tickets').some((t) => Number(t.id) === Number(target.id
 log('trash: listed with its date; restored to', `${restored.pipeline} / ${restored.status}`);
 
 // 5) delete from the record page
-useDom('<main id="record-root"><div id="record"></div></main>', `http://localhost/tickets/record/?id=${target.id}`);
+useDom('<main id="record-root"></main>', `http://localhost/tickets/record/?id=${target.id}`, 'tickets');
 await import(resolve(here, '../src/record.js'));
 await wait(80);
 const trigger = qa('button, a').find((b) => Object.values(b.dataset).includes('delete') && /eliminar/i.test(b.textContent));

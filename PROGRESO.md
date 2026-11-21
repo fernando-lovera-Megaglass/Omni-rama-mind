@@ -1,5 +1,13 @@
 # Progreso — Omni CRM
 
+## 2026-11-21 (sesión 6) · Papelera de tickets («Restaurar registros eliminados») como contactos, empresas y negocios
+
+- `src/data.js`: `tickets` entra en `SOFT_DELETE` (las tareas siguen fuera, como en el original); `CAMEL_TO_DB`/`TABLE_COLS` de tickets incluyen `deletedAt` ↔ `deleted_at`. Eliminar desde la lista o la ficha escribe `deleted_at` (modo local: `DELETED_AT_KEY`) en vez de borrar; `trashedRecords`, `restoreRecords`, `ensureTrash` y la exclusión `deleted_at is null` de `fetchTable` y `server-list.js` ya son genéricas por `softDeletes(type)`. Red de seguridad: si la base aún no tiene la columna (migración pendiente), `fetchTable` detecta el error, recarga sin el filtro y deja ese tipo en borrado directo con un aviso en consola, sin romper la lista.
+- `supabase/soft_delete_tickets.sql` (**pendiente, no aplicada**): `deleted_at timestamptz` + índice parcial en `tickets`; registrada en `scripts/applied-migrations.json`.
+- `src/tickets.js`: menú «Acciones» junto a «Agregar» (`actionsMenu: { dupes: false, fixFormat: false }`: Exportar, Restaurar registros eliminados, Editar propiedades en lote, Editar columnas, Importar); `src/list.js` admite ese objeto para ocultar duplicados y formato donde no aplican.
+- Pruebas: `scripts/smoke-tickets-trash.mjs` (estática: `SOFT_DELETE`, mapeo, migración registrada como pendiente, exclusión en servidor; DOM: menú Acciones sin duplicados, eliminar desde la vista previa de la fila → fuera de la lista y del tablero, en la papelera con fecha, «Restaurar» devuelve el ticket a su pipeline y estado; eliminar desde la ficha → papelera). `smoke-actions-menu`, `smoke-ticket-*`, `smoke-deals-board` OK (`smoke-record-inline` sigue con su fallo preexistente del otro carril).
+- Criterio en Supabase (cuando se aplique la migración): `deleteRecords('tickets')` ejecuta `update({ deleted_at })`, no `delete()`.
+
 ## 2026-11-21 (sesión 6) · Biblioteca de informes con los patrones del CRM (menú «Acciones», `.search`, `.field`)
 
 - `src/report-builder.js`: cada fila muestra una sola acción primaria («Abrir», `btn--secondary btn--sm`) y el menú «Acciones» (`.menu` + `.menu__panel--right`: Duplicar, Renombrar, Anclar/Quitar del panel, separador, Eliminar en `menu__item--danger`), como Plantillas, Secuencias y Workflows; el nombre y la fuente van en una columna que se recorta sin desalinear la fila. El buscador es `.search.search--sm` con icono; el nombre y los cuatro selects del constructor y el formulario de renombrar usan `label.field > span + control`; la confirmación de borrado lleva el botón rojo. `mountReportBuilder()` recibe `wireMenus`/`closeMenus` de `shell.js` (los pasa `src/reports.js`) y re-enlaza los menús tras cada render; los menús se cierran al ejecutar una acción.

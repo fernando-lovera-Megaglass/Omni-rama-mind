@@ -748,7 +748,10 @@ export function setField(type, id, field, value, opts = {}) {
 const SOFT_DELETE = new Set(['contacts', 'companies', 'deals', 'tickets']);
 const trashRows = {}; // live: deleted rows per type (deletedAt set), out of dbRows
 const DELETED_AT_KEY = (type) => K(type, 'deletedat'); // local: id → when it was deleted
-export const softDeletes = (type) => SOFT_DELETE.has(type);
+// The trash needs the deleted_at column. While its migration is pending on the database (tickets:
+// soft_delete_tickets.sql) the type degrades to a hard delete instead of breaking the list (see fetchTable).
+const softDeleteMissing = new Set();
+export const softDeletes = (type) => SOFT_DELETE.has(type) && !softDeleteMissing.has(type);
 export function deleteRecords(type, ids) {
   const doomed = new Set(ids.map(Number));
   if (type === 'tasks') {
@@ -771,12 +774,12 @@ export function deleteRecords(type, ids) {
     for (let i = rows.length - 1; i >= 0; i -= 1) {
       if (doomed.has(Number(rows[i].id))) {
         const [r] = rows.splice(i, 1);
-        if (SOFT_DELETE.has(type)) (trashRows[type] = trashRows[type] || []).unshift({ ...r, deletedAt: stamp });
+        if (softDeletes(type)) (trashRows[type] = trashRows[type] || []).unshift({ ...r, deletedAt: stamp });
       }
     }
     bump();
     dbWrite(async () => {
-      const q = SOFT_DELETE.has(type) ? supabase.from(type).update({ deleted_at: stamp }).in('id', [...doomed]) : supabase.from(type).delete().in('id', [...doomed]);
+      const q = softDeletes(type) ? supabase.from(type).update({ deleted_at: stamp }).in('id', [...doomed]) : supabase.from(type).delete().in('id', [...doomed]);
       const { error } = await q;
       if (error) reportDbError(`eliminar ${type}`, error);
     });
@@ -866,7 +869,7 @@ export function mergeRecords(type, keepId, otherIds) {
 }
 
 export function restoreAll(type) {
-  if (dbLive && SOFT_DELETE.has(type)) return restoreRecords(type, (trashRows[type] || []).map((r) => r.id));
+  if (dbLive && softDeletes(type)) return restoreRecords(type, (trashRows[type] || []).map((r) => r.id));
   if (dbLive) {
     // Hard-deleted types: "restore" re-inserts the sample records whose ids are missing.
     const rows = dbRows[type] || [];
@@ -2015,7 +2018,7 @@ async function initCustomProperties() {
 // Soft-deleted rows stay in the database: the lists never download them (the trash loads on demand, ensureTrash).
 const trashLoaded = new Set();
 export async function ensureTrash(type) {
-  if (!dbLive || !SOFT_DELETE.has(type) || trashLoaded.has(type)) return false;
+  if (!dbLive || !softDeletes(type) || trashLoaded.has(type)) return false;
   const { data, error } = await supabase.from(type).select('*').not('deleted_at', 'is', null).order('deleted_at', { ascending: false }).limit(500);
   if (error) throw error;
   const known = new Set((trashRows[type] || []).map((r) => Number(r.id)));
@@ -2028,10 +2031,16 @@ async function fetchTable(type) {
   const PAGE = 1000;
   for (let from = 0; ; from += PAGE) {
     let q = supabase.from(type).select('*');
-    if (SOFT_DELETE.has(type)) q = q.is('deleted_at', null);
-    const { data, error } = await q
+    if (softDeletes(type)) q = q.is('deleted_at', null);
+    let { data, error } = await q
       .order('id')
       .range(from, from + PAGE - 1);
+    if (error && softDeletes(type) && /deleted_at/.test(error.message || '')) {
+      // Column not there yet: load everything and keep this type on hard delete until the migration runs.
+      softDeleteMissing.add(type);
+      console.warn(`[supabase] ${type}: falta la columna deleted_at (migración pendiente); papelera desactivada para este tipo.`);
+      ({ data, error } = await supabase.from(type).select('*').order('id').range(from, from + PAGE - 1));
+    }
     if (error) throw error;
     all.push(...data);
     if (data.length < PAGE) break;
@@ -2039,7 +2048,7 @@ async function fetchTable(type) {
   // Soft-deleted rows go to the trash, the rest to the list.
   const live = [];
   const trash = [];
-  all.forEach((r) => (SOFT_DELETE.has(type) && r.deleted_at ? trash : live).push(r));
+  all.forEach((r) => (softDeletes(type) && r.deleted_at ? trash : live).push(r));
   trashRows[type] = trash.map((r) => augment(type, fromDb(type, r)));
   return live.map((r) => augment(type, fromDb(type, r)));
 }
