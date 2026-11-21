@@ -1,9 +1,11 @@
 import { ready as sequencesReady, scheduled, sequenceById, pauseEnrollment, resumeEnrollment, unenroll, enrollmentsOfContact, unenrollReasonOf, STATUS_LABELS as SEQ_STATUS } from './sequences-data.js';
 import { propertyEditor } from './property-editor.js';
+import { mountCreateDeal } from './create-deal.js';
+import { mountCreateTicket } from './create-ticket.js';
 import { changeDealStage } from './deal-close.js';
 import { ACTIVITY_COMPANY_SETTING, activityAssociations, saveAssociatedActivity } from './activity-associations.js';
 import './filter-chip.js';
-import { validatePropertyValues } from './data.js';
+import { validatePropertyValues, companyDomains } from './data.js';
 import { sensitiveValue } from './property-privacy.js';
 import { mountActivityComments } from './activity-comments.js';
 // Generic record page for contacts, companies, deals, tickets and tasks.
@@ -17,7 +19,7 @@ import { toast, wireMenus, closeMenus, linkHtml, wireLinkTooltips } from './shel
 import {
   findRecord, setField, deleteRecords, addRecord, allContacts, allCompanies, allDeals, allTickets, allTasks, ALL,
   STATUSES, LIFECYCLES, SOURCES, OWNERS, TICKET_STATUSES, PRIORITIES, TASK_TYPES, TASK_STATUSES, RECUR_OPTIONS,
-  ticketStatusIsClosed, ticketStatusesFor, ticketStatusLabel, firstOpenTicketStatus, ticketPipelines, stagesFor, allDealStages, dealStageLabel, dealStageProb, isClosedStage,
+  ticketStatusIsClosed, ticketStatusesFor, ticketStatusLabel, firstOpenTicketStatus, ticketPipelines, dealPipelines, stagesFor, allDealStages, dealStageLabel, dealStageProb, isClosedStage, dealStageIsClosed,
   formatDate, formatMoney, initials, colorFor, labelOf, toCsv, download, TODAY, assocLabels, CURRENCY_DEFS, CURRENCY_CODES, relativeTimeFine,
   activitiesFor, ensureActivitiesFor, addActivity, updateActivity, deleteActivity, restoreActivity, deletedActivitiesFor, activityIdForComment, historyFor, addHistoryEntry, getSetting, setSetting, settingsLive, settingScope, lineItemsFor, fetchLineItems, lineItemsTotal,
   parentCompanyOf, childCompaniesOf, isCompanyDescendant, dbIsLive,
@@ -83,7 +85,7 @@ const CONFIG = {
       ['industry', 'Sector', 'select', opt(['Construcción', 'Arquitectura', 'Reformas', 'Inmobiliaria', 'Decoración', 'Fabricación de vidrio'])], ['customer_type', 'Tipo de Cliente', 'select', opt(['Instalador', 'Distribuidor', 'Arquitecto', 'Constructor', 'Particular'])],
       ['notes_last_contacted', 'Último contacto', 'date'], ['target_account', 'Cuenta objetivo', 'select', opt(['Sí', 'No'])], ['products_of_interest', 'Productos de interés'],
       ['assoc_deals_count', 'Negocios asociados', 'calc', (r) => String(allDeals().filter((d) => Number(d.companyId) === Number(r.id)).length)],
-      ['domain', 'Dominio'], ['phone', 'Número de teléfono', 'tel'], ['employees', 'Empleados', 'number'], ['revenue', 'Ingresos anuales', 'number'], ['created', 'Fecha de creación', 'date-ro'],
+      ['domain', 'Dominio'], ['hs_additional_domains', 'Dominios adicionales'], ['phone', 'Número de teléfono', 'tel'], ['employees', 'Empleados', 'number'], ['revenue', 'Ingresos anuales', 'number'], ['created', 'Fecha de creación', 'date-ro'],
     ],
     highlights: (r) => [['Fecha de creación', formatDate(r.created)], ['Etapa del ciclo de vida', r.lifecycle], ['Última actividad', formatDate(r.lastActivity)], ['Ingresos anuales', formatMoney(r.revenue)]],
     assoc: (r) => [
@@ -1089,7 +1091,9 @@ function middleCardHtml(id) {
     }
     case 'duplicates': {
       const all = ALL[type]().filter((r) => Number(r.id) !== Number(rec.id));
-      const dups = all.filter((r) => (rec.email && r.email && r.email.toLowerCase() === rec.email.toLowerCase()) || (rec.domain && r.domain && r.domain === rec.domain) || (r.name && rec.name && r.name.toLowerCase() === rec.name.toLowerCase())).slice(0, 5);
+      // companies: any shared domain, main or additional («Dominios adicionales»)
+      const mine = type === 'companies' ? companyDomains(rec) : [];
+      const dups = all.filter((r) => (rec.email && r.email && r.email.toLowerCase() === rec.email.toLowerCase()) || (mine.length && companyDomains(r).some((d) => mine.includes(d))) || (r.name && rec.name && r.name.toLowerCase() === rec.name.toLowerCase())).slice(0, 5);
       return `<div class="card"><h3 class="card__title">${esc(label)}</h3>${dups.length
         ? `<p>Se han encontrado <strong>${dups.length}</strong> posibles duplicados:</p><ul class="dup-list">${dups.map((r) => `<li><a href="./?id=${r.id}">${esc(r.name)}</a> <span class="muted">${esc(r.email || r.domain || '')}</span><button class="link-btn" type="button" data-act="merge">Fusionar</button></li>`).join('')}</ul>`
         : '<p class="muted">No se han detectado registros duplicados. ✓</p>'}</div>`;
@@ -1597,6 +1601,16 @@ function nextNumber(prefix) {
   return `${prefix}-${n}`;
 }
 
+// Mount outside the record content so card refreshes preserve the creation forms.
+const refreshAfterCreation = () => { renderAssoc(); renderTimeline(); };
+const recordCreateDeal = mountCreateDeal({ root: document.body, onCreated: refreshAfterCreation });
+const recordCreateTicket = mountCreateTicket({ root: document.body, onCreated: refreshAfterCreation });
+function recordAssociationPrefill() {
+  const contactId = type === 'contacts' ? rec.id : rec.contactId || '';
+  const contact = contactId ? findRecord('contacts', contactId) : null;
+  return { contactId, companyId: type === 'companies' ? rec.id : rec.companyId || contact?.companyId || '' };
+}
+
 function runMore(kind, sub) {
   const name = cfg.title(rec);
   const docForm = (title, label) => openModal(
@@ -1658,43 +1672,12 @@ function runMore(kind, sub) {
     case 'schedule':
       openLogModal('meeting', { schedule: true });
       break;
-    case 'deal': {
-      const d = addRecord('deals', {
-        name: `Nuevo negocio ${rec.company || name}`,
-        amount: 0,
-        stage: 'appointment',
-        pipeline: 'Pipeline de ventas',
-        closeDate: new Date(TODAY.getTime() + 30 * 86400000).toISOString(),
-        owner: rec.owner && rec.owner !== 'Sin asignar' ? rec.owner : 'Fernando L.',
-        companyId: rec.companyId || (type === 'companies' ? rec.id : ''),
-        company: type === 'companies' ? rec.name : rec.company || '',
-        contactId: type === 'contacts' ? rec.id : rec.contactId || '',
-        priority: 'medium',
-        type: 'Nuevo negocio',
-        lastActivity: TODAY.toISOString(),
-      });
-      addEvent({ type: 'stage', when: Date.now(), who: 'Tú', text: `Negocio "${d.name}" creado y asociado.` });
-      renderAssoc();
-      toast(`Negocio creado. Ábrelo desde "Negocios" en la columna derecha.`);
+    case 'deal':
+      recordCreateDeal.open(recordAssociationPrefill());
       break;
-    }
-    case 'ticket': {
-      const t = addRecord('tickets', {
-        name: `Solicitud de ${name}`,
-        status: 'new',
-        priority: 'medium',
-        pipeline: 'Pipeline de soporte',
-        owner: rec.owner && rec.owner !== 'Sin asignar' ? rec.owner : 'Fernando L.',
-        contactId: type === 'contacts' ? rec.id : rec.contactId || '',
-        source: 'Teléfono',
-        description: 'Ticket creado desde la ficha del registro.',
-        lastActivity: TODAY.toISOString(),
-      });
-      addEvent({ type: 'stage', when: Date.now(), who: 'Tú', text: `Ticket "${t.name}" creado y asociado.` });
-      renderAssoc();
-      toast('Ticket creado');
+    case 'ticket':
+      recordCreateTicket.open(recordAssociationPrefill());
       break;
-    }
     case 'workflow': {
       // Automatización › Workflows: the real workflows of this object; the engine (src/workflow-engine.js)
       // creates the run, executes the steps now and schedules the delays.
@@ -2652,8 +2635,8 @@ if (rec) {
     const label = data.label;
     delete data.label;
     if (kind === 'contacts') data.name = `${data.first || ''} ${data.last || ''}`.trim();
-    if (kind === 'deals') { data.amount = Number(data.amount) || 0; data.stage = 'appointment'; data.pipeline = 'Pipeline de ventas'; data.closeDate = data.closeDate ? new Date(data.closeDate).toISOString() : new Date(TODAY.getTime() + 30 * 86400000).toISOString(); }
-    if (kind === 'tickets') { data.pipeline = ticketPipelines()[0]; data.status = firstOpenTicketStatus(data.pipeline); data.priority = 'medium'; if (type === 'contacts') data.contactId = rec.id; }
+    if (kind === 'deals') { data.amount = Number(data.amount) || 0; data.pipeline = dealPipelines()[0]; data.stage = stagesFor(data.pipeline).find((stage) => !dealStageIsClosed(data.pipeline, stage[0]))?.[0]; if (!data.pipeline || !data.stage) { toast('No hay etapas abiertas en el pipeline de negocios.'); return; } data.closeDate = data.closeDate ? new Date(data.closeDate).toISOString() : new Date(TODAY.getTime() + 30 * 86400000).toISOString(); }
+    if (kind === 'tickets') { data.pipeline = ticketPipelines()[0]; data.status = ticketStatusesFor(data.pipeline).find((status) => status[2] !== 'closed')?.[0]; if (!data.pipeline || !data.status) { toast('No hay estados abiertos en el pipeline de tickets.'); return; } data.priority = 'medium'; if (type === 'contacts') data.contactId = rec.id; }
     if (kind === 'tasks') { data.status = 'todo'; data.type = 'Tarea'; data.priority = 'medium'; data.due = data.due ? new Date(data.due).toISOString() : TODAY.toISOString(); }
     if (kind === 'companies') data.lifecycle = 'Lead';
     data.owner = rec.owner && rec.owner !== 'Sin asignar' ? rec.owner : 'Fernando L.';

@@ -1,7 +1,7 @@
 import { boot } from './page.js';
 import { mountList, avatarName, ownerHtml, link } from './list.js';
 import { displayPhone } from './phone.js';
-import { allCompanies, allContacts, allDeals, OWNERS, LIFECYCLES, formatDate, formatMoney, formatMoneyShort, formatShortDate, TODAY, lifecycleTag, toHomeCurrency, homeCurrency, parentCompanyOf, childCompaniesOf } from './data.js';
+import { allCompanies, allContacts, allDeals, OWNERS, LIFECYCLES, formatDate, formatMoney, formatMoneyShort, formatShortDate, TODAY, lifecycleTag, toHomeCurrency, homeCurrency, parentCompanyOf, childCompaniesOf, additionalDomainsOf } from './data.js';
 import { mountCreateCompany } from './create-company.js';
 
 boot({ root: '../', active: 'crm', sub: 'Empresas', title: 'Empresas' });
@@ -78,6 +78,7 @@ const list = mountList({
     { key: 'parentCompanyId', label: 'Empresa matriz', default: false, editable: false, serverSort: false, text: (r) => (parentCompanyOf(r) || {}).name || '', sortValue: (r) => (parentCompanyOf(r) || {}).name || '', render: (r) => { const p = parentCompanyOf(r); return p ? link(`./record/?id=${p.id}`, p.name) : '<span class="muted">--</span>'; } },
     { key: 'subsidiaries', label: 'Empresas secundarias', default: false, editable: false, serverSort: false, text: (r) => String(childCompaniesOf(r.id).length), sortValue: (r) => childCompaniesOf(r.id).length },
     { key: 'domain', label: 'Dominio' },
+    { key: 'hs_additional_domains', label: 'Dominios adicionales', default: false, text: (r) => additionalDomainsOf(r).join('; ') },
     { key: 'phone', label: 'Número de teléfono', text: (r) => displayPhone(r.phone) },
     { key: 'owner', label: 'Propietario de la empresa', render: (r) => ownerHtml(r.owner) },
     { key: 'industry', label: 'Sector' },

@@ -4,7 +4,7 @@
 // de-duplication (e-mail, domain or record ID), the three import modes, associations by company, the error
 // catalogue with its impact, the import states (STARTED → PROCESSING → DONE / FAILED / CANCELED, DEFERRED when
 // three are running), the limits and the downloads.
-import { ALL, addRecord, setField, OWNERS, TODAY, getViewStore, setViewStore, strip, dealPipelines, stagesFor, ticketPipelines, ticketStatusesFor, TICKET_STATUSES, TASK_STATUSES, DEAL_STAGES } from './data.js';
+import { ALL, addRecord, setField, OWNERS, TODAY, getViewStore, setViewStore, strip, dealPipelines, stagesFor, ticketPipelines, ticketStatusesFor, TICKET_STATUSES, TASK_STATUSES, DEAL_STAGES, companyDomains } from './data.js';
 import { propertyList, customProperties, saveCustomProperties } from './properties.js';
 import { addSegment } from './segments-data.js';
 
@@ -341,8 +341,8 @@ const companyIndex = () => {
   const byDomain = new Map();
   ALL.companies().forEach((c) => {
     if (c.name) byName.set(strip(c.name), [...(byName.get(strip(c.name)) || []), c]);
-    const d = normalizeDomain(c.domain);
-    if (d) byDomain.set(d, [...(byDomain.get(d) || []), c]);
+    // a company answers to its main domain and to each of its «Dominios adicionales»
+    companyDomains(c).forEach((d) => byDomain.set(d, [...(byDomain.get(d) || []), c]));
   });
   return { byName, byDomain };
 };

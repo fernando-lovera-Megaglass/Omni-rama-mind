@@ -117,4 +117,63 @@ $('exd-form').dispatchEvent(new dom.window.Event('submit', { bubbles: true, canc
 const excluded = JSON.parse(mem[data.EXCLUDED_DOMAINS_KEY]);
 log('excluded list:', excluded.join(', '));
 if (!excluded.includes('prueba-excluida.com')) fail('excluded domain added');
+
+// 9. «Dominios adicionales» (especificacion-empresas-crm.md §1-2): a company answers to its main domain and to
+// each additional one (';' separated); contacts of a secondary domain join it instead of creating a duplicate
+localStorage.setItem(data.COMPANY_AUTO_KEY, JSON.stringify({ autoCreate: true }));
+const grupo = data.addRecord('companies', { name: 'Grupo Vidriero', domain: 'grupo-vidriero.com', hs_additional_domains: ' HTTPS://www.Filial.com/; marca-dos.es ,grupo-vidriero.com', owner: 'Fernando L.', lifecycle: 'Lead' });
+log('additional domains stored:', JSON.stringify(grupo.hs_additional_domains), '| companyDomains:', data.companyDomains(grupo).join(', '));
+if (grupo.hs_additional_domains !== 'filial.com;marca-dos.es' || data.companyDomains(grupo).join(',') !== 'grupo-vidriero.com,filial.com,marca-dos.es') fail('additional domains normalised on create (main domain not repeated)');
+if (companies().some((c) => Number(c.id) !== Number(grupo.id) && c.hs_additional_domains)) fail('no sample «Dominios adicionales» on the other companies (REAL_ONLY)');
+const n9 = companies().length;
+const c11 = data.addRecord('contacts', { name: 'Kai Filial', email: 'kai@filial.com' });
+log('contact @filial.com →', contact(c11.id).company, '| companies created:', companies().length - n9, '| note:', notes('contacts', c11.id)[0]);
+if (Number(c11.companyId) !== Number(grupo.id) || contact(c11.id).company !== 'Grupo Vidriero' || companies().length !== n9 || byDomain('filial.com').length) fail('contact of an additional domain joins the company without creating one');
+if (!/por el dominio del correo \(filial\.com\)/.test(notes('contacts', c11.id)[0] || '')) fail('timeline names the additional domain');
+if (data.companiesByDomain('marca-dos.es')[0]?.id !== grupo.id || data.autoAssociateCompany({ id: 0, email: 'x@marca-dos.es' }, { dryRun: true, force: true }).company?.id !== grupo.id) fail('companiesByDomain / dry run by additional domain');
+// editing the field («Acerca de», inline column) normalises it and drops the main domain
+data.setField('companies', grupo.id, 'hs_additional_domains', 'Marca-Tres.com, www.filial.com; grupo-vidriero.com');
+log('after edit:', JSON.stringify(data.findRecord('companies', grupo.id).hs_additional_domains));
+if (data.findRecord('companies', grupo.id).hs_additional_domains !== 'marca-tres.com;filial.com') fail('setField normalises the additional domains');
+const c12 = data.addRecord('contacts', { name: 'Lu Tres', email: 'lu@marca-tres.com' });
+const c13 = data.addRecord('contacts', { name: 'Mo Dos', email: 'mo@marca-dos.es' });
+if (Number(c12.companyId) !== Number(grupo.id) || Number(c13.companyId) === Number(grupo.id) || byDomain('marca-dos.es').length !== 1) fail('the edited list is what counts (marca-tres joins, marca-dos no longer)');
+// the «Crear empresa» panel: an additional domain already used → the duplicate warning, nothing created
+const CC = await import(resolve(here, '../src/create-company.js'));
+CC.setSearchClient(null);
+const found = await CC.findByDomain('www.FILIAL.com');
+log('findByDomain(filial.com) →', found && `${found.name} (matched ${found.matched})`, '| findSimilar(marca-tres) →', (await CC.findSimilar({ domain: 'marca-tres' })).map((r) => r.name).join(', '));
+if (!found || Number(found.id) !== Number(grupo.id) || found.matched !== 'filial.com') fail('findByDomain finds the company by an additional domain');
+if (!(await CC.findSimilar({ domain: 'marca-tres' })).some((r) => Number(r.id) === Number(grupo.id))) fail('findSimilar looks at the additional domains');
+if (!CC.FIELDS.some(([k]) => k === 'hs_additional_domains') || CC.FIELDS.findIndex(([k]) => k === 'hs_additional_domains') !== CC.FIELDS.findIndex(([k]) => k === 'domain') + 1) fail('panel field after the domain');
+const panel = CC.mountCreateCompany({ root: document.body });
+const submitPanel = async () => { panel.el.querySelector('#cco-form').dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true })); for (let i = 0; (panel.state.busy || i < 2) && i < 200; i++) await new Promise((r) => setTimeout(r, 5)); };
+panel.open({ name: 'Otra Filial SA', domain: 'otra-filial.com', hs_additional_domains: 'nueva-marca.com; FILIAL.com' });
+const nPanel = companies().length;
+await submitPanel();
+const warn = panel.el.querySelector('#cco-dups');
+log('panel with a used additional domain:', warn.className, '|', warn.textContent.replace(/\s+/g, ' ').trim().slice(0, 140));
+if (!warn.classList.contains('cc-dups--warn') || !/Ya existe una empresa con ese dominio/.test(warn.textContent) || !/filial\.com ya pertenece a Grupo Vidriero/.test(warn.textContent) || companies().length !== nPanel || !panel.isOpen()) fail('duplicate warning for an additional domain, nothing created');
+if (panel.el.querySelector('[data-cco="fix-domain"]')?.dataset.field !== 'hs_additional_domains') fail('the button goes back to the additional domains field');
+panel.el.querySelector('[data-cco="fix-domain"]').dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
+panel.el.querySelector('#cco-form').elements.hs_additional_domains.value = 'nueva-marca.com';
+await submitPanel();
+const made = companies().find((c) => c.name === 'Otra Filial SA');
+log('panel after fixing:', made && `${made.domain} + ${made.hs_additional_domains}`, '| open:', panel.isOpen());
+if (!made || made.hs_additional_domains !== 'nueva-marca.com' || panel.isOpen()) fail('created with its additional domain once free');
+// import: a row of an additional domain joins the company; a company column with an additional domain associates too
+const table9 = E.parsePasted(['Nombre\tApellidos\tCorreo electrónico\tNombre de la empresa', 'Imp\tCinco\timp.cinco@marca-tres.com\t', 'Imp\tSeis\timp.seis@gmail.com\tfilial.com'].join('\n'));
+const plan9 = E.planImport(table9, E.autoMap(table9.headers, 'es', 'contacts'), { mode: 'create' });
+const entry9 = E.registerImport({ name: 'Dominios adicionales', table: table9, plan: plan9, options: {} });
+const run9 = await E.runImport(entry9.id, plan9, { sleep: () => Promise.resolve() });
+const cinco = data.allContacts().find((c) => c.email === 'imp.cinco@marca-tres.com');
+const seis = data.allContacts().find((c) => c.email === 'imp.seis@gmail.com');
+log('import by additional domain:', JSON.stringify({ created: run9.created, autoCompanies: run9.autoCompanies }), '| cinco →', cinco?.company, '| seis →', seis?.company, '| companies now:', companies().length - nPanel - 1, 'new');
+if (run9.created !== 2 || run9.autoCompanies !== 0 || Number(cinco?.companyId) !== Number(grupo.id) || Number(seis?.companyId) !== Number(grupo.id) || companies().length !== nPanel + 1) fail('import associates by additional domain (e-mail and company column) without creating companies');
+// duplicates: a company whose main domain is another's additional domain → one group by domain; the main domain wins the association
+const D = await import(resolve(here, '../src/duplicates.js'));
+const suelta = data.addRecord('companies', { name: 'Filial Suelta', domain: 'filial.com', owner: 'Sin asignar', lifecycle: 'Lead' });
+const group = D.findDuplicateGroups('companies', companies()).find((g) => g.records.some((r) => Number(r.id) === Number(grupo.id)));
+log('duplicate group:', group && `${group.records.map((r) => r.name).join(' + ')} · keys ${group.keys.join(',')}`, '| companiesByDomain(filial.com)[0]:', data.companiesByDomain('filial.com')[0]?.name);
+if (!group || !group.records.some((r) => Number(r.id) === Number(suelta.id)) || !group.keys.includes('domain') || data.companiesByDomain('filial.com')[0]?.id !== suelta.id) fail('duplicates tool groups by additional domain; the main domain wins');
 console.log('[company-auto] OK');

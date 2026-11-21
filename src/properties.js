@@ -483,6 +483,7 @@ export const PROPERTIES = {
     g('Información de la empresa', [
       ['name', 'Nombre de la empresa', 'text'],
       ['domain', 'Nombre de dominio de la empresa', 'url'],
+      ['hs_additional_domains', 'Dominios adicionales', 'text'],
       ['website', 'URL del sitio web', 'url'],
       ['phone', 'Número de teléfono', 'phone'],
       ['owner', 'Propietario de la empresa', 'user', OWNER_OPTS],
@@ -569,7 +570,6 @@ export const PROPERTIES = {
       ['web_technologies', 'Tecnologías web', 'text'],
       ['hs_keywords', 'Palabras clave', 'text'],
       ['hs_logo_url', 'URL del logotipo', 'url'],
-      ['hs_additional_domains', 'Dominios adicionales', 'text'],
       ['hs_all_owner_ids', 'Todos los IDs de propietario', 'text'],
       ['hs_all_team_ids', 'Todos los IDs de equipo', 'text'],
       ['hs_all_accessible_team_ids', 'Todos los IDs de equipo con acceso', 'text'],

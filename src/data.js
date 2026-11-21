@@ -734,6 +734,7 @@ export function setField(type, id, field, value, opts = {}) {
   const completedAt = new Date();
   validatePropertyValuesLocal(type, { [field]: value }, id);
   if (type === 'tasks' && field === 'recur') value = normalizeRecur(value); // the editors hand over the freq string
+  if (type === 'companies' && field === 'hs_additional_domains') value = normalizeAdditionalDomains(value, findIn(type, id)?.domain);
   const previousValue = (type === 'tickets' && field === 'status') || (type === 'contacts' && field === 'lifecycle') || (type === 'tasks' && field === 'status') ? findIn(type, id)?.[field] : undefined;
   if (dbLive) {
     const rec = (dbRows[type] || []).find((r) => Number(r.id) === Number(id));
@@ -988,6 +989,7 @@ export function reminderFromDue(due, option = defaultReminderOption()) {
 export function addRecord(type, fields, opts = {}) {
   // A new task without an explicit reminder gets the default one from Ajustes (none for completed ones).
   if (type === 'tasks' && fields && fields.reminderAt === undefined && fields.status !== 'done') fields = { ...fields, reminderAt: reminderFromDue(fields.due) };
+  if (type === 'companies' && fields && fields.hs_additional_domains !== undefined) fields = { ...fields, hs_additional_domains: normalizeAdditionalDomains(fields.hs_additional_domains, fields.domain) };
   validatePropertyValuesLocal(type, fields);
   if (dbLive) {
     const id = nextId[type];
@@ -1302,7 +1304,7 @@ function augment(type, r) {
   return r;
 }
 // Properties the app really drives: a sample value would be acted upon (a fake reminder would fire).
-const REAL_ONLY = new Set(['marketingOptOut', 'marketingOptOutAt', 'marketingOptOutReason', 'reminderAt', 'reminderFiredAt', 'closedLostReason', 'closedWonReason', 'notes_last_contacted']);
+const REAL_ONLY = new Set(['marketingOptOut', 'marketingOptOutAt', 'marketingOptOutReason', 'reminderAt', 'reminderFiredAt', 'closedLostReason', 'closedWonReason', 'notes_last_contacted', 'hs_additional_domains']);
 
 // ---------- generators ----------
 function daysAgo(n) {
@@ -1600,18 +1602,34 @@ export function companyDomainFor(contact) {
   if (w && !isFreeEmailDomain(w)) return { domain: w, via: 'website' };
   return { domain: null, reason: e ? 'free_email' : 'no_email' };
 }
+// «Dominios adicionales» of a company (hs_additional_domains, ';'-separated as the original exports it), each
+// normalised like the main domain (siteDomain); ',' and spaces are accepted as separators on input.
+export function additionalDomainsOf(company) {
+  return [...new Set(String((company && company.hs_additional_domains) || '').split(/[;,\s]+/).map((d) => siteDomain(d)).filter(Boolean))];
+}
+// The stored form of the field: normalised, without repeats and without the company's main domain.
+export function normalizeAdditionalDomains(value, mainDomain) {
+  const main = siteDomain(mainDomain);
+  return additionalDomainsOf({ hs_additional_domains: value }).filter((d) => d !== main).join(';');
+}
+// Every domain a company answers to: the main one first, then the additional ones.
+export function companyDomains(company) {
+  return [...new Set([siteDomain(company && company.domain), ...additionalDomainsOf(company)].filter(Boolean))];
+}
+// Companies that answer to a domain (main or additional); the ones that have it as main domain come first.
 export function companiesByDomain(domain) {
   const d = String(domain || '').toLowerCase();
   if (!d) return [];
-  return allCompanies().filter((c) => siteDomain(c.domain) === d).sort((a, b) => Number(a.id) - Number(b.id));
+  return allCompanies().filter((c) => companyDomains(c).includes(d)).sort((a, b) => Number(siteDomain(b.domain) === d) - Number(siteDomain(a.domain) === d) || Number(a.id) - Number(b.id));
 }
-function linkContactToCompany(contact, company, via, created) {
+// `matched`: the domain that matched (the company's main one or one of its additional domains).
+function linkContactToCompany(contact, company, via, created, matched = '') {
   setField('contacts', contact.id, 'companyId', company.id);
   setField('contacts', contact.id, 'company', company.name);
   contact.companyId = company.id;
   contact.company = company.name;
   const when = Date.now();
-  addActivity({ type: 'note', recordType: 'contacts', recordId: contact.id, who: 'Sistema', when, text: `Empresa "${company.name}" ${created ? 'creada y ' : ''}asociada automáticamente por el dominio ${via === 'website' ? 'del sitio web' : 'del correo'} (${company.domain}).` });
+  addActivity({ type: 'note', recordType: 'contacts', recordId: contact.id, who: 'Sistema', when, text: `Empresa "${company.name}" ${created ? 'creada y ' : ''}asociada automáticamente por el dominio ${via === 'website' ? 'del sitio web' : 'del correo'} (${matched || company.domain}).` });
   if (created) addActivity({ type: 'note', recordType: 'companies', recordId: company.id, who: 'Sistema', when, text: `Empresa creada automáticamente a partir del contacto ${contact.name || contact.email || ''}${contact.email ? ` (${contact.email})` : ''}.` });
 }
 // Applies the rule to one contact (record or id). Returns { action: 'associated' | 'created' | 'skipped', reason, domain, via, company }.
@@ -1625,7 +1643,7 @@ export function autoAssociateCompany(contactOrId, { create = true, dryRun = fals
   if (excludedDomains().includes(domain)) return { action: 'skipped', reason: 'excluded', domain };
   const hits = companiesByDomain(domain);
   if (hits.length) {
-    if (!dryRun) linkContactToCompany(contact, hits[0], via, false);
+    if (!dryRun) linkContactToCompany(contact, hits[0], via, false, domain);
     return { action: 'associated', domain, via, company: hits[0], duplicates: hits.length - 1 };
   }
   // the website of a free-e-mail contact only looks for an existing company; companies are created from e-mail domains

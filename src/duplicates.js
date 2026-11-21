@@ -1,7 +1,7 @@
 // "Gestionar duplicados" and "Corregir problemas de formato" helpers (pure functions used by the lists).
 // Duplicates: contacts that share an e-mail or a name, companies that share a domain or a name, grouped
 // with a union-find so a record that matches two others by different keys ends up in one group.
-import { strip, siteDomain } from './data.js';
+import { strip, companyDomains } from './data.js';
 import { normalizePhone } from './import-engine.js';
 
 const normName = (s) => strip(String(s || '')).replace(/[^a-z0-9]+/g, ' ').trim();
@@ -14,16 +14,17 @@ export function findDuplicateGroups(type, rows) {
   const union = (a, b) => { const ra = find(a); const rb = find(b); if (ra !== rb) parent.set(rb, ra); };
   rows.forEach((r) => parent.set(Number(r.id), Number(r.id)));
   const reasons = new Map(); // id → Set of keys that matched
+  // valueOf may return one value or a list of them (a company and all its domains)
   const byKey = (keyName, valueOf) => {
     const seen = new Map();
     rows.forEach((r) => {
-      const v = valueOf(r);
-      if (!v) return;
-      if (seen.has(v)) { union(seen.get(v), Number(r.id)); [seen.get(v), Number(r.id)].forEach((id) => { if (!reasons.has(id)) reasons.set(id, new Set()); reasons.get(id).add(keyName); }); } else seen.set(v, Number(r.id));
+      [].concat(valueOf(r)).filter(Boolean).forEach((v) => {
+        if (seen.has(v)) { union(seen.get(v), Number(r.id)); [seen.get(v), Number(r.id)].forEach((id) => { if (!reasons.has(id)) reasons.set(id, new Set()); reasons.get(id).add(keyName); }); } else seen.set(v, Number(r.id));
+      });
     });
   };
   if (type === 'companies') {
-    byKey('domain', (r) => siteDomain(r.domain || '') || '');
+    byKey('domain', (r) => companyDomains(r));
     byKey('name', (r) => normName(r.name));
   } else {
     byKey('email', (r) => normEmail(r.email));
