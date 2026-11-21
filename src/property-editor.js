@@ -9,5 +9,5 @@ export function propertyEditor(f, r, props = {}) {
   if (kind === 'textarea') return `<textarea data-edit="${key}" rows="3">${esc(v)}</textarea>`;
   if (kind === 'date') return `<input data-edit="${key}" type="date" value="${dateInput(v)}" />`;
   if (kind === 'datetime') return `<input data-edit="${key}" type="datetime-local" value="${datetimeInput(v)}" />`;
-  return `<input data-edit="${key}" type="${kind || 'text'}" value="${esc(v)}" />`;
+  return `<input data-edit="${key}" type="${kind || 'text'}"${kind === 'number' ? ' step="any"' : ''} value="${esc(v)}" />`;
 }
