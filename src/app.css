@@ -22,6 +22,7 @@
   --c-soft-2: #e6ebf0;       /* avatares neutros, píldoras */
   --c-teal-soft: #d6efec;    /* selección con hover */
   --c-paper: #fafbfc;        /* previsualizaciones casi blancas */
+  --c-warn: #f5a623;         /* ámbar de aviso (alerta de tarjeta, editor de diseño) */
 
   --fs-xs: 12.8px;
   --fs-sm: 14px;
@@ -68,6 +69,7 @@
   --c-soft-2: #2e3947;
   --c-teal-soft: #1d3a40;
   --c-paper: #1f2833;
+  --c-warn: #f0b86a;
   color-scheme: dark;        /* barras de scroll y controles nativos oscuros */
 }
 
@@ -1807,6 +1809,7 @@ h1 {
 .timeline__ico svg,
 .kcard__pill-ico svg,
 .kcard__actions > a > svg,
+.kcard__actions > button > svg,
 .tq__ico svg,
 .calls__direction svg {
   width: 18px;
@@ -5237,9 +5240,31 @@ td.cell--hl .cell__pen {
   white-space: nowrap;
 }
 
+/* Card glyphs are line icons from src/action-icons.js (clock, info, alert, preview): same stroke as the
+   activity and action icons of the row, tinted with currentColor. */
 .kcard__clock {
+  display: inline-flex;
+  align-items: center;
   color: var(--c-text);
   font-size: 15px;
+}
+
+.kcard__clock > svg {
+  width: 16px;
+  height: 16px;
+}
+
+.kcard__info,
+.kcard__alert {
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+}
+
+.kcard__info > svg,
+.kcard__alert > svg {
+  width: 14px;
+  height: 14px;
 }
 
 .kcard__lines {
@@ -6895,7 +6920,7 @@ td.cell--hl .cell__pen {
 }
 
 .kcard__alert {
-  color: #f5a623;
+  color: var(--c-warn);
   font-size: 13px;
 }
 
@@ -11052,7 +11077,7 @@ textarea.cellpop__input {
   place-items: center;
   width: 28px;
   height: 28px;
-  color: #f5a623;
+  color: var(--c-warn);
   font-size: 20px;
   cursor: help;
 }

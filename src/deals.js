@@ -92,7 +92,7 @@ function dealCard(r, ctx) {
                 ${tags ? `<div class="kcard__tags">${tags}</div>` : ''}
                 <div class="kcard__meta">
                   ${ownerAvatar(r.owner)}
-                  <span class="kcard__pill" title="Última actividad: ${esc(formatDate(when))}"><span class="kcard__pill-ico" aria-hidden="true">${icon}</span> ${esc(agoText(when))}${pending.length ? '' : ' <span class="kcard__pill-sep">|</span> <span class="kcard__alert" title="Sin actividad programada" aria-label="Sin actividad programada">⚠</span>'}</span>
+                  <span class="kcard__pill" title="Última actividad: ${esc(formatDate(when))}"><span class="kcard__pill-ico" aria-hidden="true">${icon}</span> ${esc(agoText(when))}${pending.length ? '' : ` <span class="kcard__pill-sep">|</span> <span class="kcard__alert" title="Sin actividad programada" aria-label="Sin actividad programada">${ACT_ICONS.alert}</span>`}</span>
                 </div>
                 <div class="kcard__actions">
                   <a href="./record/?id=${r.id}#tasks" class="${pending.length ? 'is-pending' : ''}" title="${taskTitle}" aria-label="${taskTitle}">${ACT_ICONS.task}${pending.length ? `<span class="kcard__badge">${pending.length}</span>` : ''}</a>

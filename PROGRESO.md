@@ -1,5 +1,13 @@
 # Progreso — Omni CRM
 
+## 2026-11-21 (sesión 6) · Tarjetas del tablero: reloj, información, vista previa y alerta como iconos de línea
+
+- `src/action-icons.js`: nuevos `clock`, `info`, `alert` y `preview` (24 viewBox, trazo 1,8 px, `currentColor`), el mismo set que ya usan las acciones de correo/nota y el tipo de actividad de la tarjeta.
+- `src/list.js` (tarjeta genérica: Tickets, Contactos, Empresas): ◷ de «última actividad» → `clock` (16 px), ⓘ de la píldora → `info` (14 px, con `aria-label`), ▭ de vista previa → `preview` (18 px, como las demás acciones). `src/deals.js` (tarjeta de Negocios): ⚠ «sin actividad programada» → `alert` (14 px); de paso, ese fragmento estaba en una cadena simple y no interpolaba, ahora es plantilla.
+- `src/app.css`: token `--c-warn` (#f5a623 claro / #f0b86a oscuro) para la alerta de tarjeta y `.ledit__warn` (adiós al hex suelto); contenedores `inline-flex` y tamaños de SVG para `.kcard__clock`, `.kcard__info`, `.kcard__alert` y los botones de `.kcard__actions`.
+- Pruebas: `scripts/smoke-board-icons.mjs` (estática: token y color por variable, iconos presentes, ninguna línea de tarjeta con glifos; DOM: tablero de Negocios con la alerta y tablero de Tickets con reloj/info/vista previa, todos SVG 24 viewBox `currentColor`, sin ◷ ⓘ ▭ ⚠). `smoke-deals-board`, `smoke-deal-close`, `smoke-dark-theme`, `smoke-object-icons` OK. Chrome (claro y oscuro): 33 tarjetas de negocios y 84 de tickets sin glifos, todos los SVG del set, alerta en `--c-warn`.
+- Fuera de alcance: el ⓘ de los KPI de cabecera (`.kpi__info`) y el ✦ del asistente (glifo de marca).
+
 ## 2026-11-21 (sesión 6) · Un solo estilo de encabezado de tabla (Llamadas igual que Contactos)
 
 - **Problema**: convivían dos estilos: `.table thead th` (caja normal, peso 400, `--fs-sm`) para todas las tablas de objetos y la excepción `.table.table--standard thead th` (MAYÚSCULAS, 600, `--fs-xs`) que solo usaba Llamadas; además la regla base `.table th` seguía declarando mayúsculas/600/xs y dependía de la sobrescritura posterior.
