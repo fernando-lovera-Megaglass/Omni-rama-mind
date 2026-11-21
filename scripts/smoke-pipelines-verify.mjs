@@ -17,12 +17,14 @@ if (!/from public\.pipelines p left join public\.pipeline_stages s/.test(QUERY) 
 // rows as the migration leaves them (stage names = HubSpot labels, probabilities in percent, order = displayOrder)
 const rowsFrom = (snap) => {
   const out = [];
-  snap.deals.forEach((p, pi) => [...p.stages].sort((a, b) => a.displayOrder - b.displayOrder).forEach((s, i) => out.push({ objeto: 'deal', pipeline: p.label, pipeline_orden: pi, orden: i, clave: `k${i}`, nombre: s.label, probabilidad: String(Math.round(Number(s.probability) * 100)), descripcion: '' })));
-  snap.tickets.forEach((p, pi) => [...p.stages].sort((a, b) => a.displayOrder - b.displayOrder).forEach((s, i) => out.push({ objeto: 'ticket', pipeline: p.label, pipeline_orden: pi, orden: i, clave: `t${i}`, nombre: s.label, probabilidad: s.ticketState === 'CLOSED' ? '100' : '0', descripcion: s.ticketState === 'CLOSED' ? 'closed' : 'open' })));
+  // the seed and the migration store the labels trimmed (HubSpot's raw ones sometimes end with a space)
+  snap.deals.forEach((p, pi) => [...p.stages].sort((a, b) => a.displayOrder - b.displayOrder).forEach((s, i) => out.push({ objeto: 'deal', pipeline: p.label.trim(), pipeline_orden: pi, orden: i, clave: `k${i}`, nombre: s.label.trim(), probabilidad: String(Math.round(Number(s.probability) * 100)), descripcion: '' })));
+  snap.tickets.forEach((p, pi) => [...p.stages].sort((a, b) => a.displayOrder - b.displayOrder).forEach((s, i) => out.push({ objeto: 'ticket', pipeline: p.label.trim(), pipeline_orden: pi, orden: i, clave: `t${i}`, nombre: s.label.trim(), probabilidad: s.ticketState === 'CLOSED' ? '100' : '0', descripcion: s.ticketState === 'CLOSED' ? 'closed' : 'open' })));
   return out;
 };
 const good = compareWithSnapshot(rowsFrom(snapshot), snapshot);
 if (!good.ok || good.problems.length) fail(`rows built from the snapshot must match: ${good.problems.join(' | ')}`);
+if (!snapshot.deals.some((p) => p.stages.some((s) => s.label !== s.label.trim()))) fail('the snapshot is expected to carry raw labels with trailing spaces (the comparison must trim them)');
 if (good.summary.deals.pipelines !== 8 || good.summary.deals.stages !== 65 || good.summary.tickets.pipelines !== 4 || good.summary.tickets.stages !== 27) fail(`summary: ${JSON.stringify(good.summary)}`);
 log(`matching rows: ${good.summary.deals.pipelines} deal pipelines / ${good.summary.deals.stages} stages, ${good.summary.tickets.pipelines} ticket pipelines / ${good.summary.tickets.stages} statuses → OK`);
 
