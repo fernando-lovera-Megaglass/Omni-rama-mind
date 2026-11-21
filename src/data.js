@@ -1,3 +1,4 @@
+import { matchesSearch } from './search-match.js';
 // Sample data for the app (placeholder people and companies, not real records).
 // When VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are set, records live in
 // Supabase and all edits go to the database. Without them, edits, additions
@@ -1423,8 +1424,7 @@ export function classOf(list, key) {
 
 export function matches(r, q, keys) {
   if (!q) return true;
-  const hay = strip(keys.map((k) => r[k]).join(' '));
-  return hay.includes(strip(q));
+  return matchesSearch(r, q, keys);
 }
 
 export function toCsv(rows, columns, type) {

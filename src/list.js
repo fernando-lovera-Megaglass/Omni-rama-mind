@@ -2814,7 +2814,7 @@ export function mountList(cfg) {
     }
   });
   document.addEventListener('keydown', (e) => {
-    if (e.key === '/' && !['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) {
+    if (e.key === '/' && !e.defaultPrevented && !e.ctrlKey && !e.metaKey && !e.altKey && !document.activeElement.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"])')) {
       e.preventDefault();
       $('row-search').focus();
     }
@@ -3045,6 +3045,17 @@ export function mountList(cfg) {
 
   // Arriving from a record page ("Ver todos los … asociados"): only the records linked to it.
   const urlParams = new URLSearchParams(location.search);
+  if (urlParams.has('q')) {
+    state.viewId = stdId(cfg.views[0].key);
+    if (!store.open.includes(state.viewId)) store.open.unshift(state.viewId);
+    state.q = urlParams.get('q').trim();
+    $('row-search').value = state.q;
+    state.base = cfg.views[0].key;
+    state.filters = {};
+    state.advanced = [];
+    state.pipeline = '';
+    state.page = 1;
+  }
   const linked = [['company', 'companyId', 'companies'], ['contact', 'contactId', 'contacts']].find(([p]) => urlParams.get(p));
   if (linked && cfg.type !== linked[2] && !state.advanced.some((c) => c.key)) {
     state.advanced = [{ ...newCondition(0), key: linked[1], op: 'in', value: [urlParams.get(linked[0])] }];

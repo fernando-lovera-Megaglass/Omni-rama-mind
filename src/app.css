@@ -19360,3 +19360,8 @@ td[data-key="deal_tags"] .dtag {
 }
 .task-queue-menu__panel form { display: grid; gap: var(--sp-8); margin-bottom: var(--sp-8); }
 .task-queue-menu__panel input { width: 100%; min-width: 0; box-sizing: border-box; }
+
+#global-results { max-height: min(70vh, 560px); overflow-y: auto; }
+#global-results .is-active { background: var(--c-row-hover); color: var(--c-dark); outline: 2px solid #0091ae; outline-offset: -2px; }
+#global-results .global-search__all { position: sticky; bottom: 0; background: var(--c-white); border-top: 1px solid var(--c-border); white-space: normal; }
+#global-results .global-search__all.is-active { background: var(--c-row-hover); }

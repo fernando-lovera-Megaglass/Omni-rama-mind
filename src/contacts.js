@@ -71,7 +71,7 @@ const list = mountList({
   },
   previewFields: ['mobilephone', 'phone', ['alt_phone', 'Numero de Telefono 2'], 'email', 'status', ['country', 'País/región'], 'customer_type', ['company', 'Nombre de la empresa'], ['state', 'Estado o región'], 'sales_rep', ['hs_buying_role', 'Rol de compra']],
   searchPlaceholder: 'Buscar nombre, teléfono, correo...',
-  searchKeys: ['name', 'email', 'phone', 'company', 'city'],
+  searchKeys: ['name', 'email', 'phone', 'mobilephone', 'company', 'city'],
   rows: allContacts,
   seedViews: SEED_VIEWS,
   // `where` = the same view/filter as a Supabase (PostgREST) clause, for the server-side pages (src/server-list.js).

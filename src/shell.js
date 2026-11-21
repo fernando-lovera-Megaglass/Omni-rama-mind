@@ -1,3 +1,4 @@
+import { matchesSearch } from './search-match.js';
 // Shared side navigation and top bar for the app pages.
 // `root` is the relative path back to the site root ('../' or '../../').
 
@@ -355,32 +356,93 @@ function wireAccount(root) {
   onAuthChange((event) => { if (event === 'SIGNED_OUT') goTo(siteRoot()); });
 }
 
-function wireGlobalSearch(root) {
+export function wireGlobalSearch(root, loadData = () => import('./data.js')) {
   const box = document.getElementById('global-search');
   const input = box.querySelector('input');
   const results = document.getElementById('global-results');
-  let dataMod = null;
-  input.addEventListener('input', async () => {
-    const q = input.value.trim();
-    if (q.length < 2) {
-      box.classList.remove('is-open');
-      return;
+  let dataPromise, revision = 0, active = -1;
+  input.setAttribute('role', 'combobox');
+  input.setAttribute('aria-controls', results.id);
+  input.setAttribute('aria-autocomplete', 'list');
+  input.setAttribute('aria-expanded', 'false');
+  results.setAttribute('role', 'listbox');
+  const close = () => {
+    revision++;
+    active = -1;
+    box.classList.remove('is-open');
+    input.setAttribute('aria-expanded', 'false');
+    input.removeAttribute('aria-activedescendant');
+  };
+  const select = (index) => {
+    const links = [...results.querySelectorAll('a')];
+    active = index;
+    links.forEach((link, i) => {
+      link.classList.toggle('is-active', i === active);
+      link.setAttribute('aria-selected', String(i === active));
+    });
+    if (links[active]) {
+      input.setAttribute('aria-activedescendant', links[active].id);
+      links[active].scrollIntoView?.({ block: 'nearest' });
     }
-    dataMod = dataMod || (await import('./data.js'));
-    const { allContacts, allCompanies, allDeals, allTickets, strip } = dataMod;
-    const s = strip(q);
-    const hits = [
-      ...allContacts().filter((r) => strip(`${r.name} ${r.email}`).includes(s)).slice(0, 4).map((r) => ['Contacto', r.name, `${root}contacts/record/?id=${r.id}`]),
-      ...allCompanies().filter((r) => strip(r.name).includes(s)).slice(0, 3).map((r) => ['Empresa', r.name, `${root}companies/record/?id=${r.id}`]),
-      ...allDeals().filter((r) => strip(r.name).includes(s)).slice(0, 3).map((r) => ['Negocio', r.name, `${root}deals/record/?id=${r.id}`]),
-      ...allTickets().filter((r) => strip(r.name).includes(s)).slice(0, 3).map((r) => ['Ticket', r.name, `${root}tickets/record/?id=${r.id}`]),
-    ];
-    results.innerHTML = hits.length
-      ? hits.map(([t, n, h]) => `<a class="menu__item" href="${h}"><span class="muted">${t} · </span>${n}</a>`).join('')
-      : '<div class="menu__note">Sin resultados</div>';
-    box.classList.add('is-open');
+  };
+  input.addEventListener('input', async () => {
+    close();
+    const q = input.value.trim(), request = revision;
+    if (q.length < 2) return;
+    try {
+      const data = await (dataPromise ||= loadData());
+      const groups = [
+        ['contacts', 'Contacto', data.allContacts, ['name', 'email', 'phone', 'mobilephone'], 4],
+        ['companies', 'Empresa', data.allCompanies, ['name', 'domain'], 3],
+        ['deals', 'Negocio', data.allDeals, ['name'], 3],
+        ['tickets', 'Ticket', data.allTickets, ['name'], 3],
+        ['tasks', 'Tarea', data.allTasks, ['name'], 3],
+      ];
+      await Promise.all(groups.map(([type]) => data.ensureAll(type)));
+      if (request !== revision) return;
+      const matches = groups.map(([type, label, rows, keys, limit]) => ({
+        type, label, limit, rows: rows().filter((r) => matchesSearch(r, q, keys)),
+      }));
+      const best = matches.reduce((winner, group) => group.rows.length > winner.rows.length ? group : winner);
+      const hits = matches.flatMap((g) => g.rows.slice(0, g.limit).map((r) =>
+        [g.label, r.name, `${root}${g.type}/record/?id=${encodeURIComponent(r.id)}`]));
+      results.innerHTML = hits.map(([label, name, href], i) =>
+        `<a id="global-hit-${i}" role="option" aria-selected="false" class="menu__item" href="${escN(href)}"><span class="muted">${label} · </span>${escN(name)}</a>`).join('')
+        + (hits.length ? `<a id="global-hit-${hits.length}" role="option" aria-selected="false" class="menu__item global-search__all" href="${escN(`${root}${best.type}/?q=${encodeURIComponent(q)}`)}">Ver todos los resultados para “${escN(q)}”</a>` : '<div class="menu__note">Sin resultados</div>');
+      box.classList.add('is-open');
+      input.setAttribute('aria-expanded', 'true');
+    } catch (error) {
+      dataPromise = null;
+      if (request !== revision) return;
+      results.innerHTML = '<div class="menu__note">No se pudo completar la búsqueda. Inténtalo de nuevo.</div>';
+      box.classList.add('is-open');
+      input.setAttribute('aria-expanded', 'true');
+    }
+  });
+  input.addEventListener('keydown', (e) => {
+    if (e.isComposing || !box.classList.contains('is-open')) return;
+    const links = [...results.querySelectorAll('a')];
+    if (['ArrowDown', 'ArrowUp'].includes(e.key) && links.length) {
+      e.preventDefault();
+      select(active < 0 ? (e.key === 'ArrowDown' ? 0 : links.length - 1)
+        : (active + (e.key === 'ArrowDown' ? 1 : -1) + links.length) % links.length);
+    } else if (e.key === 'Enter' && links.length) {
+      e.preventDefault();
+      links[Math.max(0, active)].click();
+    }
   });
   input.addEventListener('click', (e) => e.stopPropagation());
+  document.addEventListener('click', (e) => { if (!box.contains(e.target)) close(); });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' || e.key === 'Tab') close();
+    if (e.defaultPrevented || e.isComposing || document.activeElement?.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"])')) return;
+    const slash = e.key === '/' && !e.ctrlKey && !e.metaKey && !e.altKey;
+    if (slash && document.getElementById('row-search')) return;
+    if (slash || (e.key.toLowerCase() === 'k' && (e.ctrlKey || e.metaKey) && !e.altKey)) {
+      e.preventDefault();
+      input.focus();
+    }
+  });
 }
 
 // Generic dropdown menus: .menu > button + .menu__panel

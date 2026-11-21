@@ -1,3 +1,4 @@
+import { phoneQuery } from './search-match.js';
 // Server-side lists: the record tables (Contactos, Empresas, Negocios, Tickets) ask Supabase for one page at
 // a time — `range()` with `count: 'exact'` — and the search, the quick filters, the saved views' conditions
 // and the column sort travel as PostgREST filters (`ilike`, `eq`, `gte`, `order`…; properties kept in the
@@ -49,6 +50,8 @@ export function buildPageQuery(client, type, spec) {
     if (!r.exact) exact = false;
   }
   if (spec.q) {
+    // Formatted phone values require digit matching in the existing local fallback.
+    if (phoneQuery(spec.q) && spec.searchKeys?.some((k) => ['phone', 'mobilephone'].includes(k))) exact = false;
     const term = `%${escapeLike(spec.q)}%`;
     const keys = (spec.searchKeys && spec.searchKeys.length ? spec.searchKeys : ['name']).map(h.col);
     q = keys.length === 1 ? q.ilike(keys[0], term) : q.or(keys.map((k) => `${k}.ilike.${term}`).join(','));
