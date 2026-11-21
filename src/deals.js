@@ -17,7 +17,8 @@ const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '
 const defs = dealPipelineDefs();
 const defOf = (pipeline) => defs.find((p) => p.name === pipeline) || defs[0];
 const stagesOf = (pipeline) => (defs.find((p) => p.name === pipeline) || { stages: DEAL_STAGES }).stages;
-const stageLabel = (r) => `${labelOf(stagesOf(r.pipeline), r.stage) || labelOf(allDealStages(), r.stage)} (${r.pipeline || defs[0].name})`;
+// The stage's own name only (as the original: the pipeline has its own column, so the cell never repeats it).
+const stageLabel = (r) => labelOf(stagesOf(r.pipeline), r.stage) || labelOf(allDealStages(), r.stage) || String(r.stage || '');
 const colorMode = () => { try { return (JSON.parse(localStorage.getItem('crm:settings:obj-deals')) || {}).stageColor || 'none'; } catch { return 'none'; } };
 const stageCell = (r) => {
   const label = stageLabel(r);
@@ -222,7 +223,7 @@ const list = mountList({
     { key: 'stage', label: 'Etapa del negocio', options: allDealStages().map(([k, l]) => [k, l]), test: (r, v) => r.stage === v, where: (q, v, h) => q.eq(h.col('stage'), v) },
     { key: 'priority', label: 'Prioridad', options: PRIORITIES.map(([k, l]) => [k, l]), test: (r, v) => r.priority === v, where: (q, v, h) => q.eq(h.col('priority'), v) },
   ],
-  defaultWidths: { name: 300, stage: 250, pipeline: 220, amount: 170, closeDate: 220, owner: 220, company: 220 },
+  defaultWidths: { name: 300, stage: 190, pipeline: 220, amount: 170, closeDate: 220, owner: 220, company: 220 },
   columns: [
     { key: 'name', label: 'Nombre del negocio', render: (r) => link(`./record/?id=${r.id}`, r.name) },
     { key: 'stage', label: 'Etapa del negocio', text: stageLabel, render: stageCell },

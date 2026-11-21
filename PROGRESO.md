@@ -1,5 +1,10 @@
 # Progreso — Omni CRM
 
+## 2026-11-21 (sesión 6) · Columna «Etapa del negocio» sin el pipeline repetido
+
+- `src/deals.js`: la celda de etapa muestra solo el nombre de la etapa (antes «OFERTA A+W (FUERZA DE VENTAS)» en cada fila, duplicando la columna «Pipeline»); conserva el verde de ganado / rojo de perdido y los modos punto e insignia de «Definir los colores de visualización», el `title` lleva solo la etapa y el ancho por defecto baja de 250 a 190 px (menos scroll horizontal). La columna «Pipeline», el ordenamiento por etapa, el filtro y la edición en línea no cambian.
+- Pruebas: `scripts/smoke-deal-stage-column.mjs` (ninguna celda contiene «(», cada celda = etiqueta de la etapa de su pipeline, la columna Pipeline sigue mostrando el pipeline, ancho 190 px, colores ganado/perdido, modos punto e insignia, orden por etapa y edición en línea) y `smoke-deals` ajustada.
+
 ## 2026-11-21 (sesión 6) · RLS estricto: PASO 2 de auth.sql como políticas por equipo
 
 **Verificación previa** (consultas de solo lectura al proyecto con el token de gestión, nunca impreso): 1 usuario con cuenta, 5 correos invitados (los vendedores), y casi ninguna fila con `user_id` (contactos 423 → 3, empresas 38 → 2, negocios 150 → 0, tickets 84 → 0, tareas 64 → 0, actividades 172 → 142, segmentos 13 → 1). Hoy todas las tablas de datos tienen «anon full access» + «authenticated full access»; las personales (cuentas y mensajes de Gmail, conexiones y registros de Twilio, informes, perfil) ya son solo del dueño. Conclusión: la cuenta es multiusuario con datos compartidos (los registros se reparten por «Propietario», pero todo el equipo trabaja sobre los mismos), así que aplicar el bloque «owner only» (`user_id = auth.uid()`) dejaría el CRM vacío para todos y ocultaría a cada vendedor lo de los demás.

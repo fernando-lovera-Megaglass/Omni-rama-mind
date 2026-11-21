@@ -31,7 +31,9 @@ log('kpis:', [...document.querySelectorAll('.kpi')].map((k) => `${k.querySelecto
 // pick a pipeline
 click(document.querySelectorAll('.pmenu__item')[2]);
 const picked = $('pipeline-label').textContent;
-log('picked:', picked, '| rows:', rows(), '| all rows in pipeline:', [...document.querySelectorAll('#rows .stage')].every((s) => s.textContent.includes(picked)), '| stored:', JSON.parse(mem['crm:deals:prefs']).pipeline);
+// The stage cell shows only the stage (the pipeline has its own column), so the pipeline is read from the row.
+log('picked:', picked, '| rows:', rows(), '| all rows in pipeline:', [...document.querySelectorAll('#rows tr')].every((tr) => tr.textContent.includes(picked)), '| stage cells without pipeline:', [...document.querySelectorAll('#rows .stage')].every((s) => !s.textContent.includes('(')), '| stored:', JSON.parse(mem['crm:deals:prefs']).pipeline);
+if ([...document.querySelectorAll('#rows .stage')].some((s) => s.textContent.includes('('))) { console.error('[deals] FAIL: the stage cell must not repeat the pipeline'); process.exit(1); }
 // search in menu
 $('pipeline-q').value = 'acris';
 $('pipeline-q').dispatchEvent(new dom.window.Event('input', { bubbles: true }));
