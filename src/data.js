@@ -1585,9 +1585,13 @@ export function deletedActivitiesFor(recordType, recordId, includeExpired = fals
 async function mutateActivity(id, changes, action = 'update') {
   const mutate = (a) => {
     if (!editableActivity(a)) throw new Error('Esta actividad del sistema no se puede modificar.');
+    if (action === 'update' && a.extra?.deletedAt) throw new Error('Restaura la actividad antes de editarla.');
     if (action === 'restore' && Date.now() - a.extra?.deletedAt >= 90 * 86400000) throw new Error('El plazo de restauración ha vencido.');
-    const next = { ...a, ...changes, extra: { ...a.extra, ...changes.extra } };
-    if (action === 'delete') next.extra.deletedAt = Date.now();
+    // Only delete/restore may change trash membership. Repeated deletion must
+    // preserve the original restoration deadline.
+    const { deletedAt: ignoredDeletedAt, ...extraChanges } = changes.extra || {};
+    const next = { ...a, ...changes, extra: { ...a.extra, ...extraChanges } };
+    if (action === 'delete' && !next.extra.deletedAt) next.extra.deletedAt = Date.now();
     if (action === 'restore') delete next.extra.deletedAt;
     return next;
   };
