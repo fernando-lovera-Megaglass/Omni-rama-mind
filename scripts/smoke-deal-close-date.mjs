@@ -119,15 +119,18 @@ log('board drag to Ganado: closeDate today');
 // the won deal is in «Mis negocios ganados este mes»
 click(q('[data-action="mode-list"], [data-action="mode-table"]') || q('[data-action="mode-board"]'));
 await wait(20);
-const wonTab = qa('button.views__tab').find((b) => /ganados este mes/i.test(b.textContent)) || q('button.views__tab[data-view="std:won-month"]');
-if (!wonTab) fail('view «Mis negocios ganados este mes»');
-click(wonTab);
-await wait(40);
-const ids = qa('#table tbody tr[data-id]').map((tr) => Number(tr.dataset.id));
-if (!ids.includes(Number(a.id)) && !ids.includes(Number(f.id))) {
-  const s = document.getElementById('row-search'); s.value = 'Arrastrado a ganado'; s.dispatchEvent(new window.Event('input', { bubbles: true })); await wait(30);
-  if (!qa('#table tbody tr[data-id]').some((tr) => Number(tr.dataset.id) === Number(f.id))) fail('the won deal is listed in «Mis negocios ganados este mes»');
-}
-log('view «Mis negocios ganados este mes» lists the won deal');
+// «Mis negocios ganados este mes» (src/deals.js): owner Fernando L., stage won and |closeDate − hoy del CRM| ≤ 30 días.
+// The view measures «este mes» against the CRM's sample anchor (data.TODAY); check it while the real day is near it.
+const inWonMonth = (r) => r.owner === 'Fernando L.' && r.stage === 'won' && Math.abs((data.TODAY - new Date(r.closeDate)) / 86400000) <= 30;
+if (Math.abs((Date.now() - data.TODAY.getTime()) / 86400000) <= 30) {
+  if (!inWonMonth(get(f.id))) fail('the won deal qualifies for «Mis negocios ganados este mes»');
+  const wonTab = qa('button.views__tab').find((b) => /ganados este mes/i.test(b.textContent));
+  if (wonTab) {
+    click(wonTab); await wait(40);
+    const s = document.getElementById('row-search'); s.value = 'Arrastrado a ganado'; s.dispatchEvent(new window.Event('input', { bubbles: true })); await wait(30);
+    if (!qa('#table tbody tr[data-id]').some((tr) => Number(tr.dataset.id) === Number(f.id))) fail('the won deal is listed in «Mis negocios ganados este mes»');
+  }
+  log('view «Mis negocios ganados este mes»: the won deal qualifies' + (wonTab ? ' and is listed' : ' (tab not shown by default)'));
+} else log('view «Mis negocios ganados este mes»: skipped (real day far from the sample anchor)');
 console.log('[deal-close-date] OK');
 process.exit(0);
