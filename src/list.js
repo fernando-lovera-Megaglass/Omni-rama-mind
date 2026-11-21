@@ -332,6 +332,8 @@ export function mountList(cfg) {
   const bulkFem = cfg.bulk && cfg.bulk.feminine !== undefined ? cfg.bulk.feminine : /a$/.test(bulkNoun.singular); // "empresa seleccionada"
   const bulkWord = (n, word) => `${word}${bulkFem ? 'a' : 'o'}${n === 1 ? '' : 's'}`; // seleccionado(s) / eliminada(s)…
   const bulkN = (n) => `${n} ${n === 1 ? bulkNoun.singular : bulkNoun.plural}`;
+  // actionsMenu: true shows every option; an object can switch off `dupes` / `fixFormat` (tickets).
+  const actionsOpt = (k) => !(cfg.actionsMenu && typeof cfg.actionsMenu === 'object' && cfg.actionsMenu[k] === false);
 
   root.innerHTML = `
     <div class="lpage">
@@ -348,10 +350,10 @@ export function mountList(cfg) {
           <button class="btn btn--ghost btn--pillx" type="button" aria-haspopup="true" aria-expanded="false">Acciones <span class="caret"></span></button>
           <div class="menu__panel menu__panel--right">
             <button class="menu__item" type="button" data-action="export">Exportar</button>
-            <button class="menu__item" type="button" data-action="dupes">Gestionar duplicados</button>
+            ${actionsOpt('dupes') ? '<button class="menu__item" type="button" data-action="dupes">Gestionar duplicados</button>' : ''}
             <button class="menu__item" type="button" data-action="trash">Restaurar registros eliminados</button>
             <button class="menu__item" type="button" data-action="bulk-edit-menu">Editar propiedades en lote</button>
-            <button class="menu__item" type="button" data-action="fix-format">Corregir problemas de formato</button>
+            ${actionsOpt('fixFormat') ? '<button class="menu__item" type="button" data-action="fix-format">Corregir problemas de formato</button>' : ''}
             <div class="menu__sep"></div>
             <button class="menu__item" type="button" data-action="columns">Editar columnas</button>
             <a class="menu__item" href="../data/?from=${cfg.type}">Importar</a>

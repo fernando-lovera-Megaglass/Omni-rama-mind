@@ -24,6 +24,8 @@ mountList({
   plural: 'tickets',
   addLabel: 'Agregar tickets',
   createLabel: 'Crear ticket',
+  // "Acciones" next to "Agregar" (export, trash, bulk edit); tickets have no duplicate management nor format fixes.
+  actionsMenu: { dupes: false, fixFormat: false },
   // Pipeline selector in the toolbar (as in the original): filters the list and the board to one pipeline,
   // with the open / closed indicator of each pipeline.
   pipeline: { key: 'pipeline', label: 'Pipeline', options: ticketPipelines, manageHref: '../settings/#obj-tickets:pipelines', detail: (name) => openClosed(name) },

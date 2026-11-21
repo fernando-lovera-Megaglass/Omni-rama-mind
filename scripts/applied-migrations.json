@@ -51,6 +51,10 @@
     "status": "aplicada",
     "at": "2026-11-14T05:25:14.935Z"
   },
+  "soft_delete_tickets.sql": {
+    "status": "pendiente",
+    "nota": "Solo código local; no aplicada a producción. Añade deleted_at a tickets (papelera de tickets)."
+  },
   "conversations.sql": {
     "status": "aplicada",
     "at": "2026-11-14T12:48:55.681Z"

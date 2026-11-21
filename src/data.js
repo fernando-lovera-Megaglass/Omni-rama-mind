@@ -566,7 +566,7 @@ const CAMEL_TO_DB = {
   contacts: { companyId: 'company_id', lastActivity: 'last_activity', lastActivityType: 'last_activity_type', jobTitle: 'job_title', deletedAt: 'deleted_at' },
   companies: { lastActivity: 'last_activity', lastActivityType: 'last_activity_type', parentCompanyId: 'parent_company_id', deletedAt: 'deleted_at' },
   deals: { closeDate: 'close_date', companyId: 'company_id', contactId: 'contact_id', lastActivity: 'last_activity', deletedAt: 'deleted_at' },
-  tickets: { contactId: 'contact_id', lastActivity: 'last_activity' },
+  tickets: { contactId: 'contact_id', lastActivity: 'last_activity', deletedAt: 'deleted_at' },
   tasks: { queueId: 'queue_id', contactId: 'contact_id', parentId: 'parent_id', lastActivity: 'last_activity' },
 };
 const DB_TO_CAMEL = Object.fromEntries(
@@ -576,7 +576,7 @@ const TABLE_COLS = {
   contacts: ['id', 'first', 'last', 'name', 'email', 'phone', 'mobilephone', 'owner', 'company_id', 'company', 'status', 'created', 'last_activity', 'last_activity_type', 'lifecycle', 'city', 'country', 'source', 'job_title', 'customer_type', 'deleted_at'],
   companies: ['id', 'name', 'domain', 'phone', 'owner', 'industry', 'city', 'country', 'employees', 'revenue', 'lifecycle', 'created', 'last_activity', 'last_activity_type', 'parent_company_id', 'deleted_at'],
   deals: ['id', 'name', 'amount', 'stage', 'pipeline', 'close_date', 'owner', 'company_id', 'company', 'contact_id', 'created', 'last_activity', 'priority', 'type', 'deleted_at'],
-  tickets: ['id', 'name', 'status', 'priority', 'pipeline', 'owner', 'contact_id', 'source', 'created', 'last_activity', 'description'],
+  tickets: ['id', 'name', 'status', 'priority', 'pipeline', 'owner', 'contact_id', 'source', 'created', 'last_activity', 'description', 'deleted_at'],
   tasks: ['id', 'queue_id', 'parent_id', 'name', 'type', 'status', 'priority', 'owner', 'contact_id', 'contact', 'due', 'created', 'last_activity'],
 };
 // Catalog properties (sample decoration) and real columns never go to `extra`;
@@ -743,8 +743,9 @@ export function setField(type, id, field, value, opts = {}) {
   afterSet(type, id, field, value, opts, previousValue);
 }
 
-// ---------- papelera (soft-delete): contacts, companies and deals keep their rows with deleted_at ----------
-const SOFT_DELETE = new Set(['contacts', 'companies', 'deals']);
+// ---------- papelera (soft-delete): contacts, companies, deals and tickets keep their rows with deleted_at ----------
+// (tasks are not recycled, as in the original). Tickets need supabase/soft_delete_tickets.sql on the database.
+const SOFT_DELETE = new Set(['contacts', 'companies', 'deals', 'tickets']);
 const trashRows = {}; // live: deleted rows per type (deletedAt set), out of dbRows
 const DELETED_AT_KEY = (type) => K(type, 'deletedat'); // local: id → when it was deleted
 export const softDeletes = (type) => SOFT_DELETE.has(type);
