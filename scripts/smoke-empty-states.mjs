@@ -104,7 +104,7 @@ useDom('<!doctype html><body class="app"><aside id="sidenav"></aside><header id=
 await import(resolve(here, '../src/inbox.js'));
 await wait(40);
 // The inbox opens the first conversation by itself: the thread pane's empty state shows once nothing is listed.
-const search = q('#inbox-q, input[type="search"]');
+const search = $('inbox-q'); // not the shell's global search, which comes first in the document
 if (!search) fail('inbox search');
 input(search, 'zzzz-sin-conversaciones');
 await wait(20);
@@ -123,7 +123,7 @@ log('inbox: thread pane «Selecciona una conversación» + list «No hay convers
 useDom('<!doctype html><body class="app"><aside id="sidenav"></aside><header id="topbar"></header><main id="tpl-root"></main><div id="scrim"></div></body>', 'http://localhost/templates/');
 await import(resolve(here, '../src/templates.js'));
 await wait(40);
-const tq = q('#tpl-q, input[type="search"]');
+const tq = $('tpl-q');
 if (!tq) fail('templates search');
 input(tq, 'zzzz-sin-plantillas');
 await wait(20);
