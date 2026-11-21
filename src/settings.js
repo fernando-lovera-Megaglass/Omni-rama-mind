@@ -1,3 +1,4 @@
+import { ACTIVITY_COMPANY_SETTING } from './activity-associations.js';
 import { supabase } from './supabaseClient.js';
 import { createSettingsStore, managedSetting } from './settings-store.js';
 import { FORECAST_CATEGORIES, stageForecastCategory } from './data.js';
@@ -157,11 +158,17 @@ const unavailableButton = (label, cls = 'btn btn--ghost btn--sm') => `<button cl
 
 // ---------- panes: preferences (General with tabs) ----------
 function paneGeneral() {
-  const tabs = [['perfil', 'Perfil'], ['correo', 'Correo'], ['llamadas', 'Llamadas'], ['calendario', 'Calendario'], ['tareas', 'Tareas'], ['seguridad', 'Seguridad'], ['automatizacion', 'Automatización']];
-  const body = { perfil: tabPerfil, correo: tabCorreo, llamadas: tabLlamadas, calendario: tabCalendario, tareas: tabTareas, seguridad: tabSeguridad, automatizacion: tabAutomatizacion }[state.generalTab]();
+  const tabs = [['perfil', 'Perfil'], ['correo', 'Correo'], ['llamadas', 'Llamadas'], ['calendario', 'Calendario'], ['tareas', 'Tareas'], ['actividades', 'Actividades'], ['seguridad', 'Seguridad'], ['automatizacion', 'Automatización']];
+  const body = { perfil: tabPerfil, correo: tabCorreo, llamadas: tabLlamadas, calendario: tabCalendario, tareas: tabTareas, actividades: tabActividades, seguridad: tabSeguridad, automatizacion: tabAutomatizacion }[state.generalTab]();
   return `<h2>General</h2>
     <div class="gtabs">${tabs.map(([k, l]) => `<button type="button" class="${state.generalTab === k ? 'is-active' : ''}" data-general-tab="${k}">${l}</button>`).join('')}</div>
     <p class="muted">Estas preferencias solo se aplican a ti.</p><hr class="cd-sep" />${body}`;
+}
+function tabActividades() {
+  return `<h3>Actividades</h3><form class="gform" data-save="activity-associations">
+    <label><input type="checkbox" name="company" ${load(ACTIVITY_COMPANY_SETTING, true) ? 'checked' : ''} /> Asociar por defecto las actividades a la empresa principal</label>
+    <p class="muted">Puedes cambiar las asociaciones al registrar cada actividad.</p>
+    <button class="btn btn--primary" type="submit">Guardar</button></form>`;
 }
 function tabPerfil() {
   const p = profile();
@@ -1435,7 +1442,8 @@ root.addEventListener('submit', (e) => {
   e.preventDefault();
   const d = Object.fromEntries(new FormData(form).entries());
   const what = form.dataset.save;
-  if (what === 'profile') {
+  if (what === 'activity-associations') { save(ACTIVITY_COMPANY_SETTING, d.company === 'on'); toast('Preferencia de actividades guardada'); }
+  else if (what === 'profile') {
     if (d.phone && d.dial && d.phone.trim().startsWith(d.dial)) d.phone = d.phone.trim().slice(d.dial.length).replace(/^[-\s]+/, '');
     save('crm:profile', { ...profile(), ...d }); toast('Perfil guardado'); render();
   }

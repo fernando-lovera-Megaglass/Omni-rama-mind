@@ -1,3 +1,4 @@
+import { ACTIVITY_COMPANY_SETTING, activityAssociations, saveAssociatedActivity } from './activity-associations.js';
 import './filter-chip.js';
 import { validatePropertyValues } from './data.js';
 import { sensitiveValue } from './property-privacy.js';
@@ -13,7 +14,7 @@ import { toast, wireMenus, closeMenus, linkHtml, wireLinkTooltips } from './shel
 import {
   findRecord, setField, deleteRecords, addRecord, allContacts, allCompanies, allDeals, allTickets, allTasks, ALL,
   STATUSES, LIFECYCLES, SOURCES, OWNERS, TICKET_STATUSES, PRIORITIES, TASK_TYPES, TASK_STATUSES,
-  ticketStatusesFor, ticketStatusLabel, firstOpenTicketStatus, ticketPipelines, stagesFor, allDealStages, dealStageLabel, dealStageProb, isClosedStage,
+  ticketStatusIsClosed, ticketStatusesFor, ticketStatusLabel, firstOpenTicketStatus, ticketPipelines, stagesFor, allDealStages, dealStageLabel, dealStageProb, isClosedStage,
   formatDate, formatMoney, initials, colorFor, labelOf, toCsv, download, TODAY, assocLabels, CURRENCY_DEFS, CURRENCY_CODES, relativeTimeFine,
   activitiesFor, ensureActivitiesFor, addActivity, updateActivity, deleteActivity, restoreActivity, deletedActivitiesFor, activityIdForComment, historyFor, addHistoryEntry, getSetting, setSetting, settingsLive, settingScope, lineItemsFor, fetchLineItems, lineItemsTotal,
   parentCompanyOf, childCompaniesOf, isCompanyDescendant, dbIsLive,
@@ -418,6 +419,26 @@ function plusBusinessDays(n) {
   return d;
 }
 let editingActivity = null;
+let logAssociationOptions = [];
+function logAssociationsHtml() {
+  let enabled = getSetting(ACTIVITY_COMPANY_SETTING);
+  if (enabled == null && !dbIsLive()) {
+    try { enabled = JSON.parse(localStorage.getItem(ACTIVITY_COMPANY_SETTING)); } catch { /* Default enabled. */ }
+  }
+  logAssociationOptions = activityAssociations(type, rec, {
+    contacts: allContacts(), companies: allCompanies(), deals: allDeals(), tickets: allTickets(),
+  }, (ticket) => ticketStatusIsClosed(ticket.pipeline, ticket.status), enabled !== false);
+  return `<fieldset><legend>Asociado a</legend>
+    <label class="log-follow"><input type="checkbox" checked disabled /> ${esc(cfg.singular)}: ${esc(cfg.title(rec))} (registro actual)</label>
+    ${logAssociationOptions.map((r, i) => `<label class="log-follow"><input type="checkbox" data-log-association="${i}" ${r.checked ? 'checked' : ''} /> ${esc(CONFIG[r.type].singular)}: ${esc(r.name)}</label>`).join('')}</fieldset>`;
+}
+function activityOriginHtml(ev) {
+  const origin = ev.extra?.associatedFrom;
+  if (!origin) return '';
+  const label = CONFIG[origin.type]?.singular || origin.type;
+  const name = findRecord(origin.type, origin.id)?.name || ev.extra.associatedFromName || origin.id;
+  return `<div class="muted">registrada desde ${esc(label)} ${esc(name)}</div>`;
+}
 function openLogModal(kind, { schedule = false, channel = '', activity = null } = {}) {
   editingActivity = activity;
   const name = cfg.title(rec);
@@ -454,6 +475,7 @@ function openLogModal(kind, { schedule = false, channel = '', activity = null } 
       ${dirRow}
       <label class="field"><span>Texto del mensaje</span><textarea id="log-notes" rows="3" placeholder="Mensaje enviado por ${esc(channel)}"></textarea></label>`;
   }
+  if (!activity) body += logAssociationsHtml();
   const verb = activity ? 'Guardar' : schedule ? 'Programar' : 'Registrar';
   const what = kind === 'message' ? 'mensaje' : LOG_KINDS[kind];
   openModal(
@@ -1488,7 +1510,7 @@ function renderTimeline() {
           <span class="timeline__chev" aria-hidden="true">⌄</span>
         </button>
         <div class="timeline__meta"><strong>${esc(ev.who)}</strong> · <span title="${esc(fmtWhen(ev))}">${esc(relativeTimeFine(ev.when))}</span></div>
-        <div class="timeline__text">${esc(ev.text)}</div>
+        ${activityOriginHtml(ev)}<div class="timeline__text">${esc(ev.text)}</div>
         <div class="timeline__detail">${['note', 'call', 'email', 'meeting', 'message'].includes(ev.type) ? `<details><summary aria-label="Acciones de actividad">⋯</summary>${[['edit', 'Editar'], ['pin', ev.extra?.pinned ? 'Desfijar' : 'Fijar en la parte superior'], ['delete', 'Eliminar']].map(([action, label]) => `<button type="button" class="btn btn--ghost" data-activity-action="${action}" data-activity-key="${esc(evKey(ev))}">${label}</button>`).join('')}</details>` : ''}<div class="muted">${esc(fmtWhen(ev))}</div>${extraTags(ev)}${callMedia(ev)}</div>
         ${['system', 'prop', 'created'].includes(ev.type) ? '' : `<div data-comments-key="${esc(evKey(ev))}"></div>`}
       </div>
@@ -2004,7 +2026,14 @@ $('rec-modal').addEventListener('click', async (e) => {
       b.disabled = true;
       try { await updateActivity(editingActivity.id, { when, text, extra }); renderTimeline(); }
       catch (error) { toast(error.message); b.disabled = false; return; }
-    } else addEvent({ type: kind, when, who: 'Tú', text, extra });
+    } else {
+      if (b.disabled) return;
+      b.disabled = true;
+      const targets = [...$('rec-modal').querySelectorAll('[data-log-association]:checked')]
+        .map((input) => logAssociationOptions[Number(input.dataset.logAssociation)]).filter(Boolean);
+      saveAssociatedActivity({ type: kind, when, who: 'Tú', text, extra }, { type, id, name }, targets, addActivity);
+      renderTimeline();
+    }
     if ($('log-followup')?.checked && $('log-followup-date').value) {
       const contact = type === 'contacts' ? rec : byId(allContacts(), rec.contactId);
       const task = addRecord('tasks', {

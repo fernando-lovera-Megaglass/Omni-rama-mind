@@ -58,6 +58,8 @@ Algunas actividades se registran automáticamente; el usuario también puede reg
 
 ## 5. Asociaciones automáticas de actividades
 
+Implementación local (2026-11-21): el formulario de registro incluye «Asociado a», con selección de empresas, contactos relacionados, negocios y tickets abiertos. Guarda una entrada por destino seleccionado e indica el registro de origen en las copias. General → Actividades permite desactivar la selección inicial de la empresa principal. La edición de entradas existentes no vuelve a propagarlas. Las reglas avanzadas por objeto/tipo y por cantidad descritas a continuación siguen pendientes.
+
 Regla configurable por objeto + tipo de actividad (`Configuración → Objetos → Actividades → pestaña Asociaciones`). Cuando se registra una actividad en un registro, definir si también se asocia a sus registros asociados:
 
 - **Ninguna:** no se propaga (excepción: en llamadas/correos, el contacto llamado/escrito siempre queda asociado).
