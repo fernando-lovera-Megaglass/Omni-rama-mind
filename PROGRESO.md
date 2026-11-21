@@ -1,5 +1,11 @@
 # Progreso — Omni CRM
 
+## 2026-11-21 (sesión 6) · Biblioteca de informes con los patrones del CRM (menú «Acciones», `.search`, `.field`)
+
+- `src/report-builder.js`: cada fila muestra una sola acción primaria («Abrir», `btn--secondary btn--sm`) y el menú «Acciones» (`.menu` + `.menu__panel--right`: Duplicar, Renombrar, Anclar/Quitar del panel, separador, Eliminar en `menu__item--danger`), como Plantillas, Secuencias y Workflows; el nombre y la fuente van en una columna que se recorta sin desalinear la fila. El buscador es `.search.search--sm` con icono; el nombre y los cuatro selects del constructor y el formulario de renombrar usan `label.field > span + control`; la confirmación de borrado lleva el botón rojo. `mountReportBuilder()` recibe `wireMenus`/`closeMenus` de `shell.js` (los pasa `src/reports.js`) y re-enlaza los menús tras cada render; los menús se cierran al ejecutar una acción.
+- `src/app.css`: fuera la regla `.custom-library input, select` (`#b6c7d6`, `var(--bg, #fff)`), el `label` suelto y el alias `--bg` del tema oscuro; los campos heredan `.field` (borde `--c-border`, fondo `--c-white`) y el buscador `.search`; reglas nuevas solo para la fila (`.custom-library-row__main/__actions/__menu`).
+- Pruebas: `scripts/smoke-report-library.mjs` (estática: sin `#b6c7d6`, `var(--bg)` ni regla suelta; DOM con los menús del shell: buscador con icono, 5 `.field` en el constructor, 2 botones por fila fuera del menú, ítems del menú y Eliminar en rojo, abre y se cierra tras una acción, renombrar con `.field`). `smoke-custom-reports`, `smoke-reports` y `smoke-dark-theme` OK. Chrome (claro y oscuro): filas «Abrir + Acciones», selects del constructor con fondo `--c-white` (oscuro: luminancia 0,14) y borde `--c-border`.
+
 ## 2026-11-21 (sesión 6) · Paginadores unificados: Fragmentos, Ajustes y Etiquetas de negocio usan `src/pagination.js`
 
 - `src/pagination.js`: `pagination()` admite `sizes` (por defecto 25/50/100) y siempre ofrece el tamaño actual, así los módulos que empezaban en 10 lo conservan.
