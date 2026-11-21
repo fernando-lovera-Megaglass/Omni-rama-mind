@@ -35,13 +35,13 @@ export async function processDue(store, send, now = new Date()) {
   const results = [];
   for (const candidate of await store.due(now.toISOString())) {
     const enrollment = await store.claim(candidate.id);
-    if (!enrollment) continue;
+    if (!enrollment || enrollment.extra?.waiting_task) continue;
     try {
       const steps = (await store.steps(enrollment.sequence_id)).sort((a, b) => a.position - b.position);
       const step = steps[enrollment.current_step - 1];
       if (!step) throw new Error('Pending step missing; review sequence edits');
       const next = steps[enrollment.current_step];
-      const nextAt = next ? nextDate(now, next.delay_days) : null;
+      const nextAt = step.type === 'auto_email' && next ? nextDate(now, next.delay_days) : null;
       const { contact, company } = await store.context(enrollment);
       const payload = {
         subject: render(step.subject, enrollment, contact, company),
@@ -61,9 +61,9 @@ export async function processDue(store, send, now = new Date()) {
       } else if (!['manual_email', 'call', 'task', 'inmail', 'connection'].includes(step.type)) {
         throw new Error(`Unknown step type: ${step.type}`);
       }
-      // Manual task creation and enrollment advance are one database transaction.
+      // Manual task creation and waiting state are one database transaction.
       const advanced = await store.finish(enrollment, step, payload, nextAt, receipt);
-      results.push({ id: enrollment.id, status: advanced === false ? 'unchanged' : next ? 'advanced' : 'finished' });
+      results.push({ id: enrollment.id, status: advanced === false ? 'unchanged' : step.type !== 'auto_email' ? 'waiting_task' : next ? 'advanced' : 'finished' });
     } catch (error) {
       await store.record(enrollment, 'error', String(error.message || error));
       results.push({ id: enrollment.id, status: 'error' });

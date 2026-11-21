@@ -632,6 +632,10 @@ function dbWrite(fn) {
   writeQueue = pending.catch((e) => reportDbError('escritura', e));
   return pending;
 }
+async function resumeTaskSequence(task, completedAt) {
+  if (!task?.extra?.enrollmentId && !task?.enrollmentId) return;
+  await (await import('./sequences-data.js')).completeSequenceTask(task, completedAt);
+}
 const dbRows = {};
 const nextId = {};
 // Starts optimistic; initFromSupabase() flips it to false if the database
@@ -703,6 +707,7 @@ export function setField(type, id, field, value, opts = {}) {
     addActivity({ type: 'note', recordType: type, recordId: Number(id), text: next === 'Sí' ? 'Se dio de baja de los correos de marketing' : 'Reactivó su suscripción a los correos de marketing', who: opts.who || 'Marketing', when: Date.now(), extra: { reason: opts.reason || 'Cambio manual', marketingEmailId: opts.emailId || null } });
     return;
   }
+  const completedAt = new Date();
   validatePropertyValuesLocal(type, { [field]: value }, id);
   const previousValue = (type === 'tickets' && field === 'status') || (type === 'contacts' && field === 'lifecycle') ? findIn(type, id)?.[field] : undefined;
   if (dbLive) {
@@ -714,6 +719,9 @@ export function setField(type, id, field, value, opts = {}) {
       if (TABLE_COLS[type].includes(col)) {
         const { error } = await supabase.from(type).update({ [col]: value }).eq('id', id);
         if (error) reportDbError(`actualizar ${type}`, error);
+        else if (type === 'tasks' && field === 'status' && value === 'done') {
+          await resumeTaskSequence(findRecord('tasks', id), completedAt);
+        }
       } else {
         const { data: row, error: readErr } = await supabase.from(type).select('extra').eq('id', id).single();
         if (readErr) { console.error('[supabase] read extra', type, readErr); return; }
@@ -728,6 +736,10 @@ export function setField(type, id, field, value, opts = {}) {
   const o = getOverrides(type);
   o[id] = { ...(o[id] || {}), [field]: value };
   write(K(type, 'overrides'), o);
+  if (type === 'tasks' && field === 'status' && value === 'done') {
+    const task = findRecord('tasks', id);
+    dbWrite(() => resumeTaskSequence(task, completedAt));
+  }
   afterSet(type, id, field, value, opts, previousValue);
 }
 

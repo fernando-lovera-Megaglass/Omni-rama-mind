@@ -163,6 +163,7 @@ renderQueueBanner();
 document.getElementById('rows').addEventListener('change', (e) => {
   const cb = e.target.closest('.task-done');
   if (!cb) return;
+  // The shared task status writer resumes linked sequences after the save succeeds.
   completeTask(cb.dataset.id, cb.checked);
   toast(cb.checked ? 'Tarea completada' : 'Tarea reabierta');
   list.render();

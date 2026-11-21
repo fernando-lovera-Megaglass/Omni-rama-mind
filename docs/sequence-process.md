@@ -38,8 +38,13 @@ ni la anon key ni una sesión normal de usuario pueden ejecutarla.
   usa días laborables UTC (sin festivos); cero días significa un minuto después.
 - Solo se procesan inscripciones activas vencidas y secuencias no eliminadas.
   El último paso deja `finished`, `next_step_at = null` y suma uno a `current_step`.
-- Un paso manual crea una tarea y avanza en la misma transacción; no espera a que se
-  complete la tarea. Esto sigue el alcance solicitado para este ejecutor.
+- Un paso manual crea una tarea vinculada por `sequenceId`, `enrollmentId` y
+  `stepPosition` (posición desde 0), conserva `current_step` y queda con
+  `next_step_at = null` y `extra.waiting_task` (ID de tarea). Programado muestra
+  «Manual · esperando la tarea». Completar la tarea reanuda una sola vez: el retraso
+  laborable del siguiente paso parte de la finalización (cero días = ese momento).
+  Si era el último paso, termina la inscripción. Reabrir no retrocede la secuencia.
+  El guardado común de tareas invoca este hook también desde fichas y colas.
 - La UI ya no envía el primer correo ni crea tareas en modo conectado: guarda la
   inscripción y `sender_account_id`. El backend reutiliza OAuth, MIME y transporte de
   `gmail-send`, cuyo endpoint HTTP exige JWT de usuario. Replies usan el recibo previo
@@ -60,4 +65,6 @@ ni la anon key ni una sesión normal de usuario pueden ejecutarla.
   Detectar automáticamente respuestas, rebotes o bajas requiere integrarlo con el
   sincronizador/webhooks; este ejecutor respeta esos estados, no los infiere.
 - Las políticas abiertas existentes de las tablas CRM no se modifican aquí.
-  Las RPC y la tabla de ejecuciones nuevas están restringidas a service role.
+  Las RPC de ejecución y la tabla de ejecuciones están restringidas a service role.
+  `sequence_complete_task` admite los roles CRM existentes y valida tarea completada,
+  vínculo, paso y marcador bajo bloqueo antes de avanzar.

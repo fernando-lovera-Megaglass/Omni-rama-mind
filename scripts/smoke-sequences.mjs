@@ -116,7 +116,10 @@ if (!q('.seqan__chip') || !text(q('.seqan__chip')).includes('Estado: Reunión re
 if (text(cardOf('TOTAL DE INSCRIPCIONES').querySelector('.seqan__value')) !== String(S.analytics({ status: 'meeting' }).total) || text(cardOf('TASA DE REUNIONES').querySelector('.seqan__value')) !== '100 %') fail('filtered metrics');
 click(q('[data-unfilter="status"]'));
 if (q('.seqan__chip')) fail('chip removal');
+const waitingPreview = S.enroll({ sequenceId: S.sequences().find(s => s.steps[0].type === 'manual_email').id, contact: data.allContacts()[0] });
 click(q('[data-tab="scheduled"]'));
+const waitingRow = q(`#seq-sched tr[data-enr="${waitingPreview.enrollment.id}"]`);
+if (!text(waitingRow).includes('esperando la tarea') || !text(waitingRow).includes('Manual')) fail('scheduled waiting label');
 if (qa('#seq-sched tr[data-enr]').length !== S.scheduled().length || !S.scheduled().length) fail('scheduled rows');
 click(q('[data-tab="automate"]'));
 if (qa('.seqauto__card').length !== 3) fail('automate cards');
@@ -238,5 +241,20 @@ const after = S.enrollmentsOfContact(3);
 if (after.length !== enrBefore + 2 || after[0].id === previousId || after[0].status !== 'active' || S.enrollmentsOfContact(3).find((e) => e.id === previousId).status !== 'unenrolled') fail('re-enrol must cancel the previous enrolment and create a new one');
 log(`enrol: ${contact.name} in «${target.name}» — preview resolved, placeholder, task + timeline + scheduled; re-enrol with warning`);
 
+// Local task links, completion hook and business-day scheduling.
+const linked = data.allTasks().find(t => t.extra?.enrollmentId === after[0].id);
+if (!linked || linked.extra.sequenceId !== target.id || linked.extra.stepPosition !== 0) fail('manual task links');
+if (after[0].nextStepAt !== null || after[0].extra.waiting_task !== linked.id) fail('manual enrollment must wait');
+const friday = new Date('2026-11-20T09:00:00');
+const resumed = await S.completeSequenceTask({ ...linked, status: 'done' }, friday);
+if (!data.activitiesFor('contacts', contact.id).some(a => a.text.includes('Paso 1 completado: la secuencia continúa el'))) fail('completion timeline');
+if (resumed.currentStep !== 2 || resumed.nextStepAt !== S.businessDaysFrom(friday, target.steps[1].delayDays).toISOString()) fail('completion schedules from completion time');
+if (await S.completeSequenceTask({ ...linked, status: 'done' }, friday)) fail('duplicate completion');
+if (S.businessDaysFrom(friday, 1).getDay() !== 1) fail('Friday plus one business day must be Monday');
+const single = S.createSequence({ name: 'Manual final smoke', steps: [{ type: 'connection', delayDays: 0, title: 'Conectar' }] });
+const finalEnrollment = S.enroll({ sequenceId: single.id, contact });
+data.setField('tasks', finalEnrollment.task.id, 'status', 'done');
+for (let i = 0; i < 50 && S.enrollments().find(e => e.id === finalEnrollment.enrollment.id).status !== 'finished'; i++) await wait(10);
+if (S.enrollments().find(e => e.id === finalEnrollment.enrollment.id).status !== 'finished') fail('task status hook finishes last manual step');
 console.log('[secuencias] OK');
 process.exit(0);

@@ -40,14 +40,53 @@ assert.deepEqual(sends, [first.id]);
 assert.equal((await get(first.id)).current_step, 2);
 assert.ok(new Date((await get(first.id)).next_step_at) > now);
 assert.equal((await get(first.id)).stats.sent, 1);
-assert.equal((await get(last.id)).status, 'finished');
-assert.equal((await get(last.id)).current_step, 3);
+assert.equal((await get(last.id)).status, 'active');
+assert.equal((await get(last.id)).current_step, 2);
 assert.equal((await get(last.id)).next_step_at, null);
 assert.equal((await query('select * from tasks')).length, 1);
 for (const e of [...terminals, future]) assert.deepEqual(await get(e.id), e);
 await processDue(store, send, now);
 assert.equal(sends.length, 1);
 assert.equal((await query('select * from tasks')).length, 1);
+// A final manual step stays pending across ticks, then finishes exactly once.
+const [lastTask] = await query('select * from tasks');
+assert.deepEqual(lastTask.extra, { sequenceId: seq.id, enrollmentId: last.id, stepPosition: 10 });
+assert.equal(String((await get(last.id)).extra.waiting_task), String(lastTask.id));
+const complete = async (task, next) => query('select * from sequence_complete_task($1,$2)', [task.id, next]);
+assert.equal((await complete(lastTask, null)).length, 0, 'pending tasks cannot resume');
+await query("update tasks set status='done' where id=$1", [lastTask.id]);
+assert.equal((await complete(lastTask, null))[0].status, 'finished');
+assert.equal((await get(last.id)).current_step, 3);
+assert.equal((await complete(lastTask, null)).length, 0, 'duplicate completion is harmless');
+
+// Manual -> email: no next step until completion, even with a stale overdue date.
+const [manualSeq] = await query("insert into sequences(name) values('Manual pause') returning id");
+await query(`insert into sequence_steps(sequence_id, position, type, delay_days) values
+($1, 0, 'inmail', 0), ($1, 1, 'auto_email', 1)`, [manualSeq.id]);
+const [manual] = await query(`insert into sequence_enrollments(sequence_id, contact_id, next_step_at)
+values ($1, 1, '2020-01-01') returning *`, [manualSeq.id]);
+await processDue(store, send, now);
+const [manualTask] = await query("select * from tasks where extra->>'enrollmentId'=$1", [manual.id]);
+assert.equal((await get(manual.id)).current_step, 1);
+assert.equal((await get(manual.id)).next_step_at, null);
+await query("update sequence_enrollments set next_step_at='2020-01-01' where id=$1", [manual.id]);
+assert.equal((await store.due(now.toISOString())).some(e => e.id === manual.id), false);
+assert.equal(await store.claim(manual.id), undefined);
+await processDue(store, send, new Date('2099-01-01'));
+assert.equal(sends.length, 1);
+await query("update tasks set status='done' where id=$1", [manualTask.id]);
+await query("update sequence_enrollments set status='unenrolled' where id=$1", [manual.id]);
+assert.equal((await complete(manualTask, now.toISOString())).length, 0, 'completion must preserve cancellation');
+await query("update sequence_enrollments set status='active' where id=$1", [manual.id]);
+const monday = nextDate('2026-11-20T09:00:00Z', 1);
+const resumed = await complete(manualTask, monday);
+assert.equal(resumed[0].current_step, 2);
+assert.equal(new Date(resumed[0].next_step_at).toISOString(), monday);
+assert.equal(resumed[0].extra.waiting_task, undefined);
+assert.equal((await complete(manualTask, monday)).length, 0);
+// Keep this isolated fixture out of subsequent processing assertions.
+await query("update sequence_enrollments set status='paused' where id=$1", [manual.id]);
+
 const broken = await add();
 await processDue(store, async () => { throw new Error('Ambiguous send timeout'); }, now);
 assert.equal((await get(broken.id)).current_step, 1);

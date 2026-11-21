@@ -141,8 +141,8 @@ const seqFromDb = (r, steps) => ({ id: r.id, name: r.name || '', description: r.
 const seqToDb = (s) => ({ id: s.id, name: s.name, description: s.description, folder: s.folder || '', owner_id: s.ownerId, template_key: s.templateKey || '', prebuilt: Boolean(s.prebuilt), dynamic: Boolean(s.dynamic), exclusion: s.exclusion || [], deleted_at: s.deletedAt || null, created_at: s.createdAt, updated_at: s.updatedAt });
 const stepFromDb = (r) => ({ id: r.id, type: r.type, delayDays: Number(r.delay_days) || 0, title: r.title || '', subject: r.subject || '', body: r.body || '', templateName: r.template_name || '', version: r.version || 'A', replyToPrevious: Boolean(r.reply_to_previous) });
 const stepToDb = (seqId, s, i) => ({ id: s.id, sequence_id: seqId, position: i, type: s.type, delay_days: Number(s.delayDays) || 0, title: s.title || '', subject: s.subject || '', body: s.body || '', template_name: s.templateName || '', version: s.version || 'A', reply_to_previous: Boolean(s.replyToPrevious) });
-const enrFromDb = (r) => ({ id: r.id, sequenceId: r.sequence_id, contactId: r.contact_id, contactName: r.contact_name || '', companyId: r.company_id, companyName: r.company_name || '', enrolledBy: r.enrolled_by || '', senderAccountId: r.sender_account_id || null, status: r.status || 'active', currentStep: Number(r.current_step) || 1, nextStepAt: r.next_step_at, placeholders: r.placeholders || {}, stats: r.stats || {}, enrolledAt: r.enrolled_at, updatedAt: r.updated_at || r.enrolled_at });
-const enrToDb = (e) => ({ id: e.id, sequence_id: e.sequenceId, contact_id: e.contactId == null ? null : Number(e.contactId), contact_name: e.contactName, company_id: e.companyId == null ? null : Number(e.companyId), company_name: e.companyName, enrolled_by: e.enrolledBy, sender_account_id: e.senderAccountId || null, status: e.status, current_step: e.currentStep, next_step_at: e.nextStepAt, placeholders: e.placeholders || {}, stats: e.stats || {}, enrolled_at: e.enrolledAt, updated_at: e.updatedAt });
+const enrFromDb = (r) => ({ id: r.id, sequenceId: r.sequence_id, contactId: r.contact_id, contactName: r.contact_name || '', companyId: r.company_id, companyName: r.company_name || '', enrolledBy: r.enrolled_by || '', senderAccountId: r.sender_account_id || null, status: r.status || 'active', currentStep: Number(r.current_step) || 1, nextStepAt: r.next_step_at, placeholders: r.placeholders || {}, stats: r.stats || {}, extra: r.extra || {}, enrolledAt: r.enrolled_at, updatedAt: r.updated_at || r.enrolled_at });
+const enrToDb = (e) => ({ id: e.id, sequence_id: e.sequenceId, contact_id: e.contactId == null ? null : Number(e.contactId), contact_name: e.contactName, company_id: e.companyId == null ? null : Number(e.companyId), company_name: e.companyName, enrolled_by: e.enrolledBy, sender_account_id: e.senderAccountId || null, status: e.status, current_step: e.currentStep, next_step_at: e.nextStepAt, placeholders: e.placeholders || {}, stats: e.stats || {}, extra: e.extra || {}, enrolled_at: e.enrolledAt, updated_at: e.updatedAt });
 const saveLocal = () => { localStorage.setItem(LS.seq, JSON.stringify(rows)); localStorage.setItem(LS.enr, JSON.stringify(enrollRows)); localStorage.setItem(LS.folders, JSON.stringify(folderRows)); };
 const persistSeq = (s) => { if (live) enqueue(async () => { const { error } = await supabase.from('sequences').upsert(seqToDb(s), { onConflict: 'id' }); if (error) throw error; const { error: e2 } = await supabase.from('sequence_steps').delete().eq('sequence_id', s.id); if (e2) throw e2; if (s.steps.length) { const { error: e3 } = await supabase.from('sequence_steps').insert(s.steps.map((x, i) => stepToDb(s.id, x, i))); if (e3) throw e3; } }); else saveLocal(); };
 const persistEnr = (e) => { if (live) enqueue(async () => { const { error } = await supabase.from('sequence_enrollments').upsert(enrToDb(e), { onConflict: 'id' }); if (error) throw error; }); else saveLocal(); };
@@ -316,7 +316,10 @@ export function enroll({ sequenceId, contact, placeholders = {}, enrolledBy = ME
   const label = STEP_TYPES[first.type].label;
   let task = null;
   if (!live && !isAuto(first)) {
-    task = addRecord('tasks', { name: fillPlaceholders(first.title || `${label} · ${seq.name}`, placeholders).replace(/{{[^}]+}}/g, contact.first || contact.name || ''), type: first.type === 'call' ? 'Llamada' : first.type === 'manual_email' ? 'Correo' : 'Tarea', status: 'todo', priority: 'medium', owner: enrolledBy, contactId: contact.id, contact: e.contactName, due: when.toISOString(), lastActivity: when.toISOString() });
+    task = addRecord('tasks', { name: fillPlaceholders(first.title || `${label} · ${seq.name}`, placeholders).replace(/{{[^}]+}}/g, contact.first || contact.name || ''), type: first.type === 'call' ? 'Llamada' : first.type === 'manual_email' ? 'Correo' : 'Tarea', status: 'todo', priority: 'medium', owner: enrolledBy, contactId: contact.id, contact: e.contactName, due: when.toISOString(), lastActivity: when.toISOString(), extra: { sequenceId, enrollmentId: e.id, stepPosition: 0 } });
+    e.nextStepAt = null;
+    e.extra = { waiting_task: task.id };
+    persistEnr(e);
   }
   const timeStr = `${String(when.getHours()).padStart(2, '0')}:${String(when.getMinutes()).padStart(2, '0')}`;
   const subject = fillPlaceholders(first.subject, placeholders).replace(/{{[^}]+}}/g, '…');
@@ -395,5 +398,49 @@ export function series(metric = 'meetings', freq = 'week', filters = {}) {
 }
 // Scheduled steps (the "Programado" tab): active enrolments and when their next step is due.
 export function scheduled() {
-  return enrollRows.filter((e) => e.status === 'active' && e.nextStepAt).map((e) => { const s = rows.find((x) => x.id === e.sequenceId); const st = s ? s.steps[Math.min(e.currentStep, s.steps.length) - 1] : null; return { ...out(e), sequenceName: s ? s.name : '', stepLabel: st ? `${e.currentStep}. ${STEP_TYPES[st.type].label}` : '', auto: st ? isAuto(st) : false }; }).sort((a, b) => new Date(a.nextStepAt) - new Date(b.nextStepAt));
+  return enrollRows.filter((e) => e.status === 'active' && (e.nextStepAt || e.extra?.waiting_task)).map((e) => { const s = rows.find((x) => x.id === e.sequenceId); const st = s ? s.steps[Math.min(e.currentStep, s.steps.length) - 1] : null; return { ...out(e), sequenceName: s ? s.name : '', stepLabel: st ? `${e.currentStep}. ${STEP_TYPES[st.type].label}` : '', auto: st ? isAuto(st) : false }; }).sort((a, b) => new Date(a.nextStepAt) - new Date(b.nextStepAt));
+}
+
+// Task extra is unpacked into top-level fields by data.js in connected mode.
+export async function completeSequenceTask(task, now = new Date()) {
+  const meta = { ...task, ...task?.extra };
+  if (!meta.enrollmentId) return null;
+  await ready;
+  if (dbIsLive() && !live) throw new Error('No se pudieron cargar las secuencias');
+  let e, steps;
+  if (live) {
+    const result = await supabase.from('sequence_enrollments').select('*').eq('id', meta.enrollmentId).single();
+    if (result.error) throw result.error;
+    e = enrFromDb(result.data);
+    const resultSteps = await supabase.from('sequence_steps').select('*').eq('sequence_id', e.sequenceId).order('position');
+    if (resultSteps.error) throw resultSteps.error;
+    steps = resultSteps.data.map(r => ({ ...stepFromDb(r), position: r.position }));
+  } else {
+    e = enrollRows.find(r => r.id === meta.enrollmentId);
+    steps = rows.find(r => r.id === e?.sequenceId)?.steps.map((s, position) => ({ ...s, position }));
+  }
+  if (!e || task.status !== 'done' || e.status !== 'active' || String(e.extra?.waiting_task) !== String(task.id)
+      || e.sequenceId !== meta.sequenceId || steps?.[e.currentStep - 1]?.position !== meta.stepPosition) return null;
+  const completed = e.currentStep;
+  const next = steps[e.currentStep];
+  const nextAt = next ? businessDaysFrom(now, Number(next.delayDays) || 0).toISOString() : null;
+  if (live) {
+    const result = await supabase.rpc('sequence_complete_task', { p_task: task.id, p_next: nextAt });
+    if (result.error) throw result.error;
+    if (!result.data?.length) return null;
+    e = enrFromDb(result.data[0]);
+    const index = enrollRows.findIndex(r => r.id === e.id);
+    if (index >= 0) enrollRows[index] = e;
+  } else {
+    e.currentStep += 1;
+    e.nextStepAt = nextAt;
+    e.status = next ? 'active' : 'finished';
+    delete e.extra.waiting_task;
+    e.updatedAt = now.toISOString();
+    persistEnr(e);
+  }
+  addActivity({ type: 'system', when: now.getTime(), who: e.enrolledBy, recordType: 'contacts', recordId: e.contactId,
+    text: e.nextStepAt ? `Paso ${completed} completado: la secuencia continúa el ${formatDate(new Date(e.nextStepAt))}.` : `Paso ${completed} completado: secuencia finalizada.`,
+    extra: { sequenceId: e.sequenceId, enrollmentId: e.id, taskId: task.id } });
+  return out(e);
 }
