@@ -8,7 +8,9 @@ import { mountMfaSettings, ssoUnavailable } from './mfa-settings.js';
 // Account settings (the gear in the top bar): a full settings tree with a pane per section.
 import { boot } from './page.js';
 import { toast, wireMenus, closeMenus } from './shell.js';
-import { ownerHtml } from './owner.js';
+import { ownerHtml, ownerAvatarHtml } from './owner.js';
+import { avatarFor, ME_KEY, saveAvatar, removeAvatar, keysForPerson, gravatarUrl, imageExists } from './avatars.js';
+import { openAvatarCropper } from './avatar-crop.js';
 import { enhanceKindSelects } from './kind-select.js';
 import { ticketPipelines, allTicketStatuses, saveTicketPipelines, CURRENCY_DEFS, CURRENCY_CODES, currencyRates, saveCurrencyRates, homeCurrency, OWNERS, DEAL_STAGES, isClosedStage, TICKET_STATUSES, PIPELINE_KEY, ASSOC_LABELS_KEY, assocLabels, ALL, formatDate, formatMoney, dealPipelines, saveDealPipelines, dealPipelineDefs, saveDealPipelineDefs, newPipelineDef, setField, LIFECYCLES, download, lifecycleDef, saveLifecycleDef, defaultLifecycleDef, applyCompanyAutomation, EXCLUDED_DOMAINS_KEY, EXCLUDED_DOMAINS_MAX, DEFAULT_EXCLUDED_DOMAINS, FREE_EMAIL_DOMAINS, siteDomain, ticketPipelineDefs, saveTicketPipelineDefs, newTicketPipelineDef, ticketPipelineCounts, DEFAULT_TICKET_STATUSES } from './data.js';
 import { propertyGroups, customProperties, saveCustomProperties, propertyList } from './properties.js';
@@ -36,9 +38,12 @@ const settingsStore = createSettingsStore({ client: supabase, storage: localStor
   onError: () => toast('Ajustes sin sincronizar. Revisa tu conexión o permisos.') });
 await settingsStore.ready;
 await settingsStore.flush();
+// The signed-in person: the profile's name and e-mail come from here (no hard-coded user).
+let authUser = null;
 if (supabase) {
   const { data } = await supabase.auth.getSession();
-  const settingsUserId = data?.session?.user?.id;
+  authUser = data?.session?.user || null;
+  const settingsUserId = authUser?.id;
   supabase.auth.onAuthStateChange((_event, session) => {
     if (session?.user?.id !== settingsUserId) location.reload();
   });
@@ -124,7 +129,25 @@ setSection((location.hash || '#prefs-general').slice(1));
 if (/[?&]gmail=/.test(location.search) && state.section !== 'int-connected') { state.section = 'prefs-general'; state.generalTab = 'correo'; }
 
 // ---------- stores ----------
-const profile = () => ({ first: 'Fernando', last: 'Lovera Colin', email: 'fernando-lovera@megaglass.us', lang: 'Español', region: 'México y Centroamérica', currency: 'MXN', dial: '+52', phone: '72-25-103617', ...load('crm:profile', {}) });
+// The profile's defaults come from the signed-in user (name from the sign-up metadata, e-mail, phone); without
+// a session the fields start empty. What the person saves here (crm:profile) wins over the defaults.
+const userDefaults = () => {
+  const meta = (authUser && authUser.user_metadata) || {};
+  const [first = '', ...rest] = String(meta.name || meta.full_name || '').trim().split(/\s+/);
+  return { first, last: rest.join(' '), email: (authUser && authUser.email) || '', phone: String(meta.phone || authUser?.phone || '') };
+};
+const profile = () => ({ ...userDefaults(), lang: 'Español', region: 'México y Centroamérica', currency: 'MXN', dial: '+52', ...load('crm:profile', {}) });
+// The keys the person's photo is registered under (owner name in the data, full name, e-mail, user id).
+const myAvatarKeys = () => { const p = profile(); return keysForPerson({ id: authUser && authUser.id, email: p.email, first: p.first, last: p.last, owners: OWNERS }); };
+// Saves the (cropped) picture — Supabase Storage with a session, this browser otherwise — and registers it
+// for the person's owner name, so every avatar in the CRM and the top bar switch to the photo at once.
+async function applyAvatar(src) {
+  const r = await saveAvatar(src, { user: authUser, keys: myAvatarKeys(), owners: OWNERS });
+  save('crm:profile', { ...profile(), avatar: r.url });
+  render();
+  toast(r.uploaded ? 'Imagen de perfil guardada' : r.error ? `Imagen guardada en este navegador; no se pudo subir a Supabase (${r.error})` : 'Imagen de perfil actualizada');
+  return r;
+}
 const notif = () => ({ email_assign: true, email_mention: true, email_digest: false, push_tasks: true, push_deals: true, ...load('crm:notif', {}) });
 const account = () => ({ name: 'Megaglass', tz: 'America/Mexico_City', currency: 'MXN', lang: 'Español', fiscalYear: 'Enero', ...load('crm:account', {}) });
 const users = () => load('crm:users', OWNERS.filter((o) => o !== 'Sin asignar').map((o, i) => ({ name: o, email: `${slug(o).replace(/_/g, '.')}@megaglass.us`, team: TEAMS[i % 3], role: i === 0 ? 'Superadministrador' : 'Usuario', status: 'Activo' })));
@@ -173,10 +196,13 @@ function tabActividades() {
 function tabPerfil() {
   const p = profile();
   const sample = REGIONS[p.region] || REGIONS['México y Centroamérica'];
-  const avatar = p.avatar ? `<img class="avatar avatar--lg gavatar__img" src="${esc(p.avatar)}" alt="" />` : `<span class="avatar avatar--lg" style="background:#6a78d1">${esc((p.first[0] || '') + (p.last[0] || ''))}</span>`;
+  // The photo: the registry (Supabase Storage URL or the local copy) first, the profile's stored one otherwise.
+  const photo = avatarFor(ME_KEY) || p.avatar || '';
+  const initials = ((p.first[0] || '') + (p.last[0] || '')).toUpperCase() || (account().name[0] || 'U').toUpperCase();
+  const avatar = photo ? `<span class="avatar avatar--lg avatar--img gavatar__img" style="background-image:url('${esc(photo).replace(/[()]/g, encodeURIComponent)}')" role="img" aria-label="Imagen de perfil"></span>` : `<span class="avatar avatar--lg" style="background:#6a78d1">${esc(initials)}</span>`;
   return `<h3 class="gh">Global</h3><p class="muted">Esto se aplica a todas las cuentas que tienes.</p>
     <form class="gform" data-save="profile">
-      <div class="gfield"><label>Imagen de perfil</label><div class="gavatar"><label class="gavatar__pick tip" data-tip="Cambiar imagen">${avatar}<input type="file" id="avatar-file" accept="image/*" hidden /></label>${p.avatar ? '<button class="link-btn" type="button" data-act="avatar-rm">Quitar</button>' : ''}</div></div>
+      <div class="gfield"><label>Imagen de perfil</label><div class="gavatar"><label class="gavatar__pick tip" data-tip="Cambiar imagen">${avatar}<input type="file" id="avatar-file" accept="image/*" hidden /></label><div class="gavatar__actions"><button class="link-btn" type="button" data-act="avatar-pick">Subir una imagen</button><button class="link-btn" type="button" data-act="avatar-gravatar">Usar mi Gravatar</button>${photo ? '<button class="link-btn" type="button" data-act="avatar-rm">Quitar</button>' : ''}</div></div><p class="muted">Se recorta en círculo y se ve en toda la cuenta: menús de propietario, asignaciones, equipos y la barra superior.</p></div>
       <div class="gfield"><label for="pf-first">Nombre</label><input id="pf-first" class="ginput" name="first" value="${esc(p.first)}" /></div>
       <div class="gfield"><label for="pf-last">Apellidos</label><input id="pf-last" class="ginput" name="last" value="${esc(p.last)}" /></div>
       <div class="gfield"><label for="pf-lang">Idioma <span class="info">ⓘ</span></label><select id="pf-lang" class="ginput" name="lang">${['Español', 'Inglés', 'Portugués', 'Francés'].map((l) => `<option ${p.lang === l ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
@@ -292,7 +318,6 @@ function userRows() {
   return base;
 }
 const saveUsers = (list) => save('crm:users', list);
-const initialsOf = (n) => String(n || '?').split(' ').filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase();
 const lastActiveText = (iso) => { if (!iso || !Number.isFinite(Date.parse(iso))) return '--'; const d = (Date.now() - new Date(iso)) / 86400000; return d < 1 ? 'Hoy' : d < 2 ? 'Ayer' : d < 30 ? `Hace ${Math.round(d)} días` : formatDate(iso); };
 const presets = () => load('crm:presets', [{ id: 'p1', name: 'Ajuste predeterminado de ventas', home: 'Negocios', lang: 'Español', tz: '(UTC-06:00) Ciudad de México', dateFormat: 'dd/mm/aaaa', notifEmail: true, notifDesktop: true, notifMobile: false, teams: ['Ventas en el Extranjero'], users: [], updated: new Date(2026, 9, 2, 10, 15).toISOString(), by: 'Fernando Lovera Colin' }]);
 const savePresets = (list) => save('crm:presets', list);
@@ -318,7 +343,7 @@ function usersDirectoryHtml() {
     ${selCount ? `<div class="pbulk"><strong>${selCount} seleccionado${selCount > 1 ? 's' : ''}</strong><button class="link-btn" type="button" data-act="ubulk-team">Asignar equipo</button><button class="link-btn" type="button" data-act="ubulk-role">Cambiar permisos</button><button class="link-btn" type="button" data-act="ubulk-off">Desactivar</button><button class="link-btn" type="button" data-act="ubulk-export">Exportar</button><button class="link-btn" type="button" data-act="ubulk-clear">Limpiar</button></div>` : ''}
     <table class="mini-table stable proptable utable"><thead><tr><th class="pcheck"><input type="checkbox" data-ucheck-all ${page.length && page.every((u) => state.uSel.has(u.email)) ? 'checked' : ''} aria-label="Seleccionar todo" /></th>${th('name', 'Nombre')}${th('team', 'Equipos')}${th('role', 'Acceso')}<th>Licencia</th>${th('lastActive', 'Último acceso')}${th('status', 'Estado')}<th class="num">Acciones</th></tr></thead><tbody>
       ${page.length ? page.map((u) => `<tr class="${u.status === 'Desactivado' ? 'is-off' : ''}"><td class="pcheck"><input type="checkbox" data-ucheck="${esc(u.email)}" ${state.uSel.has(u.email) ? 'checked' : ''} aria-label="Seleccionar ${esc(u.name)}" /></td>
-        <td><div class="uname"><span class="avatar avatar--sm" style="background:${['#006162', '#0091ae', '#6a78d1', '#f2547d', '#00a4bd'][u.i % 5]}">${esc(initialsOf(u.name))}</span><div><button class="olink" type="button" data-uact="edit" data-i="${u.i}">${esc(u.name)}</button>${u.role === 'Superadministrador' ? ' <span class="tag tag--new">Superadministrador</span>' : ''}<br /><span class="muted">${esc(u.email)}</span></div></div></td>
+        <td><div class="uname">${ownerAvatarHtml(u.name, 'sm')}<div><button class="olink" type="button" data-uact="edit" data-i="${u.i}">${esc(u.name)}</button>${u.role === 'Superadministrador' ? ' <span class="tag tag--new">Superadministrador</span>' : ''}<br /><span class="muted">${esc(u.email)}</span></div></div></td>
         <td>${u.team ? `<span class="rvchip">${esc(u.team)}</span>` : '<span class="muted">--</span>'}</td>
         <td>${esc(u.role)}</td>
         <td>${esc(SEATS[u.seat] || SEATS.core)}${(u.addons || []).length ? `<br /><span class="muted">+ ${u.addons.map((a) => SEATS[a]).join(', ')}</span>` : ''}</td>
@@ -344,7 +369,7 @@ function seatsTabHtml() {
     <div class="seats">${Object.entries(SEATS).map(([k, l]) => { const pct = totals[k] ? Math.min(100, Math.round((used[k] / totals[k]) * 100)) : 0; return `<div class="seat${state.uFilter.seat === k ? ' is-active' : ''}"><div class="seat__head"><strong>${l}</strong><span class="muted">${used[k]} de ${totals[k]} asignadas</span></div><p class="muted">${DESC[k]}</p><div class="seat__bar"><i style="width:${pct}%"></i></div><div class="seat__foot"><button class="btn btn--ghost btn--sm" type="button" data-seatfilter="${k}">${state.uFilter.seat === k ? 'Ver todos' : 'Administrar'}</button>${unavailableButton('Añadir licencias', 'link-btn')}</div></div>`; }).join('')}</div>
     <h3>Asignación de licencias</h3>
     <table class="mini-table stable proptable utable"><thead><tr><th>Usuario</th><th>Licencia principal</th><th>Sales Hub</th><th>Service Hub</th><th>Estado</th></tr></thead><tbody>
-      ${all.map((u, i) => ({ ...u, i })).filter((u) => !state.uFilter.seat || u.seat === state.uFilter.seat || (u.addons || []).includes(state.uFilter.seat)).map((u) => `<tr class="${u.status === 'Desactivado' ? 'is-off' : ''}"><td><div class="uname"><span class="avatar avatar--sm" style="background:${['#006162', '#0091ae', '#6a78d1', '#f2547d', '#00a4bd'][u.i % 5]}">${esc(initialsOf(u.name))}</span><div><strong>${esc(u.name)}</strong><br /><span class="muted">${esc(u.email)}</span></div></div></td><td><select class="ginput ginput--sm" data-user-seat="${u.i}"><option value="core" ${u.seat === 'core' ? 'selected' : ''}>${SEATS.core}</option><option value="view" ${u.seat === 'view' ? 'selected' : ''}>${SEATS.view}</option></select></td><td><label class="lcswitch"><input type="checkbox" class="switch" data-user-addon="sales" data-i="${u.i}" ${(u.addons || []).includes('sales') ? 'checked' : ''} ${u.seat === 'view' ? 'disabled' : ''} /></label></td><td><label class="lcswitch"><input type="checkbox" class="switch" data-user-addon="service" data-i="${u.i}" ${(u.addons || []).includes('service') ? 'checked' : ''} ${u.seat === 'view' ? 'disabled' : ''} /></label></td><td><span class="tag ${u.status === 'Activo' ? 'tag--done' : u.status === 'Desactivado' ? 'tag--high' : 'tag--open'}">${esc(u.status)}</span></td></tr>`).join('')}
+      ${all.map((u, i) => ({ ...u, i })).filter((u) => !state.uFilter.seat || u.seat === state.uFilter.seat || (u.addons || []).includes(state.uFilter.seat)).map((u) => `<tr class="${u.status === 'Desactivado' ? 'is-off' : ''}"><td><div class="uname">${ownerAvatarHtml(u.name, 'sm')}<div><strong>${esc(u.name)}</strong><br /><span class="muted">${esc(u.email)}</span></div></div></td><td><select class="ginput ginput--sm" data-user-seat="${u.i}"><option value="core" ${u.seat === 'core' ? 'selected' : ''}>${SEATS.core}</option><option value="view" ${u.seat === 'view' ? 'selected' : ''}>${SEATS.view}</option></select></td><td><label class="lcswitch"><input type="checkbox" class="switch" data-user-addon="sales" data-i="${u.i}" ${(u.addons || []).includes('sales') ? 'checked' : ''} ${u.seat === 'view' ? 'disabled' : ''} /></label></td><td><label class="lcswitch"><input type="checkbox" class="switch" data-user-addon="service" data-i="${u.i}" ${(u.addons || []).includes('service') ? 'checked' : ''} ${u.seat === 'view' ? 'disabled' : ''} /></label></td><td><span class="tag ${u.status === 'Activo' ? 'tag--done' : u.status === 'Desactivado' ? 'tag--high' : 'tag--open'}">${esc(u.status)}</span></td></tr>`).join('')}
     </tbody></table>
     <h3>Historial de licencias</h3>
     ${seatLog().length ? `<ul class="updates">${seatLog().slice(0, 8).map((l) => `<li><span class="muted">${esc(formatDate(l.when))}</span><strong>${esc(l.text)}</strong></li>`).join('')}</ul>` : '<p class="muted">Todavía no hay cambios de licencias.</p>'}`;
@@ -362,7 +387,7 @@ function teamsTabHtml() {
   return `<div class="ptoolbar"><div class="search search--sm ptoolbar__search"><input type="search" id="teams-q" value="${esc(state.tq)}" placeholder="Buscar equipos" aria-label="Buscar equipos" /><span class="ico ico--search" aria-hidden="true"></span></div><div class="ptoolbar__right"><span class="muted">${ts.length} equipos</span><button class="btn btn--primary" type="button" data-act="new-team">Crear equipo</button></div></div>
     <p class="muted">Organiza a tus usuarios en equipos para asignar registros, vistas y permisos. Un equipo puede tener equipos secundarios.</p>
     <table class="mini-table stable proptable utable"><thead><tr><th>Nombre del equipo</th><th>Miembros</th><th>Equipo principal</th><th class="num">Acciones</th></tr></thead><tbody>
-      ${rows.length ? rows.map(({ t, depth }) => { const i = ts.indexOf(t); const ms = members(t.name); return `<tr><td><span class="tindent" style="--d:${depth}">${depth ? '↳ ' : ''}<button class="olink" type="button" data-team-edit="${i}">${esc(t.name)}</button></span></td><td>${ms.length ? `<span class="ustack">${ms.slice(0, 4).map((u, k) => `<span class="avatar avatar--xs" style="background:${['#006162', '#0091ae', '#6a78d1', '#f2547d', '#00a4bd'][(all.indexOf(u) + k) % 5]}" title="${esc(u.name)}">${esc(initialsOf(u.name))}</span>`).join('')}</span> ${ms.length} miembro${ms.length > 1 ? 's' : ''}` : '<span class="muted">Sin miembros</span>'}</td><td>${t.parent ? esc(t.parent) : '<span class="muted">--</span>'}</td><td class="num"><div class="menu"><button class="icon-btn icon-btn--round" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Acciones">⋯</button><div class="menu__panel menu__panel--right"><button class="menu__item" type="button" data-team-edit="${i}">Editar equipo</button><button class="menu__item" type="button" data-team-child="${i}">Agregar equipo secundario</button><button class="menu__item menu__item--danger" type="button" data-team-rm="${i}" ${ms.length || ts.some((c) => c.parent === t.name) ? 'disabled title="Tiene miembros o equipos secundarios"' : ''}>Eliminar</button></div></div></td></tr>`; }).join('') : '<tr><td colspan="4" class="muted">No hay equipos que coincidan.</td></tr>'}
+      ${rows.length ? rows.map(({ t, depth }) => { const i = ts.indexOf(t); const ms = members(t.name); return `<tr><td><span class="tindent" style="--d:${depth}">${depth ? '↳ ' : ''}<button class="olink" type="button" data-team-edit="${i}">${esc(t.name)}</button></span></td><td>${ms.length ? `<span class="ustack">${ms.slice(0, 4).map((u) => ownerAvatarHtml(u.name, 'xs', { titled: true })).join('')}</span> ${ms.length} miembro${ms.length > 1 ? 's' : ''}` : '<span class="muted">Sin miembros</span>'}</td><td>${t.parent ? esc(t.parent) : '<span class="muted">--</span>'}</td><td class="num"><div class="menu"><button class="icon-btn icon-btn--round" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Acciones">⋯</button><div class="menu__panel menu__panel--right"><button class="menu__item" type="button" data-team-edit="${i}">Editar equipo</button><button class="menu__item" type="button" data-team-child="${i}">Agregar equipo secundario</button><button class="menu__item menu__item--danger" type="button" data-team-rm="${i}" ${ms.length || ts.some((c) => c.parent === t.name) ? 'disabled title="Tiene miembros o equipos secundarios"' : ''}>Eliminar</button></div></div></td></tr>`; }).join('') : '<tr><td colspan="4" class="muted">No hay equipos que coincidan.</td></tr>'}
     </tbody></table>`;
 }
 function presetsTabHtml() {
@@ -1558,8 +1583,10 @@ root.addEventListener('change', (e) => {
     if (!f) return;
     if (f.size > 1.5 * 1024 * 1024) { toast('La imagen debe pesar menos de 1,5 MB'); return; }
     const reader = new FileReader();
-    reader.onload = () => { save('crm:profile', { ...profile(), avatar: String(reader.result) }); render(); toast('Imagen de perfil actualizada'); };
+    // Circular crop first (drag + zoom), then the upload to Storage (or the local copy) and the registry.
+    reader.onload = () => { openAvatarCropper(String(reader.result), { onSave: (out) => applyAvatar(out) }); };
     reader.readAsDataURL(f);
+    t.value = '';
   }
 });
 root.addEventListener('input', (e) => {
@@ -1837,7 +1864,7 @@ root.addEventListener('click', (e) => {
   }
   else if (a === 'pipe-required') {
     const defs = dealPipelineDefs(); const p = defs[state.pipeEdit]; const k = act.dataset.stage; const cur = (p.required && p.required[k]) || [];
-    const opts = ['Importe', 'Fecha de cierre', 'Empresa asociada', 'Contacto asociado', 'Prioridad', 'Tipo de negocio', 'Propietario del negocio', 'Siguiente paso'];
+    const opts = ['Importe', 'Fecha de cierre', 'Empresa asociada', 'Contacto asociado', 'Prioridad', 'Tipo de negocio', 'Propietario del negocio', 'Siguiente paso', 'Motivo del cierre perdido', 'Motivo del cierre ganado'];
     openModal(`Propiedades obligatorias: ${esc(labelOfStage(p, k))}`, `<form id="rq-form" class="ocardgrid ocardgrid--modal">${opts.map((o) => `<label class="ocheck ocheck--sm"><input type="checkbox" name="k" value="${esc(o)}" ${cur.includes(o) ? 'checked' : ''} /><span>${o}</span></label>`).join('')}</form>`, `<button class="btn btn--primary" type="button" id="rq-save">Guardar</button><button class="btn btn--ghost" type="button" data-close>Cancelar</button>`);
     document.getElementById('rq-save').onclick = () => { p.required = { ...(p.required || {}), [k]: [...document.querySelectorAll('#rq-form input:checked')].map((i) => i.value) }; persistPipelines(defs, 'Propiedades obligatorias guardadas'); closeModal(); render(); };
   }
@@ -1866,7 +1893,17 @@ root.addEventListener('click', (e) => {
     document.getElementById('cf-save').onclick = () => { const keys = [...document.querySelectorAll('#cf-form input:checked')].map((i) => i.value); save(`crm:${type}:createform`, keys); closeModal(); toast(`Formulario guardado con ${keys.length} campos`); };
   }
   else if (a === 'new-pipeline') openPipelinePanel('new');
-  else if (a === 'avatar-rm') { const p = profile(); delete p.avatar; save('crm:profile', p); render(); toast('Imagen de perfil quitada'); }
+  else if (a === 'avatar-pick') { const f = document.getElementById('avatar-file'); if (f) f.click(); }
+  else if (a === 'avatar-rm') { removeAvatar({ user: authUser, keys: myAvatarKeys() }).then(() => { const p = profile(); delete p.avatar; save('crm:profile', p); render(); toast('Imagen de perfil quitada'); }); }
+  else if (a === 'avatar-gravatar') {
+    const email = (document.getElementById('pf-email') || {}).value || profile().email;
+    if (!email) { toast('Escribe tu correo para buscar tu Gravatar.'); return; }
+    gravatarUrl(email).then(async (url) => {
+      if (!url) { toast('Este navegador no puede calcular la dirección de Gravatar.'); return; }
+      if (!(await imageExists(url))) { toast(`No hay ningún Gravatar para ${email}.`); return; }
+      await applyAvatar(url);
+    });
+  }
   else if (a === 'props-export' || a === 'props-export-sel') {
     const rows = propertyRows(state.propsObject).filter((p) => a === 'props-export' || state.propsSel.has(p.key));
     const csv = ['Nombre;Nombre interno;Tipo;Grupo;Creado por;Se usa en;Tasa de completación', ...rows.map((p) => [p.label, p.key, KINDS[p.kind] || p.kind, p.group, p.creator, p.used, `${p.rate}%`].map((v) => `"${String(v).replace(/"/g, '""')}"`).join(';'))].join('\n');

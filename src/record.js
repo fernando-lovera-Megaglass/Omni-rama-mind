@@ -1,3 +1,4 @@
+import { prepareDealStage } from './deal-close.js';
 import { ACTIVITY_COMPANY_SETTING, activityAssociations, saveAssociatedActivity } from './activity-associations.js';
 import './filter-chip.js';
 import { validatePropertyValues } from './data.js';
@@ -94,6 +95,7 @@ const CONFIG = {
     label: 'Negocios', singular: 'negocio', sub: 'Negocios', listHref: `${root}deals/`,
     title: (r) => r.name, subtitle: (r) => `${formatMoney(r.amount, r.deal_currency_code)} · ${dealStageLabel(r.pipeline, r.stage)}`, mail: () => '',
     fields: [
+      ['closedLostReason', 'Motivo del cierre perdido'], ['closedWonReason', 'Motivo del cierre ganado'],
       ['amount', 'Importe', 'number'], ['deal_currency_code', 'Moneda', 'select', opt(CURRENCY_CODES.map((c) => [c, `${c} · ${CURRENCY_DEFS[c].name}`]))], ['stage', 'Etapa del negocio', 'select', opt(allDealStages().map(([k, l]) => [k, l]))], ['closeDate', 'Fecha de cierre', 'date'],
       ['owner', 'Propietario del negocio', 'select', ownerOpts], ['company', 'Empresa asociada'], ['priority', 'Prioridad', 'select', opt(PRIORITIES.map(([k, l]) => [k, l]))],
       ['type', 'Tipo de negocio', 'select', opt(['Nuevo negocio', 'Negocio existente'])], ['important', 'Importante', 'select', [['true', 'Sí'], ['', 'No']]], ['pipeline', 'Pipeline', 'ro'], ['created', 'Fecha de creación', 'date-ro'],
@@ -1747,6 +1749,7 @@ function cancelEdit(form) {
 }
 async function save(key, value, label) {
   try { await validatePropertyValues(type, { [key]: value }, { id: rec.id }); } catch (e) { toast(e.message); return; }
+  if (type === 'deals' && key === 'stage' && !await prepareDealStage(rec, value)) { renderAll(); return; }
   const from = rec[key];
   setField(type, rec.id, key, value);
   // A reminder set again (after it was shown) must fire again: the checker in src/task-reminders.js watches it.
@@ -2394,7 +2397,7 @@ if (!rec) {
     }, 0);
   });
 
-  mount.addEventListener('change', (e) => {
+  mount.addEventListener('change', async (e) => {
     const sel = e.target.closest('[data-lead]');
     if (sel) save(sel.dataset.lead, sel.value, sel.dataset.lead === 'lead_stage' ? 'Etapa del lead' : 'Tipo de lead');
     if (e.target.id === 'act-date' || e.target.id === 'act-who') {
@@ -2407,7 +2410,9 @@ if (!rec) {
     if (stageSel) {
       const dealId = stageSel.dataset.dealStage;
       const label = (stageSel.options[stageSel.selectedIndex] || {}).textContent || stageSel.value;
-      setField('deals', dealId, 'stage', stageSel.value);
+      const nextStage = stageSel.value;
+      if (!await prepareDealStage(findRecord('deals', dealId), nextStage)) { renderRight(); return; }
+      setField('deals', dealId, 'stage', nextStage);
       renderTimeline(); // data.js logs the stage change here and on the deal (system entries)
       toast(`Etapa actualizada: ${label}`);
       renderRight();

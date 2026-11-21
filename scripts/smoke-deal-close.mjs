@@ -1,0 +1,126 @@
+// DOM smoke test for the real Megaglass deal properties: the 22 of them join the catalog (text except
+// «Fecha ganado», a date), show on the deal record ("Ver todas las propiedades", editable inline with a text
+// input or a date picker), in the list's column editor and in the advanced-filter popover, and never get
+// sample values. Run: node scripts/smoke-deal-props.mjs
+import { JSDOM } from 'jsdom';
+import { fileURLToPath } from 'node:url';
+import { dirname, resolve } from 'node:path';
+
+const here = dirname(fileURLToPath(import.meta.url));
+const log = (...a) => console.log('[deal-close]', ...a);
+const fail = (msg) => { console.error(`[deal-props] FAIL: ${msg}`); process.exit(1); };
+const mem = {};
+const LIST = '<!doctype html><body class="app"><aside id="sidenav"></aside><header id="topbar"></header><main id="list-root"></main><div id="scrim"></div></body>';
+const boot = (url, body) => {
+  const dom = new JSDOM(body, { url });
+  globalThis.window = dom.window;
+  globalThis.document = dom.window.document;
+  globalThis.location = dom.window.location;
+  globalThis.HTMLElement = dom.window.HTMLElement;
+  globalThis.FormData = dom.window.FormData;
+  dom.window.HTMLElement.prototype.scrollBy = function () {};
+  dom.window.HTMLElement.prototype.scrollIntoView = function () {};
+  dom.window.confirm = () => true;
+  return dom;
+};
+globalThis.localStorage = { getItem: (k) => (k in mem ? mem[k] : null), setItem: (k, v) => { mem[k] = String(v); }, removeItem: (k) => { delete mem[k]; } };
+let dom = boot('http://localhost/deals/', LIST);
+const $ = (id) => document.getElementById(id);
+const text = (el) => (el ? el.textContent.replace(/\s+/g, ' ').trim() : '');
+const click = (el) => { if (!el) fail('missing element to click'); el.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true })); };
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+
+const assert = (await import('node:assert/strict')).default;
+const data = await import('../src/data.js');
+const { propertyMap } = await import('../src/properties.js');
+const { prepareDealStage } = await import('../src/deal-close.js');
+const { matchHeader } = await import('../src/import-engine.js');
+const { evalCondition } = await import('../src/filter-ops.js');
+const keys = ['closedLostReason', 'closedWonReason'];
+for (const key of keys) {
+  assert.equal(propertyMap('deals')[key].kind, 'text');
+  assert.deepEqual(data.dbColumnFor('deals', key), { column: `extra->>${key}`, json: true });
+}
+assert.equal(matchHeader('closed_lost_reason', 'en', 'deals'), keys[0]);
+assert.equal(matchHeader('Motivo del cierre ganado', 'es', 'deals'), keys[1]);
+const d = data.allDeals().find((r) => !data.isClosedStage(r.stage));
+assert.equal(d.closedLostReason, undefined);
+const defs = data.dealPipelineDefs();
+const def = defs.find((p) => p.name === d.pipeline);
+def.rules = {};
+def.required = { lost: ['Motivo del cierre perdido'], won: ['closedWonReason'] };
+data.saveDealPipelineDefs(defs);
+let pending = prepareDealStage(d, 'lost');
+let modal = $('deal-close-modal');
+assert(modal);
+const submit = () => modal.querySelector('form').dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true }));
+modal.querySelector('textarea').value = '   ';
+submit();
+assert(modal.isConnected);
+assert.equal(data.findRecord('deals', d.id).stage, d.stage);
+modal.querySelector('textarea').value = 'Precio fuera de presupuesto';
+submit();
+assert.equal(await pending, true);
+data.setField('deals', d.id, 'stage', 'lost');
+assert.equal(data.findRecord('deals', d.id).closedLostReason, 'Precio fuera de presupuesto');
+assert.equal(await prepareDealStage(data.findRecord('deals', d.id), d.stage), true);
+data.setField('deals', d.id, 'stage', d.stage);
+assert.equal(data.findRecord('deals', d.id).closedLostReason, 'Precio fuera de presupuesto');
+pending = prepareDealStage(data.findRecord('deals', d.id), 'won');
+modal = $('deal-close-modal');
+click(modal.querySelector('[data-cancel]'));
+assert.equal(await pending, false);
+assert.equal(data.findRecord('deals', d.id).stage, d.stage);
+// An optional close can be saved empty; reopening preserves the opposite reason.
+def.required = {};
+data.saveDealPipelineDefs(defs);
+pending = prepareDealStage(data.findRecord('deals', d.id), 'won');
+modal = $('deal-close-modal');
+submit();
+assert.equal(await pending, true);
+assert.equal(data.findRecord('deals', d.id).closedWonReason, '');
+assert(evalCondition({ op: 'contains', value: 'presupuesto' }, { text: data.findRecord('deals', d.id).closedLostReason }));
+const D = await import('../src/deals.js');
+click(document.querySelector('button.views__tab[data-view="std:all"]'));
+click(document.querySelector('[data-action="columns"]'));
+for (const key of keys) assert(document.querySelector(`#col-groups input[data-key="${key}"]`));
+const cb = document.querySelector('#col-groups input[data-key="closedLostReason"]');
+cb.checked = true;
+cb.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
+click($('columns-apply'));
+D.list.state.size = 500;
+D.list.render();
+assert.match(text(document.querySelector(`#rows tr[data-id="${d.id}"] td[data-key="closedLostReason"]`)), /Precio fuera de presupuesto/);
+// Inline stage editing uses the same gate.
+const stageCell = document.querySelector(`#rows tr[data-id="${d.id}"] td[data-key="stage"]`);
+click(stageCell);
+const stageSelect = document.querySelector('#cp-value');
+stageSelect.value = 'won';
+stageSelect.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
+click($('cellpop-save'));
+await wait(10);
+modal = $('deal-close-modal');
+assert(modal);
+modal.querySelector('textarea').value = 'Servicio';
+submit();
+await wait(10);
+assert.equal(data.findRecord('deals', d.id).stage, 'won');
+assert.equal(data.findRecord('deals', d.id).closedWonReason, 'Servicio');
+data.setField('deals', d.id, 'stage', d.stage);
+click(document.querySelector('[data-action="advanced"]'));
+click($('allf-add'));
+for (const key of keys) assert(document.querySelector(`[data-allf-prop="${key}"]`));
+await wait(20);
+dom = boot(`http://localhost/deals/record/?id=${d.id}`, '<!doctype html><body class="app" data-type="deals"><aside id="sidenav"></aside><header id="topbar"></header><main id="record-root"></main><div id="scrim"></div></body>');
+await import('../src/record.js');
+click(document.querySelector('[data-stage="lost"]'));
+await wait(10);
+modal = $('deal-close-modal');
+assert(modal);
+modal.querySelector('textarea').value = 'Competencia';
+submit();
+await wait(10);
+assert.equal(data.findRecord('deals', d.id).stage, 'lost');
+click(document.querySelector('.props__custom [data-act="all-props-panel"]'));
+assert.match(text(document.querySelector('#allprops-panel [data-key="closedLostReason"]')), /Competencia/);
+log('OK: required reason, cancel, reopen, extra storage mapping, import, columns, filters and record close');

@@ -1,3 +1,4 @@
+import { dealMoveRefusal } from './deal-close.js';
 import { ACT_ICONS } from './action-icons.js';
 import { dealForecastLabel } from './data.js';
 import { boot } from './page.js';
@@ -152,21 +153,7 @@ const list = mountList({
     groups: (st) => stagesOf(boardPipeline(st)).map(([k, l]) => [k, l]),
     scope: (rows, st) => { const p = boardPipeline(st); return rows.filter((r) => (r.pipeline || defs[0].name) === p); },
     // Rules defined in Configuración › Objetos › Negocios › Pipelines › Reglas del pipeline.
-    canMove: (r, from, to) => {
-      const d = defOf(r.pipeline);
-      const rules = d.rules || {};
-      const keys = d.stages.map((s) => s[0]);
-      const i = keys.indexOf(from);
-      const j = keys.indexOf(to);
-      if (rules.lockClosed && isClosedStage(from)) return `"${d.name}" no permite mover negocios cerrados`;
-      if (rules.noBack && j >= 0 && j < i) return `"${d.name}" no permite retroceder de etapa`;
-      if (rules.noSkip && j > i + 1 && !isClosedStage(to)) return `"${d.name}" solo permite avanzar a la etapa siguiente`;
-      if (rules.requireAmount && to === 'won' && !(Number(r.amount) > 0)) return 'Añade un importe antes de marcar el negocio como ganado';
-      const req = (d.required || {})[to] || [];
-      const missing = req.filter((p) => (p === 'Importe' ? !(Number(r.amount) > 0) : p === 'Empresa asociada' ? !r.company : p === 'Fecha de cierre' ? !r.closeDate : p === 'Siguiente paso' ? !r.hs_next_step : false));
-      if (missing.length) return `Para entrar en esta etapa hace falta: ${missing.join(', ')}`;
-      return null;
-    },
+    canMove: (r, from, to) => dealMoveRefusal(r, to),
     // After a drop: the entry date of the stage (days-in-stage counter), the timeline entry, then the
     // automations defined in the pipeline's "Automatizar" tab. The stage itself is already saved.
     onMove: (r, to, label) => {

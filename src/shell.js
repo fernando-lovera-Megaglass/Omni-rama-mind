@@ -2,6 +2,8 @@
 // `root` is the relative path back to the site root ('../' or '../../').
 
 import { authEnabled, currentUser, signOut, onAuthChange, siteRoot, goTo, userLabel, userInitial } from './auth.js';
+import { avatarFor, avatarForUser, ME_KEY } from './avatars.js';
+import { applyAvatarTo } from './owner.js';
 import { notifications, unreadCount, markAllRead } from './notifications.js';
 import { displayPhone, phoneHref } from './phone.js';
 import { getTheme, setTheme, resolvedTheme } from './theme.js';
@@ -329,10 +331,21 @@ function wireAccount(root) {
     goTo(authEnabled() ? siteRoot() : root);
   };
   btn.addEventListener('click', (e) => { e.preventDefault(); closeMenus(); leave(); });
+  // The account avatar: the person's profile photo (Configuración › General › Perfil) when there is one.
+  let me = null;
+  const paintAvatar = () => {
+    const el = document.getElementById('account-avatar');
+    if (!el) return;
+    const photo = (me && avatarForUser(me)) || avatarFor(ME_KEY);
+    applyAvatarTo(el, { photo, initials: me ? userInitial(me) : 'M' });
+  };
+  paintAvatar();
+  document.addEventListener('crm:avatar', paintAvatar);
   if (!authEnabled()) return;
   currentUser().then((user) => {
     if (!user) return;
-    document.getElementById('account-avatar').textContent = userInitial(user);
+    me = user;
+    paintAvatar();
     document.getElementById('account-name').textContent = userLabel(user);
     const mail = document.getElementById('account-email');
     mail.textContent = user.email || '';

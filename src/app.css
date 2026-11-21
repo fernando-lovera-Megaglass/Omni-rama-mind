@@ -562,6 +562,56 @@ h1 {
   font-size: 13px;
 }
 
+/* a profile photo (src/avatars.js): same circle as the initials, the picture covering it */
+.avatar--img {
+  background-color: var(--c-head);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  color: transparent;
+}
+
+/* circular crop of the profile picture (src/avatar-crop.js) */
+.acrop {
+  display: flex;
+  justify-content: center;
+  margin: var(--sp-12) 0;
+}
+
+.acrop__frame {
+  position: relative;
+  width: 240px;
+  height: 240px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--c-head);
+  box-shadow: 0 0 0 2px var(--c-border);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.acrop__frame:active {
+  cursor: grabbing;
+}
+
+.acrop__img {
+  position: absolute;
+  max-width: none;
+  pointer-events: none;
+}
+
+.acrop__zoom {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-12);
+  margin-top: var(--sp-8);
+}
+
+.acrop__zoom input[type='range'] {
+  flex: 1;
+}
+
 .owner {
   display: inline-flex;
   align-items: center;
@@ -9813,6 +9863,12 @@ textarea.cellpop__input {
   width: 84px;
   height: 84px;
   font-size: 26px;
+}
+
+.gavatar__actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
 }
 
 .gphone {

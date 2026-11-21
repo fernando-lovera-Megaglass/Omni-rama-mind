@@ -1152,7 +1152,7 @@ function augment(type, r) {
   return r;
 }
 // Properties the app really drives: a sample value would be acted upon (a fake reminder would fire).
-const REAL_ONLY = new Set(['reminderAt', 'reminderFiredAt']);
+const REAL_ONLY = new Set(['reminderAt', 'reminderFiredAt', 'closedLostReason', 'closedWonReason']);
 
 // ---------- generators ----------
 function daysAgo(n) {

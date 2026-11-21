@@ -1,3 +1,4 @@
+import { prepareDealStage } from './deal-close.js';
 import { pagination, bindPagination } from './pagination.js';
 import { customFieldsHtml } from './create-contact.js';
 import { validatePropertyValues } from './data.js';
@@ -1543,7 +1544,7 @@ export function mountList(cfg) {
       board.querySelectorAll('.is-over').forEach((el2) => el2.classList.remove('is-over'));
       colEl.classList.add('is-over');
     });
-    board.addEventListener('drop', (e) => {
+    board.addEventListener('drop', async (e) => {
       const colEl = e.target.closest('.kcol');
       if (!colEl || !dragId) return;
       e.preventDefault();
@@ -1555,7 +1556,8 @@ export function mountList(cfg) {
         if (refusal) {
           toast(refusal);
         } else {
-          setField(cfg.type, dragId, cfg.board.key, value);
+          if (cfg.type === 'deals' && cfg.board.key === 'stage' && !await prepareDealStage(r, value)) { dragId = null; render(); return; }
+          setField(cfg.type, r.id, cfg.board.key, value);
           const label = (groupsOf().find((g) => String(g[0]) === value) || [value, value])[1];
           toast(`${r.name} movido a "${label}"`);
           if (cfg.board.onMove) cfg.board.onMove(r, value, label);
@@ -1979,6 +1981,8 @@ export function mountList(cfg) {
     const from = r[cell.key];
     const editing = cell;
     try { await validatePropertyValues(cfg.type, { [cell.key]: value }, { id: cell.id }); } catch (e) { toast(e.message); return; }
+    if (cell !== editing) return;
+    if (cfg.type === 'deals' && cell.key === 'stage' && !await prepareDealStage(r, value)) return;
     if (cell !== editing) return;
     setField(cfg.type, cell.id, cell.key, value);
     if (cell.key === 'name' && cfg.type === 'contacts') {
@@ -2882,7 +2886,10 @@ export function mountList(cfg) {
           const value = p.kind === 'number' ? Number(d.value) : d.value;
           if (props[p.key]?.unique && n > 1 && String(value).trim()) throw new Error(`${p.label}: un valor único no se puede asignar a varios registros.`);
           for (const id of state.selected) await validatePropertyValues(cfg.type, { [p.key]: value }, { id });
-          state.selected.forEach((id) => setField(cfg.type, id, p.key, value));
+          for (const id of state.selected) {
+            if (cfg.type === 'deals' && p.key === 'stage' && !await prepareDealStage(recordById(id), value)) return false;
+            setField(cfg.type, id, p.key, value);
+          }
           toast(`"${p.label}" actualizada en ${n} ${n === 1 ? bulkNoun.singular : bulkNoun.plural}`);
           state.selected.clear();
           render();

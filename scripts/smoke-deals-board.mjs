@@ -107,6 +107,7 @@ const before = { from: countOf(fromKey), to: countOf(toKey), footFrom: foot(from
 ev('dragstart', card);
 ev('dragover', colOf(toKey));
 ev('drop', colOf(toKey));
+await new Promise((resolve) => setTimeout(resolve, 0));
 const moved = data.allDeals().find((d) => d.id === migrated.id);
 log('after drop:', moved.stage, '| entered:', moved.stageEnteredAt, '| counts:', `${before.from}->${countOf(fromKey)}`, `${before.to}->${countOf(toKey)}`);
 if (moved.stage !== toKey || moved.stageEnteredAt !== data.TODAY.toISOString()) fail('dropping should update the stage and record when it entered');
@@ -122,6 +123,17 @@ if (!acts[0] || acts[0].type !== 'system' || JSON.parse(mem['crm:deals:overrides
 // the days-in-stage counter restarts after the move
 const movedCard = document.querySelector('.kcard[data-id="' + migrated.id + '"]');
 if (movedCard.querySelector('.kcard__days')) fail('a freshly moved deal has no stale counter');
+
+// Closing on the board asks for a reason before committing the move.
+ev('dragstart', movedCard);
+ev('drop', colOf('lost'));
+const closeModal = document.getElementById('deal-close-modal');
+if (!closeModal || data.findRecord('deals', migrated.id).stage !== toKey) fail('close must wait for the dialog');
+closeModal.querySelector('textarea').value = 'Sin presupuesto';
+closeModal.querySelector('form').dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true }));
+await new Promise((resolve) => setTimeout(resolve, 0));
+const closed = data.findRecord('deals', migrated.id);
+if (closed.stage !== 'lost' || closed.closedLostReason !== 'Sin presupuesto') fail('board must save reason and stage');
 
 // 6) Another pipeline keeps its own stages in the board.
 click(document.querySelector('[data-pipeline="SACA SUMINISTRO"]'));
