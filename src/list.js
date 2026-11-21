@@ -2898,13 +2898,22 @@ export function mountList(cfg) {
         onOk: async (d) => {
           const p = choices.find((x) => x.key === d.key);
           if (!p) return false;
+          const n = state.selected.size;
           const value = p.kind === 'number' ? Number(d.value) : d.value;
           if (props[p.key]?.unique && n > 1 && String(value).trim()) throw new Error(`${p.label}: un valor único no se puede asignar a varios registros.`);
           for (const id of state.selected) await validatePropertyValues(cfg.type, { [p.key]: value }, { id });
-          for (const id of state.selected) {
+          let completed = 0;
+          for (const id of [...state.selected]) {
             if (cfg.type === 'deals' && p.key === 'stage') {
-              if (!await changeDealStage(recordById(id), value)) { render(); return false; }
+              if (!await changeDealStage(recordById(id), value)) {
+                if (completed) toast(`Etapa actualizada en ${completed} de ${n} negocios. Los pendientes siguen seleccionados.`);
+                render();
+                return false;
+              }
+              // A cancelled or blocked later move must not hide earlier successes.
+              state.selected.delete(id);
             } else setField(cfg.type, id, p.key, value);
+            completed++;
           }
           toast(`"${p.label}" actualizada en ${n} ${n === 1 ? bulkNoun.singular : bulkNoun.plural}`);
           state.selected.clear();

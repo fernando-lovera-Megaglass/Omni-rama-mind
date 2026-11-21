@@ -1,4 +1,3 @@
-import { dealMoveRefusal } from './deal-close.js';
 import { ACT_ICONS } from './action-icons.js';
 import { dealForecastLabel } from './data.js';
 import { boot } from './page.js';
@@ -150,8 +149,7 @@ const list = mountList({
     key: 'stage',
     groups: (st) => stagesOf(boardPipeline(st)).map(([k, l]) => [k, l]),
     scope: (rows, st) => { const p = boardPipeline(st); return rows.filter((r) => (r.pipeline || defs[0].name) === p); },
-    // Rules defined in Configuración › Objetos › Negocios › Pipelines › Reglas del pipeline.
-    canMove: (r, from, to) => dealMoveRefusal(r, to),
+    // list.js delegates deal moves, including rules and automation, to changeDealStage.
     footer: columnFooter,
     card: dealCard,
     lines: (r) => [
