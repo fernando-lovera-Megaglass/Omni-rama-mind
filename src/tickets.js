@@ -2,6 +2,7 @@ import { boot } from './page.js';
 import { mountList, tag, link, ownerHtml } from './list.js';
 import { toast } from './shell.js';
 import { ticketMoveRefusal, runTicketAutomation } from './ticket-rules.js';
+import { mountCreateTicket } from './create-ticket.js';
 import { allTickets, allContacts, PRIORITIES, OWNERS, formatDate, labelOf, classOf, TODAY, ticketPipelines, ticketStatusesFor, allTicketStatuses, ticketStatusLabel, ticketStatusClass, isTicketOpen, firstOpenTicketStatus, ticketPipelineCounts } from './data.js';
 
 boot({ root: '../', active: 'crm', sub: 'Tickets', title: 'Tickets' });
@@ -19,13 +20,18 @@ const openClosed = (name) => {
   return c ? `${c.open} abierto${c.open === 1 ? '' : 's'} · ${c.closed} cerrado${c.closed === 1 ? '' : 's'}` : '';
 };
 
-mountList({
+// "Crear ticket" is the slide-over panel of src/create-ticket.js (mounted after the list, below).
+let createPanel = null;
+const list = mountList({
   type: 'tickets',
   title: 'Tickets',
   singular: 'Ticket',
   plural: 'tickets',
   addLabel: 'Agregar tickets',
   createLabel: 'Crear ticket',
+  addDirect: true,
+  // The panel opens on the pipeline being looked at (the board's "+ Ticket" also passes its status).
+  openCreate: (prefill) => createPanel && createPanel.open({ pipeline: list.state.pipeline || undefined, ...(prefill || {}) }),
   // "Acciones" next to "Agregar" (export, trash, bulk edit); tickets have no duplicate management nor format fixes.
   actionsMenu: { dupes: false, fixFormat: false },
   // Pipeline selector in the toolbar (as in the original): filters the list and the board to one pipeline,
@@ -109,21 +115,12 @@ mountList({
     { key: 'lastActivity', label: 'Última actividad', default: false, text: (r) => formatDate(r.lastActivity), sortValue: (r) => new Date(r.lastActivity).getTime() },
     { key: 'created', label: 'Fecha de creación', text: (r) => formatDate(r.created), sortValue: (r) => new Date(r.created).getTime() },
   ],
-  createFields: [
-    { name: 'name', label: 'Nombre del ticket', required: true },
-    { name: 'description', label: 'Descripción' },
-    { name: 'pipeline', label: 'Pipeline', type: 'select', options: ticketPipelines().map((p) => [p, p]) },
-    { name: 'status', label: 'Estado del ticket', type: 'select', options: statusOptions() },
-    { name: 'priority', label: 'Prioridad', type: 'select', options: PRIORITIES.map(([k, l]) => [k, l]) },
-    { name: 'source', label: 'Fuente', type: 'select', options: ['Correo', 'Formulario', 'Chat', 'Teléfono'].map((x) => [x, x]) },
-    { name: 'contactId', label: 'Contacto asociado', type: 'select', options: [['', 'Ninguno'], ...allContacts().slice(0, 30).map((c) => [c.id, c.name])] },
-    { name: 'owner', label: 'Propietario del ticket', type: 'select', options: OWNERS.map((o) => [o, o]) },
-  ],
-  // Sensible defaults (specification §7): first pipeline and its first open status; a status that does not
-  // belong to the chosen pipeline falls back to that first open status.
+  // Sensible defaults (specification §7), shared with the panel: first pipeline and its first open status; a
+  // status that does not belong to the chosen pipeline falls back to that first open status.
   normalize: (d) => {
     const pipeline = ticketPipelines().includes(d.pipeline) ? d.pipeline : ticketPipelines()[0];
     const valid = ticketStatusesFor(pipeline).some((s) => s[0] === d.status);
     return { ...d, pipeline, status: valid ? d.status : firstOpenTicketStatus(pipeline), priority: d.priority || 'medium', lastActivity: TODAY.toISOString() };
   },
 });
+createPanel = mountCreateTicket({ list });
