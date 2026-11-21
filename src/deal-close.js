@@ -75,13 +75,14 @@ export async function changeDealStage(record, to) {
     if (!keys.length) return await commit({});
     const props = propertyMap('deals');
     const required = requiredKeys(definition(r), to);
+    const title = isClosedStage(to) ? (to === 'won' ? '¿Por qué se ganó?' : '¿Por qué se perdió?') : 'Completar cambio de etapa';
     const previousFocus = document.activeElement;
     return await new Promise(resolve => {
       const modal = document.createElement('div');
       modal.className = 'bmodal is-open';
       modal.id = 'deal-close-modal';
       modal.style.zIndex = '10000';
-      modal.innerHTML = `<div class="bmodal__scrim" data-cancel></div><form class="bmodal__panel" role="dialog" aria-modal="true" aria-labelledby="deal-close-title"><div class="bmodal__head"><h3 id="deal-close-title">Completar cambio de etapa</h3><button type="button" class="bmodal__close" data-cancel aria-label="Cerrar">×</button></div><div class="bmodal__body"><p>${esc(r.name)} · ${esc(definition(r).stages.find(s => s[0] === to)?.[1])}</p>${keys.map(key => { const f = fieldFor(key, props); return `<label class="field"><span>${esc(f[1])} (${required.includes(key) ? 'obligatorio' : 'opcional'})</span>${propertyEditor(f, r, props)}</label>`; }).join('')}<p role="alert" data-error></p></div><div class="bmodal__foot"><button type="button" class="btn" data-cancel>Cancelar</button><button type="submit" class="btn btn--primary">Guardar y cambiar etapa</button></div></form>`;
+      modal.innerHTML = `<div class="bmodal__scrim" data-cancel></div><form class="bmodal__panel" role="dialog" aria-modal="true" aria-labelledby="deal-close-title"><div class="bmodal__head"><h3 id="deal-close-title">${title}</h3><button type="button" class="bmodal__close" data-cancel aria-label="Cerrar">×</button></div><div class="bmodal__body"><p>${esc(r.name)} · ${esc(definition(r).stages.find(s => s[0] === to)?.[1])}</p>${keys.map(key => { const f = fieldFor(key, props); return `<label class="field"><span>${esc(f[1])} (${required.includes(key) ? 'obligatorio' : 'opcional'})</span>${propertyEditor(f, r, props)}</label>`; }).join('')}<p role="alert" data-error></p></div><div class="bmodal__foot"><button type="button" class="btn" data-cancel>Cancelar</button><button type="submit" class="btn btn--primary">Guardar y cambiar etapa</button></div></form>`;
       let saving = false;
       const finish = ok => { modal.remove(); previousFocus?.focus(); resolve(ok); };
       modal.addEventListener('click', e => { if (!saving && e.target.closest('[data-cancel]')) finish(false); });

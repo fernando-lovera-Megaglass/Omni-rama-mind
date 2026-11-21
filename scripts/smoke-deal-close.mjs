@@ -1,7 +1,5 @@
-// DOM smoke test for the real Megaglass deal properties: the 22 of them join the catalog (text except
-// «Fecha ganado», a date), show on the deal record ("Ver todas las propiedades", editable inline with a text
-// input or a date picker), in the list's column editor and in the advanced-filter popover, and never get
-// sample values. Run: node scripts/smoke-deal-props.mjs
+// Local DOM regression: closing reasons, required pipeline fields, entry points and property integrations.
+// Run: node scripts/smoke-deal-close.mjs
 import { JSDOM } from 'jsdom';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
@@ -53,6 +51,7 @@ data.saveDealPipelineDefs(defs);
 let pending = changeDealStage(d, 'lost');
 let modal = $('deal-close-modal');
 assert(modal);
+assert.match(text($('deal-close-title')), /¿Por qué se (ganó|perdió)\?/);
 const submit = () => modal.querySelector('form').dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true }));
 modal.querySelector('textarea').value = '   ';
 submit();
@@ -67,6 +66,9 @@ assert.equal(data.findRecord('deals', d.id).closedLostReason, 'Precio fuera de p
 assert.equal(await changeDealStage(data.findRecord('deals', d.id), d.stage), true);
 data.setField('deals', d.id, 'stage', d.stage);
 assert.equal(data.findRecord('deals', d.id).closedLostReason, 'Precio fuera de presupuesto');
+data.setField('deals', d.id, 'closedLostReason', '');
+assert.equal(data.findRecord('deals', d.id).closedLostReason, '');
+data.setField('deals', d.id, 'closedLostReason', 'Precio fuera de presupuesto');
 pending = changeDealStage(data.findRecord('deals', d.id), 'won');
 modal = $('deal-close-modal');
 click(modal.querySelector('[data-cancel]'));

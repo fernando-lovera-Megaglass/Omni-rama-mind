@@ -1,5 +1,11 @@
 # Progreso — Omni CRM
 
+## 2026-11-21 (sesión 6) · Estados vacíos con ilustración, título y acción
+
+- Nuevo componente compartido `src/empty-state.js` (`emptyStateHtml`): ilustración centrada (SVG en línea dibujado con `currentColor` y el acento de marca, con el icono del módulo en la insignia, así que se tiñe bien en el tema oscuro), título, texto de apoyo y botón de acción primario (y uno secundario opcional); variante compacta para paneles estrechos.
+- Reemplaza el texto plano suelto en los seis sitios: **listas** (`src/list.js`: «No hay contactos/empresas/negocios/tickets/tareas que coincidan con los filtros» o «Todavía no hay …» + «Crear contacto/empresa/negocio/ticket/tarea», que abre el panel de creación), **Llamadas** («No hay llamadas con estos filtros» / «Todavía no hay llamadas» + «Abrir el marcador» y «Borrar filtros» cuando hay búsqueda o filtros), **Bandeja de entrada** (lista: «No hay conversaciones» compacto; panel del hilo sin selección: ilustración + «Selecciona una conversación»; ambos con «Nueva conversación»), **Plantillas** («Nueva plantilla»), **Secuencias** («Crear secuencia», enlace al editor) y **Workflows** («Crear workflow»; en la vista Eliminado, «Ver todos los workflows»).
+- Prueba: `scripts/smoke-empty-states.mjs` (los seis módulos muestran ilustración + título + CTA, las acciones abren el panel/diálogo correspondiente o limpian los filtros, y no queda texto suelto).
+
 ## 2026-11-21 (sesión 6) · Verificación de la migración de pipelines reales
 
 - Se comprobó en el proyecto (SQL de solo lectura con el token de gestión, que sí es válido) que `supabase/pipeline_stages_real.sql` ya está aplicada: 8 pipelines de negocios con sus 65 etapas (nombres, probabilidades y orden) y los 4 pipelines reales de tickets con sus 27 estados (nombres, orden, abierto/cerrado) coinciden con `scripts/hubspot-pipelines.snapshot.json`; el registro `scripts/applied-migrations.json` ya la tenía como aplicada (2026-11-20) y ahora guarda además la fecha y el resumen de la verificación.

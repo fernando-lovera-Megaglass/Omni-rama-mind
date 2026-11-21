@@ -94,7 +94,10 @@ function visible() {
 }
 function renderList() {
   const list = visible();
-  if (state.selected && !conversationById(state.selected)) state.selected = null;
+  // With nothing listed (search or filters without matches) no conversation stays selected: the thread pane
+  // shows its empty state. A conversation that just left the list (closed, reassigned) stays open until
+  // another one is picked, as before.
+  if (state.selected && (!conversationById(state.selected) || !list.length)) state.selected = null;
   if (!state.selected && list.length) state.selected = list[0].id;
   root.querySelectorAll('.inbox__tab').forEach((t) => { t.classList.toggle('is-active', t.dataset.who === state.who); t.setAttribute('aria-selected', String(t.dataset.who === state.who)); });
   $('inbox-items').innerHTML = list.length
@@ -214,7 +217,7 @@ root.addEventListener('change', (e) => {
   else if (e.target.id === 'inbox-channel') { state.channel = e.target.value; state.selected = null; renderAll(); }
   else if (e.target.id === 'inbox-assign' && state.selected) { assignConversation(state.selected, e.target.value); toast(e.target.value ? `Asignada a ${e.target.value}` : 'Conversación sin asignar'); renderAll(); }
 });
-root.addEventListener('input', (e) => { if (e.target.id === 'inbox-q') { state.q = e.target.value; renderList(); } });
+root.addEventListener('input', (e) => { if (e.target.id === 'inbox-q') { const before = state.selected; state.q = e.target.value; renderList(); if (state.selected !== before) { renderThread(); renderSide(); } } });
 root.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && e.target.closest('#inbox-reply')) { e.preventDefault(); $('inbox-reply').requestSubmit ? $('inbox-reply').requestSubmit() : $('inbox-reply').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })); }
 });
