@@ -712,7 +712,8 @@ export function setField(type, id, field, value, opts = {}) {
   }
   const completedAt = new Date();
   validatePropertyValuesLocal(type, { [field]: value }, id);
-  const previousValue = (type === 'tickets' && field === 'status') || (type === 'contacts' && field === 'lifecycle') ? findIn(type, id)?.[field] : undefined;
+  if (type === 'tasks' && field === 'recur') value = normalizeRecur(value); // the editors hand over the freq string
+  const previousValue = (type === 'tickets' && field === 'status') || (type === 'contacts' && field === 'lifecycle') || (type === 'tasks' && field === 'status') ? findIn(type, id)?.[field] : undefined;
   if (dbLive) {
     const rec = (dbRows[type] || []).find((r) => Number(r.id) === Number(id));
     if (rec) rec[field] = value;
@@ -913,6 +914,46 @@ export function dueMoment(due) {
   if (d.getHours() === 0 && d.getMinutes() === 0 && d.getSeconds() === 0) return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 9, 0, 0, 0);
   return d;
 }
+// ---------- recurring tasks («Repetir»: daily / weekly / monthly / yearly) ----------
+// The frequency lives on the task as recur = { freq } (extra jsonb in the database, no migration). Completing a
+// recurring task (anywhere: queue, list checkbox, record card, task record) creates the next occurrence with the
+// same title / type / priority / owner / associations, the due date shifted by the frequency (calendar days,
+// UTC arithmetic so a date-only due keeps its day) and the default reminder re-armed by addRecord.
+export const RECUR_OPTIONS = [['', 'Sin repetición'], ['daily', 'Diaria'], ['weekly', 'Semanal'], ['monthly', 'Mensual'], ['yearly', 'Anual']];
+export function normalizeRecur(v) {
+  const f = v && typeof v === 'object' ? v.freq : v;
+  return RECUR_OPTIONS.some(([k]) => k && k === f) ? { freq: f } : null;
+}
+export const recurLabel = (t) => (RECUR_OPTIONS.find(([k]) => k === ((t && t.recur && t.recur.freq) || '')) || RECUR_OPTIONS[0])[1];
+export function nextRecurrence(due, freq, from = new Date()) {
+  let d = due ? new Date(due) : new Date(from);
+  if (Number.isNaN(d.getTime())) d = new Date(from);
+  if (freq === 'daily') d.setUTCDate(d.getUTCDate() + 1);
+  else if (freq === 'weekly') d.setUTCDate(d.getUTCDate() + 7);
+  else if (freq === 'monthly' || freq === 'yearly') {
+    // Same day of the following month / year, clamped to that month's length (31 → 30, 29 feb → 28 feb).
+    const day = d.getUTCDate();
+    d.setUTCDate(1);
+    if (freq === 'monthly') d.setUTCMonth(d.getUTCMonth() + 1); else d.setUTCFullYear(d.getUTCFullYear() + 1);
+    const last = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate();
+    d.setUTCDate(Math.min(day, last));
+  } else return null;
+  return d.toISOString();
+}
+function spawnNextOccurrence(t) {
+  const r = normalizeRecur(t.recur);
+  if (!r) return null;
+  const due = nextRecurrence(t.due, r.freq);
+  const fields = { name: t.name, type: t.type, priority: t.priority, status: 'todo', owner: t.owner, contact: t.contact || '', contactId: t.contactId || '', due, recur: { freq: r.freq }, lastActivity: new Date().toISOString() };
+  ['dealId', 'ticketId', 'companyId', 'queueId'].forEach((k) => { if (t[k]) fields[k] = t[k]; });
+  // No reminderAt here: addRecord re-arms the default reminder from the new due date (and no reminderFiredAt).
+  const next = addRecord('tasks', fields, { origin: `repetición ${recurLabel(t).toLowerCase()} de la tarea «${t.name}»` });
+  const when = formatDate(due);
+  logSystem('tasks', t.id, `Tarea recurrente completada: se creó la siguiente para el ${when}.`, { task: next.id });
+  if (t.contactId) logSystem('contacts', t.contactId, `Tarea recurrente «${t.name}» completada: se creó la siguiente para el ${when}.`, { task: next.id });
+  if (t.dealId) logSystem('deals', t.dealId, `Tarea recurrente «${t.name}» completada: se creó la siguiente para el ${when}.`, { task: next.id });
+  return next;
+}
 export function reminderFromDue(due, option = defaultReminderOption()) {
   const d = dueMoment(due);
   if (!d || !option || option === 'Sin recordatorio') return '';
@@ -1026,13 +1067,14 @@ function afterSet(type, id, field, value, opts = {}, previousValue) {
         if (t.companyId) logSystem('companies', t.companyId, `Ticket «${t.name}» pasó al estado «${label}».`, { ticket: t.id, status: value });
       }
     }
-    // A task completed: on the task's contact and deal.
-    if (type === 'tasks' && field === 'status' && value === 'done') {
+    // A task completed: on the task's contact and deal; a recurring one spawns its next occurrence (once).
+    if (type === 'tasks' && field === 'status' && value === 'done' && previousValue !== 'done') {
       const t = findIn('tasks', id);
       if (t) {
         logSystem('tasks', t.id, 'Tarea completada.', {});
         if (t.contactId) logSystem('contacts', t.contactId, `Tarea «${t.name}» completada.`, { task: t.id });
         if (t.dealId) logSystem('deals', t.dealId, `Tarea «${t.name}» completada.`, { task: t.id });
+        try { spawnNextOccurrence(t); } catch (e) { console.error('[tareas recurrentes]', e); }
       }
     }
   } catch (e) { console.error('[cronología]', e); }

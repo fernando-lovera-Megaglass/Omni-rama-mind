@@ -256,6 +256,36 @@ const finalEnrollment = S.enroll({ sequenceId: single.id, contact });
 data.setField('tasks', finalEnrollment.task.id, 'status', 'done');
 for (let i = 0; i < 50 && S.enrollments().find(e => e.id === finalEnrollment.enrollment.id).status !== 'finished'; i++) await wait(10);
 if (S.enrollments().find(e => e.id === finalEnrollment.enrollment.id).status !== 'finished') fail('task status hook finishes last manual step');
+// Exercise the same completion entry point used by tasks.js for every manual type.
+const { completeTask } = await import('../src/task-queue.js');
+const RealDate = Date;
+for (const type of ['manual_email', 'call', 'task', 'inmail', 'connection']) {
+  const sequence = S.createSequence({ name: `Completion hook ${type}`, steps: [
+    { type, delayDays: 0, title: 'Manual' },
+    { type: 'auto_email', delayDays: 1, subject: 'Siguiente' },
+  ] });
+  const { enrollment, task } = S.enroll({ sequenceId: sequence.id, contact });
+  const readEnrollment = () => S.enrollments().find(e => e.id === enrollment.id);
+  if (readEnrollment().currentStep !== 1 || readEnrollment().nextStepAt !== null) fail(`${type}: must wait`);
+  // Freeze only the synchronous status write so its captured completion time is Friday.
+  globalThis.Date = class extends RealDate {
+    constructor(...args) { super(...(args.length ? args : [friday.getTime()])); }
+    static now() { return friday.getTime(); }
+  };
+  try { completeTask(task.id); } finally { globalThis.Date = RealDate; }
+  for (let i = 0; i < 50 && readEnrollment().currentStep === 1; i++) await wait(10);
+  const advanced = readEnrollment();
+  if (advanced.currentStep !== 2 || advanced.status !== 'active'
+      || advanced.nextStepAt !== S.businessDaysFrom(friday, 1).toISOString()
+      || advanced.extra.waiting_task !== undefined) fail(`${type}: task hook must schedule Monday from completion`);
+  completeTask(task.id, false);
+  completeTask(task.id, true);
+  await wait(20);
+  if (readEnrollment().nextStepAt !== advanced.nextStepAt || readEnrollment().currentStep !== 2) fail(`${type}: reopening must not advance again`);
+  const activity = data.activitiesFor('contacts', contact.id).filter(a => a.extra?.enrollmentId === enrollment.id && a.text.includes('Paso 1 completado'));
+  if (activity.length !== 1) fail(`${type}: exactly one completion activity`);
+}
+log('all manual types: real task completion hook, Friday to Monday, reopen idempotency');
 console.log('[secuencias] OK');
 {
 // Pause/resume retains position and persists the remaining delay.

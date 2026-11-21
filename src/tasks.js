@@ -4,7 +4,7 @@ import { assignTaskQueue } from './data.js';
 import { boot } from './page.js';
 import { mountList, tag, link, ownerHtml } from './list.js';
 import { toast } from './shell.js';
-import { allTasks, allContacts, TASK_STATUSES, TASK_TYPES, PRIORITIES, OWNERS, formatDate, labelOf, classOf, TODAY } from './data.js';
+import { allTasks, allContacts, TASK_STATUSES, TASK_TYPES, PRIORITIES, OWNERS, formatDate, labelOf, classOf, TODAY, RECUR_OPTIONS, recurLabel, normalizeRecur } from './data.js';
 import { startQueue, activeQueue, endQueue, queueTask, queueFinished, queueSummary, targetFor, goTo, dueMatches, dueText, dueClass, DUE_OPTIONS, dayDiff, completeTask } from './task-queue.js';
 import { REMINDER_OPTIONS, defaultReminderOption, reminderFromDue, reminderText } from './task-reminders.js';
 // «Recordatorio» of the create drawer: the default from Ajustes first, the other presets, or a custom date-time.
@@ -60,7 +60,7 @@ const list = mountList({
     owner: OWNERS.map((o) => [o, o]),
     type: TASK_TYPES.map((t) => [t, t]),
   },
-  readOnly: ['done', 'contact', 'queueId', 'hs_queue_membership_ids', 'reminderAt'],
+  readOnly: ['done', 'contact', 'queueId', 'hs_queue_membership_ids', 'reminderAt', 'recur'],
   previewFields: ['status', 'type', 'due', 'priority', 'contact', 'owner', 'queueId', 'created'],
   searchPlaceholder: 'Buscar tarea, contacto...',
   searchKeys: ['name', 'contact', 'owner', 'type'],
@@ -92,11 +92,14 @@ const list = mountList({
     { key: 'queueId', label: 'Cola', text: r => taskQueues().find(q => q.id === r.queueId)?.name || 'Sin cola', render: r => esc(taskQueues().find(q => q.id === r.queueId)?.name || 'Sin cola') },
     { key: 'reminderAt', label: 'Recordatorio', default: false, text: (r) => (r.reminderAt ? `${reminderText(r.reminderAt)}${r.reminderFiredAt ? ' · avisado' : ''}` : '—'), sortValue: (r) => (r.reminderAt ? new Date(r.reminderAt).getTime() : 0) },
     { key: 'created', label: 'Fecha de creación', default: false, text: (r) => formatDate(r.created), sortValue: (r) => new Date(r.created).getTime() },
+    // «Repetir»: the recurrence (daily / weekly / monthly / yearly) that spawns the next task when this one is done.
+    { key: 'recur', label: 'Repetir', default: false, text: (r) => recurLabel(r), sortValue: (r) => RECUR_OPTIONS.findIndex(([k]) => k === ((r.recur && r.recur.freq) || '')) },
   ],
   createFields: [
     { name: 'name', label: 'Título', required: true },
     { name: 'type', label: 'Tipo de tarea', type: 'select', options: TASK_TYPES.map((t) => [t, t]) },
     { name: 'due', label: 'Fecha de vencimiento', type: 'date' },
+    { name: 'recur', label: 'Repetir', type: 'select', options: RECUR_OPTIONS },
     { name: 'reminder', label: 'Recordatorio', type: 'select', options: reminderChoices() },
     { name: 'reminderAt', label: 'Recordatorio personalizado (fecha y hora)', type: 'datetime-local' },
     { name: 'priority', label: 'Prioridad', type: 'select', options: PRIORITIES.map(([k, l]) => [k, l]) },
@@ -107,6 +110,7 @@ const list = mountList({
     const due = d.due ? new Date(d.due).toISOString() : TODAY.toISOString();
     return {
       ...d,
+      recur: normalizeRecur(d.recur),
       status: 'todo',
       contact: (allContacts().find((c) => String(c.id) === String(d.contactId)) || {}).name || '',
       due,

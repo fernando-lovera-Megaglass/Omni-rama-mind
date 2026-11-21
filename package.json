@@ -8,7 +8,7 @@
     "build": "vite build",
     "test:deal-close": "node scripts/smoke-deal-close.mjs && node scripts/smoke-deals-board.mjs",
     "test:workflow-engine": "node scripts/smoke-workflow-engine.mjs",
-    "test:sequence-process": "node scripts/smoke-sequence-process.mjs",
+    "test:sequence-process": "node scripts/smoke-sequence-process.mjs && node scripts/smoke-sequences.mjs",
     "test:marketing-process": "node scripts/smoke-marketing-process.mjs",
     "test:task-queues": "node scripts/smoke-named-task-queues.mjs",
     "test:import-multifile": "node scripts/smoke-import-multifile.mjs",

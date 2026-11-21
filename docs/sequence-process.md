@@ -14,6 +14,9 @@ futuros, concurrencia, fallo de envío, cancelación, permisos y días laborable
 Los cinco tipos manuales se comprueban con un siguiente paso sin retraso: ninguno
 avanza mientras espera la tarea, ni duplica tareas en ticks posteriores. Dos
 solicitudes simultáneas de finalización solo reanudan una vez.
+El comando también ejecuta el smoke de interfaz local: verifica Programado y el
+hook real de `completeTask` para los cinco tipos manuales, con finalización en
+viernes y siguiente paso el lunes, cronología única y reapertura sin nuevo avance.
 
 ## Configuración e invocación programada local
 

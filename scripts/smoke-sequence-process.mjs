@@ -74,6 +74,8 @@ assert.equal((await store.due(now.toISOString())).some(e => e.id === manual.id),
 assert.equal(await store.claim(manual.id), undefined);
 await processDue(store, send, new Date('2099-01-01'));
 assert.equal(sends.length, 1);
+assert.equal((await get(manual.id)).current_step, 1, 'overdue waiting enrollment retains its manual step');
+assert.equal((await query("select * from tasks where extra->>'enrollmentId'=$1", [manual.id])).length, 1, 'waiting must not create another task');
 await query("update tasks set status='done' where id=$1", [manualTask.id]);
 await query("update sequence_enrollments set status='unenrolled' where id=$1", [manual.id]);
 assert.equal((await complete(manualTask, now.toISOString())).length, 0, 'completion must preserve cancellation');
