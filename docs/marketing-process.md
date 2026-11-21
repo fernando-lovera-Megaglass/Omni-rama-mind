@@ -1,8 +1,14 @@
 # Worker de correos de marketing programados
 
-Implementación local, sin despliegue ni migraciones aplicadas a producción. Reutiliza el
+Implementación escrita como código local, sin desplegar la Edge Function. Reutiliza el
 patrón del ejecutor de secuencias (`docs/sequence-process.md`): RPC `security definer`
 solo para la service role, una Edge Function que las invoca y el mismo planificador local.
+
+Estado real en producción (comprobado con SQL de solo lectura el 2026-11-21): el carril
+Codex aplicó `marketing-process.sql` al proyecto a las 13:37 (tabla `marketing_email_runs`
+y las cinco RPC existen, cero ejecuciones); la función `marketing-process` **no** está
+desplegada y `pg_cron` no está instalado, así que nada se ejecuta todavía. Para activarlo
+hace falta desplegar la función y programarla (planificador local o el bloque pg_cron).
 
 ## El problema
 
@@ -12,7 +18,7 @@ llegar la hora. Ahora lo hace un worker del servidor.
 
 ## Piezas
 
-- `supabase/marketing-process.sql` (pendiente): tabla `marketing_email_runs` (una
+- `supabase/marketing-process.sql`: tabla `marketing_email_runs` (una
   ejecución por correo: reserva única, cursor `next_index`, `sent`/`failed`,
   `lease_until`, `last_error`) y las RPC `marketing_due`, `marketing_claim`,
   `marketing_recipients`, `marketing_progress` y `marketing_finish`. Ni anon ni

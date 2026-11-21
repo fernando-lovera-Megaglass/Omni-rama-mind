@@ -1,6 +1,8 @@
 -- Omni CRM · Worker de correos de marketing programados (Marketing › Correo).
--- Migración LOCAL / PENDIENTE: no aplicada a producción. Aplicar después de marketing-emails.sql, activities.sql,
--- segments.sql y gmail.sql. Ver docs/marketing-process.md. Idempotente (se puede ejecutar dos veces).
+-- Escrita como código local; el carril Codex la aplicó al proyecto el 2026-11-21 13:37 (scripts/applied-migrations.json).
+-- La Edge Function marketing-process NO está desplegada y no hay pg_cron: en producción existen la tabla y las RPC
+-- pero nadie las invoca todavía. Depende de marketing-emails.sql, activities.sql, segments.sql y gmail.sql.
+-- Ver docs/marketing-process.md. Idempotente (se puede ejecutar dos veces).
 --
 -- Hasta ahora un correo «programado» se quedaba en la tabla: el envío era 100 % del lado del cliente y nadie lo
 -- recogía cuando llegaba la hora. Este archivo añade lo que necesita un worker del lado del servidor (la Edge
