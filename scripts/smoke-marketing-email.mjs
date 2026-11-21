@@ -54,10 +54,23 @@ const actions = [...sentRow.querySelectorAll('.mk-rowactions button, .mk-rowacti
 log('row actions:', actions.join(' | '));
 if (!actions.includes('Editar') || !actions.includes('Clonar') || !actions.includes('Archivar') || !actions.includes('Eliminar') || !actions.includes('Exportar')) fail('row actions');
 click(document.querySelector('[data-estado="all"]'));
-change($('mk-tipo'), 'automatizado');
-log('tipo filter:', rows().length, '| folder options:', [...$('mk-folder').options].map((o) => o.value).filter(Boolean).join(','));
-if (rows().length !== 1 || ![...$('mk-folder').options].some((o) => o.value === 'Boletines')) fail('type and folder filters');
+// the three filters are chips with a menu (filter-chip), like Llamadas: no native <select> in the toolbar
+const chipIds = [...document.querySelectorAll('.mk-toolbar filter-chip')].map((c) => c.id);
+log('toolbar filters:', chipIds.join(','), '| chip labels:', [...document.querySelectorAll('.mk-toolbar .qchip')].map(text).join(' | '));
+if (document.querySelector('.mk-toolbar select') || chipIds.join(',') !== 'mk-folder,mk-tipo,mk-by') fail('toolbar must use three filter-chip controls, no <select>');
+if (document.querySelectorAll('.mk-toolbar .qchip.is-set').length || !document.querySelector('#mk-folder .menu__panel') || !document.querySelector('#mk-by [data-value=""] .owner__name')) fail('chips start unset, have a menu panel and the people chip shows owners');
+click($('mk-tipo').querySelector('.qchip'));
+if (!$('mk-tipo').classList.contains('is-open') || $('mk-tipo').querySelector('.qchip').getAttribute('aria-expanded') !== 'true') fail('chip opens its menu');
+click($('mk-tipo').querySelector('[data-value="automatizado"]'));
+const folderValues = [...$('mk-folder').querySelectorAll('[data-value]')].map((o) => o.dataset.value).filter(Boolean);
+log('tipo filter:', rows().length, '| chip:', text($('mk-tipo').querySelector('.qchip')), '| folder options:', folderValues.join(','));
+if (rows().length !== 1 || !folderValues.includes('Boletines')) fail('type and folder filters');
+if (!$('mk-tipo').querySelector('.qchip.is-set') || !/^Tipo: Automatizado/.test(text($('mk-tipo').querySelector('.qchip'))) || $('mk-tipo').classList.contains('is-open')) fail('the chip shows the active value with is-set and closes after picking');
+change($('mk-folder'), 'Boletines');
+if (!/^Carpeta: Boletines/.test(text($('mk-folder').querySelector('.qchip'))) || rows().length > 1 || !document.querySelector('[data-mk="clear-filters"]')) fail('folder chip filters and shows «Carpeta: Boletines»');
+change($('mk-folder'), '');
 change($('mk-tipo'), '');
+if (document.querySelectorAll('.mk-toolbar .qchip.is-set').length) fail('cleared chips drop is-set');
 // clone + archive + delete
 const before = M.emails().length;
 click(rows()[0].querySelector('[data-mk="clone"]'));

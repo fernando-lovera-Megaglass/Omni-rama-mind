@@ -5399,22 +5399,13 @@ td.cell--hl .cell__pen {
   opacity: 0.8;
 }
 
+/* Filters are <filter-chip> controls (src/filter-chip.js), the same chips as Llamadas: no native select here. */
 .mk-toolbar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--sp-8);
   margin-bottom: var(--sp-10);
-}
-
-.mk-toolbar select {
-  height: 36px;
-  padding: 0 var(--sp-8);
-  border: 1px solid var(--c-border);
-  border-radius: var(--r-sm);
-  font: inherit;
-  font-size: var(--fs-sm);
-  background: var(--c-white);
 }
 
 .mk-table .mk-name {

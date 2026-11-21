@@ -2,6 +2,7 @@
 // "Analizar" tab, the sending-method dialog, the template picker, the drag-and-drop editor and the
 // "Revisar y enviar" flow. Sending is simulated by marketing-data.js.
 import { boot } from './page.js';
+import './filter-chip.js';
 import { toast, wireMenus, closeMenus } from './shell.js';
 import { ownerHtml } from './owner.js';
 import { formatDate, relativeTimeFine, download } from './data.js';
@@ -67,9 +68,9 @@ function renderManage() {
     <div class="mk-estados" role="tablist">${ESTADO_TABS.map(([k, l]) => `<button class="mk-estado${state.estado === k ? ' is-active' : ''}" type="button" data-estado="${k}">${l} <span class="mk-estado__n">${counts[k] || 0}</span></button>`).join('')}</div>
     <div class="mk-toolbar">
       <div class="search search--sm"><span class="ico ico--search" aria-hidden="true"></span><input type="search" id="mk-q" value="${esc(state.q)}" placeholder="Buscar correos" aria-label="Buscar correos" /></div>
-      <select id="mk-folder" aria-label="Carpeta"><option value="">Todas las carpetas</option>${folders().map((f) => `<option value="${esc(f)}" ${state.folder === f ? 'selected' : ''}>${esc(f)}</option>`).join('')}</select>
-      <select id="mk-tipo" aria-label="Tipo de correo"><option value="">Todos los tipos</option>${Object.entries(TIPOS).map(([k, l]) => `<option value="${k}" ${state.tipo === k ? 'selected' : ''}>${l}</option>`).join('')}</select>
-      <select id="mk-by" aria-label="Última actualización por"><option value="">Actualizado por: cualquiera</option>${people.map((p) => `<option value="${esc(p)}" ${state.by === p ? 'selected' : ''}>${esc(p)}</option>`).join('')}</select>
+      <filter-chip id="mk-folder" aria-label="Carpeta"><template><option value="">Todas las carpetas</option>${folders().map((f) => `<option value="${esc(f)}" ${state.folder === f ? 'selected' : ''}>${esc(f)}</option>`).join('')}</template></filter-chip>
+      <filter-chip id="mk-tipo" aria-label="Tipo"><template><option value="">Todos los tipos</option>${Object.entries(TIPOS).map(([k, l]) => `<option value="${k}" ${state.tipo === k ? 'selected' : ''}>${l}</option>`).join('')}</template></filter-chip>
+      <filter-chip id="mk-by" aria-label="Actualizado por" owner><template><option value="">Cualquiera</option>${people.map((p) => `<option value="${esc(p)}" ${state.by === p ? 'selected' : ''}>${esc(p)}</option>`).join('')}</template></filter-chip>
       ${state.folder || state.tipo || state.by || state.q ? '<button class="link-btn" type="button" data-mk="clear-filters">Borrar filtros</button>' : ''}
     </div>
     <div class="table-wrap"><table class="table mk-table"><thead><tr>${COLS.map(([k, l]) => `<th><button class="psort${state.sort.key === k ? ' is-active' : ''}" type="button" data-sort="${k}">${l} <span aria-hidden="true">${state.sort.key === k ? (state.sort.dir > 0 ? '↑' : '↓') : '⇅'}</span></button></th>`).join('')}<th></th></tr></thead>

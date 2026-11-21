@@ -1,5 +1,10 @@
 # Progreso — Omni CRM
 
+## 2026-11-21 (sesión 6) · Marketing › Correo: filtros como chips con menú (sin `<select>` nativos)
+
+- `src/marketing-email.js`: los tres `<select>` de la barra (carpeta, tipo, actualizado por) pasan a `<filter-chip>` (`src/filter-chip.js`, el mismo control que Bandeja, ficha, workflows, plantillas y secuencias; mismo patrón visual que los chips de Llamadas): chip `.qchip` con caret que abre un `.menu__panel`, muestra el valor activo en el propio chip («Carpeta: Promociones»), lleva `is-set` y la «×» para limpiar; «Actualizado por» usa `owner` (avatar + nombre). Conservan `id`, `value` y el evento `change`, así que el handler y el filtrado no cambian; se retira la regla CSS `.mk-toolbar select` que ya no aplica.
+- Pruebas: `scripts/smoke-marketing-email.mjs` (sin `<select>` en `.mk-toolbar`; tres chips sin `is-set` al inicio; abrir → elegir «Automatizado» → «Tipo: Automatizado» con `is-set`, menú cerrado y 1 fila; «Carpeta: Boletines»; limpiar quita `is-set`) y `scripts/smoke-filter-chips.mjs` (integraciones: 16). Chrome (claro y oscuro): chips de 36 px con la tipografía de la app, menú abierto y chip fijado. El paso «test send» de la prueba de marketing ya fallaba desde el otro carril (su `sendTest` exige un contacto existente y la prueba usa prueba@megaglass.us).
+
 ## 2026-11-21 (sesión 6) · Tema oscuro completo fuera de Llamadas (sin parches claros)
 
 - **Problema**: `[data-theme="dark"]` solo redefinía las variables `--c-*` y unas pocas reglas; decenas de fondos claros «quemados» (`#eaf0f6`, `#f5f8fa`, `#e6ebf0`, `#d6efec`, `#fafbfc`…) se veían como parches blancos en Bandeja de entrada, Tareas (barra de cola), duplicados, drawer de crear negocio, Ajustes › Objetos, ficha de registro, editor de lógica y el popover de filtros.
