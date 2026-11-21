@@ -226,7 +226,7 @@ const list = mountList({
   defaultWidths: { name: 300, stage: 190, pipeline: 220, amount: 170, closeDate: 220, owner: 220, company: 220 },
   columns: [
     { key: 'name', label: 'Nombre del negocio', render: (r) => link(`./record/?id=${r.id}`, r.name) },
-    { key: 'stage', label: 'Etapa del negocio', text: stageLabel, render: stageCell },
+    { key: 'stage', label: 'Etapa del negocio', text: stageLabel, sortValue: stageLabel, render: stageCell },
     { key: 'pipeline', label: 'Pipeline' },
     { key: 'stage_forecast_category', label: 'Categoría de previsión', editable: false, serverSort: false, text: dealForecastLabel },
     { key: 'amount', label: 'Valor', text: money, sortValue: home },

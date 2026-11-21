@@ -32,7 +32,7 @@ await import(resolve(here, '../src/deals.js'));
 const rows = () => qa('#table tbody tr[data-id]');
 const stageCellOf = (tr) => tr.querySelector('td[data-key="stage"]');
 // The stage element's own text (the editable cell also carries the pencil button).
-const stageText = (tr) => stageText((tr).querySelector('.stage, .tag') || stageCellOf(tr));
+const stageText = (tr) => text(stageCellOf(tr).querySelector('.stage, .tag') || stageCellOf(tr));
 const labelFor = (d) => data.labelOf(data.stagesFor(d.pipeline), d.stage) || data.labelOf(data.allDealStages(), d.stage);
 if (!rows().length) fail('no rows');
 
@@ -42,15 +42,18 @@ rows().forEach((tr) => {
   const cell = stageCellOf(tr);
   const t = stageText(tr);
   if (!cell || !t) fail(`empty stage cell for ${tr.dataset.id}`);
-  if (t.includes('(') || t.includes(')')) fail(`stage cell repeats the pipeline: «${t}»`);
+  // Some real stage names carry their own parentheses («Cotización trabajada (Enviada)»): what must never
+  // appear is the pipeline name appended to the stage.
+  if (t.includes(`(${d.pipeline})`) || / \([A-ZÁÉÍÓÚ ]{4,}\)$/.test(t)) fail(`stage cell repeats the pipeline: «${t}»`);
   if (t !== labelFor(d)) fail(`stage cell «${t}» should be the stage label «${labelFor(d)}»`);
   if (cell.querySelector('.stage') && cell.querySelector('.stage').getAttribute('title') !== labelFor(d)) fail('the title holds the stage alone');
-  if (text(tr.querySelector('td[data-key="pipeline"]')) !== d.pipeline) fail(`pipeline column for ${tr.dataset.id}: «${text(tr.querySelector('td[data-key="pipeline"]'))}» vs «${d.pipeline}»`);
+  const pipelineText = text(tr.querySelector('td[data-key="pipeline"]')).replace(/\s*✎$/, ''); // the editable cell carries the pencil
+  if (pipelineText !== d.pipeline) fail(`pipeline column for ${tr.dataset.id}: «${pipelineText}» vs «${d.pipeline}»`);
 });
 const col = q('#table col[data-key="stage"]');
 if (!col || !/width:\s*190px/.test(col.getAttribute('style'))) fail(`default stage width: ${col && col.getAttribute('style')}`);
 if (!/width:\s*220px/.test(q('#table col[data-key="pipeline"]').getAttribute('style'))) fail('pipeline width unchanged');
-log(`${rows().length} rows: stage cells show only the stage (e.g. «${stageText((rows()[0]))}»), pipeline column «${text(rows()[0].querySelector('td[data-key="pipeline"]'))}», stage column 190 px`);
+log(`${rows().length} rows: stage cells show only the stage (e.g. «${stageText((rows()[0]))}»), pipeline column «${text(rows()[0].querySelector('td[data-key="pipeline"]')).replace(/\s*✎$/, '')}», stage column 190 px`);
 
 // ===== 2) Won / lost colours and the display modes =====
 const wonRow = rows().find((tr) => data.findRecord('deals', tr.dataset.id).stage === 'won');
@@ -61,10 +64,11 @@ if (qa('#table tbody .stage--dot').length) fail('default mode has no dots');
 // «Definir los colores de visualización»: dot and badge modes re-render through the sort
 localStorage.setItem('crm:settings:obj-deals', JSON.stringify({ stageColor: 'dot' }));
 click(q('[data-sort="stage"]'));
-if (!rows().every((tr) => stageCellOf(tr).querySelector('.stage.stage--dot')) || rows().some((tr) => stageText((tr)).includes('('))) fail('dot mode');
+const repeatsPipeline = (tr) => stageText(tr).includes(`(${data.findRecord('deals', tr.dataset.id).pipeline})`);
+if (!rows().every((tr) => stageCellOf(tr).querySelector('.stage.stage--dot')) || rows().some(repeatsPipeline)) fail('dot mode');
 localStorage.setItem('crm:settings:obj-deals', JSON.stringify({ stageColor: 'badge' }));
 click(q('[data-sort="stage"]'));
-if (!rows().every((tr) => stageCellOf(tr).querySelector('.tag')) || rows().some((tr) => stageText((tr)).includes('('))) fail('badge mode');
+if (!rows().every((tr) => stageCellOf(tr).querySelector('.tag')) || rows().some(repeatsPipeline)) fail('badge mode');
 const wonBadge = rows().find((tr) => data.findRecord('deals', tr.dataset.id).stage === 'won');
 if (wonBadge && !stageCellOf(wonBadge).querySelector('.tag--done')) fail('won badge');
 localStorage.setItem('crm:settings:obj-deals', JSON.stringify({ stageColor: 'none' }));
@@ -96,7 +100,7 @@ click($('cellpop-save'));
 await wait(40);
 const after = data.findRecord('deals', id);
 const rowNow = qa('#table tbody tr[data-id]').find((x) => x.dataset.id === String(id));
-if (after.stage !== next || !rowNow || stageText(rowNow) !== labelFor(after) || stageText(rowNow).includes('(')) fail(`inline edit: stage ${after.stage}, cell «${rowNow && stageText(rowNow)}»`);
+if (after.stage !== next || !rowNow || stageText(rowNow) !== labelFor(after) || repeatsPipeline(rowNow)) fail(`inline edit: stage ${after.stage}, cell «${rowNow && stageText(rowNow)}»`);
 log(`inline edit: ${before} → ${next}, cell «${stageText(rowNow)}»`);
 
 console.log('[deal-stage-column] OK');
