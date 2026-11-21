@@ -73,7 +73,17 @@ ni la anon key ni una sesión normal de usuario pueden ejecutarla.
   llama a `unenrollByReason(contactId, 'replied')` de `src/sequences-data.js`, que pasa a
   «Respondió» las inscripciones activas o en pausa de las secuencias con el criterio
   «Cancelar la inscripción cuando el contacto responde», anota la cronología y refresca la
-  ficha (`crm:enrolled`); el ejecutor ya no las toca. Rebotes y bajas siguen sin inferirse.
+  ficha (`crm:enrolled`); el ejecutor ya no las toca.
+  Los **negocios** y las **bajas** también detienen la secuencia desde el cliente:
+  `src/data.js` llama a `cancelOnDeal` al crear un negocio con contacto (`addRecord`, punto
+  único del panel «Crear negocio», la ficha, los workflows y la importación) y a
+  `cancelOnUnsubscribe` cuando «No recibir correos de marketing» pasa a «Sí». Ambos usan
+  `unenrollByReason` con `'deal'` / `'unsubscribed'`: la inscripción queda `unenrolled`
+  («Cancelada») sin `nextStepAt`, con `extra.reason` («Negocio creado» / «Suscripción
+  cancelada») y `stats.deal` / `stats.unsubscribed`, y la cronología recibe «Inscripción
+  cancelada en «X»: se creó el negocio Y» / «…: canceló la suscripción». Un negocio o una
+  baja escritos solo en la base (sin pasar por el cliente) no se detectan; los rebotes
+  siguen sin inferirse.
 - Las políticas abiertas existentes de las tablas CRM no se modifican aquí.
   Las RPC de ejecución y la tabla de ejecuciones están restringidas a service role.
   `sequence_complete_task` admite los roles CRM existentes y valida tarea completada,
