@@ -26,6 +26,9 @@ Deno.serve(handle(async (req) => {
   };
   await trySid(callSid);
   await trySid(params.DialCallSid);
+  // The <Number> / <Client> leg callbacks of twilio-voice carry the child SID and the parent in ParentCallSid.
+  if (params.ParentCallSid && !/^CA[0-9a-f]{32}$/i.test(params.ParentCallSid)) return fail('ParentCallSid inválido');
+  await trySid(params.ParentCallSid);
   // Read only the connection needed to authenticate; never mutate or call Twilio before verification.
   let connectionQuery = service.from('twilio_connections').select('id, account_sid');
   connectionQuery = log
@@ -58,9 +61,18 @@ Deno.serve(handle(async (req) => {
     return new Response('<Response></Response>', { headers: { 'Content-Type': 'text/xml' } });
   }
 
-  const status = params.CallStatus || params.DialCallStatus || log.status;
+  // The <Dial action> callback reports the outcome in DialCallStatus while the parent's CallStatus is still
+  // «in-progress»: the dial outcome wins. Leg callbacks only carry CallStatus.
+  const status = params.DialCallStatus || params.CallStatus || log.status;
+  const terminal = ['completed', 'busy', 'no-answer', 'failed', 'canceled'];
+  const active = ['queued', 'initiated', 'ringing', 'in-progress'];
+  if (![...active, ...terminal].includes(status)) return fail('Estado inválido');
+  // Monotonic: a late or duplicate progress event never rewinds a finished call, nor an earlier stage.
+  const current = String(log.status || '');
+  const rewind = (terminal.includes(current) && !terminal.includes(status)) || (active.includes(current) && active.includes(status) && active.indexOf(status) < active.indexOf(current));
+  if (rewind) return new Response('<Response></Response>', { headers: { 'Content-Type': 'text/xml' } });
   const update: Record<string, unknown> = { status };
-  if (status === 'completed' || status === 'busy' || status === 'no-answer' || status === 'failed' || status === 'canceled') {
+  if (terminal.includes(status)) {
     update.ended_at = new Date().toISOString();
     const dur = Number(params.DialCallDuration || params.CallDuration || 0);
     if (dur > 0) update.duration_sec = dur;

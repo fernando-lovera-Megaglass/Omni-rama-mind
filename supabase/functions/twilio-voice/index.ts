@@ -19,6 +19,9 @@ Deno.serve(handle(async (req) => {
   const callSid = params.CallSid || null;
   const service = serviceClient();
   const url = FN('twilio-voice');
+  // Where every leg reports its progress (initiated / ringing / answered / completed) and the dial its outcome.
+  const statusUrl = FN('twilio-call-status');
+  const statusAttrs = ` statusCallback="${xmlEscape(statusUrl)}" statusCallbackMethod="POST" statusCallbackEvent="initiated ringing answered completed"`;
 
   // Which connection does this call belong to? Outbound: the From is client:omni-<userId> —
   // the TwiML App belongs to the account, but we still validate the signature against that
@@ -67,7 +70,12 @@ Deno.serve(handle(async (req) => {
       started_at: new Date().toISOString(),
     });
     const recAttrs = record ? ` record="record-from-answer-dual" recordingStatusCallback="${FN('twilio-call-status')}" recordingStatusCallbackEvent="completed"` : '';
-    return twiml(`<Dial callerId="${xmlEscape(conn.phone_number)}"${recAttrs} statusCallback="${FN('twilio-call-status')}" statusCallbackEvent="initiated ringing answered completed"><Number>${xmlEscape(dest)}</Number></Dial>`);
+    // In TwiML the status callback belongs to the noun (<Number>), not to <Dial>: an attribute on <Dial> is
+    // ignored and nobody reports the leg, which is why call_logs stayed in «initiated». The <Number> callbacks
+    // carry the child CallSid with ParentCallSid = this call; the <Dial action> reports DialCallStatus /
+    // DialCallDuration with the parent CallSid when the dial ends. Neither the number nor the TwiML App need a
+    // status_callback of their own.
+    return twiml(`<Dial callerId="${xmlEscape(conn.phone_number)}"${recAttrs} action="${xmlEscape(statusUrl)}" method="POST"><Number${statusAttrs}>${xmlEscape(dest)}</Number></Dial>`);
   }
 
   // Inbound PSTN call: ring the owner's browser (identity omni-<userId>) and log it.
@@ -84,7 +92,8 @@ Deno.serve(handle(async (req) => {
     company_id: who && who.company_id ? String(who.company_id) : null,
     started_at: new Date().toISOString(),
   });
-  return twiml(`<Dial answerOnBridge="true" statusCallback="${FN('twilio-call-status')}" statusCallbackEvent="initiated ringing answered completed"><Client>omni-${conn.user_id}</Client></Dial>`);
+  // Same rule: the callbacks go on <Client>, the outcome of the dial on <Dial action>.
+  return twiml(`<Dial answerOnBridge="true" timeout="30" action="${xmlEscape(statusUrl)}" method="POST"><Client${statusAttrs}>omni-${conn.user_id}</Client></Dial>`);
 }));
 
 // La ficha del contacto por número (últimos 10 dígitos, contra phone y mobilephone).

@@ -50,6 +50,18 @@ assert.equal((await request({CallSid:'../../evil'})).status,400);
 assert.equal((await request()).status,200); assert.equal(rows[0].duration_sec,42); assert.ok(rows[0].ended_at);
 reset(); assert.equal((await request({CallSid:child})).status,200); assert.equal(apiCalls,1); assert.equal(writes,1);
 reset(); assert.equal((await request({CallSid:child,DialCallSid:sid},'valid','?event=status')).status,200); assert.equal(apiCalls,0); assert.equal(writes,1);
+// Leg callbacks of <Number>/<Client> (twilio-voice): ParentCallSid resolves the log without asking Twilio.
+reset(); assert.equal((await request({CallSid:child,ParentCallSid:sid,CallStatus:'ringing',CallDuration:''})).status,200); assert.equal(apiCalls,0); assert.equal(writes,1); assert.equal(rows[0].status,'ringing');
+reset(); assert.equal((await request({CallSid:child,ParentCallSid:sid,CallStatus:'in-progress',CallDuration:''})).status,200); assert.equal(rows[0].status,'in-progress'); assert.equal(rows[0].ended_at,undefined);
+reset(); assert.equal((await request({CallSid:child,ParentCallSid:sid,CallStatus:'completed',CallDuration:'17'})).status,200); assert.equal(rows[0].status,'completed'); assert.equal(rows[0].duration_sec,17); assert.ok(rows[0].ended_at);
+// <Dial action>: the outcome in DialCallStatus wins over the parent's still-active CallStatus.
+reset(); assert.equal((await request({CallStatus:'in-progress',DialCallStatus:'no-answer',DialCallDuration:'0',CallDuration:''})).status,200); assert.equal(rows[0].status,'no-answer'); assert.ok(rows[0].ended_at); assert.equal(rows[0].duration_sec,undefined);
+reset(); assert.equal((await request({CallStatus:'in-progress',DialCallStatus:'completed',DialCallDuration:'65',CallDuration:'70'})).status,200); assert.equal(rows[0].status,'completed'); assert.equal(rows[0].duration_sec,65);
+// Monotonic: late progress never rewinds a finished call or an earlier stage; unknown states and bad parents are rejected.
+reset(); rows[0].status='completed'; rows[0].duration_sec=42; assert.equal((await request({CallSid:child,ParentCallSid:sid,CallStatus:'ringing',CallDuration:''})).status,200); assert.equal(writes,0); assert.equal(rows[0].status,'completed'); assert.equal(rows[0].duration_sec,42);
+reset(); rows[0].status='in-progress'; assert.equal((await request({CallStatus:'ringing',CallDuration:''})).status,200); assert.equal(writes,0); assert.equal(rows[0].status,'in-progress');
+reset(); assert.equal((await request({CallStatus:'bogus'})).status,400); assert.equal(writes,0);
+reset(); assert.equal((await request({CallSid:child,ParentCallSid:'nope'})).status,400); assert.equal(writes,0); assert.equal(apiCalls,0);
 const recording = `https://api.twilio.com/2010-04-01/Accounts/${account}/Recordings/RE${'3'.repeat(32)}`;
 const badUrls = ['https://attacker.example/audio', recording.replace('https:','http:'), recording.replace('api.twilio.com','api.twilio.com.evil.test'), recording.replace(account,'AC'+'b'.repeat(32)), recording.replace('api.twilio.com','api.twilio.com:8443'), recording.replace('api.twilio.com','user:pass@api.twilio.com'), recording+'/../../../../evil', 'invalid'];
 for (const url of badUrls) { reset(); assert.equal((await request({RecordingSid:'REtest',RecordingUrl:url})).status,400); assert.equal(writes,0); }
