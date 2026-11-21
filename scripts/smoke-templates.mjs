@@ -62,6 +62,7 @@ if (!modalOpen() || text($('tpl-modal-title')) !== 'Nueva plantilla') fail('edit
 if (!$('tpe-save').disabled) fail('Save must start disabled');
 if (!text(q('.tpe__owner')).includes(T.ME)) fail('owner bar missing');
 if (!q('[data-fmt="bold"]') || !q('[data-fmt="italic"]') || !q('[data-fmt="underline"]') || !q('[data-fmt="strikeThrough"]') || !q('[data-fmt="insertUnorderedList"]') || !q('[data-te="link"]') || !q('[data-te="image"]') || !q('[data-te="ai"]')) fail('toolbar incomplete');
+if (/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u.test(text(q('.tpe__toolbar'))) || !q('[data-te="link"] svg[stroke-width="1.8"]') || !q('[data-te="image"] svg[stroke-width="1.8"]')) fail('toolbar must use line icons for link/image, no emoji');
 if (!text(q('.tpe__sig')).includes('Se incluirá la firma predeterminada')) fail('signature note missing');
 input($('tpe-name'), 'Prueba automática');
 if (!$('tpe-save').disabled) fail('Save must stay disabled without body');

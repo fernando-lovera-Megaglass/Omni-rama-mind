@@ -7,6 +7,8 @@ export const ACT_ICONS = {
   thumbsDown: ico('<g transform="rotate(180 12 12)"><path d="M8 10l4-7a2 2 0 0 1 2 2v4h5a2 2 0 0 1 2 2l-2 8a2 2 0 0 1-2 1H8z"/><path d="M3 10h5v10H3z"/></g>'),
   copy: ico('<rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V3H3v13h5"/>'),
   link: ico('<path d="M10 14a4 4 0 0 0 6 0l3-3a4 4 0 0 0-6-6l-2 2M14 10a4 4 0 0 0-6 0l-3 3a4 4 0 0 0 6 6l2-2"/>'),
+  image: ico('<rect x="3.5" y="5" width="17" height="14" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="M20.5 15.5l-4.5-4.5-7 7M4 17.5l3.5-3.5 2.5 2.5"/>'),
+  attach: ico('<path d="M20 11.5l-8.2 8.2a5 5 0 0 1-7-7l8.5-8.5a3.2 3.2 0 0 1 4.5 4.5L9.6 17a1.5 1.5 0 0 1-2.1-2.1l7.5-7.5"/>'),
   bell: ico('<path d="M6 9a6 6 0 0 1 12 0v5l2 3H4l2-3zM10 20a2 2 0 0 0 4 0M12 3V2"/>'),
   megaphone: ico('<path d="M4 9h5l11-5v16L9 15H4zM9 9v6M6 15l2 6h4l-2-6"/>'),
   chat: ico('<path d="M20 15a2 2 0 0 1-2 2H9l-5 4V5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2zM8 8h8M8 12h5"/>'),

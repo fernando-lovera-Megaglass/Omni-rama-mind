@@ -3,6 +3,7 @@
 // unsubscribe link) and the three-step connection wizard — benefits → e-mail with provider detection →
 // provider cards → simulated OAuth consent or the generic IMAP/SMTP form with advanced options.
 import { toast, wireMenus, closeMenus } from './shell.js';
+import { ACT_ICONS } from './action-icons.js';
 import { ready, accounts, accountById, activeAccounts, connect, disable, reconnect, remove, setAutomation, setAccountSignature, aliases, addAlias, removeAlias, unsubscribeLink, setUnsubscribeLink, signatures, signatureOptions, signatureById, saveSignature, deleteSignature, detectProvider, defaultImap, verifyImap, isEmail, PROVIDERS, STATUS_LABELS, userEmail } from './connected-emails.js';
 import { gmailConfigured, configNotice, startConnect, consumeCallbackParams, refreshStatus, gmailAccounts, ready as gmailReady, disconnect as gmailDisconnect, setStatus as gmailSetStatus } from './gmail.js';
 
@@ -137,7 +138,7 @@ export function openSignatureManager({ accountId = null, signatureId = null, onC
   const editorHtml = `<div class="sigm__editor">
     <label class="field"><span>Nombre de la firma</span><input id="sig-name" value="${esc(editing ? editing.name : '')}" placeholder="P. ej. Firma corta" /></label>
     <div class="tpe__field"><span>Firma</span>
-      <div class="tpe__toolbar" role="toolbar" aria-label="Formato"><button type="button" data-sigfmt="bold"><b>N</b></button><button type="button" data-sigfmt="italic"><i>C</i></button><button type="button" data-sigfmt="underline"><u>S</u></button><button type="button" data-cemm="sig-link">🔗 Enlace</button><label class="sigm__img">🖼 Imagen<input type="file" id="sig-img" accept="image/*" hidden /></label><button type="button" data-cemm="sig-img-url">Imagen por URL</button></div>
+      <div class="tpe__toolbar" role="toolbar" aria-label="Formato"><button type="button" data-sigfmt="bold"><b>N</b></button><button type="button" data-sigfmt="italic"><i>C</i></button><button type="button" data-sigfmt="underline"><u>S</u></button><button type="button" data-cemm="sig-link">${ACT_ICONS.link} Enlace</button><label class="sigm__img">${ACT_ICONS.image} Imagen<input type="file" id="sig-img" accept="image/*" hidden /></label><button type="button" data-cemm="sig-img-url">Imagen por URL</button></div>
       <div class="tpe__body sigm__body" id="sig-body" contenteditable="true" data-placeholder="Escribe tu firma…">${editing ? editing.html : ''}</div>
     </div>
     <div class="snp__error" id="sig-err" hidden></div>

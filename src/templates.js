@@ -6,6 +6,7 @@ import './filter-chip.js';
 // preview rendered with a real contact's data.
 import { boot } from './page.js';
 import { toast, wireMenus, closeMenus } from './shell.js';
+import { ACT_ICONS } from './action-icons.js';
 import { ownerHtml } from './owner.js';
 import { emptyStateHtml } from './empty-state.js';
 import { allContacts, formatDate, dateCellHtml } from './data.js';
@@ -184,8 +185,8 @@ function openEditor(id, preset = {}) {
               <button class="menu__item" type="button" data-fmt="formatBlock" data-arg="p">Párrafo</button>
               <button class="menu__item" type="button" data-fmt="removeFormat">Quitar formato</button>
             </div></div>
-            <button type="button" data-te="link" title="Insertar enlace">🔗</button>
-            <button type="button" data-te="image" title="Insertar imagen">🖼</button>
+            <button type="button" data-te="link" title="Insertar enlace" aria-label="Insertar enlace">${ACT_ICONS.link}</button>
+            <button type="button" data-te="image" title="Insertar imagen" aria-label="Insertar imagen">${ACT_ICONS.image}</button>
             ${insertMenu()}
             <button class="tpe__ai" type="button" data-te="ai">✦ Generar con IA</button>
           </div>

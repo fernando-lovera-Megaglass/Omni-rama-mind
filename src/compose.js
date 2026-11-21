@@ -2,6 +2,7 @@
 // header with drag handle / collapse / expand / close, tool tabs, Para / De / Asunto,
 // rich-text body with signature, formatting toolbar, associations, Enviar + follow-up task.
 import { toast, wireMenus, closeMenus } from './shell.js';
+import { ACT_ICONS } from './action-icons.js';
 import { addRecord, formatDate, TODAY, allContacts } from './data.js';
 import { ready as templatesReady, templates as savedTemplates, resolveTokens } from './templates-data.js';
 import { openTokenPicker, chipHtml, chipsToMarkers, renderTokens, contextFromRecord, insertAtCaret, trackCaret } from './tokens.js';
@@ -197,8 +198,8 @@ function render() {
           <button class="menu__item" type="button" data-fmt="formatBlock" data-arg="blockquote">Cita</button>
         </div></div>
         <span class="compose__sep"></span>
-        <button type="button" data-cm="link" title="Insertar enlace">🔗</button>
-        <button type="button" data-cm="image" title="Insertar imagen">🖼</button>
+        <button type="button" data-cm="link" title="Insertar enlace" aria-label="Insertar enlace">${ACT_ICONS.link}</button>
+        <button type="button" data-cm="image" title="Insertar imagen" aria-label="Insertar imagen">${ACT_ICONS.image}</button>
         <div class="menu"><button type="button" aria-haspopup="true"><strong>Insertar</strong> <span class="caret"></span></button><div class="menu__panel">
           <div class="menu__title">Insertar</div>
           <button class="menu__item" type="button" data-cm="ins-token">Token de personalización</button>
@@ -208,7 +209,7 @@ function render() {
           <button class="menu__item" type="button" data-quote="${esc(QUOTES[1])}">Cotización</button>
           <button class="menu__item" type="button" data-cm="video">Vídeo</button>
         </div></div>
-        <label class="compose__attach" title="Adjuntar archivo">📎<input type="file" id="cmp-file" multiple hidden /></label>
+        <label class="compose__attach" title="Adjuntar archivo" aria-label="Adjuntar archivo">${ACT_ICONS.attach}<input type="file" id="cmp-file" multiple hidden /></label>
         <span class="compose__right">
           <div class="menu"><button type="button" aria-haspopup="true"><span class="ai-spark">✦</span> <span class="caret"></span></button><div class="menu__panel menu__panel--right">
             <button class="menu__item" type="button" data-ai="followup">Redactar seguimiento</button>

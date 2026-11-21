@@ -4,6 +4,7 @@
 import { boot } from './page.js';
 import './filter-chip.js';
 import { toast, wireMenus, closeMenus } from './shell.js';
+import { ACT_ICONS } from './action-icons.js';
 import { ownerHtml } from './owner.js';
 import { relativeTimeFine, formatDate } from './data.js';
 import { ready, snippets, snippetById, folders, owners, createSnippet, updateSnippet, cloneSnippet, deleteSnippets, moveSnippets, createFolder, validateShortcut, bodyText, ME } from './snippets-data.js';
@@ -169,7 +170,7 @@ function openEditor(id, preset = {}) {
             <button class="menu__item" type="button" data-fmt="formatBlock" data-arg="p">Párrafo</button>
             <button class="menu__item" type="button" data-fmt="removeFormat">Quitar formato</button>
           </div></div>
-          <button type="button" data-se="link" title="Insertar enlace">🔗</button>
+          <button type="button" data-se="link" title="Insertar enlace" aria-label="Insertar enlace">${ACT_ICONS.link}</button>
           <button class="snp__personalize" type="button" data-se="personalize">Personalizar <span class="caret"></span></button>
         </div>
         <div class="tpe__body snp__body" id="snp-body" contenteditable="true" data-placeholder="Agrega el contenido de tu fragmento">${markersToChips(editor.body)}</div>

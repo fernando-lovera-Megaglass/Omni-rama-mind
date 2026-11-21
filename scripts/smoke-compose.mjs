@@ -39,6 +39,11 @@ click(document.querySelector('[data-cm="cc"]'));
 log('cc row shown:', Boolean($('cmp-cc')));
 click(document.querySelector('[data-doc]'));
 log('doc inserted:', $('cmp-text').textContent.includes('.pdf'));
+// toolbar: no emoji; «Insertar enlace» / «Insertar imagen» are line icons (svg) like the rest of the bar
+const tbText = document.querySelector('.compose__toolbar').textContent;
+if (/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u.test(tbText)) { console.error('[compose] FAIL: emoji left in the toolbar'); process.exit(1); }
+if (!document.querySelector('[data-cm="link"] svg[stroke-width="1.8"]') || !document.querySelector('[data-cm="image"] svg[stroke-width="1.8"]') || document.querySelector('[data-cm="link"]').getAttribute('aria-label') !== 'Insertar enlace') { console.error('[compose] FAIL: link/image buttons must use the shared line icons'); process.exit(1); }
+log('toolbar icons: link svg', Boolean(document.querySelector('[data-cm="link"] svg')), '| image svg', Boolean(document.querySelector('[data-cm="image"] svg')), '| no emoji');
 click(document.querySelector('[data-cm="link"]'));
 log('link inserted:', $('cmp-text').innerHTML.includes('href="https://megaglass.us"'));
 click(document.querySelector('[data-fdays="3"]'));

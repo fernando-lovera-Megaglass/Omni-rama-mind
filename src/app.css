@@ -13111,6 +13111,17 @@ textarea.cellpop__input {
   background: var(--c-head);
 }
 
+/* Line icons (Insertar enlace / imagen, src/action-icons.js) sit like the letter buttons: same box, no emoji. */
+.compose__toolbar > button > svg,
+.compose__attach > svg,
+.tpe__toolbar > button > svg,
+.tpe__toolbar > label > svg {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  vertical-align: -4px;
+}
+
 .compose__sep {
   width: 1px;
   height: 20px;
@@ -14801,6 +14812,10 @@ body.has-slideover {
   color: var(--c-text);
   font: inherit;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-4);
 }
 
 .tpe__toolbar > button:hover,
