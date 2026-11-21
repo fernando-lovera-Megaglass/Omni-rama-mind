@@ -804,10 +804,12 @@
     },
     {
       "id": "gap-ui-tickets-cambio-estado-cronologia",
-      "status": "pending",
+      "status": "done",
       "createdAt": "2026-11-20T18:30:39-06:00",
       "lane": "codex",
-      "instruction": "HubSpot: cuando un ticket cambia de estado, la cronología del ticket (y la de su contacto y empresa asociados) registra una entrada del sistema con el nombre del estado destino. Omni HOY: afterSet en src/data.js (~líneas 948-955) solo genera esa entrada para negocios (type==='deals' && field==='stage'); los tickets cambian de estado desde el tablero, la lista o la ficha sin dejar rastro en ninguna cronología. Pasos: en afterSet de src/data.js añadir el caso type==='tickets' && field==='status': logSystem en el propio ticket («Estado cambiado a «X».», usando la etiqueta real de ticketStatusLabel(pipeline, status)) y, si el ticket tiene contactId o companyId, logSystem en esos registros («Ticket «N» pasó al estado «X».», con el id en extra), replicando el patrón del caso deals. No registrar nada si el valor no cambia. Criterio de aceptación: mover un ticket de estado en el tablero o cambiarlo en la ficha crea una entrada de sistema en la cronología del ticket y en la del contacto asociado, con la etiqueta real del estado del pipeline del ticket; reasignar el mismo estado no duplica entradas. No despliegues nada a producción; solo código local."
+      "instruction": "HubSpot: cuando un ticket cambia de estado, la cronología del ticket (y la de su contacto y empresa asociados) registra una entrada del sistema con el nombre del estado destino. Omni HOY: afterSet en src/data.js (~líneas 948-955) solo genera esa entrada para negocios (type==='deals' && field==='stage'); los tickets cambian de estado desde el tablero, la lista o la ficha sin dejar rastro en ninguna cronología. Pasos: en afterSet de src/data.js añadir el caso type==='tickets' && field==='status': logSystem en el propio ticket («Estado cambiado a «X».», usando la etiqueta real de ticketStatusLabel(pipeline, status)) y, si el ticket tiene contactId o companyId, logSystem en esos registros («Ticket «N» pasó al estado «X».», con el id en extra), replicando el patrón del caso deals. No registrar nada si el valor no cambia. Criterio de aceptación: mover un ticket de estado en el tablero o cambiarlo en la ficha crea una entrada de sistema en la cronología del ticket y en la del contacto asociado, con la etiqueta real del estado del pipeline del ticket; reasignar el mismo estado no duplica entradas. No despliegues nada a producción; solo código local.",
+      "completedAt": "2026-11-21T12:21:04-0600",
+      "completedBy": "codex"
     },
     {
       "id": "gap-ui-tickets-reglas-pipeline",

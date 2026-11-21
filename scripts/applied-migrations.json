@@ -157,5 +157,9 @@
   "custom-properties-tickets.sql": {
     "status": "aplicada",
     "at": "2026-11-21T12:05:57-0600"
+  },
+  "rls_team.sql": {
+    "status": "aplicada",
+    "at": "2026-11-21T12:21:00-0600"
   }
 }
