@@ -27,6 +27,11 @@ create table if not exists public.connected_accounts (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+-- Durable sync diagnostics, independent of the connection/profile check.
+-- Also upgrades existing installations; apply this SQL before the updated functions.
+alter table public.connected_accounts add column if not exists last_sync_error text;
+alter table public.connected_accounts add column if not exists last_sync_attempt_at timestamptz;
+
 create unique index if not exists connected_accounts_user_provider_email_idx on public.connected_accounts (user_id, provider, lower(email));
 
 create table if not exists public.connected_account_tokens (

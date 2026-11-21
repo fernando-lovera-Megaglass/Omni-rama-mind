@@ -764,10 +764,11 @@
     },
     {
       "id": "gap-ui-tablero-glifos-meta",
-      "status": "pending",
+      "status": "done",
       "createdAt": "2026-11-20T15:29:32-06:00",
       "lane": "claude",
-      "instruction": "Las tarjetas del tablero mezclan iconos SVG de línea con glifos de texto en la misma tarjeta: el reloj ◷ de «última actividad» (src/list.js 1410, .kcard__clock), el ⓘ de información dentro de la píldora (src/list.js 1414, .kcard__info), el botón ▭ de vista previa (src/list.js 1416) y el ⚠ de «sin actividad programada» (src/deals.js 96, .kcard__alert) son caracteres sueltos, mientras las acciones de correo/nota de la misma fila ya usan los SVG de src/action-icons.js (ACT_ICONS). En la tarjeta se ven dos lenguajes: los glifos se renderizan con la fuente de texto (tamaños y líneas de base distintos del trazo SVG) y el ⚠ usa un color quemado #f5a623. Quedaron fuera de gap-ui-iconos-actividad-unificados, que solo unificó los iconos de tipo de actividad. Cómo debe verse: reloj, información, vista previa y alerta como iconos de línea del mismo set (añade clock/info/alert a src/action-icons.js si no están), el ⚠ con color ámbar por variable o clase, no hex suelto. Criterio de aceptación: una tarjeta del tablero de Negocios y una de Tickets no muestran caracteres ◷ ⓘ ▭ ⚠; todos sus iconos son SVG de 24 viewBox teñidos con currentColor. No despliegues nada a producción; solo código local."
+      "instruction": "Las tarjetas del tablero mezclan iconos SVG de línea con glifos de texto en la misma tarjeta: el reloj ◷ de «última actividad» (src/list.js 1410, .kcard__clock), el ⓘ de información dentro de la píldora (src/list.js 1414, .kcard__info), el botón ▭ de vista previa (src/list.js 1416) y el ⚠ de «sin actividad programada» (src/deals.js 96, .kcard__alert) son caracteres sueltos, mientras las acciones de correo/nota de la misma fila ya usan los SVG de src/action-icons.js (ACT_ICONS). En la tarjeta se ven dos lenguajes: los glifos se renderizan con la fuente de texto (tamaños y líneas de base distintos del trazo SVG) y el ⚠ usa un color quemado #f5a623. Quedaron fuera de gap-ui-iconos-actividad-unificados, que solo unificó los iconos de tipo de actividad. Cómo debe verse: reloj, información, vista previa y alerta como iconos de línea del mismo set (añade clock/info/alert a src/action-icons.js si no están), el ⚠ con color ámbar por variable o clase, no hex suelto. Criterio de aceptación: una tarjeta del tablero de Negocios y una de Tickets no muestran caracteres ◷ ⓘ ▭ ⚠; todos sus iconos son SVG de 24 viewBox teñidos con currentColor. No despliegues nada a producción; solo código local.",
+      "completedAt": "2026-11-21T14:31:40-0600"
     },
     {
       "id": "gap-ui-re-filtros-nativos-fragmentos",

@@ -4,7 +4,7 @@
 //      is stored in connected_accounts (status / last_error / last_checked_at).
 // POST { action: 'disconnect' | 'disable' | 'enable', accountId } → { ok, … }
 //      disconnect revokes the Google token (best effort) and deletes the account, its tokens and messages.
-import { handle, userFromRequest, serviceClient, accountsOf, accountFor, accessTokenFor, gmail, markStatus, json, fail, GmailError } from '../_shared/gmail.ts';
+import { handle, userFromRequest, serviceClient, accountsOf, accountFor, accessTokenFor, gmail, markStatus, json, fail } from '../_shared/gmail.ts';
 import type { Account } from '../_shared/gmail.ts';
 
 async function check(service: ReturnType<typeof serviceClient>, a: Account) {
@@ -12,11 +12,12 @@ async function check(service: ReturnType<typeof serviceClient>, a: Account) {
   try {
     const token = await accessTokenFor(service, a);
     const p = await gmail(token, 'profile') as { emailAddress?: string; messagesTotal?: number };
-    await markStatus(service, a.id, 'active');
-    return { id: a.id, email: p.emailAddress || a.email, status: 'active', lastError: null, messagesTotal: p.messagesTotal ?? null, checkedAt: new Date().toISOString(), lastSyncedAt: a.last_synced_at };
+    const status = a.last_sync_error ? 'error' : 'active';
+    await markStatus(service, a.id, status, a.last_sync_error || null);
+    return { id: a.id, email: p.emailAddress || a.email, status, lastError: a.last_sync_error || null, messagesTotal: p.messagesTotal ?? null, checkedAt: new Date().toISOString(), lastSyncedAt: a.last_synced_at };
   } catch (e) {
     const message = (e as Error).message || 'No se pudo comprobar la cuenta';
-    if (!(e instanceof GmailError && (e.code === 'no_refresh' || e.code === 'refresh_failed'))) await markStatus(service, a.id, 'error', message);
+    await markStatus(service, a.id, 'error', message);
     return { id: a.id, email: a.email, status: 'error', lastError: message, messagesTotal: null, checkedAt: new Date().toISOString(), lastSyncedAt: a.last_synced_at };
   }
 }

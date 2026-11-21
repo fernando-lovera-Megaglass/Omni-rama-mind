@@ -103,7 +103,7 @@ export async function verifyState(state: string): Promise<Record<string, unknown
 }
 
 // ---------- accounts and tokens ----------
-export type Account = { id: string; user_id: string; email: string; status: string; last_error: string | null; last_synced_at: string | null; scopes: string[] };
+export type Account = { id: string; user_id: string; email: string; status: string; last_error: string | null; last_synced_at: string | null; scopes: string[]; last_sync_error?: string | null };
 
 export async function accountsOf(service: SupabaseClient, userId: string): Promise<Account[]> {
   const { data, error } = await service.from('connected_accounts').select('*').eq('user_id', userId).eq('provider', 'gmail').order('created_at');
@@ -118,7 +118,8 @@ export async function accountFor(service: SupabaseClient, userId: string, accoun
 }
 export async function markStatus(service: SupabaseClient, id: string, status: 'active' | 'error' | 'disabled', lastError: string | null = null): Promise<void> {
   const now = new Date().toISOString();
-  await service.from('connected_accounts').update({ status, last_error: lastError, last_checked_at: now, updated_at: now }).eq('id', id);
+  const { error } = await service.from('connected_accounts').update({ status, last_error: lastError, last_checked_at: now, updated_at: now }).eq('id', id);
+  if (error) throw error;
 }
 // A valid access token for the account, refreshed with the refresh token when it is about to expire.
 export async function accessTokenFor(service: SupabaseClient, account: Account): Promise<string> {
@@ -142,7 +143,8 @@ export async function accessTokenFor(service: SupabaseClient, account: Account):
     throw new GmailError(`Google rechazó la renovación del acceso (${reason}): vuelve a conectar la cuenta.`, 'refresh_failed', 409);
   }
   const expires_at = new Date(Date.now() + (Number(body.expires_in) || 3600) * 1000).toISOString();
-  await service.from('connected_account_tokens').update({ access_token: body.access_token, expires_at, updated_at: new Date().toISOString() }).eq('account_id', account.id);
+  const { data: saved, error: saveError } = await service.from('connected_account_tokens').update({ access_token: body.access_token, refresh_token: body.refresh_token || t.refresh_token, expires_at, updated_at: new Date().toISOString() }).eq('account_id', account.id).select('account_id').single();
+  if (saveError || !saved) throw new GmailError('No se pudo guardar el token renovado. Intenta sincronizar de nuevo.', 'token_save_failed', 500);
   return body.access_token;
 }
 
