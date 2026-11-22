@@ -1,5 +1,15 @@
 # Progreso — Omni CRM
 
+## 2026-11-22 (sesión 6) · Asociación ticket ↔ negocio (el cruce que faltaba entre los cuatro módulos)
+
+- Persistencia sin migración: el vínculo sigue el patrón `assoc_<kind>` de `src/data.js` y se guarda en los dos registros (`tickets.extra->'assoc_deals'` y `deals.extra->'assoc_tickets'`, con `assoc_labels_deals` para la etiqueta); `toDb` ya manda a `extra` cualquier clave que no sea columna.
+- `src/create-ticket.js`: nueva sección «Negocios» en el panel «Crear ticket» (búsqueda por nombre o pipeline, etiqueta, casilla «Agregar actividad de la cronología de este objeto (Negocio)»); al crear, el ticket guarda `assoc_deals`, el negocio recibe `assoc_tickets` y, si la casilla está marcada, la entrada «Ticket «…» creado y asociado a este negocio». Acepta `dealId` como prellenado. `findAssociable` (`src/create-deal.js`) busca también en negocios.
+- `src/record.js`: la ficha del negocio tiene la tarjeta «Tickets (n)» y la del ticket la tarjeta «Negocios (n)», ambas con conteo real leyendo cualquiera de los dos lados (`crossLinked`); el cajón «+ Agregar» escribe los dos registros y registra el evento de asociación; «Desasociar» vacía ambos lados y registra la desasociación.
+- `src/layout-defaults.js`: `ASSOC_KINDS` incluye `deals → tickets` y `tickets → deals` (diseño predeterminado, catálogo de tarjetas y vista previa), sin la excepción especial que inyectaba «Tickets» solo en negocios.
+- Pruebas: `scripts/smoke-ticket-deal-assoc.mjs` (panel, ambas fichas, cajón, Desasociar desde los dos lados, recarga) pasa en local y, con `SMOKE_LIVE=1`, verifica con SQL ambas columnas `extra` después de crear desde el panel, desasociar desde la ficha del ticket y volver a asociar desde la ficha del negocio (solo filas «SMOKE», borradas al final). Documentado en `docs/smoke-live.md`.
+- `scripts/smoke-record.mjs` ya fallaba antes de este cambio (busca un elemento «quote» del menú «Más» que no existe en HEAD y no simula `scrollIntoView`); no se tocó.
+- Solo código local; nada desplegado.
+
 ## 2026-11-22 (sesión 6) · «Restablecer» personalizaciones: la fila remota se borra (ya no falla con 23502)
 
 - Causa: `setSetting(key, null)` hacía `upsert` con `value: null` y `user_settings.value` / `account_settings.value` son NOT NULL → error 23502, toast «No se pudo guardar en la base de datos (ajustes de la interfaz)» y, en otro navegador, la personalización vieja reaparecía porque la fila nunca se limpiaba (la copia local sí). Afectaba a todos los restablecer: tarjeta «Acerca de» (`CARD_KEY`), tarjetas de asociación (`ACARD_KEY`), diseños de ficha y de vista previa (`resetLayout`/`resetPreview` de `layout-defaults.js`) y vistas de equipo.

@@ -6,7 +6,7 @@ import { validatePropertyValues } from './data.js';
 // items, and Crear / Crear y agregar otro disabled until the name is filled. The insert goes through
 // data.js: the deals table (associations in the deal's columns and extra, mirrored on the other records)
 // and deal_line_items for the lines.
-import { addRecord, setField, addActivity, addLineItems, allContacts, allCompanies, OWNERS, TODAY, strip, dealPipelines, stagesFor, assocLabels, CURRENCY_DEFS, CURRENCY_CODES, homeCurrency, formatMoney, initials } from './data.js';
+import { addRecord, setField, addActivity, addLineItems, allContacts, allCompanies, allDeals, OWNERS, TODAY, strip, dealPipelines, stagesFor, assocLabels, CURRENCY_DEFS, CURRENCY_CODES, homeCurrency, formatMoney, initials } from './data.js';
 import { toast, recordToastAction } from './shell.js';
 import { authEnabled, currentUser } from './auth.js';
 import { customFieldsHtml, ownerForUser } from './create-contact.js';
@@ -27,8 +27,9 @@ export function findAssociable(kind, q, chosenIds = [], limit = 6) {
   const qq = strip(q);
   if (!qq) return [];
   const chosen = new Set(chosenIds.map(Number));
-  const pool = kind === 'contacts' ? allContacts() : allCompanies();
-  const sub = (r) => (kind === 'contacts' ? r.email : r.domain) || '';
+  // deals: the ticket panel associates a ticket with its deals (name or pipeline)
+  const pool = kind === 'contacts' ? allContacts() : kind === 'deals' ? allDeals() : allCompanies();
+  const sub = (r) => (kind === 'contacts' ? r.email : kind === 'deals' ? r.pipeline : r.domain) || '';
   return pool.filter((r) => !chosen.has(Number(r.id)) && (strip(r.name || '').includes(qq) || strip(sub(r)).includes(qq))).slice(0, limit).map((r) => ({ id: Number(r.id), name: r.name || 'Sin nombre', sub: sub(r) }));
 }
 

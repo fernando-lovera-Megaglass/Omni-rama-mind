@@ -1,11 +1,12 @@
 // "Crear ticket" as in the original: a slide-over panel on the right of the Tickets list (no navigation) with the
 // fields in the original's order (Nombre del ticket, Pipeline, Estado del ticket, Descripción, Fuente, Prioridad,
-// Propietario del ticket) and the «Asociar ticket con» sections for Contactos and Empresas (search box, several
-// records, association label, timeline checkbox), plus Crear / Crear y agregar otro / Cancelar. Same skeleton and
+// Propietario del ticket) and the «Asociar ticket con» sections for Contactos, Empresas and Negocios (search box,
+// several records, association label, timeline checkbox), plus Crear / Crear y agregar otro / Cancelar. The deals
+// are kept on both sides (ticket.assoc_deals and deal.assoc_tickets, both in the extra column). Same skeleton and
 // classes as src/create-deal.js. Pipeline and Estado are chained: the statuses of the chosen pipeline, the first
 // open one by default (the same rule as the list's normalize). The insert goes through data.js (addRecord), which
 // also associates the contact's primary company (autoAssociateTicketCompany) unless a company was chosen here.
-import { addRecord, addActivity, allContacts, allCompanies, findRecord, OWNERS, PRIORITIES, TODAY, ticketPipelines, ticketStatusesFor, firstOpenTicketStatus, assocLabels, initials, validatePropertyValues } from './data.js';
+import { addRecord, addActivity, setField, allContacts, allCompanies, allDeals, findRecord, OWNERS, PRIORITIES, TODAY, ticketPipelines, ticketStatusesFor, firstOpenTicketStatus, assocLabels, initials, validatePropertyValues } from './data.js';
 import { toast, recordToastAction } from './shell.js';
 import { authEnabled, currentUser } from './auth.js';
 import { customFieldsHtml, ownerForUser } from './create-contact.js';
@@ -15,7 +16,9 @@ import { enhanceOwnerSelects, refreshOwnerSelects } from './owner-select.js';
 export const FIELD_ORDER = ['name', 'pipeline', 'status', 'description', 'source', 'priority', 'owner'];
 export const SOURCES = ['Correo', 'Formulario', 'Chat', 'Teléfono', 'WhatsApp'];
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-const KIND_WORD = { contacts: 'Contacto', companies: 'Empresa' };
+const KIND_WORD = { contacts: 'Contacto', companies: 'Empresa', deals: 'Negocio' };
+const KIND_THIS = { contacts: 'este contacto', companies: 'esta empresa', deals: 'este negocio' };
+const ASSOC_KINDS = ['contacts', 'companies', 'deals'];
 
 export function mountCreateTicket({ root = document.getElementById('list-root') || document.body, list = null, onCreated = null, fromConversation = false } = {}) {
   const pipelines = ticketPipelines();
@@ -49,6 +52,7 @@ export function mountCreateTicket({ root = document.getElementById('list-root') 
         ${customFieldsHtml('tickets')}
         ${assocSection('contacts', 'Asociar ticket con Contactos', 'Buscar contactos')}
         ${assocSection('companies', 'Empresas', 'Buscar empresas')}
+        ${assocSection('deals', 'Negocios', 'Buscar negocios')}
         <p class="cd-error" id="ct-error" hidden></p>
       </form>
       <footer class="slideover__foot">
@@ -65,7 +69,7 @@ export function mountCreateTicket({ root = document.getElementById('list-root') 
   const errorEl = el.querySelector('#ct-error');
   let opening = 0;
   let context = null;
-  const state = { open: false, busy: false, contacts: [], companies: [] };
+  const state = { open: false, busy: false, contacts: [], companies: [], deals: [] };
   const isOpen = () => state.open;
   const read = () => { const d = {}; new FormData(form).forEach((v, k) => { d[k] = String(v).trim(); }); return d; };
   const complete = () => Boolean(form.elements.name.value.trim());
@@ -110,10 +114,10 @@ export function mountCreateTicket({ root = document.getElementById('list-root') 
     box.innerHTML = hits.map((r) => `<li><button type="button" data-ct="pick" data-kind="${kind}" data-id="${r.id}"><strong>${esc(r.name)}</strong>${r.sub ? `<span class="muted">${esc(r.sub)}</span>` : ''}</button></li>`).join('');
   };
   const pick = (kind, id) => {
-    const pool = kind === 'contacts' ? allContacts() : allCompanies();
+    const pool = kind === 'contacts' ? allContacts() : kind === 'deals' ? allDeals() : allCompanies();
     const rec = pool.find((x) => Number(x.id) === Number(id));
     if (!rec || state[kind].some((c) => Number(c.id) === Number(id))) return null;
-    state[kind].push({ id: Number(rec.id), name: rec.name || 'Sin nombre', sub: (kind === 'contacts' ? rec.email : rec.domain) || '', label: defaultLabel(kind), log: true });
+    state[kind].push({ id: Number(rec.id), name: rec.name || 'Sin nombre', sub: (kind === 'contacts' ? rec.email : kind === 'deals' ? rec.pipeline : rec.domain) || '', label: defaultLabel(kind), log: true });
     const input = el.querySelector(`#ct-${kind}-q`);
     input.value = '';
     el.querySelector(`#ct-${kind}-results`).hidden = true;
@@ -132,7 +136,8 @@ export function mountCreateTicket({ root = document.getElementById('list-root') 
     form.reset();
     state.contacts = [];
     state.companies = [];
-    ['contacts', 'companies'].forEach((k) => { renderAssoc(k); el.querySelector(`#ct-${k}-results`).hidden = true; });
+    state.deals = [];
+    ASSOC_KINDS.forEach((k) => { renderAssoc(k); el.querySelector(`#ct-${k}-results`).hidden = true; });
     showError('');
     form.elements.pipeline.value = pipelines[0];
     fillStatuses();
@@ -151,6 +156,7 @@ export function mountCreateTicket({ root = document.getElementById('list-root') 
     ['name', 'description', 'source', 'priority', 'owner'].forEach((k) => { if (p[k] !== undefined && p[k] !== null && p[k] !== '') form.elements[k].value = p[k]; });
     if (p.contactId) pick('contacts', p.contactId);
     if (p.companyId) pick('companies', p.companyId);
+    if (p.dealId) pick('deals', p.dealId);
     if (fromConversation) {
       el.querySelectorAll('.cd-section input, .cd-section button, .cd-section select').forEach((control) => { control.disabled = true; });
       anotherBtn.hidden = true;
@@ -198,6 +204,8 @@ export function mountCreateTicket({ root = document.getElementById('list-root') 
       assoc_labels_contacts: Object.fromEntries(state.contacts.map((c) => [c.id, c.label])),
       assoc_companies: state.companies.map((c) => c.id),
       assoc_labels_companies: Object.fromEntries(state.companies.map((c) => [c.id, c.label])),
+      assoc_deals: state.deals.map((c) => c.id),
+      assoc_labels_deals: Object.fromEntries(state.deals.map((c) => [c.id, c.label])),
       lastActivity: TODAY.toISOString(),
     };
   }
@@ -212,9 +220,15 @@ export function mountCreateTicket({ root = document.getElementById('list-root') 
       // data.js logs «Ticket creado a partir de Creación manual» on the ticket and associates the contact's primary
       // company when none was chosen; the entries on the contacts / companies follow the panel's checkboxes.
       const made = await addRecord('tickets', rec, { waitForSave: true, origin: fromConversation ? 'Bandeja de entrada' : 'Creación manual', logAssoc: false });
-      const logOn = (kind, id, suffix = '') => addActivity({ type: 'created', recordType: kind, recordId: Number(id), text: `Ticket «${rec.name}» creado y asociado a ${kind === 'contacts' ? 'este contacto' : 'esta empresa'}${suffix}.`, who: 'Tú', when: Date.now(), extra: { ticketId: made.id } });
+      const logOn = (kind, id, suffix = '') => addActivity({ type: 'created', recordType: kind, recordId: Number(id), text: `Ticket «${rec.name}» creado y asociado a ${KIND_THIS[kind]}${suffix}.`, who: 'Tú', when: Date.now(), extra: { ticketId: made.id } });
       state.contacts.forEach((c) => { if (c.log) logOn('contacts', c.id, c.label && c.label !== 'Sin etiqueta' ? ` (${c.label})` : ''); });
       state.companies.forEach((c) => { if (c.log) logOn('companies', c.id, c.label && c.label !== 'Sin etiqueta' ? ` (${c.label})` : ''); });
+      // The deal side of each association: the deal lists the ticket too (deal.assoc_tickets), as the record page does.
+      state.deals.forEach((c) => {
+        const deal = findRecord('deals', c.id);
+        if (deal) setField('deals', deal.id, 'assoc_tickets', [...new Set([...(deal.assoc_tickets || []).map(Number), Number(made.id)])]);
+        if (c.log) logOn('deals', c.id, c.label && c.label !== 'Sin etiqueta' ? ` (${c.label})` : '');
+      });
       // The company data.js attached automatically (the contact's primary one) gets its entry too, once.
       const saved = findRecord('tickets', made.id) || made;
       if (saved.companyId && !state.companies.some((c) => Number(c.id) === Number(saved.companyId))) logOn('companies', saved.companyId, ' (empresa principal del contacto)');

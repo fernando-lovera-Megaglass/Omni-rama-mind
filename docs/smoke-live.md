@@ -2,13 +2,14 @@
 
 Las pruebas `scripts/smoke-*.mjs` corren sobre JSDOM con un `localStorage` en memoria y sin cliente de Supabase: validan la lógica y la interfaz, pero no la base de datos. Por eso una migración sin aplicar (una columna que falta, una tabla que no existe) no las hace fallar.
 
-Seis smokes de persistencia tienen un **modo live opcional** que repite la operación clave contra el proyecto real y la comprueba con SQL:
+Ocho smokes de persistencia tienen un **modo live opcional** que repite la operación clave contra el proyecto real y la comprueba con SQL:
 
 | Smoke | Qué comprueba en vivo |
 | --- | --- |
 | `smoke-create-contact.mjs` | Crear un contacto → fila en `contacts`; editar una propiedad → la fila cambia |
 | `smoke-create-deal.mjs` | Crear un negocio → fila en `deals` con pipeline, etapa e importe |
 | `smoke-create-ticket.mjs` | Crear un ticket → fila en `tickets` con pipeline y estado |
+| `smoke-ticket-deal-assoc.mjs` | Ticket ↔ negocio: crear un ticket con un negocio elegido → `tickets.extra->'assoc_deals'` y `deals.extra->'assoc_tickets'`; «Desasociar» en la ficha del ticket vacía ambas; «+ Agregar» en la ficha del negocio las vuelve a escribir |
 | `smoke-tickets-trash.mjs` | Exige la columna `tickets.deleted_at` (migración `soft_delete_tickets.sql`); borrar → `deleted_at` con fecha; restaurar → `null` |
 | `smoke-record-merge.mjs` | Fusionar dos contactos → el duplicado queda en la papelera (`deleted_at`) y el principal toma el valor elegido |
 | `smoke-record-customize.mjs` | Exige `user_settings.scope` y la tabla `account_settings` (migración `user_settings.sql`); personalizar «Acerca de» → fila en `user_settings` con `scope = 'user'`; «Aplicar a todos» → fila en `account_settings` solo con rol admin |
@@ -25,6 +26,7 @@ SMOKE_LIVE=1 node scripts/smoke-record-customize.mjs
 SMOKE_LIVE=1 node scripts/smoke-create-contact.mjs
 SMOKE_LIVE=1 node scripts/smoke-create-deal.mjs
 SMOKE_LIVE=1 node scripts/smoke-create-ticket.mjs
+SMOKE_LIVE=1 node scripts/smoke-ticket-deal-assoc.mjs
 SMOKE_LIVE=1 node scripts/smoke-record-merge.mjs
 ```
 

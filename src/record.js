@@ -61,6 +61,8 @@ const opt = (list) => list.map((x) => (Array.isArray(x) ? [x[0], x[1]] : [x, x])
 const ownerOpts = opt(OWNERS);
 const byId = (list, id) => list.find((r) => Number(r.id) === Number(id));
 const dateInput = (iso) => (iso ? new Date(iso).toISOString().slice(0, 10) : '');
+// Two records of different objects linked through assoc_<kind> on either of them (tickets ↔ deals).
+const crossLinked = (a, aKind, b, bKind) => (a[`assoc_${bKind}`] || []).map(Number).includes(Number(b.id)) || (b[`assoc_${aKind}`] || []).map(Number).includes(Number(a.id));
 const EMPTY = '<span class="muted">--</span>';
 const fmtTime = (d) => `${d.getDate()} de ${['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'][d.getMonth()]} de ${d.getFullYear()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 
@@ -125,6 +127,8 @@ const CONFIG = {
     assoc: (r) => [
       ['Contactos', r.contactId ? [byId(allContacts(), r.contactId)].filter(Boolean) : [], 'contacts'],
       ['Empresas', r.companyId ? [byId(allCompanies(), r.companyId)].filter(Boolean) : [], 'companies'],
+      // Tickets linked to the deal from either side (ticket.assoc_deals or deal.assoc_tickets).
+      ['Tickets', allTickets().filter((t) => crossLinked(r, 'deals', t, 'tickets')), 'tickets'],
       ['Tareas', allTasks().filter((t) => taskLinksTo(t, 'deals', r.id)), 'tasks'],
     ],
   },
@@ -145,6 +149,8 @@ const CONFIG = {
     assoc: (r) => [
       ['Contactos', r.contactId ? [byId(allContacts(), r.contactId)].filter(Boolean) : [], 'contacts'],
       ['Empresas', r.companyId ? [byId(allCompanies(), r.companyId)].filter(Boolean) : [], 'companies'],
+      // Deals linked to the ticket from either side (ticket.assoc_deals or deal.assoc_tickets).
+      ['Negocios', allDeals().filter((d) => crossLinked(r, 'tickets', d, 'deals')), 'deals'],
       ['Tareas', allTasks().filter((t) => taskLinksTo(t, 'tickets', r.id)), 'tasks'],
     ],
   },
@@ -1477,6 +1483,8 @@ function saveAssociations(ids, labels) {
       setField('tickets', other.id, 'companyId', rec.id);
       setField('tickets', other.id, 'company', rec.name);
     }
+    // tickets ↔ deals: the link is written on both records so each side lists the other.
+    if ((type === 'tickets' && kind === 'deals') || (type === 'deals' && kind === 'tickets')) setField(kind, other.id, `assoc_${type}`, [...new Set([...(other[`assoc_${type}`] || []).map(Number), Number(rec.id)])]);
   });
   rec = findRecord(type, id);
   // One real association event per record (what «Ver historial de asociaciones» lists, with date and author).
@@ -1515,6 +1523,8 @@ function unlinkAssociation(kind, otherId) {
   if (type === 'companies' && ['deals', 'tickets'].includes(kind) && Number(other.companyId) === Number(rec.id)) { setField(kind, oid, 'companyId', ''); setField(kind, oid, 'company', ''); }
   if (['deals', 'tickets', 'tasks'].includes(type) && kind === 'contacts' && Number(rec.contactId) === oid) { setField(type, rec.id, 'contactId', ''); if (type === 'tasks') setField(type, rec.id, 'contact', ''); }
   if (['deals', 'tickets'].includes(type) && kind === 'companies' && Number(rec.companyId) === oid) { setField(type, rec.id, 'companyId', ''); setField(type, rec.id, 'company', ''); }
+  // tickets ↔ deals is kept on both records: clear the other side too
+  if ((type === 'tickets' && kind === 'deals') || (type === 'deals' && kind === 'tickets')) setField(kind, oid, `assoc_${type}`, (other[`assoc_${type}`] || []).map(Number).filter((x) => x !== Number(rec.id)));
   rec = findRecord(type, id);
   logAssociation(kind, other, 'remove', label);
   renderAll();
