@@ -33,7 +33,7 @@ DO $$ BEGIN
 END $$;
 CREATE TEMP TABLE contact_merge ON COMMIT DROP AS
 SELECT id AS duplicate_id, canonical_id FROM (
-  SELECT id, first_value(id) OVER (PARTITION BY email ORDER BY id) AS canonical_id
+  SELECT id, first_value(id) OVER (PARTITION BY email ORDER BY filled_fields DESC, id) AS canonical_id
   FROM contact_inventory
 ) c WHERE id <> canonical_id;
 SELECT i.*, min(i.id) OVER (PARTITION BY i.email) AS lower_id,
@@ -65,7 +65,7 @@ BEGIN
   SELECT to_jsonb(c) INTO target FROM contacts c WHERE id=m.canonical_id;
   FOR col IN SELECT attname FROM pg_attribute WHERE attrelid='public.contacts'::regclass
     AND attnum>0 AND NOT attisdropped AND attgenerated='' AND attname NOT IN
-    ('id','created','deleted_at','name','first','last','extra') LOOP
+    ('id','created','deleted_at','name','extra') LOOP
     IF target->col.attname IN ('null'::jsonb, '""'::jsonb) AND source->col.attname NOT IN ('null'::jsonb, '""'::jsonb) THEN
       EXECUTE format('UPDATE contacts SET %1$I=(jsonb_populate_record(NULL::contacts,$1)).%1$I WHERE id=$2',col.attname)
         USING source, m.canonical_id;
@@ -136,6 +136,9 @@ BEGIN
     EXECUTE format('SELECT count(*) FROM %I.%I t JOIN contact_merge m ON t.%I::text=m.duplicate_id::text WHERE true%s',
       r.schema_name, r.table_name, r.column_name, r.predicate) INTO remaining;
     IF remaining <> 0 THEN RAISE EXCEPTION 'Unrepaired references in %', r.table_name; END IF;
+    EXECUTE format('SELECT count(*) FROM %I.%I t JOIN public.contacts c ON t.%I::text=c.id::text WHERE c.deleted_at IS NOT NULL%s',
+      r.schema_name, r.table_name, r.column_name, r.predicate) INTO remaining;
+    IF remaining <> 0 THEN RAISE EXCEPTION 'References to trashed contacts in %, rolling back', r.table_name; END IF;
   END LOOP;
 END $$;
 UPDATE public.contacts c SET deleted_at = now() FROM contact_merge m WHERE c.id=m.duplicate_id;

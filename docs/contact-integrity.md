@@ -1,3 +1,13 @@
+# Tercera reapertura: aceptación real pendiente
+
+Verificación de esta intervención: `test-contact-integrity.mjs` pasó en PGlite y `test-bootstrap-concurrency.mjs` pasó con dos sesiones de PostgreSQL desechable (420 contactos, una sola siembra).
+
+Los cuatro ítems relacionados están pendientes, sin completedAt ni completedBy. Esta intervención modifica únicamente código local. No acredita reparación ni aplicación del índice en producción.
+
+La regresión local cubre 77 pares y las seis relaciones requeridas: deals, tickets, contact_companies, activities, tasks y sequence_enrollments. Comprueba cero duplicados vivos, cero referencias a las copias y conservación íntegra de sus campos excepto deleted_at. También se rechazan referencias preexistentes a contactos en papelera. La canónica es la fila con más campos persistidos; se completan sus campos vacíos, incluidos nombre y apellido.
+
+Restaurar una copia con el mismo email de una canónica viva contradice el índice único. Se conserva el payload original completo, pero antes de restaurar debe resolverse ese conflicto (por ejemplo, cambiar o vaciar explícitamente su email). La prueba verifica tanto el rechazo del email repetido como la restauración tras resolverlo, sin cambiar los datos reales. Restaurar no deshace el traslado de asociaciones.
+
 # Reparación local de contactos
 
 ## Verificación local del 22 de noviembre
@@ -24,7 +34,7 @@ Requisitos: una copia local de PostgreSQL, `psql`, esquema actual (incluyendo `s
    psql -X -v ON_ERROR_STOP=1 postgres://localhost/omni_local -f supabase/contact-integrity.sql
    ```
 
-La reparación bloquea las tablas durante una única transacción. Agrupa contactos activos por `lower(btrim(email))`, omite emails vacíos/null y conserva siempre el contacto activo de menor ID, aunque una copia tenga más campos persistidos. Conserva las copias con `deleted_at`, reapunta las columnas `contact_id`, las referencias polimórficas `record_id` con discriminador `record_type`/`object_type` y las FK simples declaradas hacia contactos, incluso en otros esquemas. Una FK compuesta o una restricción desconocida incompatible aborta toda la transacción para permitir su revisión explícita. Referencias arbitrarias dentro de JSON no son FK y no se modifican.
+La reparación bloquea las tablas durante una única transacción. Agrupa contactos activos por `lower(btrim(email))`, omite emails vacíos/null y conserva el contacto con más campos persistidos no vacíos; desempata por menor ID. Conserva las copias con `deleted_at`, reapunta las columnas `contact_id`, las referencias polimórficas `record_id` con discriminador `record_type`/`object_type` y las FK simples declaradas hacia contactos, incluso en otros esquemas. Una FK compuesta o una restricción desconocida incompatible aborta toda la transacción para permitir su revisión explícita. Referencias arbitrarias dentro de JSON no son FK y no se modifican.
 
 Cuando varias asociaciones apuntan a la misma empresa, conserva la asociación canónica (o la de menor ID), combina `is_primary` mediante OR y conserva su etiqueta. Las filas anteriores, incluidas las etiquetas de asociaciones redundantes, quedan en el log de auditoría. Las asociaciones redundantes se eliminan para respetar su restricción única; los contactos duplicados solo reciben soft delete. Proteger los logs porque contienen datos de contactos.
 
@@ -71,8 +81,8 @@ La consulta original sin `deleted_at IS NULL` seguirá mostrando correos repetid
 
 Estado: pendiente de ejecución y aceptación en los datos reales. Fusiones reales realizadas en esta intervención: **0**. Pares ambiguos reales: **no evaluados**, porque no se consultó ni modificó la base remota y no se proporcionó una copia local. Los 77 pares reportados equivalen a 154 filas implicadas y 77 copias sobrantes, no 154 copias sobrantes.
 
-El inventario transaccional imprime ambos IDs, fechas de creación, datos completos anteriores, puntuación de campos y conteos de negocios, tickets, tareas, actividades e inscripciones (si existe `sequence_enrollments`). La selección conserva siempre el menor ID activo; la puntuación de campos es solo informativa; las asociaciones se trasladan independientemente de esa selección. Completa campos escalares vacíos y propiedades escalares de `extra`, preservando los valores del principal. Nombres o apellidos contradictorios se imprimen como ambiguos y abortan toda la reparación para revisión, sin fusiones parciales. Restricciones de inscripciones incompatibles también abortan y requieren revisión; no se borran inscripciones para forzar su traslado.
+El inventario transaccional imprime ambos IDs, fechas de creación, datos completos anteriores, puntuación de campos y conteos de negocios, tickets, tareas, actividades e inscripciones (si existe `sequence_enrollments`). La selección prioriza la puntuación de campos persistidos; el menor ID desempata; las asociaciones se trasladan independientemente de esa selección. Completa campos escalares vacíos y propiedades escalares de `extra`, preservando los valores del principal. Nombres o apellidos contradictorios se imprimen como ambiguos y abortan toda la reparación para revisión, sin fusiones parciales. Restricciones de inscripciones incompatibles también abortan y requieren revisión; no se borran inscripciones para forzar su traslado.
 
 El resultado muestra grupos y copias fusionados y exige cero huérfanos en negocios/tickets, además de cero grupos duplicados vivos y cero referencias inspeccionadas a las copias. Las imágenes anteriores permiten revisar conflictos; la restauración del contacto desde papelera no revierte automáticamente sus asociaciones. JSON de asociaciones requiere revisión explícita, como ya se indica arriba.
 
-Validación local con PGlite: rollback, repetibilidad, principal de menor ID aunque la copia tenga más datos, completado de teléfono y propiedad personalizada, contactos conservados físicamente, relaciones trasladadas y rechazo de huérfanos preexistentes. Esto valida el código, no acredita que los 77 pares reales estén resueltos.
+Validación local con PGlite: rollback, repetibilidad, principal con más datos aunque tenga mayor ID, completado de teléfono y propiedad personalizada, contactos conservados físicamente, relaciones trasladadas y rechazo de huérfanos preexistentes. Esto valida el código, no acredita que los 77 pares reales estén resueltos.

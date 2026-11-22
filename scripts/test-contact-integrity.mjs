@@ -13,6 +13,7 @@ await db.exec(sql('../supabase/soft_delete.sql'));
 await db.exec(sql('../supabase/company_hierarchy.sql'));
 await db.exec(sql('../supabase/contact_companies.sql'));
 await db.exec(`CREATE TABLE activities (id bigint, record_type text, record_id bigint);
+CREATE TABLE sequence_enrollments (id bigint, contact_id bigint REFERENCES contacts(id), sequence_id bigint, UNIQUE(contact_id, sequence_id));
 CREATE TABLE extra_links (id bigint, person bigint REFERENCES contacts(id));
 CREATE TABLE partitioned_links (id bigint, person bigint REFERENCES contacts(id)) PARTITION BY RANGE(id);
 CREATE TABLE partitioned_links_first PARTITION OF partitioned_links FOR VALUES FROM (0) TO (100);
@@ -47,49 +48,67 @@ assert.deepEqual((await db.query('SELECT record_id::int FROM workflow_enrollment
 assert.equal((await db.query('SELECT count(*)::int n FROM contact_companies')).rows[0].n, 1);
 assert.equal((await db.query('SELECT is_primary FROM contact_companies')).rows[0].is_primary, true);
 await db.exec(`BEGIN; ${repair} COMMIT;`);
-// Lowest ID wins even when the copy is richer; fill blanks and preserve both rows.
-await db.exec(`INSERT INTO contacts(id,email,phone,city,extra) VALUES
- (50,'rich@example.com','555','','{"custom":"retained"}'),
- (350,'rich@example.com','','Madrid','{"a":"1","b":"2","c":"3"}');
+// Richest persisted row wins; fill blanks and preserve the entire discarded row.
+await db.exec(`INSERT INTO contacts(id,email,first,phone,city,extra) VALUES
+ (50,'rich@example.com','Ana','555','','{"custom":"retained"}'),
+ (350,'rich@example.com','','','Madrid','{"a":"1","b":"2","c":"3"}');
  INSERT INTO deals(contact_id) VALUES (350);
  INSERT INTO tickets(contact_id) VALUES (350);`);
 await db.exec(`BEGIN; ${repair} COMMIT;`);
-const rich = (await db.query('SELECT * FROM contacts WHERE id=50')).rows[0];
+const rich = (await db.query('SELECT * FROM contacts WHERE id=350')).rows[0];
 assert.equal(rich.deleted_at, null);
 assert.equal(rich.phone, '555');
+assert.equal(rich.first, 'Ana');
 assert.equal(rich.city, 'Madrid');
 assert.equal(rich.extra.a, '1');
 assert.equal(rich.extra.custom, 'retained');
-assert.ok((await db.query('SELECT deleted_at FROM contacts WHERE id=350')).rows[0].deleted_at);
-assert.equal((await db.query('SELECT count(*)::int n FROM deals WHERE contact_id=350')).rows[0].n, 0);
-assert.equal((await db.query('SELECT count(*)::int n FROM tickets WHERE contact_id=50')).rows[0].n, 1);
+assert.ok((await db.query('SELECT deleted_at FROM contacts WHERE id=50')).rows[0].deleted_at);
+assert.equal((await db.query('SELECT count(*)::int n FROM deals WHERE contact_id=50')).rows[0].n, 0);
+assert.equal((await db.query('SELECT count(*)::int n FROM tickets WHERE contact_id=350')).rows[0].n, 1);
 // An existing orphan must fail acceptance and roll back the entire repair.
 await db.exec('INSERT INTO deals(contact_id) VALUES (99999)');
 await assert.rejects(db.exec(`BEGIN; ${repair} COMMIT;`), /Orphans/);
 await db.exec('ROLLBACK; DELETE FROM deals WHERE contact_id=99999');
-// Regression for the reported 77 pairs, with all four required relationship types.
+// Existing references to previously trashed contacts must also fail acceptance.
+await db.exec('INSERT INTO tasks(contact_id) VALUES (50)');
+await assert.rejects(db.exec(`BEGIN; ${repair} COMMIT;`), /References to trashed contacts/);
+await db.exec('ROLLBACK; DELETE FROM tasks WHERE contact_id=50');
+// Regression for 77 pairs with all six required relationship types.
 await db.exec(`
  INSERT INTO contacts(id,email)
  SELECT n, 'pair' || n || '@example.com' FROM generate_series(1000,1076) n
  UNION ALL SELECT n+300, 'pair' || n || '@example.com' FROM generate_series(1000,1076) n;
  INSERT INTO deals(contact_id) SELECT n FROM generate_series(1300,1376) n;
  INSERT INTO tickets(contact_id) SELECT n FROM generate_series(1300,1376) n;
+ INSERT INTO tasks(contact_id) SELECT n FROM generate_series(1300,1376) n;
+ INSERT INTO sequence_enrollments(id,contact_id,sequence_id) SELECT n,n,1 FROM generate_series(1300,1376) n;
  INSERT INTO activities(id,record_type,record_id) SELECT n,'contacts',n FROM generate_series(1300,1376) n;
  INSERT INTO contact_companies(contact_id,company_id) SELECT n,1 FROM generate_series(1300,1376) n;
 `);
+const copiesBefore = (await db.query("SELECT to_jsonb(c) - 'deleted_at' AS payload FROM contacts c WHERE id BETWEEN 1300 AND 1376 ORDER BY id")).rows;
 await db.exec(`BEGIN; ${repair} COMMIT;`);
+assert.deepEqual((await db.query("SELECT to_jsonb(c) - 'deleted_at' AS payload FROM contacts c WHERE id BETWEEN 1300 AND 1376 ORDER BY id")).rows, copiesBefore);
 assert.equal((await db.query('SELECT count(*)::int n FROM contacts WHERE id BETWEEN 1300 AND 1376 AND deleted_at IS NOT NULL')).rows[0].n,77);
 assert.equal((await db.query(`SELECT count(*)::int n FROM (
  SELECT lower(btrim(email)) FROM contacts WHERE deleted_at IS NULL AND btrim(email)<>''
  GROUP BY 1 HAVING count(*)>1) d`)).rows[0].n,0);
 for (const [table,column,predicate] of [
  ['deals','contact_id','true'], ['tickets','contact_id','true'],
+ ['tasks','contact_id','true'], ['sequence_enrollments','contact_id','true'],
  ['activities','record_id',"record_type='contacts'"], ['contact_companies','contact_id','true'],
 ]) {
  assert.equal((await db.query(`SELECT count(*)::int n FROM ${table} WHERE ${predicate} AND ${column} BETWEEN 1300 AND 1376`)).rows[0].n,0);
  assert.equal((await db.query(`SELECT count(*)::int n FROM ${table} WHERE ${predicate} AND ${column} BETWEEN 1000 AND 1076`)).rows[0].n,77);
 }
+// Soft delete preserves the copies byte-for-byte except deleted_at.
+assert.equal((await db.query('SELECT count(*)::int n FROM contacts WHERE id BETWEEN 1000 AND 1376')).rows[0].n,154);
 await db.exec(sql('../supabase/contact-integrity.sql'));
+// Restoration retains the original payload. Resolve the email conflict first;
+// restoring with the same live email must never bypass the uniqueness guard.
+await assert.rejects(db.exec('UPDATE contacts SET deleted_at=NULL WHERE id=1300'));
+await db.exec('BEGIN; UPDATE contacts SET email=NULL, deleted_at=NULL WHERE id=1300;');
+assert.equal((await db.query('SELECT deleted_at FROM contacts WHERE id=1300')).rows[0].deleted_at,null);
+await db.exec('ROLLBACK');
 await db.exec(sql('../supabase/bootstrap-demo.sql'));
 await assert.rejects(db.exec("INSERT INTO contacts(email) VALUES ('ana@EXAMPLE.com')"));
 await db.exec("INSERT INTO contacts(email,deleted_at) VALUES ('ana@example.com',now())");
