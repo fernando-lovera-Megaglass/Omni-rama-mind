@@ -17,6 +17,8 @@ const fail = (msg) => { console.error(`[views-shared] FAIL: ${msg}`); process.ex
 // ---- modo live: A shares, B sees (RLS + the app's visibility rule) ----
 await liveSmoke('views-shared', async ({ data, sql, one, check, log: llog, stamp, session }) => {
   await requireTable('crm_views'); // crm_views.sql
+  const policy = await one(`select cmd, with_check from pg_policies where schemaname = 'public' and tablename = 'crm_views' and policyname = 'crm_views_insert'`);
+  check(policy?.cmd === 'INSERT' && policy.with_check === '(owner_id = auth.uid())', 'crm_views_insert debe exigir owner_id = auth.uid(); aplicar crm_views_insert_owner.sql');
   check(data.viewsLive(), 'data.js no leyó crm_views (¿tabla o políticas?)');
   const base = { base: 'all', filters: {}, advanced: [], sort: { key: 'created', dir: -1 }, columns: ['name', 'email'], updated: Date.now() };
   const store = data.getViewStore('contacts');
@@ -37,6 +39,14 @@ await liveSmoke('views-shared', async ({ data, sql, one, check, log: llog, stamp
   const clientB = createClient(process.env.VITE_SUPABASE_URL, process.env.VITE_SUPABASE_ANON_KEY, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } });
   const sessionB = await startLiveSession('viewsb', clientB);
   try {
+    // A exists: this must fail on RLS, not on a foreign-key constraint.
+    const forgedId = `vsmoke-forged-${stamp}`;
+    const { error: forged } = await clientB.from('crm_views').insert({
+      id: forgedId, object_type: 'contacts', name: `SMOKE Vista suplantada ${stamp}`,
+      share: 'all', owner_id: session.uid, owner_name: 'Fernando L.',
+    });
+    check(forged?.code === '42501', `INSERT con owner_id ajeno debe devolver 42501 (${forged?.code ?? 'permitido'})`);
+    check(!(await one(`select id from public.crm_views where id = ${lit(forgedId)}`)), 'no se creó la vista con autoría suplantada');
     const { data: seen, error } = await clientB.from('crm_views').select('*').like('name', `SMOKE Vista % ${stamp}`);
     check(!error, `B lee crm_views (${error && error.message})`);
     const shares = (seen || []).map((r) => r.share).sort().join(',');

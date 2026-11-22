@@ -218,6 +218,10 @@
     "verificada": "2026-11-22T10:00:00Z",
     "verificacion": "SQL: information_schema muestra custom_properties.archived_at (timestamptz, nullable) y pg_indexes custom_properties_archived_at_idx (where archived); 61 propiedades, 0 archivadas sin fecha. App (SMOKE_LIVE=1 scripts/smoke-trash-purge.mjs): crear una propiedad smoke_prop_… → archived_at nulo; archivarla con saveCustomProperties → la fila guarda archived_at; restaurarla → nulo; fechada hace 91 días por SQL → purgeExpiredTrash la borra de custom_properties y de la app sin nada pendiente. Fila de prueba eliminada."
   },
+  "crm_views_insert_owner.sql": {
+    "status": "pendiente",
+    "nota": "Solo código local por instrucción del usuario. No ejecutada con apply-migration.mjs ni verificada en remoto. Prueba offline: node scripts/test-crm-views-insert-rls.mjs. Verificación remota pendiente: SMOKE_LIVE=1 node scripts/smoke-views-shared.mjs."
+  },
   "crm_views.sql": {
     "status": "aplicada",
     "at": "2026-11-22T06:30:00Z",
