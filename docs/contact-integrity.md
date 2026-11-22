@@ -1,3 +1,15 @@
+# Reapertura vigente: principal con más datos (22 de noviembre)
+
+Esta revisión sustituye la política histórica de menor ID descrita abajo. El reparador ordena por campos persistidos rellenos (incluido `extra`), fecha `created` más antigua y, como desempate estable, ID menor. El inventario incluye IDs inferior/superior, fechas, puntuación, imágenes previas y conteos de relaciones.
+
+Los grupos con nombres o apellidos contradictorios se listan como ambiguos antes de escribir y abortan **toda** la transacción: cero fusiones confirmadas, incluso de pares seguros. No se declara aceptación parcial. Tras revisar esos grupos, se debe repetir la simulación. Las inscripciones activas/pausadas que colisionan se conservan como historial con estado `unenrolled` y sin próxima ejecución, como `moveEnrollments`; todas se reasocian al principal.
+
+Resultado local: `scripts/test-contact-integrity.mjs` pasó con 77 pares sintéticos, 77 copias en papelera, cero grupos vivos duplicados, cero referencias a copias y comprobación transaccional de cero huérfanos en negocios/tickets. También prueba principal más completo con ID superior, rollback de ambigüedad e inscripciones coincidentes. La importación de `data.js` emite un aviso de `localStorage` ausente en Node; no impide las aserciones SQL.
+
+**Fusiones reales: 0. Pares ambiguos reales: no evaluados.** No se recibió una copia local de los 423 contactos ni se consultó/modificó producción. Los tres ítems quedan `pending`, sin marcas de finalización. Los 77 pares reportados son 154 filas implicadas y 77 copias sobrantes. Los resultados sintéticos no acreditan reparación real. Sin despliegue ni migración remota.
+
+## Registro histórico (política de menor ID sustituida)
+
 ## Revalidación de esta revisión (22 de noviembre)
 
 Se ejecutaron nuevamente `test-contact-integrity.mjs` y `test-bootstrap-concurrency.mjs`: ambas pasaron. La segunda utilizó dos conexiones a PostgreSQL temporal y comprobó espera por bloqueo y exactamente 420 contactos. El estado local del ítem original había vuelto a `done` pese a sus notas de aceptación pendiente; se reabrieron los cuatro ítems relacionados y se corrigió también `build-status-codex.json`. La canónica implementada y requerida en esta solicitud es el menor ID activo. No se consultó ni modificó la base remota: el límite explícito de solo código local impide acreditar reparación real.

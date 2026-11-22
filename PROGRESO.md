@@ -1062,3 +1062,8 @@ Hasta ahora «Inscribir en un workflow» y «Publicar» ejecutaban todas las acc
 - Completada la edición masiva: excluye campos de solo lectura incluso en editores predefinidos; valida antes de modificar; rechaza asignar un mismo valor único a varios registros. El modal espera la validación y muestra errores.
 - Smoke reproducible: `node scripts/smoke-property-rules.mjs`. Ejercita el formulario real de empresas en JSDOM con RFC único+sensible, duplicado remoto fuera de la lista local, error de consulta, creación válida, obligatorio, longitud, edición del propio registro, solo lectura, revelar/ocultar y CSV.
 - La consulta remota se prueba con un cliente Supabase simulado; no se modificaron reglas ni registros en una instancia remota. Sin despliegue a producción.
+
+
+## 2026-11-22 · Reapertura contactos duplicados: selección y aceptación
+
+Reapertura 2026-11-22: solo código local. Fusiones reales 0; ambiguos reales no evaluados (sin copia local). Reparador conserva más datos, aborta y reporta identidades ambiguas, traslada relaciones y cancela inscripciones coincidentes sin borrar contactos. Prueba SQL local: 77 pares sintéticos fusionados, 77 copias en papelera, 0 grupos vivos duplicados y 0 huérfanos deals/tickets. Aceptación real pendiente. Ver docs/contact-integrity.md.

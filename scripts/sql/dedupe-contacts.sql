@@ -33,7 +33,7 @@ DO $$ BEGIN
 END $$;
 CREATE TEMP TABLE contact_merge ON COMMIT DROP AS
 SELECT id AS duplicate_id, canonical_id FROM (
-  SELECT id, first_value(id) OVER (PARTITION BY email ORDER BY id) AS canonical_id
+  SELECT id, first_value(id) OVER (PARTITION BY email ORDER BY filled_fields DESC, created ASC NULLS LAST, id) AS canonical_id
   FROM contact_inventory
 ) c WHERE id <> canonical_id;
 SELECT i.*, min(i.id) OVER (PARTITION BY i.email) AS lower_id,
@@ -42,12 +42,22 @@ FROM contact_inventory i WHERE email IN (SELECT email FROM contact_inventory GRO
 ORDER BY email, id;
 SELECT * FROM contact_merge ORDER BY canonical_id, duplicate_id;
 
--- Report conflicting identity values; the requested minimum-ID policy still applies.
--- Copies retain their original values for audit, and canonical nonempty values win.
+-- Ambiguous identities require review before any write. Do not silently merge people
+-- sharing a mailbox. The complete transaction rolls back, including safe pairs.
+CREATE TEMP TABLE contact_merge_ambiguous ON COMMIT DROP AS
 SELECT m.*, 'conflicting identity' AS review_reason
-FROM contact_merge m JOIN contacts k ON k.id=m.canonical_id JOIN contacts d ON d.id=m.duplicate_id
-WHERE (btrim(k.first) <> '' AND btrim(d.first) <> '' AND lower(btrim(k.first)) <> lower(btrim(d.first)))
- OR (btrim(k.last) <> '' AND btrim(d.last) <> '' AND lower(btrim(k.last)) <> lower(btrim(d.last)));
+FROM contact_merge m JOIN contact_inventory i ON i.id=m.canonical_id
+WHERE i.email IN (
+ SELECT email FROM contact_inventory GROUP BY email
+ HAVING count(DISTINCT nullif(lower(btrim(before->>'first')),''))>1
+     OR count(DISTINCT nullif(lower(btrim(before->>'last')),''))>1
+);
+SELECT * FROM contact_merge_ambiguous ORDER BY canonical_id, duplicate_id;
+DO $$ BEGIN
+ IF EXISTS (SELECT 1 FROM contact_merge_ambiguous) THEN
+   RAISE EXCEPTION 'Ambiguous contact identities: review inventory; 0 merges committed';
+ END IF;
+END $$;
 -- Like mergeRecords: retain principal values and fill empty scalar properties.
 -- Full before images above include conflicting values for review and recovery.
 DO $$
@@ -96,6 +106,24 @@ BEGIN
     -- Snapshot includes labels on redundant edges for review/recovery.
     DELETE FROM public.contact_companies c USING bridge_merge b WHERE c.id = b.id AND b.id <> b.keep_id;
   END IF;
+END $$;
+
+-- Match moveEnrollments: preserve history but cancel duplicate running enrollments.
+DO $$ BEGIN
+ IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public'
+            AND table_name='sequence_enrollments' AND column_name='status') THEN
+   WITH ranked AS (
+     SELECT e.id, row_number() OVER (
+       PARTITION BY coalesce(m.canonical_id,e.contact_id), e.sequence_id
+       ORDER BY (m.canonical_id IS NULL) DESC, e.id
+     ) AS position
+     FROM sequence_enrollments e LEFT JOIN contact_merge m ON m.duplicate_id=e.contact_id
+     WHERE e.status IN ('active','paused') AND coalesce(m.canonical_id,e.contact_id)
+       IN (SELECT canonical_id FROM contact_merge)
+   )
+   UPDATE sequence_enrollments e SET status='unenrolled', next_step_at=NULL
+   FROM ranked r WHERE e.id=r.id AND r.position>1;
+ END IF;
 END $$;
 
 DO $$
