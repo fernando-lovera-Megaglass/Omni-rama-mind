@@ -1,5 +1,11 @@
 # Progreso — Omni CRM
 
+## 2026-11-22 (sesión 6) · smoke-company-hierarchy: forma de `options` en custom_properties
+
+- Diagnóstico: no es regresión. Desde 373188c (editor de propiedades parte B) `customPropToDb` guarda en la columna `options` de `custom_properties` un JSON `{ values: [...], rules: { required, unique, sensitive, readOnly, maxLength } }` y `customPropFromDb` lo lee de vuelta (admitiendo todavía el array antiguo); `smoke-custom-props` ya comprobaba `row.options.values`, pero `smoke-company-hierarchy` seguía esperando un array (`row.options.length`).
+- `scripts/smoke-company-hierarchy.mjs`: la comprobación «row shape for the table» exige `options.values` con las 4 opciones, `options.rules` presente y que `customPropFromDb(row)` devuelva las mismas opciones del catálogo. Pasa completa (jerarquía anidada, columnas, tarjetas matriz/secundarias, buscador, cronología, Quitar).
+- Solo código local; nada desplegado.
+
 ## 2026-11-22 (sesión 6) · smoke-bulk: barra con «Inscribir en secuencia» y envío asíncrono del diálogo
 
 - Diagnóstico: no es regresión; la asignación masiva funciona (los tres contactos quedan con «Laura M.», toast y barra oculta). Dos cambios intencionales dejaron la prueba desactualizada: f4dd2de añadió «⇢ Inscribir en secuencia» a la barra de selección de contactos (`cfg.bulk.actions` con `enroll`, cubierto por `smoke-bulk-enroll.mjs`), y 373188c hizo asíncrono el `submit` del diálogo masivo (`await bulkOnOk(d)` antes de cerrarlo), así que justo después del `submit` el modal seguía abierto.

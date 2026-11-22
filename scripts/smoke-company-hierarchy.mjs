@@ -44,7 +44,8 @@ const lat = grp.items.find((i) => i[0] === 'latitud');
 log('tipo_de_cliente:', tipo[2], JSON.stringify(tipo[3]), '| latitud:', lat[2], '| seeds by type:', Object.keys(P.SEED_BY_TYPE).join(','));
 if (tipo[2] !== 'enum' || tipo[3].join('|') !== 'Instalador|50 Top Glazier|Desarrollador|Arquitecto' || lat[2] !== 'number') fail('kinds of the company properties');
 const row = P.customPropToDb('companies', P.SEED_BY_TYPE.companies[1]);
-if (row.objeto !== 'company' || row.type !== 'enum' || row.options.length !== 4) fail('row shape for the table');
+// options is the table's JSON { values, rules } (editor de propiedades parte B); customPropFromDb reads it back
+if (row.objeto !== 'company' || row.type !== 'enum' || !row.options || row.options.values.length !== 4 || !row.options.rules || P.customPropFromDb(row).options.join('|') !== tipo[3].join('|')) fail('row shape for the table');
 
 // 2) the hierarchy helpers and the sample data
 const kid = data.allCompanies().find((c) => c.parentCompanyId);
