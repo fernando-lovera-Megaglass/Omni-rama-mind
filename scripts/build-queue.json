@@ -1510,6 +1510,83 @@
       "createdAt": "2026-11-21T21:28:00-06:00",
       "lane": "claude",
       "instruction": "LÓGICA + UX (registrar/programar reunión). HubSpot (especificacion-actividades-crm.md §2): las reuniones tienen Asistentes — al registrar/programar desde la ficha de un contacto ese contacto queda añadido automáticamente y se pueden buscar y agregar más contactos (la reunión se registra también en la cronología de cada asistente). Omni HOY: el formulario de reunión de src/log-modal.js (~línea 58, kind 'meeting') tiene Título, Fecha/Hora, Duración, Ubicación, Resultado y Descripción — no hay asistentes en ninguna parte (búsqueda 'attendee/asistente' en src/ sin resultados funcionales), así que una reunión con 3 contactos solo queda en el registro desde el que se abrió y el resto no la ve en su cronología salvo que se marquen a mano en «Asociado a». Pasos: (1) en el formulario de reunión de log-modal.js añade el campo «Asistentes»: chips con buscador de contactos (patrón del buscador de asociaciones de create-deal.js/create-ticket.js, hasta 6 resultados, Enter elige el primero), el contacto del registro actual pre-marcado cuando aplique; (2) guarda extra.attendees = [{id, name}] en la actividad (readLogActivity, ~línea 102) y muéstralos en la entrada de la cronología («con Ana, Luis…», extraTags de record.js ~línea 1489); (3) al guardar, registra copia de la reunión en la cronología de cada asistente (reutiliza saveAssociatedActivity de src/activity-associations.js con los asistentes como destinos, marcando associatedFrom como ya hace); (4) la edición de la reunión (openLogModal con activity) precarga los asistentes guardados; (5) respeta las reglas de asociación automática del resto de objetos sin duplicar entradas (saveAssociatedActivity ya deduplica por clave). Criterio de aceptación: smoke que programa una reunión desde un negocio eligiendo 2 contactos asistentes → la entrada aparece en la cronología del negocio y de ambos contactos con «con <nombres>»; editar la reunión conserva los asistentes; sin asistentes funciona como hoy. No despliegues nada a producción; solo código local."
+    },
+    {
+      "id": "gap-smoke-activity-actions-fijada",
+      "status": "pending",
+      "instruction": "smoke-activity-actions falla: AssertionError, el texto ya no coincide con /Fijada/ (la acción de fijar actividad cambió de etiqueta o desapareció). Criterio: la prueba pasa. Determina si es regresión del código o prueba desactualizada por un cambio intencional reciente (revisa git log de los últimos 2 días) y corrige lo que corresponda. Ejecuta la prueba con node scripts/<smoke>.mjs hasta que pase. No despliegues nada a producción; solo código local.",
+      "createdAt": "2026-11-21T22:22:11-06:00",
+      "lane": "claude"
+    },
+    {
+      "id": "gap-smoke-call-transcription-nulo",
+      "status": "pending",
+      "instruction": "smoke-call-transcription falla: TypeError «Cannot read properties of null (reading textContent)» — un elemento que la prueba busca ya no existe tras los cambios recientes en llamadas. Criterio: la prueba pasa. Determina si es regresión del código o prueba desactualizada por un cambio intencional reciente (revisa git log de los últimos 2 días) y corrige lo que corresponda. Ejecuta la prueba con node scripts/<smoke>.mjs hasta que pase. No despliegues nada a producción; solo código local.",
+      "createdAt": "2026-11-21T22:22:11-06:00",
+      "lane": "codex"
+    },
+    {
+      "id": "gap-smoke-connected-emails-flujo",
+      "status": "pending",
+      "instruction": "smoke-connected-emails falla al final del flujo (wizard OK; deactivate → error de conexión → reconnect → removed). Criterio: la prueba pasa. Determina si es regresión del código o prueba desactualizada por un cambio intencional reciente (revisa git log de los últimos 2 días) y corrige lo que corresponda. Ejecuta la prueba con node scripts/<smoke>.mjs hasta que pase. No despliegues nada a producción; solo código local.",
+      "createdAt": "2026-11-21T22:22:11-06:00",
+      "lane": "claude"
+    },
+    {
+      "id": "gap-smoke-dark-theme-fondos",
+      "status": "pending",
+      "instruction": "smoke-dark-theme falla: quedan fondos claros sin override de tema oscuro (la prueba lista cuáles al correrla). Relacionado con 527ac39. Criterio: la prueba pasa. Determina si es regresión del código o prueba desactualizada por un cambio intencional reciente (revisa git log de los últimos 2 días) y corrige lo que corresponda. Ejecuta la prueba con node scripts/<smoke>.mjs hasta que pase. No despliegues nada a producción; solo código local.",
+      "createdAt": "2026-11-21T22:22:11-06:00",
+      "lane": "codex"
+    },
+    {
+      "id": "gap-smoke-empty-states-inbox",
+      "status": "pending",
+      "instruction": "smoke-empty-states falla: «inbox thread pane: no .estate» — el panel de hilo de la bandeja ya no usa .estate para el estado vacío (posible regresión del editor 36f4a8a). Criterio: la prueba pasa. Determina si es regresión del código o prueba desactualizada por un cambio intencional reciente (revisa git log de los últimos 2 días) y corrige lo que corresponda. Ejecuta la prueba con node scripts/<smoke>.mjs hasta que pase. No despliegues nada a producción; solo código local.",
+      "createdAt": "2026-11-21T22:22:11-06:00",
+      "lane": "claude"
+    },
+    {
+      "id": "gap-smoke-links-tarjeta",
+      "status": "pending",
+      "instruction": "smoke-links falla: «record card should show the links» — la tarjeta del registro no muestra los enlaces. Criterio: la prueba pasa. Determina si es regresión del código o prueba desactualizada por un cambio intencional reciente (revisa git log de los últimos 2 días) y corrige lo que corresponda. Ejecuta la prueba con node scripts/<smoke>.mjs hasta que pase. No despliegues nada a producción; solo código local.",
+      "createdAt": "2026-11-21T22:22:11-06:00",
+      "lane": "codex"
+    },
+    {
+      "id": "gap-smoke-report-library-valores",
+      "status": "pending",
+      "instruction": "smoke-report-library falla: AssertionError de valores (deep-equal) tras el commit c856d83 de biblioteca de informes. Criterio: la prueba pasa. Determina si es regresión del código o prueba desactualizada por un cambio intencional reciente (revisa git log de los últimos 2 días) y corrige lo que corresponda. Ejecuta la prueba con node scripts/<smoke>.mjs hasta que pase. No despliegues nada a producción; solo código local.",
+      "createdAt": "2026-11-21T22:22:11-06:00",
+      "lane": "claude"
+    },
+    {
+      "id": "gap-smoke-sequence-backfill-conteo",
+      "status": "pending",
+      "instruction": "smoke-sequence-backfill falla: AssertionError de igualdad estricta (conteo o valor del backfill de secuencias). Criterio: la prueba pasa. Determina si es regresión del código o prueba desactualizada por un cambio intencional reciente (revisa git log de los últimos 2 días) y corrige lo que corresponda. Ejecuta la prueba con node scripts/<smoke>.mjs hasta que pase. No despliegues nada a producción; solo código local.",
+      "createdAt": "2026-11-21T22:22:11-06:00",
+      "lane": "codex"
+    },
+    {
+      "id": "gap-smoke-sequences-timeline",
+      "status": "pending",
+      "instruction": "smoke-sequences falla: «timeline: Actividad» — la entrada de secuencia en la línea de tiempo ya no coincide (posible cambio por ebc2fc6). Criterio: la prueba pasa. Determina si es regresión del código o prueba desactualizada por un cambio intencional reciente (revisa git log de los últimos 2 días) y corrige lo que corresponda. Ejecuta la prueba con node scripts/<smoke>.mjs hasta que pase. No despliegues nada a producción; solo código local.",
+      "createdAt": "2026-11-21T22:22:11-06:00",
+      "lane": "claude"
+    },
+    {
+      "id": "gap-smoke-task-recurrence-siguiente",
+      "status": "pending",
+      "instruction": "smoke-task-recurrence falla: «list checkbox completes and spawns next (+7)» — completar una tarea recurrente ya no genera la siguiente. Criterio: la prueba pasa. Determina si es regresión del código o prueba desactualizada por un cambio intencional reciente (revisa git log de los últimos 2 días) y corrige lo que corresponda. Ejecuta la prueba con node scripts/<smoke>.mjs hasta que pase. No despliegues nada a producción; solo código local.",
+      "createdAt": "2026-11-21T22:22:11-06:00",
+      "lane": "codex"
+    },
+    {
+      "id": "gap-smoke-timeline-negocio-contacto",
+      "status": "pending",
+      "instruction": "smoke-timeline falla en «deal creation on the contact»: tras ebc2fc6 (ciclo de vida), al crear un negocio la línea de tiempo del contacto muestra «Etapa del ciclo de vida cambiada a «Oportunidad»…». Actualiza la prueba si el nuevo comportamiento es correcto, o corrige el código si se perdió la entrada original. Criterio: la prueba pasa. Determina si es regresión del código o prueba desactualizada por un cambio intencional reciente (revisa git log de los últimos 2 días) y corrige lo que corresponda. Ejecuta la prueba con node scripts/<smoke>.mjs hasta que pase. No despliegues nada a producción; solo código local.",
+      "createdAt": "2026-11-21T22:22:11-06:00",
+      "lane": "claude"
     }
   ]
 }
