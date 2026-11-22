@@ -191,8 +191,9 @@ function paneGeneral() {
 }
 function tabActividades() {
   const rules = load(ACTIVITY_RULES_SETTING, {});
+  const primaryOnly = OBJECTS.slice(0, 4).every(([type]) => Object.keys(ACTIVITY_KINDS).every(kind => activityRule(rules, type, kind) === 'primary'));
   return `<h3>Actividades</h3><form class="gform" data-save="activity-associations">
-    <label><input type="checkbox" name="company" ${load(ACTIVITY_COMPANY_SETTING, true) ? 'checked' : ''} /> Asociar por defecto las actividades a la empresa principal</label>
+    <label><input type="checkbox" name="company" ${primaryOnly ? 'checked' : ''} /> Asociar por defecto las actividades a la empresa principal</label>
     <p class="muted">La casilla aplica empresa principal o ninguna a toda la tabla. Puedes ajustar cada regla y cambiar las asociaciones al registrar cada actividad. El contacto destino de llamadas y correos siempre queda asociado.</p>
     <div style="overflow-x:auto"><table class="table"><thead><tr><th>Tipo de actividad</th>${OBJECTS.slice(0, 4).map(([, label]) => `<th>${label}</th>`).join('')}</tr></thead><tbody>
     ${Object.entries(ACTIVITY_KINDS).map(([kind, label]) => `<tr><th>${label}</th>${OBJECTS.slice(0, 4).map(([type, title]) => `<td><select name="rule-${type}-${kind}" aria-label="${title}: ${label}">${Object.entries(ACTIVITY_RULE_OPTIONS).map(([value, text]) => `<option value="${value}" ${value === (activityRule(rules, type, kind) || 'all') ? 'selected' : ''}>${text}</option>`).join('')}</select></td>`).join('')}</tr>`).join('')}
@@ -1501,8 +1502,14 @@ async function saveProperty(type, existingKey) {
 
 // ---------- events ----------
 root.addEventListener('change', (e) => {
-  if (!e.target.matches('form[data-save="activity-associations"] input[name="company"]')) return;
-  e.target.form.querySelectorAll('select[name^="rule-"]').forEach(select => { select.value = e.target.checked ? 'primary' : 'none'; });
+  const form = e.target.closest('form[data-save="activity-associations"]');
+  if (!form) return;
+  const selects = [...form.querySelectorAll('select[name^="rule-"]')];
+  if (e.target.matches('input[name="company"]')) {
+    selects.forEach(select => { select.value = e.target.checked ? 'primary' : 'none'; });
+  } else if (e.target.matches('select[name^="rule-"]')) {
+    form.elements.company.checked = selects.every(select => select.value === 'primary');
+  }
 });
 window.addEventListener('hashchange', () => { setSection(location.hash.slice(1)); render(); });
 root.addEventListener('submit', (e) => {
