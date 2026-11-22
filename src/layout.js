@@ -208,10 +208,51 @@ function openPropsPicker(id) {
   const aboutProps = recordAbout ? (loadCardProps(type) || {}).keys || [] : null;
   const chosen = isNew ? [] : id === 'about' ? (recordAbout ? aboutProps : layout.props) : (card && card.props) || [];
   const nameField = isNew || card ? `<label class="field"><span>Nombre de la tarjeta</span><input id="l-pp-name" type="text" maxlength="60" value="${esc(card ? card.label : 'Propiedades clave')}" /></label>` : '';
-  openModal(isNew ? 'Nueva tarjeta de propiedades' : `Propiedades de "${(catalogOf(id) || {}).label || id}"`, `${nameField}<p class="muted">Marca las propiedades que aparecen en la tarjeta; se muestran en este orden.</p><input class="ginput" type="search" id="l-pp-q" placeholder="Buscar propiedad" /><div class="ocardgrid ocardgrid--modal" id="l-pp">${[...chosen.map((k) => all.find((p) => p.key === k) || { key: k, label: k }), ...all.filter((p) => !chosen.includes(p.key))].slice(0, 400).map((p) => `<label class="ocheck ocheck--sm" data-name="${esc(p.label.toLowerCase())}"><input type="checkbox" value="${esc(p.key)}" ${chosen.includes(p.key) ? 'checked' : ''} /><span>${esc(p.label)}</span></label>`).join('')}</div>`, `<button class="btn btn--primary" type="button" id="l-pp-ok">${isNew ? 'Crear tarjeta' : 'Aplicar'}</button><button class="btn btn--ghost" type="button" data-close>Cancelar</button>`);
+  // Keep the draft separate from the saved layout and from the catalog's DOM order.
+  const selected = [...new Set(chosen)];
+  const labels = new Map(all.map((p) => [p.key, p.label]));
+  const options = [...selected.map((key) => ({ key, label: labels.get(key) || key })), ...all.filter((p) => !selected.includes(p.key))];
+  openModal(isNew ? 'Nueva tarjeta de propiedades' : `Propiedades de "${(catalogOf(id) || {}).label || id}"`, `${nameField}<p class="muted">Marca las propiedades que aparecen en la tarjeta y usa las flechas para ordenar las seleccionadas.</p><input class="ginput" type="search" id="l-pp-q" placeholder="Buscar propiedad" aria-label="Buscar propiedad" /><div class="ocardgrid ocardgrid--modal" id="l-pp">${options.map((p) => `<label class="ocheck ocheck--sm" data-name="${esc(p.label.toLowerCase())}"><input type="checkbox" value="${esc(p.key)}" ${selected.includes(p.key) ? 'checked' : ''} /><span>${esc(p.label)}</span></label>`).join('')}</div><h3 class="cardprops__h" id="l-pp-heading"></h3><ul class="coled__selected cardprops__selected" id="l-pp-selected" aria-labelledby="l-pp-heading"></ul>`, `<button class="btn btn--primary" type="button" id="l-pp-ok">${isNew ? 'Crear tarjeta' : 'Aplicar'}</button><button class="btn btn--ghost" type="button" data-close>Cancelar</button>`);
+  const selectedList = document.getElementById('l-pp-selected');
+  const renderSelected = () => {
+    document.getElementById('l-pp-heading').textContent = `Propiedades seleccionadas (${selected.length}): se muestran en este orden`;
+    selectedList.innerHTML = selected.map((key, i) => `<li class="colsel" data-index="${i}">
+      <span class="colsel__label">${esc(labels.get(key) || key)}</span>
+      <span class="colsel__btns"><button type="button" data-pp-move="-1" ${i === 0 ? 'disabled' : ''} aria-label="Subir ${esc(labels.get(key) || key)}">▲</button><button type="button" data-pp-move="1" ${i === selected.length - 1 ? 'disabled' : ''} aria-label="Bajar ${esc(labels.get(key) || key)}">▼</button><button type="button" data-pp-remove aria-label="Quitar ${esc(labels.get(key) || key)}">×</button></span>
+    </li>`).join('');
+  };
+  renderSelected();
+  document.getElementById('l-pp').onchange = (ev) => {
+    const input = ev.target;
+    if (!input.matches('input[type="checkbox"]')) return;
+    const index = selected.indexOf(input.value);
+    if (input.checked && index < 0) selected.push(input.value);
+    else if (!input.checked && index >= 0) selected.splice(index, 1);
+    renderSelected();
+  };
+  selectedList.onclick = (ev) => {
+    const button = ev.target.closest('button');
+    if (!button || button.disabled) return;
+    const index = Number(button.closest('[data-index]').dataset.index);
+    let focusIndex = index;
+    if (button.hasAttribute('data-pp-remove')) {
+      const [key] = selected.splice(index, 1);
+      document.querySelectorAll('#l-pp input').forEach((input) => { if (input.value === key) input.checked = false; });
+      focusIndex = Math.min(index, selected.length - 1);
+    } else {
+      focusIndex = index + Number(button.dataset.ppMove);
+      if (focusIndex < 0 || focusIndex >= selected.length) return;
+      [selected[index], selected[focusIndex]] = [selected[focusIndex], selected[index]];
+    }
+    renderSelected();
+    // Restore keyboard focus after rebuilding the selected rows.
+    const row = selectedList.children[focusIndex];
+    const action = button.hasAttribute('data-pp-remove') ? '[data-pp-remove]' : `[data-pp-move="${button.dataset.ppMove}"]:not(:disabled)`;
+    (row?.querySelector(action) || row?.querySelector('button:not(:disabled)') || document.getElementById('l-pp-q')).focus();
+  };
   document.getElementById('l-pp-q').oninput = (ev) => { const q = ev.target.value.trim().toLowerCase(); document.querySelectorAll('#l-pp label').forEach((l) => { l.hidden = Boolean(q) && !l.dataset.name.includes(q); }); };
   document.getElementById('l-pp-ok').onclick = () => {
-    const keys = [...document.querySelectorAll('#l-pp input:checked')].map((i) => i.value);
+    const keys = [...selected];
     const nameEl = document.getElementById('l-pp-name');
     const label = nameEl ? nameEl.value.trim() || 'Propiedades' : '';
     if (recordAbout) {

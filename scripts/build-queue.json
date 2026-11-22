@@ -1755,10 +1755,12 @@
     },
     {
       "id": "gap-ui-preview-props-sin-reordenar",
-      "status": "pending",
+      "status": "done",
       "lane": "codex",
       "createdAt": "2026-11-22T02:13:47-06:00",
-      "instruction": "PICKER SIN REORDENAR (editor de personalización, ficha y vista previa de los 4 módulos): el selector de propiedades de las tarjetas (src/layout.js:200-232, openPropsPicker — lo usan la tarjeta «Acerca de» de la ficha, la «Datos Generales» de la vista previa y las tarjetas de propiedades personalizadas pcard-*) dice «se muestran en este orden», pero NO ofrece forma de reordenar: las marcadas conservan su posición anterior y las nuevas se añaden al final en orden de catálogo (línea 209: chosen primero, luego el resto; el guardado lee los checkbox en orden DOM, línea 212). El editor equivalente de la propia ficha (src/record.js:589-598) sí tiene botones ▲▼ por propiedad. HubSpot permite reordenar las propiedades seleccionadas (flechas o arrastre) antes de aplicar. Arreglo: añade a ese picker la misma lista de seleccionadas con ▲▼/arrastre (reutiliza el patrón de renderCardEditor) y guarda keys en ese orden. Criterio de aceptación: en el editor de vista previa, edita «Datos Generales», reordena dos propiedades, Aplicar + Guardar: el panel de vista previa de la lista las muestra exactamente en ese orden tras recargar. No despliegues nada a producción; solo código local."
+      "instruction": "PICKER SIN REORDENAR (editor de personalización, ficha y vista previa de los 4 módulos): el selector de propiedades de las tarjetas (src/layout.js:200-232, openPropsPicker — lo usan la tarjeta «Acerca de» de la ficha, la «Datos Generales» de la vista previa y las tarjetas de propiedades personalizadas pcard-*) dice «se muestran en este orden», pero NO ofrece forma de reordenar: las marcadas conservan su posición anterior y las nuevas se añaden al final en orden de catálogo (línea 209: chosen primero, luego el resto; el guardado lee los checkbox en orden DOM, línea 212). El editor equivalente de la propia ficha (src/record.js:589-598) sí tiene botones ▲▼ por propiedad. HubSpot permite reordenar las propiedades seleccionadas (flechas o arrastre) antes de aplicar. Arreglo: añade a ese picker la misma lista de seleccionadas con ▲▼/arrastre (reutiliza el patrón de renderCardEditor) y guarda keys en ese orden. Criterio de aceptación: en el editor de vista previa, edita «Datos Generales», reordena dos propiedades, Aplicar + Guardar: el panel de vista previa de la lista las muestra exactamente en ese orden tras recargar. No despliegues nada a producción; solo código local.",
+      "completedAt": "2026-11-22T04:06:48-0600",
+      "completedBy": "codex"
     },
     {
       "id": "gap-ui-tablero-guardar-falso",
