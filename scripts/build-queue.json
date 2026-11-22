@@ -2,6 +2,13 @@
   "project": "/Users/fernandolovera/Documents/Craft Anything/app-hubspot-com",
   "queue": [
     {
+      "id": "gap-ui-texto-vertical-tarjetas-asociadas",
+      "status": "pending",
+      "lane": "claude",
+      "createdAt": "2026-11-22T15:09:16.494Z",
+      "instruction": "REPORTE DIRECTO DEL USUARIO (22-nov, 8:56 am, con captura): en la ficha de contacto (/contacts/record/?id=1), las tarjetas de «Negocios (2)» del panel derecho muestran la etiqueta «Etapa del negocio:» EN VERTICAL, letra por letra. El usuario pide corregirlo y revisar dónde más pasa lo mismo en TODA la app.\n\nDIAGNÓSTICO YA HECHO (verifícalo y aplica el fix):\n- Causa: commit 23e3a5d («etiquetas de asociación ya no se salen de las tarjetas») agregó en src/app.css (~línea 20025):\n  .assoc-card__head, .assoc-card__row { min-width: 0; overflow-wrap: anywhere; }\n- overflow-wrap es HEREDABLE: el <span class=\"muted\">Etapa del negocio:</span> dentro de .assoc-card__row (display:flex) hereda anywhere, su min-content colapsa al ancho de UN carácter, flex lo encoge a ese mínimo y el texto se apila letra por letra. Mismo riesgo en .assoc-card__head a (nombres apilados).\n- En src/app.css hay 19 ocurrencias de «overflow-wrap: anywhere»: revisa CADA una y verifica en el navegador (build local) que no produzcan texto vertical/carácter por carácter en: tarjetas asociadas de los 4 módulos (Contactos, Empresas, Negocios, Tickets), paneles laterales de vista previa, listas/tablas, kanban y cualquier etiqueta .muted dentro de filas flex.\n\nFIX ESPERADO (criterio, no literal): mantener la protección contra desbordes pero impedir que las ETIQUETAS se rompan por carácter — p. ej. la etiqueta con flex-shrink:0 / white-space:nowrap / overflow-wrap:normal, y que sea el VALOR (select, enlace) quien tenga min-width:0 y flex:1 1 auto. En tarjetas angostas el valor puede pasar a su propia línea (flex-wrap) pero la etiqueta nunca se apila.\n\nVERIFICACIÓN OBLIGATORIA: levanta el build local, abre la ficha de un contacto con negocios asociados y confirma visualmente (screenshot o DOM) que «Etapa del negocio:» se lee horizontal en una sola línea, en panel derecho angosto y ancho. Repite en las fichas de Empresa, Negocio y Ticket.\n\nTermina con: No despliegues nada a producción; solo código local."
+    },
+    {
       "id": "gap-ui-preview-boton-cierra-panel",
       "status": "done",
       "lane": "claude",
@@ -2124,10 +2131,12 @@
     },
     {
       "id": "gap-smoke-record-inline-pinned",
-      "status": "pending",
+      "status": "done",
       "instruction": "smoke-record-inline: «the customised card should show the chosen properties in order after the pinned subscription fields» — la tarjeta personalizada no respeta el orden tras los campos fijados. OBLIGATORIO: ejecuta node scripts/<smoke>.mjs DESPUÉS de tu cambio e itera hasta que termine con código 0; no des por terminado sin verificarlo. Si el fallo es una limitación del harness jsdom (API de navegador inexistente), agrega el shim en la prueba, no cambies la app para complacer al harness. No despliegues nada a producción; solo código local.",
       "createdAt": "2026-11-22T08:22:54-06:00",
-      "lane": "claude"
+      "lane": "claude",
+      "completedAt": "2026-11-22T09:10:26-0600",
+      "completedBy": "claude"
     },
     {
       "id": "gap-smoke-report-library-valores",

@@ -39,8 +39,12 @@ const imported = data.addRecord('contacts', { first: 'Imp', last: 'Ortado', name
 if (!sys('contacts', imported.id).some((a) => /creado a partir de Importación/.test(a.text))) fail('origin from the import');
 const company = data.allCompanies()[2];
 const deal = data.addRecord('deals', { name: 'Fachada Cronología', amount: 1000, stage: 'oferta', pipeline: 'FUERZA DE VENTAS', contactId: contact.id, companyId: company.id, company: company.name, owner: 'Fernando L.', closeDate: data.TODAY.toISOString(), created: data.TODAY.toISOString(), lastActivity: data.TODAY.toISOString() });
-log('deal created → contact:', sys('contacts', contact.id)[0].text, '| company:', sys('companies', company.id)[0].text);
-if (!/Negocio «Fachada Cronología» creado y asociado a este contacto/.test(sys('contacts', contact.id)[0].text)) fail('deal creation on the contact');
+const contactEntries = sys('contacts', contact.id);
+log('deal created → contact:', contactEntries.map((a) => a.text).join(' | '), '| company:', sys('companies', company.id).map((a) => a.text).join(' | '));
+// Lifecycle automation runs after the association entry, so creation need not be first.
+if (contactEntries.filter((a) => a.text === 'Negocio «Fachada Cronología» creado y asociado a este contacto.' && a.deals === deal.id).length !== 1) fail('deal creation on the contact');
+if (contactEntries.filter((a) => a.text === 'Etapa del ciclo de vida cambiada a «Oportunidad» por el negocio «Fachada Cronología».' && a.deal === deal.id).length !== 1 || data.findContact(contact.id)?.lifecycle !== 'Oportunidad') fail('deal lifecycle advancement on the contact');
+if (sys('companies', company.id).filter((a) => a.text === 'Negocio «Fachada Cronología» creado y asociado a esta empresa.' && a.deals === deal.id).length !== 1) fail('deal creation on the company');
 data.setField('deals', deal.id, 'stage', 'evalua');
 log('stage change → deal:', sys('deals', deal.id)[0].text, '| contact:', sys('contacts', contact.id)[0].text, '| company:', sys('companies', company.id)[0].text);
 if (sys('deals', deal.id)[0].text !== 'Etapa cambiada a «Evalua».' || !/pasó a la etapa «Evalua»/.test(sys('contacts', contact.id)[0].text) || !/pasó a la etapa «Evalua»/.test(sys('companies', company.id)[0].text)) fail('stage change entries');
