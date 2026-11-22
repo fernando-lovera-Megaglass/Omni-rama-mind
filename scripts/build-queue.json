@@ -1197,10 +1197,11 @@
     },
     {
       "id": "gap-ui-negocios-elementos-pedido-editar",
-      "status": "pending",
+      "status": "done",
       "createdAt": "2026-11-21T05:25:00-06:00",
       "lane": "claude",
-      "instruction": "LÓGICA (Negocios; impacto medio-alto). HubSpot: la tarjeta de elementos de línea del negocio permite, después de crearlo, añadir líneas, editar cantidad y precio, reordenar y quitar; el importe del negocio se recalcula desde las líneas. Omni HOY: la tarjeta «Elementos de pedido» de la ficha del negocio (src/record.js ~líneas 1200-1216) es de SOLO LECTURA: pinta la tabla de deal_line_items y, si está vacía, dice «Se añaden al crear el negocio»; no hay forma de agregar, editar ni quitar líneas desde la ficha y el importe del negocio no se recalcula. Pasos: 1) En la tarjeta, «+ Agregar elemento de pedido» con fila editable (producto, cantidad, precio; importe calculado) y, por línea existente, edición inline y quitar con confirmación. 2) Persistir con addLineItems y nuevos updateLineItem/removeLineItem en src/data.js (UPDATE/DELETE en deal_line_items con Supabase y en localStorage en modo local). 3) Al cambiar las líneas, actualizar el importe del negocio con el total (setField amount) y registrar entrada en la cronología («Elementos de pedido actualizados: total MX$…»). 4) La tabla, el total y el importe se recalculan al instante y tras recargar la ficha. Criterio de aceptación: en un negocio existente, agregar una línea de 2×$500 → la tabla la muestra, el total sube, el importe del negocio se actualiza y la cronología lo registra; quitarla lo revierte todo. No despliegues nada a producción; solo código local."
+      "instruction": "LÓGICA (Negocios; impacto medio-alto). HubSpot: la tarjeta de elementos de línea del negocio permite, después de crearlo, añadir líneas, editar cantidad y precio, reordenar y quitar; el importe del negocio se recalcula desde las líneas. Omni HOY: la tarjeta «Elementos de pedido» de la ficha del negocio (src/record.js ~líneas 1200-1216) es de SOLO LECTURA: pinta la tabla de deal_line_items y, si está vacía, dice «Se añaden al crear el negocio»; no hay forma de agregar, editar ni quitar líneas desde la ficha y el importe del negocio no se recalcula. Pasos: 1) En la tarjeta, «+ Agregar elemento de pedido» con fila editable (producto, cantidad, precio; importe calculado) y, por línea existente, edición inline y quitar con confirmación. 2) Persistir con addLineItems y nuevos updateLineItem/removeLineItem en src/data.js (UPDATE/DELETE en deal_line_items con Supabase y en localStorage en modo local). 3) Al cambiar las líneas, actualizar el importe del negocio con el total (setField amount) y registrar entrada en la cronología («Elementos de pedido actualizados: total MX$…»). 4) La tabla, el total y el importe se recalculan al instante y tras recargar la ficha. Criterio de aceptación: en un negocio existente, agregar una línea de 2×$500 → la tabla la muestra, el total sube, el importe del negocio se actualiza y la cronología lo registra; quitarla lo revierte todo. No despliegues nada a producción; solo código local.",
+      "completedAt": "2026-11-21T20:37:06-0600"
     },
     {
       "id": "gap-ui-toast-ver-registro",
@@ -1348,12 +1349,10 @@
     },
     {
       "id": "gap-smoke-currency-registro",
-      "status": "done",
+      "status": "pending",
       "instruction": "smoke-currency falla en «record should show the new currency right away». Criterio: smoke-currency pasa. Ejecuta la(s) prueba(s) con node scripts/<smoke>.mjs hasta que pasen. Verifica si es regresión del código o prueba desactualizada por un cambio intencional; corrige lo que corresponda. No despliegues nada a producción; solo código local.",
       "createdAt": "2026-11-21T16:25:45-06:00",
-      "lane": "codex",
-      "completedAt": "2026-11-21T20:35:42-0600",
-      "completedBy": "codex"
+      "lane": "codex"
     },
     {
       "id": "gap-smoke-company-hierarchy-fila",
