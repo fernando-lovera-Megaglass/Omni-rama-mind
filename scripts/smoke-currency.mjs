@@ -6,6 +6,15 @@
 import { JSDOM } from 'jsdom';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
+import { performance } from 'node:perf_hooks';
+
+const waitFor = async (predicate, message) => {
+  const deadline = performance.now() + 1000;
+  while (!predicate()) {
+    if (performance.now() >= deadline) fail(message);
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  }
+};
 
 const here = dirname(fileURLToPath(import.meta.url));
 const log = (...a) => console.log('[currency]', ...a);
@@ -75,6 +84,9 @@ const sel = document.querySelector('#rec-props [data-edit="deal_currency_code"]'
 log('currency choices:', [...sel.options].map((o) => o.value).join('/'));
 sel.value = 'MXN';
 sel.closest('form').dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true }));
+// Saving awaits property validation; dispatchEvent does not await the async handler.
+// The existing record must update without reloading, once that validation completes.
+await waitFor(() => $('rec-sub').textContent.trim().startsWith('$'), 'record should show the new currency after validation without reloading');
 log('after change subtitle:', $('rec-sub').textContent, '| amount row:', document.querySelector('#rec-props .props__row[data-key="amount"] dd').textContent.replace(/\s+/g, ' ').trim());
 if (!$('rec-sub').textContent.trim().startsWith('$')) fail('record should show the new currency right away');
 const stored = data.allDeals().find((d) => Number(d.id) === Number(usd.id));
