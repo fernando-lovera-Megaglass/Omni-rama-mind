@@ -6348,6 +6348,20 @@ td.cell--hl .cell__pen {
   font-size: var(--fs-xs);
 }
 
+/* «@usuario» en notas y comentarios: la lista de usuarios con avatar (misma caja que los fragmentos) */
+.mention-ac__item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+}
+
+.mention-ac__avatar {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  font-size: 10px;
+}
+
 /* Editor de respuesta enriquecido (negrita, cursiva, lista, enlace, Insertar › plantilla / fragmento / documento) */
 .inbox__editor {
   min-height: 72px;

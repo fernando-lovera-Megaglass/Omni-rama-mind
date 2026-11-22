@@ -8,6 +8,8 @@ import { ready as templatesReady, templates as savedTemplates, resolveTokens, re
 import { ready as snippetsReady, snippets as savedSnippets } from './snippets-data.js';
 import { renderTokens, contextFromRecord, insertAtCaret, trackCaret } from './tokens.js';
 import { attachSnippetAutocomplete } from './snippet-autocomplete.js';
+import { attachMentionAutocomplete, mentionsIn } from './mention-autocomplete.js';
+import { notifyMentions } from './notifications.js';
 import { sanitizeHtml, isHtml, htmlToText, messageHtml, textToHtml, format as formatEditor, wrapSelection } from './rich-text.js';
 import { ownerHtml } from './owner.js';
 import { emptyStateHtml } from './empty-state.js';
@@ -499,7 +501,9 @@ root.addEventListener('submit', (e) => {
       // «Comentario»: internal, never leaves the CRM (no sendMessage, no Gmail), the thread keeps its status.
       const n = addInternalNote(state.activeId, { body, author: ME });
       if (!n) return;
-      toast('Comentario guardado');
+      const c = conversationById(state.activeId);
+      const mentioned = notifyMentions({ names: mentionsIn(plain).map((u) => u.name), recordName: `la conversación «${(c && c.subject) || ''}»`, excerpt: plain, href: `inbox/?id=${encodeURIComponent(state.activeId)}`, context: 'un comentario' });
+      toast(mentioned.length ? `Comentario guardado · ${mentioned.length === 1 ? `${mentioned[0].to} recibirá una notificación` : `${mentioned.length} personas recibirán una notificación`}` : 'Comentario guardado');
       renderAll();
       focusEditor();
       return;
