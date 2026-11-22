@@ -1490,9 +1490,9 @@ function assocHistoryRows() {
   return rows.sort((a, b) => new Date(b.when) - new Date(a.when));
 }
 
-const ICONS = { note: ACT_ICONS.note, email: ACT_ICONS.email, call: ACT_ICONS.call, created: ACT_ICONS.created, task: ACT_ICONS.task, meeting: ACT_ICONS.meeting, stage: ACT_ICONS.stage, prop: ACT_ICONS.prop, message: ACT_ICONS.sms, system: ACT_ICONS.system };
+const ICONS = { note: ACT_ICONS.note, email: ACT_ICONS.email, call: ACT_ICONS.call, created: ACT_ICONS.created, task: ACT_ICONS.task, meeting: ACT_ICONS.meeting, stage: ACT_ICONS.stage, assoc: ACT_ICONS.stage, prop: ACT_ICONS.prop, message: ACT_ICONS.sms, system: ACT_ICONS.system };
 // Title of a timeline entry by type (what the collapsed row shows first).
-const KIND_TITLE = { note: 'Nota', email: 'Correo', call: 'Llamada', created: 'Registro creado', task: 'Tarea', meeting: 'Reunión', stage: 'Asociación', prop: 'Propiedad actualizada', message: 'Mensaje', system: 'Actividad del sistema' };
+const KIND_TITLE = { note: 'Nota', email: 'Correo', call: 'Llamada', created: 'Registro creado', task: 'Tarea', meeting: 'Reunión', stage: 'Asociación', assoc: 'Asociación', prop: 'Propiedad actualizada', message: 'Mensaje', system: 'Actividad del sistema' };
 function sampleEvents() {
   const day = 86400000;
   const base = new Date(rec.created).getTime();

@@ -14055,6 +14055,18 @@ a.is-done {
   margin-left: var(--sp-8);
 }
 
+/* «Desasociar» on an association card row (src/record.js unlinkAssociation): visible on hover, like the pencils. */
+.assoc-card__unlink {
+  margin-left: auto;
+  font-size: var(--fs-xs);
+  opacity: 0;
+}
+
+.assoc-card:hover .assoc-card__unlink,
+.assoc-card__unlink:focus {
+  opacity: 1;
+}
+
 /* «Colaboradores» card of the record's left column (src/record.js leftCardHtml). */
 .collab {
   list-style: none;
