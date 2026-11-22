@@ -1588,10 +1588,12 @@
     },
     {
       "id": "gap-ui-revisar-asociaciones-error",
-      "status": "pending",
+      "status": "done",
       "lane": "codex",
       "createdAt": "2026-11-21T23:12:00-06:00",
-      "instruction": "BOTÓN ROTO (los 4 módulos; revienta con TypeError). En la ficha de registro (contactos, empresas, negocios y tickets usan el mismo src/record.js), el menú Acciones › «Revisar asociaciones» NO hace nada: el caso 'review-assoc' de src/record.js (~línea 1940) ejecuta `$('rec-assoc').scrollIntoView(...)` pero NO EXISTE ningún elemento con id=\"rec-assoc\" en todo src/ (la columna de asociaciones es <section class=\"record__right\" id=\"rec-right\"> y las tarjetas usan data-card), así que getElementById devuelve null y el clic lanza «TypeError: Cannot read properties of null (reading 'scrollIntoView')» en consola; el usuario no ve ninguna reacción. Cómo debe verse (HubSpot): «Revisar asociaciones» desplaza la vista hasta las tarjetas de asociación de la ficha y las resalta brevemente. Pasos: cambia el objetivo a '#rec-right' (o pon id=\"rec-assoc\" al contenedor de las tarjetas de asociación renderizadas por renderAssoc/renderRight), añade un resaltado temporal (clase CSS con timeout) y protege con guarda por si no existe. Criterio de aceptación: clic en «Revisar asociaciones» desde un contacto, una empresa, un negocio y un ticket → scroll suave a la columna derecha con las tarjetas resaltadas un instante, sin errores en consola. No despliegues nada a producción; solo código local."
+      "instruction": "BOTÓN ROTO (los 4 módulos; revienta con TypeError). En la ficha de registro (contactos, empresas, negocios y tickets usan el mismo src/record.js), el menú Acciones › «Revisar asociaciones» NO hace nada: el caso 'review-assoc' de src/record.js (~línea 1940) ejecuta `$('rec-assoc').scrollIntoView(...)` pero NO EXISTE ningún elemento con id=\"rec-assoc\" en todo src/ (la columna de asociaciones es <section class=\"record__right\" id=\"rec-right\"> y las tarjetas usan data-card), así que getElementById devuelve null y el clic lanza «TypeError: Cannot read properties of null (reading 'scrollIntoView')» en consola; el usuario no ve ninguna reacción. Cómo debe verse (HubSpot): «Revisar asociaciones» desplaza la vista hasta las tarjetas de asociación de la ficha y las resalta brevemente. Pasos: cambia el objetivo a '#rec-right' (o pon id=\"rec-assoc\" al contenedor de las tarjetas de asociación renderizadas por renderAssoc/renderRight), añade un resaltado temporal (clase CSS con timeout) y protege con guarda por si no existe. Criterio de aceptación: clic en «Revisar asociaciones» desde un contacto, una empresa, un negocio y un ticket → scroll suave a la columna derecha con las tarjetas resaltadas un instante, sin errores en consola. No despliegues nada a producción; solo código local.",
+      "completedAt": "2026-11-22T00:20:50-0600",
+      "completedBy": "codex"
     },
     {
       "id": "gap-ui-preview-seguir-falso",

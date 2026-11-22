@@ -14,7 +14,7 @@ import { suggestedKeep } from './duplicates.js';
 import { cancelScheduled, rescheduleEmail, scheduledById, datetimeInput as scheduledInput, whenText as scheduledWhen, timeZoneName as scheduledTz } from './scheduled-emails.js';
 import { attachMentionAutocomplete, mentionsIn } from './mention-autocomplete.js';
 import { segments, segmentMembers, segmentSize, addStaticMembers, removeStaticMembers, objectPlural } from './segments-data.js';
-import { notifyMentions, recordHref } from './notifications.js';
+import { notifyMentions, recordHref, ACTOR } from './notifications.js';
 import { sensitiveValue } from './property-privacy.js';
 import { mountActivityComments } from './activity-comments.js';
 // Generic record page for contacts, companies, deals, tickets and tasks.
@@ -187,6 +187,7 @@ const $ = (s) => document.getElementById(s);
 const mount = $('record-root');
 const props = propertyMap(type);
 let queueBar = null; // the task-queue bar on top of the page (mounted at the end, refreshed after saves)
+let assocHighlightTimer;
 
 // ---------- static layout ----------
 mount.innerHTML = `
@@ -827,7 +828,7 @@ function assocCard(title, rows, kind) {
             .map(
               (r) => `
           <div class="assoc-card${isTask && r.status === 'done' ? ' is-done' : ''}">
-            <div class="assoc-card__head">${head(r)}</div>
+            <div class="assoc-card__head">${head(r)}<button class="link-btn assoc-card__unlink" type="button" data-assoc-rm="${r.id}" data-kind="${kind}" title="Desasociar" aria-label="Desasociar ${esc(r.name)}">Desasociar</button></div>
             ${lines.map((k) => (kind === 'deals' && k === 'stage'
               ? `<div class="assoc-card__row"><span class="muted">${esc(kindLabel(kind, k))}:</span> <select class="acard-stage" data-deal-stage="${r.id}" aria-label="Etapa de ${esc(r.name)}">${stagesFor(r.pipeline).map((s) => `<option value="${esc(s[0])}" ${s[0] === r.stage ? 'selected' : ''}>${esc(s[1])}</option>`).join('')}</select></div>`
               : `<div class="assoc-card__row"><span class="muted">${esc(kindLabel(kind, k))}:</span> <a href="#">${esc(kindValue(kind, k, r))}</a> <button class="copy" type="button" data-copy="${esc(kindValue(kind, k, r))}" aria-label="Copiar">⧉</button></div>`)).join('')}
@@ -1430,10 +1431,63 @@ function saveAssociations(ids, labels) {
     }
   });
   rec = findRecord(type, id);
-  const names = ids.map((id2) => (byId(ALL[kind](), id2) || {}).name).filter(Boolean);
-  addEvent({ type: 'stage', when: Date.now(), who: 'Tú', text: `${KIND_META[kind].p} asociados: ${names.join(', ')}.` });
+  // One real association event per record (what «Ver historial de asociaciones» lists, with date and author).
+  const names = [];
+  ids.forEach((id2) => {
+    const other = byId(ALL[kind](), id2);
+    if (!other) return;
+    names.push(other.name);
+    logAssociation(kind, other, 'add', labels[id2] || 'Sin etiqueta');
+  });
   renderAll();
   toast(`${names.length} ${names.length === 1 ? KIND_META[kind].s.toLowerCase() : KIND_META[kind].p.toLowerCase()} asociad${names.length === 1 ? 'o' : 'os'}`);
+}
+// «Empresa asociada: X (Principal).» / «Contacto desasociado: Y.» — the entry carries what the history needs.
+const ASSOC_GENDER = { companies: 'a', tasks: 'a', contacts: 'o', deals: 'o', tickets: 'o' };
+function logAssociation(kind, other, op, label = '') {
+  const g = ASSOC_GENDER[kind] || 'o';
+  const tag = label && label !== 'Sin etiqueta' ? ` (${label})` : '';
+  addActivity({ type: 'assoc', recordType: type, recordId: id, when: Date.now(), who: 'Tú', text: `${KIND_META[kind].s} ${op === 'remove' ? 'desasociad' : 'asociad'}${g}: ${other.name}${op === 'remove' ? '' : tag}.`, extra: { kind, targetId: Number(other.id), targetName: other.name, op, label: label || '' } });
+}
+// «Desasociar» on a card row: drops the record from assoc_<kind> (and the simple foreign key that implied it),
+// logs the event and repaints.
+function unlinkAssociation(kind, otherId) {
+  const other = byId(ALL[kind](), otherId);
+  if (!other) return;
+  if (!window.confirm(`¿Desasociar «${other.name}» de ${cfg.title(rec)}?`)) return;
+  const oid = Number(other.id);
+  const lab = { ...(rec[`assoc_labels_${kind}`] || {}) };
+  const label = lab[oid] || lab[String(oid)] || other.assocLabel || 'Sin etiqueta';
+  delete lab[oid]; delete lab[String(oid)];
+  setField(type, rec.id, `assoc_${kind}`, (rec[`assoc_${kind}`] || []).map(Number).filter((x) => x !== oid));
+  setField(type, rec.id, `assoc_labels_${kind}`, lab);
+  if (type === 'contacts' && kind === 'companies' && Number(rec.companyId) === oid) { setField('contacts', rec.id, 'companyId', ''); setField('contacts', rec.id, 'company', ''); }
+  if (type === 'companies' && kind === 'contacts' && Number(other.companyId) === Number(rec.id)) { setField('contacts', oid, 'companyId', ''); setField('contacts', oid, 'company', ''); }
+  if (type === 'contacts' && ['deals', 'tickets', 'tasks'].includes(kind) && Number(other.contactId) === Number(rec.id)) { setField(kind, oid, 'contactId', ''); if (kind === 'tasks') setField(kind, oid, 'contact', ''); }
+  if (type === 'companies' && ['deals', 'tickets'].includes(kind) && Number(other.companyId) === Number(rec.id)) { setField(kind, oid, 'companyId', ''); setField(kind, oid, 'company', ''); }
+  if (['deals', 'tickets', 'tasks'].includes(type) && kind === 'contacts' && Number(rec.contactId) === oid) { setField(type, rec.id, 'contactId', ''); if (type === 'tasks') setField(type, rec.id, 'contact', ''); }
+  if (['deals', 'tickets'].includes(type) && kind === 'companies' && Number(rec.companyId) === oid) { setField(type, rec.id, 'companyId', ''); setField(type, rec.id, 'company', ''); }
+  rec = findRecord(type, id);
+  logAssociation(kind, other, 'remove', label);
+  renderAll();
+  toast(`${KIND_META[kind].s} desasociad${ASSOC_GENDER[kind] || 'o'}`);
+}
+// The rows of «Ver historial de asociaciones»: the real association / dissociation events (newest first),
+// plus the older «<Tipo> asociados: …» entries logged before the events carried their target.
+function assocHistoryRows() {
+  const who = (w) => (!w || w === 'Tú' ? ACTOR : w);
+  const rows = [];
+  activitiesFor(type, id).forEach((ev) => {
+    const x = ev.extra || {};
+    if (ev.type === 'assoc' && x.kind) {
+      const g = ASSOC_GENDER[x.kind] || 'o';
+      rows.push({ when: ev.when, who: who(ev.who), op: x.op === 'remove' ? 'remove' : 'add', kindLabel: (KIND_META[x.kind] || { s: x.kind }).s, name: x.targetName || '', href: x.targetId ? `${root}${x.kind}/record/?id=${x.targetId}` : '', action: x.op === 'remove' ? `Desasociad${g}` : `Asociad${g}` });
+    } else if (ev.type === 'stage') {
+      const m = /^([A-Za-zÁÉÍÓÚáéíóúñ]+) asociados: (.+)\.$/.exec(ev.text || '');
+      if (m) rows.push({ when: ev.when, who: who(ev.who), op: 'add', kindLabel: m[1], name: m[2], href: '', action: 'Asociado' });
+    }
+  });
+  return rows.sort((a, b) => new Date(b.when) - new Date(a.when));
 }
 
 const ICONS = { note: ACT_ICONS.note, email: ACT_ICONS.email, call: ACT_ICONS.call, created: ACT_ICONS.created, task: ACT_ICONS.task, meeting: ACT_ICONS.meeting, stage: ACT_ICONS.stage, prop: ACT_ICONS.prop, message: ACT_ICONS.sms, system: ACT_ICONS.system };
@@ -1928,21 +1982,35 @@ function runAction(act, data = {}) {
       break;
     }
     case 'assoc-history': {
-      const rows = cfg.assoc(rec).flatMap(([t, list]) => list.map((r) => [t, r.name]));
+      // Real events only (date and author of each association / dissociation); nothing is made up from the
+      // current associations or the record's creation date.
+      const rows = assocHistoryRows();
+      const current = cfg.assoc(rec).reduce((n, [, list]) => n + list.length, 0);
+      const undated = current ? ` Las asociaciones actuales anteriores a este historial no tienen fecha registrada.` : '';
       openModal(
         'Historial de asociaciones',
         rows.length
-          ? `<table class="mini-table"><thead><tr><th>Tipo</th><th>Registro</th><th>Acción</th><th>Fecha</th></tr></thead><tbody>${rows
-              .map(([t, n]) => `<tr><td>${t}</td><td>${esc(n)}</td><td>Asociado</td><td>${formatDate(rec.created)}</td></tr>`)
-              .join('')}</tbody></table>`
-          : '<p class="muted">Este registro no tiene asociaciones.</p>',
+          ? `<table class="mini-table assoc-history"><thead><tr><th>Tipo</th><th>Registro</th><th>Acción</th><th>Fecha</th><th>Usuario</th></tr></thead><tbody>${rows
+              .map((r) => `<tr data-assoc-op="${r.op}"><td>${esc(r.kindLabel)}</td><td>${r.href ? `<a href="${esc(r.href)}">${esc(r.name)}</a>` : esc(r.name)}</td><td>${esc(r.action)}</td><td>${esc(fmtTime(new Date(r.when)))}</td><td>${esc(r.who)}</td></tr>`)
+              .join('')}</tbody></table><p class="muted">${rows.length} ${rows.length === 1 ? 'evento' : 'eventos'}.${esc(undated)}</p>`
+          : `<p class="muted">Todavía no hay historial de asociaciones: se registra desde ahora cada vez que asocias o desasocias un registro.${current ? ` Las ${current} ${current === 1 ? 'asociación actual es anterior y no tiene' : 'asociaciones actuales son anteriores y no tienen'} fecha registrada.` : ''}</p>`,
       );
       break;
     }
-    case 'review-assoc':
-      $('rec-assoc').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    case 'review-assoc': {
+      const right = $('rec-right');
+      if (!right) break;
+      if (mount.querySelector('.record')?.classList.contains('is-side-collapsed')) {
+        localStorage.setItem(SIDE_KEY, 'open');
+        applySide();
+      }
+      right.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      clearTimeout(assocHighlightTimer);
+      right.classList.add('is-reviewing-assoc');
+      assocHighlightTimer = setTimeout(() => right.classList.remove('is-reviewing-assoc'), 2200);
       toast('Revisa las asociaciones en la columna derecha.');
       break;
+    }
     case 'summarize':
       renderAi();
       toast('Resumen actualizado');
@@ -2342,6 +2410,8 @@ if (!rec) {
       toast('Copiado');
       return;
     }
+    const arm = e.target.closest('[data-assoc-rm]');
+    if (arm) { unlinkAssociation(arm.dataset.kind, arm.dataset.assocRm); return; }
     const pp = e.target.closest('[data-parent-pick]');
     if (pp) { if (!pp.disabled) setParentCompany(pp.dataset.parentPick); return; }
     if (e.target.closest('[data-parent-clear]')) { setParentCompany(''); return; }

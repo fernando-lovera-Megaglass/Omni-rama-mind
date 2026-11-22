@@ -19873,6 +19873,12 @@ td[data-key="deal_tags"] .dtag {
 }
 
 /* ---------- Ficha: los textos largos no se salen de las tarjetas ---------- */
+.record__right.is-reviewing-assoc .card--assoc {
+  outline: 2px solid var(--c-link);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(0, 164, 189, 0.15);
+}
+
 .record__left,
 .record__middle,
 .record__right {
