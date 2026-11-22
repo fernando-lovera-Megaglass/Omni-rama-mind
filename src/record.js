@@ -12,6 +12,7 @@ import { validatePropertyValues, companyDomainPrefill, companyDomains, mergeReco
 import { suggestedKeep } from './duplicates.js';
 import { cancelScheduled, rescheduleEmail, scheduledById, datetimeInput as scheduledInput, whenText as scheduledWhen, timeZoneName as scheduledTz } from './scheduled-emails.js';
 import { attachMentionAutocomplete, mentionsIn } from './mention-autocomplete.js';
+import { segments, segmentMembers, segmentSize, addStaticMembers, removeStaticMembers, objectPlural } from './segments-data.js';
 import { notifyMentions, recordHref } from './notifications.js';
 import { sensitiveValue } from './property-privacy.js';
 import { mountActivityComments } from './activity-comments.js';
@@ -1702,11 +1703,7 @@ function runMore(kind, sub) {
       break;
     }
     case 'list':
-      openModal(
-        'Agregar a lista',
-        `<label class="field"><span>Lista</span><select id="list-name">${['Instaladores Florida', 'Clientes 2026', 'Arquitectos México', 'Boletín mensual'].map((s) => `<option>${s}</option>`).join('')}</select></label>`,
-        `<button class="btn btn--primary" type="button" data-confirm="list">Agregar</button><button class="btn btn--ghost" type="button" data-close>Cancelar</button>`,
-      );
+      openListMemberships();
       break;
     case 'reorder':
       openModal(
@@ -1845,6 +1842,39 @@ $('rec-modal').addEventListener('click', (e) => {
 });
 $('rec-modal').addEventListener('input', (e) => { if (e.target.id === 'merge-search') $('merge-results').innerHTML = mergeResultsHtml(e.target.value); });
 $('rec-modal').addEventListener('change', (e) => { if (e.target.name === 'merge-keep' && mergeState) { mergeState.keepId = Number(e.target.value); syncMergeDefaults(); } });
+
+// ---------- «Agregar a lista»: the record's memberships in the real segments of its object ----------
+// Static segments carry a checkbox (checking adds, unchecking removes: addStaticMembers / removeStaticMembers
+// persist and write the timeline); active segments are read-only: their criteria decide the membership.
+const segmentsOfRecord = () => segments().filter((s) => s.object === type);
+const inSegment = (s) => segmentMembers(s).some((m) => Number(m.id) === Number(rec.id));
+function listMembershipsHtml() {
+  const mine = segmentsOfRecord();
+  const statics = mine.filter((s) => s.type === 'static');
+  const actives = mine.filter((s) => s.type !== 'static');
+  const href = (s) => `../../segments/editor/?id=${encodeURIComponent(s.id)}`;
+  const count = (s) => `${segmentSize(s)} ${objectPlural(type)}`;
+  const staticItem = (s) => { const m = inSegment(s); return `<li class="listmem__item${m ? ' is-member' : ''}" data-seg="${esc(s.id)}"><label class="listmem__check"><input type="checkbox" data-seg-toggle="${esc(s.id)}" ${m ? 'checked' : ''} aria-label="${m ? 'Quitar de' : 'Agregar a'} ${esc(s.name)}" /><span><a href="${href(s)}">${esc(s.name)}</a> <span class="muted">· ${esc(count(s))}</span></span></label></li>`; };
+  const activeItem = (s) => { const m = inSegment(s); return `<li class="listmem__item listmem__item--active${m ? ' is-member' : ''}" data-seg="${esc(s.id)}"><span><a href="${href(s)}">${esc(s.name)}</a> <span class="muted">· ${esc(count(s))}</span></span><span class="tag ${m ? 'tag--done' : 'tag--none'}" data-seg-membership="${m ? 'member' : 'none'}">${m ? 'Miembro' : 'No miembro'}</span></li>`; };
+  return `<p class="muted">Las listas estáticas de ${esc(objectPlural(type))} se editan aquí: marca para agregar «${esc(cfg.title(rec))}», desmarca para quitarlo. Las listas activas se calculan solas con sus criterios.</p>
+    <h4 class="listmem__title">Listas estáticas</h4>
+    ${statics.length ? `<ul class="listmem" id="listmem-static">${statics.map(staticItem).join('')}</ul>` : `<p class="muted">No hay listas estáticas de ${esc(objectPlural(type))}. <a href="../../segments/">Crea una en CRM › Segmentos</a>.</p>`}
+    <h4 class="listmem__title">Listas activas <span class="muted">· solo lectura</span></h4>
+    ${actives.length ? `<ul class="listmem" id="listmem-active">${actives.map(activeItem).join('')}</ul>` : `<p class="muted">No hay listas activas de ${esc(objectPlural(type))}.</p>`}`;
+}
+function openListMemberships() {
+  openModal('Administrar membresías de lista', listMembershipsHtml(), '<a class="btn btn--ghost" href="../../segments/">Ver todos los segmentos</a><button class="btn btn--primary" type="button" data-close>Listo</button>');
+}
+$('rec-modal').addEventListener('change', (e) => {
+  const cb = e.target.closest && e.target.closest('[data-seg-toggle]');
+  if (!cb) return;
+  const seg = segments().find((s) => String(s.id) === String(cb.dataset.segToggle));
+  if (!seg || seg.type !== 'static') return;
+  if (cb.checked) { addStaticMembers(seg.id, [Number(rec.id)]); toast(`Agregado a «${seg.name}»`); }
+  else { removeStaticMembers(seg.id, [Number(rec.id)]); toast(`Quitado de «${seg.name}»`); }
+  $('rec-modal-body').innerHTML = listMembershipsHtml();
+  renderTimeline();
+});
 
 function runAction(act, data = {}) {
   const name = cfg.title(rec);
@@ -2139,10 +2169,6 @@ $('rec-modal').addEventListener('click', async (e) => {
     const done = r.steps.filter((s) => !s.pending).length;
     const waiting = r.run.estado === 'waiting' ? ` · continúa el ${workflowWhenText(r.run.proximaEjecucion)}` : '';
     toast(`Inscrito en «${r.workflow.name}» · ${done} ${done === 1 ? 'acción ejecutada' : 'acciones ejecutadas'}${waiting}`);
-  } else if (what === 'list') {
-    addEvent({ type: 'stage', when: Date.now(), who: 'Tú', text: `Agregado a la lista "${$('list-name').value}".` });
-    closeModal();
-    toast('Agregado a la lista');
   } else if (what === 'reorder') {
     saveJson(QUICK_ORDER_KEY, [...$('quick-order').querySelectorAll('.col-item')].map((li) => li.dataset.key));
     closeModal();

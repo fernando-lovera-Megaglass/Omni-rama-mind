@@ -1,5 +1,12 @@
 # Progreso — Omni CRM
 
+## 2026-11-22 (sesión 6) · Ficha: «Agregar a lista» administra membresías reales de los segmentos
+
+- `src/record.js`: el caso `list` abre «Administrar membresías de lista» sobre los segmentos reales del mismo objeto (`segments().filter(s => s.object === type)`): las listas estáticas con una casilla marcada según `segmentMembers(seg)` contenga el registro (marcar → `addStaticMembers`, desmarcar → `removeStaticMembers`, toast «Agregado a «X»» / «Quitado de «X»», modal y cronología refrescados), las listas activas en una sección aparte de solo lectura con la marca calculada «Miembro» / «No miembro»; cada segmento enlaza a `../../segments/editor/?id=<id>` y el pie a CRM › Segmentos; estados vacíos cuando no hay listas del objeto. Desaparecen los cuatro nombres ficticios y el confirmador que solo escribía en la cronología.
+- `src/segments-data.js`: `removeStaticMembers` deja «Quitado del segmento «X».» en la cronología de cada registro realmente quitado (la adición ya lo hacía). `src/app.css`: `.listmem*`.
+- Pruebas: `scripts/smoke-record-lists.mjs` (ficha de contacto con dos estáticas de contactos —una ya miembro—, dos activas y una estática de empresas: el modal lista solo las de contactos, casillas según membresía, activas con Miembro/No miembro sin casilla, enlaces; marcar «Instaladores VIP» → `memberIds`/tamaño 1, toast, cronología y la fila de CRM › Segmentos con tamaño 1 y el contacto entre sus miembros; al reabrir, desmarcar → tamaño 0, toast y cronología; la otra lista intacta; solo cambios reales registrados). Pasan segments, segment-events, record-merge, activity-comments.
+- Solo código local; nada desplegado.
+
 ## 2026-11-22 (sesión 6) · Llamadas: chip «Resultado de la llamada» entre Dirección y Actividad asignada
 
 - `src/calls.js`: el chip «Resultado de la llamada» (añadido con las vistas guardadas) pasa a su sitio, entre «Dirección» y «Actividad asignada a», con la misma mecánica de `filterChip`; sus opciones son la unión de los resultados de Twilio (`STATUS_LABEL`: Conectado, En curso, Sonando, En cola, Ocupado, Sin respuesta, Fallida, Cancelada, Iniciada), los resultados libres de las llamadas manuales presentes en las filas cargadas y el valor elegido, ordenadas; `filtered()` compara por igualdad de etiqueta. `load()` no toca el estado de filtros, así que recargar las filas conserva el resultado elegido y solo reconstruye las opciones. Se exporta `load` para las pruebas.

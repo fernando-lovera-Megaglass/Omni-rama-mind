@@ -9407,6 +9407,44 @@ textarea.cellpop__input {
   gap: var(--sp-8);
 }
 
+/* «Administrar membresías de lista» (ficha): listas estáticas con casilla, activas de solo lectura */
+.listmem {
+  list-style: none;
+  margin: 0 0 var(--sp-10);
+  padding: 0;
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-sm);
+}
+
+.listmem__title {
+  margin: var(--sp-10) 0 var(--sp-4);
+  font-size: var(--fs-sm);
+}
+
+.listmem__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-10);
+  padding: var(--sp-8) var(--sp-10);
+  border-top: 1px solid var(--c-border);
+}
+
+.listmem__item:first-child {
+  border-top: 0;
+}
+
+.listmem__item.is-member {
+  background: var(--c-soft);
+}
+
+.listmem__check {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  cursor: pointer;
+}
+
 .dup-list {
   list-style: none;
   margin: 0;

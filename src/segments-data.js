@@ -143,7 +143,10 @@ export function removeStaticMembers(id, recordIds) {
   const seg = segmentById(id);
   if (!seg) return null;
   const drop = new Set(recordIds.map(Number));
-  const ids = (seg.memberIds || []).map(Number).filter((x) => !drop.has(x));
+  const before = (seg.memberIds || []).map(Number);
+  const ids = before.filter((x) => !drop.has(x));
+  // Each record really removed gets an entry on its timeline (as the addition did).
+  before.filter((x) => drop.has(x)).forEach((rid) => logSystem(seg.object, rid, `Quitado del segmento «${seg.name}».`, { segment: seg.id }));
   return updateSegment(id, { memberIds: ids, size: ids.length });
 }
 export function cloneSegment(id) {
