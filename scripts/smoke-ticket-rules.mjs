@@ -41,7 +41,8 @@ await wait(60);
 click(q('[data-tpipe-edit="0"]'));
 await wait(30);
 const tabs = qa('[data-tpipe-sub]').map(text);
-if (tabs.join('|') !== 'Configurar|Reglas del pipeline|Automatizar') fail(`ticket pipeline tabs: ${tabs.join('|')}`);
+// the fourth tab, «Etiquetas de Ticket», is the object tags of tickets (src/ticket-tags-ui.js)
+if (tabs.join('|') !== 'Configurar|Reglas del pipeline|Automatizar|Etiquetas de Ticket') fail(`ticket pipeline tabs: ${tabs.join('|')}`);
 if (!q('form[data-save="ticketpipe-stages"]')) fail('Configurar keeps the statuses editor');
 click(q('[data-tpipe-sub="rules"]'));
 await wait(30);
