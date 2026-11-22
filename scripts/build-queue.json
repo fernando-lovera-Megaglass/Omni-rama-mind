@@ -2145,10 +2145,12 @@
     },
     {
       "id": "gap-smoke-sequence-backfill-conteo",
-      "status": "pending",
+      "status": "done",
       "instruction": "smoke-sequence-backfill: AssertionError de igualdad estricta en el conteo/valor del backfill. Ejecuta para ver el esperado vs actual. OBLIGATORIO: ejecuta node scripts/<smoke>.mjs DESPUÉS de tu cambio e itera hasta que termine con código 0; no des por terminado sin verificarlo. Si el fallo es una limitación del harness jsdom (API de navegador inexistente), agrega el shim en la prueba, no cambies la app para complacer al harness. No despliegues nada a producción; solo código local.",
       "createdAt": "2026-11-22T08:22:54-06:00",
-      "lane": "codex"
+      "lane": "codex",
+      "completedAt": "2026-11-22T09:00:32-0600",
+      "completedBy": "codex"
     },
     {
       "id": "gap-smoke-sequences-timeline",

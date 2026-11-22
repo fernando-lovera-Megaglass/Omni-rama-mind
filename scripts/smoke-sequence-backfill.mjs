@@ -5,7 +5,8 @@
 // the database leaves them due in the future (sequence_due no longer returns them), touches nothing else and is
 // harmless when run twice. The CLI (--from-json, --sql, --out) produces the same plan. Run: node scripts/smoke-sequence-backfill.mjs
 import assert from 'node:assert/strict';
-import { readFile, writeFile } from 'node:fs/promises';
+import { readFile, writeFile, mkdtemp, copyFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
@@ -88,11 +89,19 @@ assert.equal(planBackfill(await query(SELECT_ROWS), { now: NOW }).reschedule.len
 log('SQL: 26 updates aplicados → 0 vencidas (sequence_due vacío), terminales/pausada/futura/esperando intactas, segunda ejecución sin cambios');
 
 // ---- the CLI with --from-json / --sql / --out ----
-const jsonFile = resolve('/tmp', `cany-backfill-rows-${process.pid}.json`);
-const outFile = resolve('/tmp', `cany-backfill-${process.pid}.sql`);
+// Isolate the CLI from the real migration registry, management module and credentials.
+// A pending migration is a test fixture, not an assumption about deployment state.
+const cliDir = await mkdtemp(resolve(tmpdir(), 'cany-backfill-'));
+try {
+await copyFile(resolve(here, 'sequence-backfill.mjs'), resolve(cliDir, 'sequence-backfill.mjs'));
+await writeFile(resolve(cliDir, 'applied-migrations.json'), JSON.stringify({
+  'sequence-process.sql': { status: 'pendiente' },
+}));
+const jsonFile = resolve(cliDir, 'rows.json');
+const outFile = resolve(cliDir, 'backfill.sql');
 await writeFile(jsonFile, JSON.stringify(rows.map((r) => ({ ...r, next_step_at: r.next_step_at === null ? null : iso(r.next_step_at) }))));
 const run = (args, env = {}) => new Promise((done) => {
-  const child = spawn(process.execPath, [resolve(here, 'sequence-backfill.mjs'), ...args], { env: { PATH: process.env.PATH, ...env }, cwd: resolve(here, '..') });
+  const child = spawn(process.execPath, [resolve(cliDir, 'sequence-backfill.mjs'), ...args], { env: { PATH: process.env.PATH, ...env }, cwd: cliDir });
   let out = ''; let err = '';
   child.stdout.on('data', (c) => { out += c; });
   child.stderr.on('data', (c) => { err += c; });
@@ -117,5 +126,9 @@ r = await run([]);
 assert.equal(r.code, 1);
 assert.ok(/--from-json|--from-db/.test(r.err));
 log('CLI: --from-json/--start/--spacing/--sql/--out generan el mismo plan; --apply exige --yes y la migración aplicada');
+} finally {
+  await rm(cliDir, { recursive: true, force: true });
+  await db.close();
+}
 console.log('[backfill-smoke] OK');
 process.exit(0);
