@@ -1,5 +1,12 @@
 # Progreso — Omni CRM
 
+## 2026-11-22 (sesión 6) · Administrar vistas sin enlaces muertos; fechas con la zona horaria real del navegador
+
+- `src/manage-views.js`: la banda informativa ya no lleva «Haz clic para obtener más información ↗» ni «Enviar feedback» (eran `href="#"` sin destino; no hay base de conocimiento ni formulario de feedback propios). El aviso se mantiene.
+- `src/data.js`: `tzAbbr(d)` devuelve la abreviatura real de la zona del navegador para esa fecha (`Intl.DateTimeFormat` con `timeZoneName: 'short'`: «CST», «CET», «GMT+1»…). `src/settings.js` (`rvDate`, «Última actualización» de las vistas de registro y de vista previa), `src/integration.js` (`fmtWhen`, historial de importaciones) y `src/segments.js` (cabecera «Última actualización (…)») la usan en vez del sufijo fijo « CST».
+- Pruebas: `scripts/smoke-dead-links-tz.mjs` (Administrar vistas de los 4 módulos sin ningún `<a>` sin destino; las fechas de Configuración › Objetos, ejecutadas con `TZ=Europe/Madrid`, terminan en GMT+1/GMT+2 y nunca en CST, y con `TZ=America/Mexico_City` en CST); `scripts/smoke-segments.mjs` espera la abreviatura real en la cabecera. Smokes de vistas, segmentos, configuración, importación e integraciones en verde.
+- Solo código local; nada desplegado.
+
 ## 2026-11-22 (sesión 6) · Tablero de Negocios y Tickets: fuera el «Guardar» sin función; las etapas cargan todas sus tarjetas desde la columna
 
 - `src/list.js`: eliminado el pill «Guardar» del pie del tablero y su manejador (solo hacía `setPrefs({mode:'board'})` y un toast; mover tarjetas y ordenar etapas ya persisten al instante, como en el original, que no tiene ese botón).
