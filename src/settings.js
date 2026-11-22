@@ -20,7 +20,7 @@ import { listInvitations, invite, revoke, invitationsEnabled } from './invitatio
 import { currentUser, signInWithOtp, authMessage, authEnabled } from './auth.js';
 import { TEAMS, loadLayout, cardCatalog, loadViewsList, saveViewsList, resetLayout, resetPreview, layoutUpdatedAt, deleteViewLayout, savePreview } from './layout-defaults.js';
 import { STD_VIEWS, defaultTabs } from './std-views.js';
-import { getViewStore, TRASH_DAYS, userTeam } from './data.js';
+import { getViewStore, TRASH_DAYS, userTeam, tzAbbr } from './data.js';
 import { getSignature, setSignature, emailTemplates } from './compose.js';
 import { paneHtml as connectedEmailsPane, mountConnectedEmails } from './connected-emails-ui.js';
 import { paneChannels as paneIbChannels, paneInboxes as paneIbInboxes, paneAvailability as paneIbAvailability, paneSpam as paneIbSpam, mountInboxSettings } from './inbox-settings-ui.js';
@@ -1150,7 +1150,8 @@ const viewsKey = (type) => `crm:${type}:${viewsKind() === 'preview' ? 'previewvi
 const recordViews = (type) => loadViewsList(type, viewsKind(), (viewsKind() === 'preview' ? PV_SEEDS : RV_SEEDS)[type] || []);
 const saveRecordViews = (type, list) => saveViewsList(type, viewsKind(), list);
 const MONTHS_ES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
-const rvDate = (iso) => { const d = new Date(iso); return `${d.getDate()} de ${MONTHS_ES[d.getMonth()]}. de ${d.getFullYear()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')} CST`; };
+// «9 de dic. de 2024 16:28 CST»: local time with the browser's real zone abbreviation (none invented).
+const rvDate = (iso) => { const d = new Date(iso); return `${d.getDate()} de ${MONTHS_ES[d.getMonth()]}. de ${d.getFullYear()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')} ${tzAbbr(d)}`.trim(); };
 function objectRecordHtml(type) {
   const m = OBJ_META[type];
   const isPreview = viewsKind() === 'preview';

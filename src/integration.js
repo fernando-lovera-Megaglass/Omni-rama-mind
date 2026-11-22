@@ -3,7 +3,7 @@
 import { undoInfo, confirmUndoImport } from './import-engine.js';
 import { boot } from './page.js';
 import { wireMenus, closeMenus, toast } from './shell.js';
-import { OWNERS, TODAY, formatDate, initials, colorFor, strip } from './data.js';
+import { OWNERS, TODAY, formatDate, tzAbbr, initials, colorFor, strip } from './data.js';
 import { emptyStateHtml } from './empty-state.js';
 
 boot({ root: '../', active: 'data', sub: 'Integración de datos', title: 'Integración de datos' });
@@ -16,7 +16,8 @@ const ME = 'Fernando L.';
 const OBJECTS = [['contacts', 'Contactos'], ['companies', 'Empresas'], ['deals', 'Negocios'], ['tickets', 'Tickets'], ['tasks', 'Tareas']];
 const objectLabel = (t) => (OBJECTS.find((o) => o[0] === t) || [t, t])[1];
 const daysAgo = (n, h = 10) => { const d = new Date(TODAY.getTime() - n * 86400000); d.setHours(h, (n * 7) % 60, 0, 0); return d.toISOString(); };
-const fmtWhen = (iso) => { const d = new Date(iso); return `${formatDate(iso)} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')} CST`; };
+// Local time with the browser's real zone abbreviation (never a fixed «CST»).
+const fmtWhen = (iso) => { const d = new Date(iso); return `${formatDate(iso)} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')} ${tzAbbr(d)}`.trim(); };
 
 // ---------- stored imports, connected apps and chosen columns ----------
 const IMPORTS_KEY = 'crm:imports';

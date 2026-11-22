@@ -505,6 +505,11 @@ export function formatDateTime(d) {
   if (Number.isNaN(x.getTime())) return '—';
   return `${formatDate(x)} ${String(x.getHours()).padStart(2, '0')}:${String(x.getMinutes()).padStart(2, '0')}`;
 }
+// The browser's own time-zone abbreviation («CST», «CET», «GMT-6»…) for the times the app shows in local time;
+// never a fixed suffix, so a person in another zone reads the zone they are really in. Empty when unknown.
+export function tzAbbr(d = new Date()) {
+  try { return (new Intl.DateTimeFormat(undefined, { timeZoneName: 'short' }).formatToParts(d).find((p) => p.type === 'timeZoneName') || {}).value || ''; } catch { return ''; }
+}
 // A table cell for a date: short date with the full date-time as tooltip (the shared rule above).
 export function dateCellHtml(d) {
   if (!d) return '<span class="muted">—</span>';

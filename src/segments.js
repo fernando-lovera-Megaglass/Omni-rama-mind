@@ -3,7 +3,7 @@
 // segment editor (segments/editor/); cloning, folders, conversion to static and deletion happen here.
 import { boot } from './page.js';
 import { wireMenus, closeMenus, toast } from './shell.js';
-import { formatDate } from './data.js';
+import { formatDate, tzAbbr } from './data.js';
 import { segments, folders, saveFolders, updateSegment, removeSegments, segmentSize, cloneSegment, convertToStatic, matchesSearch, objectLabel, SEGMENT_OBJECTS, TYPE_LABELS, ensureEventData } from './segments-data.js';
 
 boot({ root: '../', active: 'crm', sub: 'Segmentos', title: 'Segmentos' });
@@ -84,7 +84,7 @@ function render() {
       <div class="table-wrap"><table class="table seg__table">
         <thead><tr>
           <th class="table__check"><input type="checkbox" id="seg-check-all" ${allChecked ? 'checked' : ''} aria-label="Seleccionar todo" /></th>
-          ${sortTh('name', 'Nombre', 'Nombre del segmento')}${sortTh('size', 'Tamaño de la lista', 'Número de registros del segmento')}${sortTh('type', 'Tipo', 'Activo: se actualiza solo con sus criterios. Estática: los miembros no cambian.')}${sortTh('object', 'Objeto', 'Objeto de los registros')}${sortTh('updated', 'Última actualización (CST)', 'Último cambio y quién lo hizo')}${sortTh('creator', 'Creador', 'Quién creó el segmento')}${sortTh('folder', 'Carpeta', 'Carpeta donde está guardado')}<th>Se usa en (total) ${info('Herramientas que usan este segmento')}</th>
+          ${sortTh('name', 'Nombre', 'Nombre del segmento')}${sortTh('size', 'Tamaño de la lista', 'Número de registros del segmento')}${sortTh('type', 'Tipo', 'Activo: se actualiza solo con sus criterios. Estática: los miembros no cambian.')}${sortTh('object', 'Objeto', 'Objeto de los registros')}${sortTh('updated', `Última actualización (${tzAbbr()})`', 'Último cambio y quién lo hizo')}${sortTh('creator', 'Creador', 'Quién creó el segmento')}${sortTh('folder', 'Carpeta', 'Carpeta donde está guardado')}<th>Se usa en (total) ${info('Herramientas que usan este segmento')}</th>
         </tr></thead>
         <tbody>${slice.length ? slice.map((s) => `
           <tr data-id="${s.id}">

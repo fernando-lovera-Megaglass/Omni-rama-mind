@@ -49,7 +49,7 @@ function defaultsHtml() {
         <div class="mv__list">${custom.length ? custom.map(check).join('') : `<p class="muted mv__empty">${q ? 'Ninguna vista coincide.' : 'Todavía no hay vistas personalizadas. Se crean desde la lista con "+".'}</p>`}</div>` : ''}
       </aside>
       <section class="mv__main">
-        <div class="mv__banner"><span class="mv__banner-ico" aria-hidden="true">📣</span><span>Esta configuración ahora se aplica a usuarios nuevos y actuales con diferentes aplicaciones.</span> <a href="#" onclick="return false">Haz clic para obtener más información ↗</a> <a href="#" onclick="return false">Enviar feedback</a></div>
+        <div class="mv__banner"><span class="mv__banner-ico" aria-hidden="true">📣</span><span>Esta configuración ahora se aplica a usuarios nuevos y actuales con diferentes aplicaciones.</span></div>
         <div class="mv__card">
           <div class="menu mv__object"><button class="mv__title" type="button" aria-haspopup="true" aria-expanded="false">${esc(TYPE_LABELS[type])} <span class="caret"></span></button><div class="menu__panel">${Object.entries(TYPE_LABELS).map(([k, l]) => `<button class="menu__item${k === type ? ' is-current' : ''}" type="button" data-type="${k}">${l}</button>`).join('')}</div></div>
           <div class="mv__tabs" id="mv-tabs">

@@ -1,13 +1,3 @@
-## Reapertura: selección por datos (22 de noviembre de 2026)
-
-Esta revisión sustituye la política histórica de menor ID descrita más abajo: el reparador elige **más campos persistidos no vacíos** (`filled_fields DESC`), con menor ID únicamente como desempate. El inventario incluye ambos IDs, fecha `created`, imágenes originales, puntuación y recuentos de negocios, tickets, tareas, actividades e inscripciones. El mapa muestra la puntuación de principal y copia. Los conflictos conservan el valor del principal y quedan en las imágenes originales; no se omiten pares por nombres distintos.
-
-Validación local: `scripts/test-contact-integrity.mjs` pasó con 77 pares sintéticos, 77 copias en papelera, cero grupos duplicados vivos, relaciones trasladadas y comprobación de huérfanos. Incluye un caso adicional donde gana el ID mayor por tener más datos y recibe los campos que le faltan del menor; también rollback e idempotencia. El aviso preexistente de `localStorage` al importar en Node no impidió finalizar con código 0.
-
-**Pares reales fusionados: 0. Pares reales ambiguos evaluados: ninguno** (no se consultó la base real). Los 77 grupos provienen de la evidencia aportada: son 154 filas involucradas y 77 copias sobrantes. No se dispone de inventario real validado en esta intervención. Solo se modificó código local, sin despliegue ni escrituras remotas; el ítem permanece pendiente hasta ejecutar y verificar sobre los datos autorizados. La prueba sintética no satisface la aceptación real.
-
----
-
 # Integridad de contactos
 
 ## Resultado de la revisión actual (22 de noviembre)

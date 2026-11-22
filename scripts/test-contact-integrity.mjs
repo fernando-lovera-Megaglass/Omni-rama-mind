@@ -48,23 +48,23 @@ assert.deepEqual((await db.query('SELECT record_id::int FROM workflow_enrollment
 assert.equal((await db.query('SELECT count(*)::int n FROM contact_companies')).rows[0].n, 1);
 assert.equal((await db.query('SELECT is_primary FROM contact_companies')).rows[0].is_primary, true);
 await db.exec(`BEGIN; ${repair} COMMIT;`);
-// The richer row wins even when its ID is higher; empty values are filled.
+// The smallest ID wins even when the copy is richer; empty values are filled.
 await db.exec(`INSERT INTO contacts(id,email,first,phone,city,extra) VALUES
  (50,'rich@example.com','Ana','555','','{"custom":"retained"}'),
  (350,'rich@example.com','','','Madrid','{"a":"1","b":"2","c":"3"}');
  INSERT INTO deals(contact_id) VALUES (350);
  INSERT INTO tickets(contact_id) VALUES (350);`);
 await db.exec(`BEGIN; ${repair} COMMIT;`);
-const rich = (await db.query('SELECT * FROM contacts WHERE id=350')).rows[0];
+const rich = (await db.query('SELECT * FROM contacts WHERE id=50')).rows[0];
 assert.equal(rich.deleted_at, null);
 assert.equal(rich.phone, '555');
 assert.equal(rich.first, 'Ana');
 assert.equal(rich.city, 'Madrid');
 assert.equal(rich.extra.a, '1');
 assert.equal(rich.extra.custom, 'retained');
-assert.ok((await db.query('SELECT deleted_at FROM contacts WHERE id=50')).rows[0].deleted_at);
-assert.equal((await db.query('SELECT count(*)::int n FROM deals WHERE contact_id=50')).rows[0].n, 0);
-assert.equal((await db.query('SELECT count(*)::int n FROM tickets WHERE contact_id=350')).rows[0].n, 1);
+assert.ok((await db.query('SELECT deleted_at FROM contacts WHERE id=350')).rows[0].deleted_at);
+assert.equal((await db.query('SELECT count(*)::int n FROM deals WHERE contact_id=350')).rows[0].n, 0);
+assert.equal((await db.query('SELECT count(*)::int n FROM tickets WHERE contact_id=50')).rows[0].n, 1);
 // Email is the identity key even when names conflict: retain canonical values.
 await db.exec(`INSERT INTO contacts(id,email,first) VALUES
  (60,'identity@example.com','Original'),(360,' IDENTITY@example.com ','Other');`);
@@ -77,9 +77,9 @@ await db.exec('INSERT INTO deals(contact_id) VALUES (99999)');
 await assert.rejects(db.exec(`BEGIN; ${repair} COMMIT;`), /Orphans/);
 await db.exec('ROLLBACK; DELETE FROM deals WHERE contact_id=99999');
 // Existing references to previously trashed contacts must also fail acceptance.
-await db.exec('INSERT INTO tasks(contact_id) VALUES (50)');
+await db.exec('INSERT INTO tasks(contact_id) VALUES (350)');
 await assert.rejects(db.exec(`BEGIN; ${repair} COMMIT;`), /References to trashed contacts/);
-await db.exec('ROLLBACK; DELETE FROM tasks WHERE contact_id=50');
+await db.exec('ROLLBACK; DELETE FROM tasks WHERE contact_id=350');
 // Regression for 77 pairs with all six required relationship types.
 await db.exec(`
  INSERT INTO contacts(id,email)

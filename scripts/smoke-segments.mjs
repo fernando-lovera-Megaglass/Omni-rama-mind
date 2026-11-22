@@ -47,7 +47,9 @@ log('create links:', [...document.querySelectorAll('[data-create], [data-quick]'
 if (document.querySelector('[data-create="active"]').getAttribute('href') !== './editor/' || document.querySelector('[data-quick="deals"]').getAttribute('href') !== './editor/?object=deals') fail('create links should open the editor');
 const headers = [...document.querySelectorAll('.seg__table thead th')].map((t) => t.textContent.replace(/ⓘ/g, '').trim()).filter(Boolean);
 log('columns:', headers.join(' | '), '| rows:', rows(), '| pages:', document.querySelectorAll('.pager__num').length);
-if (headers.join('|') !== 'Nombre|Tamaño de la lista|Tipo|Objeto|Última actualización (CST)|Creador|Carpeta|Se usa en (total)' || rows() !== 25) fail('table');
+// the «Última actualización» header names the browser's real zone (never a fixed «CST»)
+const tz = (new Intl.DateTimeFormat(undefined, { timeZoneName: 'short' }).formatToParts(new Date()).find((p) => p.type === 'timeZoneName') || {}).value || '';
+if (headers.join('|') !== `Nombre|Tamaño de la lista|Tipo|Objeto|Última actualización (${tz})|Creador|Carpeta|Se usa en (total)` || rows() !== 25) fail(`table (${headers.join('|')})`);
 log('first row link:', first().querySelector('.seg__name').getAttribute('href'), '| active sample "Clientes" size:', SD.segmentSize(SD.segments().find((s) => s.name === 'Clientes')), '| expected:', data.allContacts().filter((c) => c.lifecycle === 'Cliente').length);
 if (SD.segmentSize(SD.segments().find((s) => s.name === 'Clientes')) !== data.allContacts().filter((c) => c.lifecycle === 'Cliente').length) fail('active sample size from filters');
 click(document.querySelector('[data-filter="type"][data-value="static"]'));
