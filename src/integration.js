@@ -4,6 +4,7 @@ import { undoInfo, confirmUndoImport } from './import-engine.js';
 import { boot } from './page.js';
 import { wireMenus, closeMenus, toast } from './shell.js';
 import { OWNERS, TODAY, formatDate, initials, colorFor, strip } from './data.js';
+import { emptyStateHtml } from './empty-state.js';
 
 boot({ root: '../', active: 'data', sub: 'Integración de datos', title: 'Integración de datos' });
 
@@ -21,28 +22,8 @@ const fmtWhen = (iso) => { const d = new Date(iso); return `${formatDate(iso)} $
 const IMPORTS_KEY = 'crm:imports';
 const APPS_KEY = 'crm:apps';
 const COLS_KEY = 'crm:imports:columns';
-const SAMPLE_IMPORTS = () => {
-  const people = [OWNERS[1], OWNERS[1], OWNERS[1], OWNERS[2], OWNERS[1], OWNERS[3], OWNERS[1], OWNERS[2], OWNERS[1], OWNERS[2], OWNERS[1], OWNERS[3], OWNERS[2], OWNERS[1], OWNERS[2], OWNERS[2]];
-  const names = ['contactos_agosto_24.xlsx', 'Libro_contactos_17_08.xlsx', 'Libro_agosto_10.xlsx', 'Libro_agosto_03.xlsx', 'Libro_julio_27.xlsx', 'Libro_julio_20.xlsx', 'julio_13.xlsx', 'Libro_julio_06.xlsx', 'junio_29.xlsx', 'empresas_junio_22.xlsx', 'Libro_junio_22.xlsx', 'android-crm-contact-import', 'informe_junio.xlsx', 'Exportacion_08_06.xlsx', 'Exportacion_01_06.xlsx', 'MAYO_25.xlsx'];
-  const stats = [[104, 71, 183, 0], [103, 72, 181, 0], [103, 72, 181, 0], [103, 72, 181, 0], [103, 72, 181, 0], [103, 72, 181, 0], [106, 69, 182, 0], [110, 53, 186, 0], [107, 64, 186, 0], [109, 73, 194, 1], [147, 40, 195, 161], [1, 0, 0, 0], [102, 64, 184, 1], [103, 68, 179, 1], [99, 70, 182, 0], [109, 66, 192, 3]];
-  const when = [75, 82, 89, 96, 103, 110, 117, 124, 131, 138, 138, 144, 145, 152, 159, 166];
-  return names.map((name, i) => ({
-    id: i + 1,
-    name,
-    sample: true,
-    object: i === 9 ? 'companies' : 'contacts',
-    system: name.includes('android') ? 'mobile' : 'file',
-    source: name.endsWith('.xlsx') ? 'xlsx' : name.endsWith('.csv') ? 'csv' : 'api',
-    state: 'DONE',
-    newRecords: stats[i][0],
-    updated: stats[i][1],
-    associations: stats[i][2],
-    errors: stats[i][3],
-    by: people[i],
-    when: daysAgo(when[i], 9 + (i % 8)),
-  }));
-};
-const imports = () => load(IMPORTS_KEY, null) || SAMPLE_IMPORTS();
+// Only the account's real imports (the wizard's history, src/import-engine.js): no sample rows, ever.
+const imports = () => { const list = load(IMPORTS_KEY, null); return Array.isArray(list) ? list.filter((r) => r && !r.sample) : []; };
 const saveImports = (list) => save(IMPORTS_KEY, list);
 const SAMPLE_APPS = [
   { id: 'gmail', name: 'Gmail', kind: 'Correo', object: 'contacts', connected: true, synced: 1284, lastSync: daysAgo(0, 8) },
@@ -157,12 +138,12 @@ const chip = (key, label, current, options) => `
 
 function cellHtml(key, r) {
   switch (key) {
-    case 'name': return r.sample ? `<a class="dint__name" href="#" data-import="${r.id}">${esc(r.name)}</a>` : `<a class="dint__name" href="./import/?id=${r.id}">${esc(r.name)}</a>`;
+    case 'name': return `<a class="dint__name" href="./import/?id=${r.id}">${esc(r.name)}</a>`;
     case 'state': return `<span class="dint__state"><span class="dint__dot ${stateClass(r.state)}"></span>${r.undone ? 'Anulada' : STATE_LABELS[r.state] || 'Listo'}</span>`;
     case 'newRecords': return String(r.newRecords);
     case 'updated': return r.updated ? String(r.updated) : '<span class="muted">--</span>';
     case 'associations': return r.associations ? String(r.associations) : '<span class="muted">--</span>';
-    case 'errors': return r.errors ? (r.sample ? `<a href="#" data-errors="${r.id}">${r.errors}</a>` : `<a href="./import/?id=${r.id}">${r.errors}</a>`) : '<span class="muted">--</span>';
+    case 'errors': return r.errors ? `<a href="./import/?id=${r.id}" title="Ver los errores de esta importación">${r.errors}</a>` : '<span class="muted">--</span>';
     case 'by': return avatar(r.by);
     case 'when': return esc(fmtWhen(r.when));
     case 'object': return esc(objectLabel(r.object));
@@ -193,7 +174,9 @@ function renderPane() {
       <div class="table-wrap dint__tablewrap">
         <table class="table dint__table">
           <thead><tr>${cols.map((k) => `<th>${esc((COLUMNS.find((c) => c[0] === k) || [k, k])[1])}</th>`).join('')}<th>Acciones</th></tr></thead>
-          <tbody>${rows.length ? rows.map((r) => `<tr data-id="${r.id}">${cols.map((k) => `<td data-key="${k}">${cellHtml(k, r)}</td>`).join('')}<td>${r.sample ? '' : `<div class="menu"><button class="btn btn--ghost btn--sm" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Acciones de ${esc(r.name)}">Acciones <span class="caret"></span></button><div class="menu__panel"><a class="menu__item" href="./import/?id=${r.id}">Ver detalle</a>${undoInfo(r.id) ? `<button class="menu__item" type="button" data-undo-import="${r.id}">Deshacer importación…</button>` : ''}</div></div>`}</td></tr>`).join('') : `<tr><td colspan="${cols.length + 1}" class="muted dint__empty">No hay importaciones que coincidan.</td></tr>`}</tbody>
+          <tbody>${rows.length ? rows.map((r) => `<tr data-id="${r.id}">${cols.map((k) => `<td data-key="${k}">${cellHtml(k, r)}</td>`).join('')}<td><div class="menu"><button class="btn btn--ghost btn--sm" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Acciones de ${esc(r.name)}">Acciones <span class="caret"></span></button><div class="menu__panel"><a class="menu__item" href="./import/?id=${r.id}">Ver detalle</a>${undoInfo(r.id) ? `<button class="menu__item" type="button" data-undo-import="${r.id}">Deshacer importación…</button>` : ''}</div></div></td></tr>`).join('') : `<tr><td colspan="${cols.length + 1}" class="dint__empty">${imports().length
+            ? '<span class="muted">No hay importaciones que coincidan con estos filtros.</span>'
+            : emptyStateHtml({ art: 'records', compact: true, title: 'Aún no has importado datos', text: 'Las importaciones que hagas aparecerán aquí con su estado, sus recuentos y sus errores. Empieza con Importar datos.', action: { label: 'Importar datos', href: './import/' } })}</td></tr>`}</tbody>
         </table>
       </div>
       <p class="muted dint__count">${rows.length} importación${rows.length === 1 ? '' : 'es'}</p>`;
@@ -273,20 +256,7 @@ root.addEventListener('click', (e) => {
   if (tab) { state.tab = tab.dataset.tab; renderPane(); return; }
   const f = e.target.closest('[data-filter]');
   if (f) { state[f.dataset.filter] = f.dataset.value; closeMenus(); renderPane(); return; }
-  const imp = e.target.closest('[data-import]');
-  if (imp) {
-    e.preventDefault();
-    const r = imports().find((x) => x.id === Number(imp.dataset.import));
-    openModal(r.name, `<dl class="colinfo"><div><dt>Objeto</dt><dd>${esc(objectLabel(r.object))}</dd></div><div><dt>Estado</dt><dd>${r.undone ? 'Anulada' : STATE_LABELS[r.state] || 'Listo'}</dd></div><div><dt>Registros nuevos</dt><dd>${r.newRecords}</dd></div><div><dt>Registros actualizados</dt><dd>${r.updated || '--'}</dd></div><div><dt>Asociaciones nuevas</dt><dd>${r.associations || '--'}</dd></div><div><dt>Errores</dt><dd>${r.errors || '--'}</dd></div><div><dt>Creado por</dt><dd>${esc(r.by)}</dd></div><div><dt>Fecha</dt><dd>${esc(fmtWhen(r.when))}</dd></div><div><dt>Fuente</dt><dd>${esc(sourceLabel(r.source))} · ${esc(systemLabel(r.system))}</dd></div></dl>`, '<button class="btn btn--primary" type="button" data-close>Cerrar</button>');
-    return;
-  }
-  const err = e.target.closest('[data-errors]');
-  if (err) {
-    e.preventDefault();
-    const r = imports().find((x) => x.id === Number(err.dataset.errors));
-    openModal(`Errores de ${r.name}`, `<p>${r.errors} fila(s) no se pudieron importar porque no tenían nombre ni correo, o su correo no era válido.</p><p class="muted">Corrige esas filas en el archivo y vuelve a importarlas.</p>`, '<button class="btn btn--primary" type="button" data-close>Cerrar</button>');
-    return;
-  }
+  // (a row's name and its error count link to the real review page ./import/?id=<id>: no static modals)
   const sync = e.target.closest('[data-sync]');
   if (sync) {
     const list = apps();

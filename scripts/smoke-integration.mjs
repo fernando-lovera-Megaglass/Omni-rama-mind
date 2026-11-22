@@ -19,6 +19,10 @@ globalThis.FormData = dom.window.FormData;
 dom.window.confirm = () => true;
 
 const data = await import(resolve(here, '../src/data.js'));
+// The monitor lists only the account's real imports (crm:imports, the wizard's history): five past runs of this
+// account as fixtures — four July files and one from the mobile app — in the engine's own shape.
+const past = (id, name, system, source, daysBack, by = 'Sofía R.', errors = 0) => ({ id, name, object: 'contacts', system, source, state: 'DONE', rows: 120, newRecords: 100 + id, updated: 20, associations: 50, errors, by, when: new Date(data.TODAY.getTime() - daysBack * 86400000).toISOString(), finishedAt: '', mode: 'create', uniqueKey: 'email', options: {}, duplicates: 0, fileDuplicates: 0, merged: 0, filePolicy: 'first' });
+mem['crm:imports'] = JSON.stringify([past(5, 'contactos_julio_27.csv', 'file', 'csv', 75), past(4, 'contactos_julio_20.csv', 'file', 'csv', 82), past(3, 'julio_13.csv', 'file', 'csv', 89, 'Diego G.', 2), past(2, 'contactos_julio_06.xlsx', 'file', 'xlsx', 96), past(1, 'app-movil-contactos', 'mobile', 'api', 103, 'Laura M.')]);
 await import(resolve(here, '../src/integration.js'));
 const $ = (id) => document.getElementById(id);
 const click = (el) => el.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true }));
@@ -37,7 +41,9 @@ const cards = [...document.querySelectorAll('.dint__card')].map((c) => `${c.quer
 log('cards:', cards.join(' | '));
 if (cards.length !== 4 || !cards[0].startsWith('Importar un archivo → Importar datos') || !cards[3].includes('Aumentar de nivel a Data Hub')) fail('cards differ from the original');
 log('tabs:', [...document.querySelectorAll('.dint__tab')].map((t) => t.textContent).join(' | '), '| rows:', rows());
-if (rows() < 10) fail('the imports table should list the sample imports');
+if (rows() !== 5) fail('the imports table should list exactly the account\'s imports');
+if (document.querySelector('[data-import], [data-errors]') || [...document.querySelectorAll('#dint-pane tbody a')].some((a) => a.getAttribute('href') === '#')) fail('no static sample modals: every link goes to the review page');
+if (document.querySelector('#dint-pane tbody tr[data-id="3"] td[data-key="errors"] a')?.getAttribute('href') !== './import/?id=3') fail('the error count links to the review of that import');
 const headers = [...document.querySelectorAll('#dint-pane thead th')].map((t) => t.textContent);
 log('columns:', headers.join(' | '));
 if (headers.join('|') !== 'Nombre de la importación|Import State|New Records|Registros actualizados|New Associations|Errors|Creado por ID de usuario|Fecha y hora de creación del objeto|Acciones') fail('columns differ');
