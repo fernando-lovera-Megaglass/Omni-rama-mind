@@ -73,6 +73,7 @@ const CONFIG = {
       ['state', 'Estado o región'], ['sales_rep', 'Independent Sales Rep'], ['hs_buying_role', 'Rol de compra'],
       ['owner', 'Propietario del contacto', 'select', ownerOpts], ['lifecycle', 'Etapa del ciclo de vida', 'select', opt(LIFECYCLES)],
       ['source', 'Fuente original', 'select', opt(SOURCES)], ['city', 'Ciudad'], ['created', 'Fecha de creación', 'date-ro'],
+      ['notes_next_activity_date', 'Fecha de la próxima actividad', 'date-ro'],
     ],
     highlights: (r) => [['Fecha de creación', formatDate(r.created)], ['Etapa del ciclo de vida', r.lifecycle], ['Última actividad', formatDate(r.lastActivity)], ['Próxima actividad', r.notes_next_activity_date ? formatDate(r.notes_next_activity_date) : '--'], ['Estado del lead', labelOf(Object.entries(STATUSES).map(([k, [l]]) => [k, l]), r.status)]],
     assoc: (r) => [
@@ -94,6 +95,7 @@ const CONFIG = {
       ['notes_last_contacted', 'Último contacto', 'date'], ['target_account', 'Cuenta objetivo', 'select', opt(['Sí', 'No'])], ['products_of_interest', 'Productos de interés'],
       ['assoc_deals_count', 'Negocios asociados', 'calc', (r) => String(allDeals().filter((d) => Number(d.companyId) === Number(r.id)).length)],
       ['domain', 'Dominio'], ['hs_additional_domains', 'Dominios adicionales'], ['phone', 'Número de teléfono', 'tel'], ['employees', 'Empleados', 'number'], ['revenue', 'Ingresos anuales', 'number'], ['created', 'Fecha de creación', 'date-ro'],
+      ['notes_next_activity_date', 'Fecha de la próxima actividad', 'date-ro'],
     ],
     highlights: (r) => [['Fecha de creación', formatDate(r.created)], ['Etapa del ciclo de vida', r.lifecycle], ['Última actividad', formatDate(r.lastActivity)], ['Próxima actividad', r.notes_next_activity_date ? formatDate(r.notes_next_activity_date) : '--'], ['Ingresos anuales', formatMoney(r.revenue)]],
     assoc: (r) => [
@@ -111,6 +113,7 @@ const CONFIG = {
       ['amount', 'Importe', 'number'], ['deal_currency_code', 'Moneda', 'select', opt(CURRENCY_CODES.map((c) => [c, `${c} · ${CURRENCY_DEFS[c].name}`]))], ['stage', 'Etapa del negocio', 'select', opt(allDealStages().map(([k, l]) => [k, l]))], ['closeDate', 'Fecha de cierre', 'date'],
       ['owner', 'Propietario del negocio', 'select', ownerOpts], ['company', 'Empresa asociada'], ['priority', 'Prioridad', 'select', opt(PRIORITIES.map(([k, l]) => [k, l]))],
       ['type', 'Tipo de negocio', 'select', opt(['Nuevo negocio', 'Negocio existente'])], ['important', 'Importante', 'select', [['true', 'Sí'], ['', 'No']]], ['pipeline', 'Pipeline', 'ro'], ['created', 'Fecha de creación', 'date-ro'],
+      ['notes_next_activity_date', 'Fecha de la próxima actividad', 'date-ro'],
     ],
     highlights: (r) => [['Importe', formatMoney(r.amount, r.deal_currency_code)], ['Fecha de cierre', formatDate(r.closeDate)], ['Probabilidad', `${dealStageProb(r.pipeline, r.stage)} %`], ['Última actividad', formatDate(r.lastActivity)], ['Próxima actividad', r.notes_next_activity_date ? formatDate(r.notes_next_activity_date) : '--']],
     stages: true,

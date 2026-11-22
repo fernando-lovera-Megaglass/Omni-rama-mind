@@ -44,30 +44,34 @@ const t2 = task('Enviar propuesta a Nora', in3);
 if (next('contacts', contact.id) !== tomorrow.toISOString()) fail('a later task keeps the nearest date');
 log(`tarea mañana → ${next('contacts', contact.id).slice(0, 16)} en contacto y negocio; tarea a 3 días no la mueve; última actividad intacta`);
 
-// ---- record highlight and list column ----
+// ---- record: «Acerca de» row, «Aspectos destacados» card (when the layout shows it) and list column ----
+const LY = await import(resolve(here, '../src/layout-defaults.js'));
+const layout = LY.defaultLayout('contacts');
+layout.tabs[0].sections[0].cards.push('highlights');
+LY.saveLayout('contacts', layout);
 useDom('<main id="record-root"></main>', `http://localhost/contacts/record/?id=${contact.id}`, 'contacts');
 await import(resolve(here, '../src/record.js'));
 await wait(120);
-const highlight = qa('.highlight, .highlights li, [data-highlight]').map(text).join(' | ');
+const aboutRow = q('#rec-props .props__row[data-key="notes_next_activity_date"]');
+if (!aboutRow || !/Fecha de la próxima actividad/.test(text(aboutRow.querySelector('dt'))) || !text(aboutRow.querySelector('dd')).includes(data.formatDate(tomorrow)) || aboutRow.querySelector('[data-edit-key]')) fail(`«Acerca de» shows the read-only date (${aboutRow && text(aboutRow)})`);
+const highlight = qa('#rec-highlights .highlight').map(text).join(' | ');
 if (!/Próxima actividad/.test(highlight) || !highlight.includes(data.formatDate(tomorrow))) fail(`record highlight «Próxima actividad» (${highlight.slice(0, 200)})`);
 const store = data.getViewStore('contacts');
-const stdAll = { id: 'std:all' };
 store.open = ['std:all']; store.active = 'std:all'; data.setViewStore('contacts', store);
+// the catalogue column, chosen as from «Editar columnas», saved in the list's preferences
+localStorage.setItem('crm:contacts:prefs', JSON.stringify({ columns: ['name', 'email', 'notes_next_activity_date', 'owner'] }));
 useDom('<main id="list-root"></main>', 'http://localhost/contacts/');
-const L = await import(resolve(here, '../src/contacts.js'));
-await wait(40);
-// add the catalogue column through the list's state and re-render
-if (!L || !L.state) fail('list state');
-L.state.columns = [...(L.state.columns || []).filter((c) => c !== 'notes_next_activity_date'), 'notes_next_activity_date'];
-L.render();
-const row = q(`#table tbody tr[data-id="${contact.id}"]`) || (() => { L.state.q = 'Nora Próxima'; L.render(); return q(`#table tbody tr[data-id="${contact.id}"]`); })();
+await import(resolve(here, '../src/contacts.js'));
+await wait(60);
+const search = q('#row-search');
+if (search) { search.value = 'Nora Próxima'; search.dispatchEvent(new window.Event('input', { bubbles: true })); await wait(40); }
+const row = q(`#table tbody tr[data-id="${contact.id}"]`);
 if (!row) fail('the contact row in the list');
 const headers = qa('#table thead th').map(text);
-const colIndex = headers.findIndex((h) => /Fecha de la próxima actividad/.test(h));
-if (colIndex < 0) fail(`column present (${headers.join('|')})`);
-const cell = row.querySelectorAll('td')[colIndex];
+if (!headers.some((h) => /Fecha de la próxima actividad/.test(h))) fail(`column present (${headers.join('|')})`);
+const cell = row.querySelector('td[data-key="notes_next_activity_date"]') || row.querySelectorAll('td')[headers.findIndex((h) => /Fecha de la próxima actividad/.test(h))];
 if (!cell || !text(cell).includes(data.formatDate(tomorrow))) fail(`list column shows the date (${text(cell)})`);
-log(`ficha: destacado «Próxima actividad» = ${data.formatDate(tomorrow)}; lista: columna «Fecha de la próxima actividad» = ${text(cell)}`);
+log(`ficha: «Acerca de» y destacado «Próxima actividad» = ${data.formatDate(tomorrow)}; lista: columna «Fecha de la próxima actividad» = ${text(cell)}`);
 
 // ---- completing takes the next one; the last empties it; reopening brings it back ----
 data.setField('tasks', t1.id, 'status', 'done');
