@@ -86,6 +86,7 @@ const form = $('create-form');
 const recurSel = form && form.querySelector('select[name="recur"]');
 if (!recurSel || [...recurSel.options].map((o) => text(o)).join('|') !== 'Sin repetición|Diaria|Semanal|Mensual|Anual') fail('create drawer offers Repetir with the five options');
 form.elements.name.value = 'Reporte semanal de obra';
+change(form.elements.type, 'Llamada');
 form.elements.due.value = '2026-11-21';
 change(recurSel, 'weekly');
 submit(form);
@@ -110,6 +111,15 @@ if (!rowOf(made.id) || !text(rowOf(made.id)).includes('Semanal')) fail('row show
 const cb = rowOf(made.id).querySelector('.task-done');
 cb.checked = true; cb.dispatchEvent(new window.Event('change', { bubbles: true }));
 await wait(40);
+// Calls complete only after their activity is saved; the checkbox opens that form.
+const logModal = $('task-log-modal');
+if (!logModal) fail('list checkbox opens the call activity form');
+if (data.findRecord('tasks', made.id).status === 'done' || data.allTasks().filter((t) => t.name === made.name).length !== 1) fail('recurrence waits for the activity to be saved');
+logModal.querySelector('#log-outcome').value = 'Conectado';
+logModal.querySelector('#log-notes').value = 'Reporte semanal completado';
+click(logModal.querySelector('[data-confirm="logact"]'));
+await wait(40);
+if ($('task-log-modal') || data.findRecord('tasks', made.id).status !== 'done') fail('saving the activity completes the original task');
 const spawned = data.allTasks().filter((t) => t.name === 'Reporte semanal de obra');
 if (spawned.length !== 2 || !spawned.some((t) => t.status === 'todo' && dayOf(t.due) === '2026-11-28')) fail('list checkbox completes and spawns next (+7)');
 if (qa('#table tbody tr[data-id]').length < 2) fail('list refreshed with the new occurrence');
