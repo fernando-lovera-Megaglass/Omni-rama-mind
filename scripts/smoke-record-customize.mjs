@@ -25,6 +25,16 @@ await liveSmoke('record-customize', async ({ data, one, check, log, stamp, sessi
   let row = await one(`select scope, value->>'title' as title, jsonb_array_length(value->'keys') as n from public.user_settings where user_id = ${lit(session.uid)} and key = ${lit(KEY)}`);
   check(row && row.scope === 'user' && row.title === card.title && Number(row.n) === 3, `fila en user_settings con scope 'user' (${JSON.stringify(row)})`);
   log(`user_settings: ${KEY} scope=${row.scope} título «${row.title}» (${row.n} propiedades)`);
+  const assocKey = 'crm:deals:assoccard:contacts';
+  const assoc = { title: `SMOKE Contactos ${stamp}`, props: ['name', 'phone'], quick: false, sortKey: 'phone', sortDir: 1 };
+  check(data.setSetting(assocKey, assoc) === true, 'guardar tarjeta de asociación con sesión viva');
+  await data.dbIdle();
+  const assocRow = await one(`select scope, value from public.user_settings where user_id = ${lit(session.uid)} and key = ${lit(assocKey)}`);
+  check(assocRow?.scope === 'user' && Object.keys(assoc).every((k) => JSON.stringify(assocRow.value[k]) === JSON.stringify(assoc[k])), 'tarjeta de asociación completa en user_settings');
+  data.setSetting(assocKey, null);
+  await data.dbIdle();
+  const resetAssoc = await one(`select value from public.user_settings where user_id = ${lit(session.uid)} and key = ${lit(assocKey)}`);
+  check(resetAssoc && resetAssoc.value === null, 'restablecer tarjeta de asociación limpia el valor remoto');
   // a second save updates the same row (unique user_id + key), it does not pile up
   data.setSetting(KEY, { ...card, keys: ['email'] });
   await data.dbIdle();
@@ -121,6 +131,35 @@ if (!qa('#rec-props .props__row').map((r) => r.dataset.key).includes('jobTitle')
 log('«Acerca de»: quitar «Cargo» desde la ficha persiste tras recargar; el lápiz del editor lo devuelve (mismo ajuste crm:contacts:cardprops)');
 
 await customise('companies', 1);
+
+// Association card: legacy local values, editor save, reload and reset.
+const assocKey = 'crm:deals:assoccard:contacts';
+mem[assocKey] = JSON.stringify({ title: 'Contactos anteriores', props: ['name', 'email', 'phone'], quick: true, sortKey: 'created', sortDir: -1 });
+await openRecord('deals', 1);
+const editAssoc = () => click(q('[data-act="acard-edit"][data-kind="contacts"]'));
+editAssoc();
+if ($('cd-name').value !== 'Contactos anteriores') fail('association card reads legacy localStorage');
+$('cd-name').value = 'Contactos de ventas';
+click(q('[data-cdremove="1"]'));
+const quick = q('[data-cd="quick"]');
+quick.checked = false; quick.dispatchEvent(new window.Event('change', { bubbles: true }));
+click(q('[data-cdsort="phone"]'));
+click(q('[data-cddir="1"]'));
+click(q('[data-cd="save"]'));
+const assocSaved = JSON.parse(mem[assocKey]);
+if (assocSaved.title !== 'Contactos de ventas' || assocSaved.props.join() !== 'name,phone' || assocSaved.quick !== false || assocSaved.sortKey !== 'phone' || assocSaved.sortDir !== 1) fail('association card saves all options');
+await openRecord('deals', 1);
+if (!text(q('[data-toggle="assoc-contacts"]')).includes('Contactos de ventas')) fail('association card title after reload');
+editAssoc();
+if ($('cd-name').value !== assocSaved.title || qa('.cd-prop').map((el) => el.dataset.key).join() !== 'name,phone' || q('[data-cd="quick"]').checked) fail('association card options intact after reload');
+click(q('[data-cd="reset"]'));
+if (assocKey in mem || $('cd-name').value !== 'Contactos' || qa('.cd-prop').map((el) => el.dataset.key).join() !== 'name,email,phone') fail('association card reset restores defaults');
+click(q('[data-cd="close"]'));
+await openRecord('deals', 1);
+editAssoc();
+if ($('cd-name').value !== 'Contactos') fail('association reset persists after reload');
+click(q('[data-cd="close"]'));
+log('tarjeta de asociación: compatibilidad local, propiedades, título, filtro rápido y orden guardados; recarga y restablecimiento correctos');
 
 // ---- per-user persistence through the settings store (what Supabase user_settings backs when signed in) ----
 const remote = new Map();

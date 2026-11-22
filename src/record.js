@@ -747,7 +747,7 @@ const kindProps = {};
 const propsOf = (kind) => kindProps[kind] || (kindProps[kind] = propertyMap(kind));
 function acardSettings(kind) {
   const meta = KIND_META[kind] || { p: kind };
-  return { title: meta.p, props: ACARD_DEFAULT[kind] || ['name'], quick: true, sortKey: 'created', sortDir: -1, ...loadJson(ACARD_KEY(kind), {}) };
+  return { title: meta.p, props: ACARD_DEFAULT[kind] || ['name'], quick: true, sortKey: 'created', sortDir: -1, ...((settingsLive() ? getSetting(ACARD_KEY(kind)) : null) || loadJson(ACARD_KEY(kind), {})) };
 }
 function kindLabel(kind, key) {
   const p = propsOf(kind)[key];
@@ -856,7 +856,7 @@ let cd = null;
 function openAcardEditor(kind) {
   const s = acardSettings(kind);
   const sample = assocRows().find((x) => x[2] === kind);
-  cd = { kind, title: s.title, props: s.props.slice(), quick: s.quick, sortKey: s.sortKey, sortDir: s.sortDir, previewId: rec.id, sampleRows: sample ? sample[1] : [] };
+  cd = { kind, global: settingScope(ACARD_KEY(kind)) === 'global', title: s.title, props: s.props.slice(), quick: s.quick, sortKey: s.sortKey, sortDir: s.sortDir, previewId: rec.id, sampleRows: sample ? sample[1] : [] };
   renderAcardEditor();
   $('card-drawer').hidden = false;
 }
@@ -885,6 +885,7 @@ function renderAcardEditor() {
           </div>
           <p class="muted cd-internal">Nombre int… <span class="info">ⓘ</span>: ${esc(meta.p)} Tarjeta de asociación (${esc(cfg.label)}) <button class="pencil" type="button" data-cd="rename-internal" aria-label="Editar nombre interno">✎</button></p>
           <hr class="cd-sep" />
+          <label class="ocheck ocheck--sm cardprops__scope"><input type="checkbox" data-cd="global" ${cd.global ? 'checked' : ''} /><span><strong>Aplicar a todos los usuarios de la cuenta</strong><small>${settingsLive() ? 'Guarda esta configuración para ti o para toda la cuenta.' : 'Sin conexión se guarda en este navegador.'}</small></span></label>
           <h3 class="cd-h">Propiedades</h3>
           <p>Decide sobre las propiedades que aparecerán en esta tarjeta.</p>
           <p class="cd-type">Tipo de objeto: <span class="muted">${esc(meta.p)} ▾</span></p>
@@ -2647,11 +2648,20 @@ if (rec) {
       if (a === 'close') closeAcardEditor();
       else if (a === 'save') {
         cd.title = $('cd-name').value.trim() || KIND_META[cd.kind].p;
-        saveJson(ACARD_KEY(cd.kind), { title: cd.title, props: cd.props, quick: cd.quick, sortKey: cd.sortKey, sortDir: cd.sortDir });
+        const key = ACARD_KEY(cd.kind);
+        const card = { title: cd.title, props: cd.props, quick: cd.quick, sortKey: cd.sortKey, sortDir: cd.sortDir };
+        saveJson(key, card);
+        setSetting(key, card, { scope: cd.global ? 'global' : 'user' });
         closeAcardEditor();
         renderAssoc();
         toast('Tarjeta guardada');
-      } else if (a === 'reset') { localStorage.removeItem(ACARD_KEY(cd.kind)); const kind = cd.kind; closeAcardEditor(); renderAssoc(); toast('Tarjeta restablecida'); openAcardEditor(kind); }
+      } else if (a === 'reset') {
+        const kind = cd.kind;
+        const key = ACARD_KEY(kind);
+        localStorage.removeItem(key);
+        setSetting(key, null, { scope: settingScope(key) === 'global' ? 'global' : 'user' });
+        closeAcardEditor(); renderAssoc(); toast('Tarjeta restablecida'); openAcardEditor(kind);
+      }
       else if (a === 'remove') toast('Las tarjetas predeterminadas no se pueden eliminar; puedes ocultarla desde "Personalizar".');
       else if (a === 'filters') toast('Los filtros de la tarjeta se gestionan por etiqueta de asociación en esta versión.');
       else if (a === 'rename-internal') toast('El nombre interno solo se usa en la configuración.');
@@ -2665,6 +2675,7 @@ if (rec) {
     if (dir) { cd.sortDir = Number(dir.dataset.cddir); renderAcardEditor(); }
   });
   el.addEventListener('change', (e) => {
+    if (e.target.matches('[data-cd="global"]')) { cd.global = e.target.checked; return; }
     if (e.target.matches('[data-cd="quick"]')) { cd.quick = e.target.checked; cd.title = $('cd-name').value; renderAcardEditor(); return; }
     const add = e.target.closest('[data-cdadd]');
     if (add) {
