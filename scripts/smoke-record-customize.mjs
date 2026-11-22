@@ -31,10 +31,27 @@ await liveSmoke('record-customize', async ({ data, one, check, log, stamp, sessi
   await data.dbIdle();
   const assocRow = await one(`select scope, value from public.user_settings where user_id = ${lit(session.uid)} and key = ${lit(assocKey)}`);
   check(assocRow?.scope === 'user' && Object.keys(assoc).every((k) => JSON.stringify(assocRow.value[k]) === JSON.stringify(assoc[k])), 'tarjeta de asociación completa en user_settings');
+  // «Restablecer»: a null value deletes the row (value is NOT NULL), so the default comes back everywhere
   data.setSetting(assocKey, null);
   await data.dbIdle();
   const resetAssoc = await one(`select value from public.user_settings where user_id = ${lit(session.uid)} and key = ${lit(assocKey)}`);
-  check(resetAssoc && resetAssoc.value === null, 'restablecer tarjeta de asociación limpia el valor remoto');
+  check(!resetAssoc, `restablecer la tarjeta de asociación elimina la fila remota (${JSON.stringify(resetAssoc)})`);
+  check(data.getSetting(assocKey) === null && data.settingScope(assocKey) === null, 'y la app deja de verla');
+  log('restablecer tarjeta de asociación → fila eliminada en user_settings');
+  // the same for a record layout saved through src/layout-defaults.js
+  const LD = await import('../src/layout-defaults.js');
+  const layout = LD.loadLayout('contacts');
+  layout.right = layout.right.filter((c) => c !== 'summary');
+  LD.saveLayout('contacts', layout);
+  await data.dbIdle();
+  const layoutRow = await one(`select (value->'right') as r from public.user_settings where user_id = ${lit(session.uid)} and key = 'crm:contacts:layout'`);
+  check(layoutRow && Array.isArray(layoutRow.r) && !layoutRow.r.includes('summary'), `diseño guardado en user_settings (${JSON.stringify(layoutRow)})`);
+  LD.resetLayout('contacts');
+  await data.dbIdle();
+  const afterReset = await (await import('./smoke-live.mjs')).sql(`select key from public.user_settings where user_id = ${lit(session.uid)} and key in ('crm:contacts:layout', 'crm:contacts:layout-updated')`);
+  check(Array.isArray(afterReset) && afterReset.length === 0, `restablecer el diseño elimina sus filas (${JSON.stringify(afterReset)})`);
+  check(LD.loadLayout('contacts').right.includes('summary'), 'la app vuelve al diseño predeterminado');
+  log('restablecer diseño → filas crm:contacts:layout y layout-updated eliminadas; diseño predeterminado de vuelta');
   // a second save updates the same row (unique user_id + key), it does not pile up
   data.setSetting(KEY, { ...card, keys: ['email'] });
   await data.dbIdle();

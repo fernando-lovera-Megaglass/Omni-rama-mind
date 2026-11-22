@@ -2344,12 +2344,26 @@ export const settingScope = (key) => ((settingsMap && settingsMap.get(key)) || {
 export function setSetting(key, value, { scope } = {}) {
   if (!settingsMap) return false;
   const useGlobal = scope === 'global' || settingsUserId === GLOBAL_USER;
+  const table = useGlobal ? 'account_settings' : 'user_settings';
+  const what = useGlobal ? 'ajustes de la cuenta (requiere rol de administrador)' : 'ajustes de la interfaz';
+  // «Restablecer»: a null value means "no setting" → the row is deleted (value is NOT NULL in both tables), so
+  // the default comes back in every browser; the local copy is already gone.
+  if (value === null || value === undefined) {
+    settingsMap.delete(key);
+    dbWrite(async () => {
+      let q = supabase.from(table).delete().eq('key', key);
+      if (!useGlobal) q = q.eq('user_id', settingsUserId);
+      const { error } = await q;
+      if (error) reportDbError(what, error);
+    });
+    return true;
+  }
   settingsMap.set(key, { value, scope: useGlobal ? 'global' : 'user' });
   const row = { ...(useGlobal ? {} : { user_id: settingsUserId }), scope: useGlobal ? 'account' : 'user', key, value, updated_at: new Date().toISOString() };
   dbWrite(async () => {
-    const { error } = await supabase.from(useGlobal ? 'account_settings' : 'user_settings').upsert(row, { onConflict: useGlobal ? 'key' : 'user_id,key' });
+    const { error } = await supabase.from(table).upsert(row, { onConflict: useGlobal ? 'key' : 'user_id,key' });
     // A refused write («Aplicar a todos» needs the admin role; a missing policy) must not look like success.
-    if (error) reportDbError(useGlobal ? 'ajustes de la cuenta (requiere rol de administrador)' : 'ajustes de la interfaz', error);
+    if (error) reportDbError(what, error);
   });
   return true;
 }
