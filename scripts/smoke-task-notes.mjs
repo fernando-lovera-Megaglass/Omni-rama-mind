@@ -32,6 +32,9 @@ if (!record) {
   click($('[data-action="columns"]'));
   click($('#col-groups input[data-key="notes"]'));
   click($('#columns-apply'));
+  $('#row-search').value = task.name;
+  $('#row-search').dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+  await new Promise(r => setTimeout(r, 350));
   const cell = $(`td[data-key="notes"][data-id="${task.id}"]`);
   assert.ok(cell);
   assert.equal(cell.textContent, notes);
@@ -43,7 +46,7 @@ if (!record) {
   dom.window.HTMLAnchorElement.prototype.click = () => {};
   click($('[data-action="export"]'));
   await flush();
-  const exportForm = $('#modal-form');
+  const exportForm = $('#bulk-form');
   if (exportForm) exportForm.dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true }));
   else click($('[data-confirm="export"]'));
   await flush();
