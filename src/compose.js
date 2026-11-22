@@ -1,7 +1,7 @@
 // Floating e-mail composer, laid out like the person's screenshot (attachments/picture-8.png):
 // header with drag handle / collapse / expand / close, tool tabs, Para / De / Asunto,
 // rich-text body with signature, formatting toolbar, associations, Enviar + follow-up task.
-import { getComposeDraft, saveComposeDraft, removeComposeDraft, restoreDraftAttachments } from './compose-drafts.js';
+import { draftKey, getComposeDraft, saveComposeDraft, removeComposeDraft, restoreDraftAttachments } from './compose-drafts.js';
 import { toast, wireMenus, closeMenus } from './shell.js';
 import { ACT_ICONS } from './action-icons.js';
 import { addRecord, formatDate, TODAY, allContacts } from './data.js';
@@ -468,6 +468,13 @@ async function saveAndClose(explicit = false) {
   syncFields();
   const hasContent = ctx.updatedAt || ctx.subject || bodyText(ctx.body) || /<(img|hr|video)\b/i.test(ctx.body) || ctx.attachments.length || ctx.cc || ctx.bcc || ctx.follow || JSON.stringify(ctx.recipients) !== ctx.initialRecipients;
   if (!explicit && !hasContent) { close(); return true; }
+  // A composer without a record (bulk e-mail, inbox) has nowhere to keep a draft: «×» just closes it, and an explicit
+  // «Guardar borrador» says so instead of failing and leaving the panel open.
+  if (!draftKey(ctx.recordType, ctx.recordId)) {
+    if (explicit) { toast('Este correo no pertenece a ningún registro: no se puede guardar como borrador.'); return false; }
+    close();
+    return true;
+  }
   const savingCtx = ctx;
   ctx.saving = true;
   el.inert = true;

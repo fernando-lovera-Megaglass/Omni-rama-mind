@@ -1,5 +1,12 @@
 # Progreso — Omni CRM
 
+## 2026-11-22 (sesión 6) · smoke-templates vuelve a pasar: el compositor guarda el borrador antes de abrir otro correo; cerrar un correo sin registro ya no falla
+
+- Diagnóstico: la regla «solo cuenta la última plantilla aplicada» sigue intacta en `src/compose.js` (`ctx.templateId` se sobrescribe con cada plantilla y se cuenta al enviar). Lo que cambió con los borradores reales (c6ffd2c) es que `openCompose` sobre un compositor aún abierto guarda primero su borrador (asíncrono) y solo después abre el nuevo correo, devolviendo una promesa; la prueba seguía pulsando plantillas y «Enviar» sobre el compositor viejo mientras `saving` estaba activo, y `send()` salía sin contar nada.
+- Defecto real encontrado de paso y corregido en `src/compose.js`: cerrar con «×» un correo sin registro (correo masivo, bandeja: no hay clave de borrador) fallaba con «No se pudo identificar el registro del borrador» y dejaba el panel abierto; ahora cierra sin guardar, y «Guardar borrador» explícito avisa de que ese correo no pertenece a ningún registro.
+- `scripts/smoke-templates.mjs`: espera (`await`) a `openCompose` en cada apertura y a que el panel se oculte tras cerrar; termina con código 0. Smokes del compositor, correos conectados, fragmentos, secuencias y bandeja en verde.
+- Solo código local; nada desplegado.
+
 ## 2026-11-22 (sesión 6) · smoke-sequences vuelve a pasar: la cronología empieza por su cabecera «Actividad»
 
 - Diagnóstico: la inscripción en una secuencia sigue registrando «Inscrito en la secuencia «…» por …» en la cronología del contacto; lo que cambió es la cronología misma, que ahora abre con la cabecera de sección «Actividad» (y «Fijado» cuando hay una actividad fijada), así que el primer hijo de `#rec-timeline` ya no es la entrada más reciente sino esa cabecera. La prueba leía `firstElementChild`.

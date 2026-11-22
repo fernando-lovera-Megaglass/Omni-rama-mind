@@ -32,6 +32,9 @@ const rows = () => [...document.querySelectorAll('#tpl-rows tr[data-id]')];
 const names = () => rows().map((r) => text(r.querySelector('.tpls__name')));
 const modalOpen = () => $('tpl-modal') && $('tpl-modal').classList.contains('is-open');
 const q = (sel) => document.querySelector(sel);
+// Closing the composer saves a draft first (async since the real drafts): wait until the panel is really hidden
+// before opening the next compose, or the pending close would hide the new one.
+const settleCompose = async () => { for (let i = 0; i < 100 && $('compose') && !$('compose').hidden; i++) await new Promise((r) => setTimeout(r, 5)); };
 const qa = (sel) => [...document.querySelectorAll(sel)];
 
 const data = await import(resolve(here, '../src/data.js'));
@@ -292,26 +295,30 @@ click(q('[data-cm="send"]'));
 if (T.templateById(seed.id).uses !== 1 || !T.templateById(seed.id).lastUsedAt) fail('send must record use');
 const saved = JSON.parse(mem['crm:message_templates']).find((t) => t.id === seed.id);
 if (saved.uses !== 1 || !saved.lastUsedAt) fail('usage local backup');
-C.openCompose({ to: contact.name, email: contact.email, contactId: contact.id });
+await C.openCompose({ to: contact.name, email: contact.email, contactId: contact.id }); // an open composer saves its draft first, then reopens
 click(q(`[data-tpl="${seed.id}"]`));
 click(q('[data-cm="close"]'));
+await settleCompose();
 if (T.templateById(seed.id).uses !== 1) fail('cancel must not count');
-C.openCompose({});
+await C.openCompose({});
 click(q(`[data-tpl="${seed.id}"]`));
 click(q('[data-cm="send"]'));
 if (T.templateById(seed.id).uses !== 1) fail('missing recipient must not count');
 click(q('[data-cm="close"]'));
-C.openCompose({ to: contact.name, email: contact.email, contactId: contact.id });
+await settleCompose();
+await C.openCompose({ to: contact.name, email: contact.email, contactId: contact.id }); // an open composer saves its draft first, then reopens
 click(q(`[data-tpl="${seed.id}"]`));
 click(q('[data-cm="send-later"]'));
 if (T.templateById(seed.id).uses !== 1) fail('scheduling is not a sent email');
-C.openCompose({ to: contact.name, email: contact.email, contactId: contact.id });
+await settleCompose();
+await C.openCompose({ to: contact.name, email: contact.email, contactId: contact.id }); // an open composer saves its draft first, then reopens
 click(q(`[data-tpl="${seed.id}"]`));
 $('cmp-text').innerHTML = '';
 click(q('[data-cm="send"]'));
 if (T.templateById(seed.id).uses !== 1) fail('erased template must not count');
+await settleCompose();
 const other = T.templates().find((t) => t.id !== seed.id);
-C.openCompose({ to: contact.name, email: contact.email, contactId: contact.id });
+await C.openCompose({ to: contact.name, email: contact.email, contactId: contact.id }); // an open composer saves its draft first, then reopens
 click(q(`[data-tpl="${seed.id}"]`));
 click(q(`[data-tpl="${other.id}"]`));
 click(q('[data-cm="send"]'));
