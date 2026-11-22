@@ -1418,10 +1418,11 @@
     },
     {
       "id": "gap-smoke-task-queue-barra",
-      "status": "pending",
+      "status": "done",
       "instruction": "smoke-task-queue falla en «bar should reflect the completed task». Criterio: la prueba pasa. Ejecuta la(s) prueba(s) con node scripts/<smoke>.mjs hasta que pasen. Verifica si es regresión del código o prueba desactualizada por un cambio intencional; corrige lo que corresponda. No despliegues nada a producción; solo código local.",
       "createdAt": "2026-11-21T16:25:45-06:00",
-      "lane": "claude"
+      "lane": "claude",
+      "completedAt": "2026-11-21T22:01:18-0600"
     },
     {
       "id": "gap-smoke-views-error",
