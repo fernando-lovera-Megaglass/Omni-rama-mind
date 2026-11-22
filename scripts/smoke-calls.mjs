@@ -78,7 +78,7 @@ log('tabla: ordenación, columnas y búsqueda OK');
 
 
 // Los filtros comparten chips y menús, con selección y cierre al elegir.
-if (qa('.calls__toolbar .qchip').length !== 4 || q('select.calls__filter')) fail('chips compartidos');
+if (qa('.calls__toolbar .qchip').length !== 5 || q('select.calls__filter')) fail('chips compartidos'); // dirección, asignada a, fecha, duración, resultado
 function chooseFilter(id, value) {
   const chip = $(`calls-f-${id}`);
   click(chip);
