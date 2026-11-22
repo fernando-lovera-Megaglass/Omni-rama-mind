@@ -24,6 +24,8 @@ INSERT INTO calls VALUES ('301');
 INSERT INTO activities VALUES (1,'contacts',301),(2,'deals',301);
 INSERT INTO workflow_enrollments VALUES ('contacts',302),('companies',302);
 INSERT INTO contact_companies(contact_id,company_id,is_primary) VALUES (1,1,false),(301,1,true),(302,1,false);`);
+// Bootstrap protection installs even while live duplicate emails still exist.
+await db.exec(sql('../supabase/bootstrap-demo.sql'));
 const repair = sql('./sql/dedupe-contacts.sql');
 await db.exec(`BEGIN; ${repair} ROLLBACK;`);
 assert.equal((await db.query('SELECT count(*)::int n FROM contacts WHERE deleted_at IS NOT NULL')).rows[0].n, 0);
@@ -39,6 +41,7 @@ assert.equal((await db.query('SELECT count(*)::int n FROM contact_companies')).r
 assert.equal((await db.query('SELECT is_primary FROM contact_companies')).rows[0].is_primary, true);
 await db.exec(`BEGIN; ${repair} COMMIT;`);
 await db.exec(sql('../supabase/contact-integrity.sql'));
+await db.exec(sql('../supabase/bootstrap-demo.sql'));
 await assert.rejects(db.exec("INSERT INTO contacts(email) VALUES ('ana@EXAMPLE.com')"));
 await db.exec("INSERT INTO contacts(email,deleted_at) VALUES ('ana@example.com',now())");
 const payload = buildDemoSeedPayload();

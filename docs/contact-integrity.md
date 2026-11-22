@@ -9,8 +9,9 @@ Requisitos: una copia local de PostgreSQL, `psql`, esquema actual (incluyendo `s
    ```sh
    DATABASE_URL=postgres://localhost/omni_local node scripts/dedupe-contacts.mjs > /tmp/dedupe-review.log 2>&1
    ```
-3. Aplicar a esa copia local:
+3. Instalar la protección del bootstrap y aplicar a esa copia local:
    ```sh
+   psql -X -v ON_ERROR_STOP=1 postgres://localhost/omni_local -f supabase/bootstrap-demo.sql
    DATABASE_URL=postgres://localhost/omni_local node scripts/dedupe-contacts.mjs --apply > /tmp/dedupe-applied.log 2>&1
    psql -X -v ON_ERROR_STOP=1 postgres://localhost/omni_local -f supabase/contact-integrity.sql
    ```
@@ -21,7 +22,7 @@ Cuando varias asociaciones apuntan a la misma empresa, conserva la asociación c
 
 El índice es más estricto que `lower(email)`: también recorta espacios. Los contactos en papelera no participan en la unicidad; restaurar uno que colisione produce un error de unicidad.
 
-El bootstrap requiere la nueva función SQL. La función toma bloqueos, verifica las cinco tablas (incluida la papelera), valida los IDs/cantidades y siembra todo en una transacción. Una base parcialmente poblada se conserva sin rellenarla ni sobrescribirla. Los errores se propagan al manejo existente del arranque; no existe fallback a inserts de seed. La función tiene privilegios de su propietario para que RLS no confunda datos ocultos con una base vacía, y su ejecución está limitada a los roles de la aplicación existentes. Se preservan las fechas/defaults y se avanzan las secuencias de identidad.
+El bootstrap requiere `supabase/bootstrap-demo.sql`, ahora separado del índice para que los duplicados existentes no bloqueen la protección frente a nuevas carreras. Adquiere un advisory lock transaccional compartido por todas las llamadas antes de comprobar las tablas. La función toma bloqueos, verifica las cinco tablas (incluida la papelera), valida los IDs/cantidades y siembra todo en una transacción. Una base parcialmente poblada se conserva sin rellenarla ni sobrescribirla. Los errores se propagan al manejo existente del arranque; no existe fallback a inserts de seed. La función tiene privilegios de su propietario para que RLS no confunda datos ocultos con una base vacía, y su ejecución está limitada a los roles de la aplicación existentes. Se preservan las fechas/defaults y se avanzan las secuencias de identidad.
 
 La fórmula anterior producía 77 emails repetidos dentro de una sola generación de 420 contactos. Las apariciones posteriores ahora reciben `+seed<ID>`; la primera mantiene su dirección. Esto solo cambia datos demo generados, no los emails de contactos existentes.
 
@@ -48,3 +49,11 @@ GROUP BY 1 HAVING count(*) > 1;
 ```
 
 El script verifica en la misma transacción que ninguna relación inspeccionada apunte a los IDs que suprime y muestra `duplicate_groups = 0` antes del commit/rollback.
+
+## Estado de esta corrección
+
+No se ejecutó la reparación contra la base real: la instrucción vigente limita el trabajo a código local y prohíbe cambios en producción. `dedupe-contacts.mjs` rechaza conexiones remotas. `mgmt-sql.mjs` usa un token de gestión de Supabase (no una cuenta de servicio SQL); no fue invocado. Los 423 contactos y 77 grupos reportados por el usuario no se presentan como una medición nueva ni como resueltos.
+
+Orden de aplicación futura: `bootstrap-demo.sql`, reparación transaccional y `contact-integrity.sql`. El registro local mantiene ambas migraciones como pendientes, nunca como aplicadas. El índice aborta si quedan duplicados; el reparador también aborta si la verificación final no da cero grupos. El estado histórico `done` no acredita una reparación de la base viva.
+
+La consulta original sin `deleted_at IS NULL` seguirá mostrando correos repetidos después de un soft delete correcto. La aceptación debe usar la consulta de activos de arriba; las copias se conservan para auditoría.

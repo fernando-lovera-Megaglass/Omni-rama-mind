@@ -15,7 +15,7 @@ try {
   for (let i=0;i<3;i++) { const c=server.getPgClient(); await c.connect(); clients.push(c); }
   const [admin,a,b]=clients;
   await admin.query('CREATE ROLE anon; CREATE ROLE authenticated');
-  for (const file of ['schema.sql','soft_delete.sql','company_hierarchy.sql','contact-integrity.sql']) {
+  for (const file of ['schema.sql','soft_delete.sql','company_hierarchy.sql','contact-integrity.sql','bootstrap-demo.sql']) {
     await admin.query(readFileSync(new URL(`../supabase/${file}`,import.meta.url),'utf8'));
   }
   const payload=JSON.stringify(buildDemoSeedPayload());

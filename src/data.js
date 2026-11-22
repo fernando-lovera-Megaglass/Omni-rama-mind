@@ -2222,7 +2222,8 @@ export function buildDemoSeedPayload() {
 }
 
 async function seedAll() {
-  // The database checks emptiness while holding locks and inserts all tables atomically.
+  // bootstrap-demo.sql serializes concurrent calls with a transaction advisory lock.
+  // The database checks emptiness while holding table locks and inserts all tables atomically.
   // Never fall back to client-side inserts when the RPC/migration is unavailable.
   const payload = buildDemoSeedPayload();
   const { error } = await supabase.rpc('bootstrap_demo_v1', { payload });

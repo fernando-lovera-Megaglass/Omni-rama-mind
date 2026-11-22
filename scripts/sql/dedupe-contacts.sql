@@ -73,3 +73,12 @@ SELECT count(*) AS duplicate_groups FROM (
   SELECT lower(btrim(email)) FROM public.contacts WHERE deleted_at IS NULL AND btrim(email) <> ''
   GROUP BY 1 HAVING count(*) > 1
 ) duplicates;
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT lower(btrim(email)) FROM public.contacts
+    WHERE deleted_at IS NULL AND btrim(email) <> ''
+    GROUP BY 1 HAVING count(*) > 1
+  ) THEN RAISE EXCEPTION 'Live duplicate emails remain; rolling back'; END IF;
+END $$;
