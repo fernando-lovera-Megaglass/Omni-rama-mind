@@ -1,5 +1,11 @@
 # Progreso — Omni CRM
 
+## 2026-11-22 (sesión 6) · smoke-links vuelve a pasar: el sitio web de una empresa es dato real, no decoración
+
+- Diagnóstico: la ficha sí muestra los enlaces (dominio, teléfono, LinkedIn); faltaba solo «URL del sitio web» porque `src/data.js` dejó de inventar un sitio web de muestra para las empresas (es dato real: solo se rellena a mano o al asociar una empresa por dominio). La prueba daba por hecho que la empresa 2 de la demo tendría sitio web. No es un fallo de la app ni del harness.
+- `scripts/smoke-links.mjs`: antes de abrir la ficha fija el sitio web de la empresa 2 con `setField` (como lo haría la persona) y comprueba que la tarjeta lo muestra como enlace `https://…` en pestaña nueva con icono, junto a dominio, teléfono y LinkedIn. Sin cambios en la app; termina con código 0.
+- Solo código local; nada desplegado.
+
 ## 2026-11-22 (sesión 6) · Tema oscuro: dos fondos claros sin equivalente oscuro (`smoke-dark-theme` vuelve a pasar)
 
 - La prueba estática listaba dos reglas con fondo claro literal y sin override en `[data-theme="dark"]`: `.funnel__track` (la barra del embudo de ventas, `#eaf0f6`) y `.timeline__item--pinned` (la actividad fijada de la cronología, `#fff8e6`).

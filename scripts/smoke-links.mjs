@@ -73,7 +73,10 @@ log('tickets custom URL:', describe(link('portal_url')), '| custom e-mail:', des
 if (!link('portal_url') || !link('portal_url').getAttribute('href').startsWith('http')) fail('a custom URL property on tickets should be a link');
 if (!link('reporter_email') || !link('reporter_email').getAttribute('href').startsWith('mailto:')) fail('a custom e-mail property on tickets should be a mailto link');
 
-// the record card of a company shows the same links
+// the record card of a company shows the same links. A company's website is real data only (the demo never
+// decorates it, src/data.js), so give company 2 one through the data layer, as the person would.
+const data = await import(resolve(here, '../src/data.js'));
+data.setField('companies', 2, 'website', 'https://www.vidriosdelta.com/es');
 boot('http://localhost/companies/record/?id=2', '<!doctype html><body class="app" data-type="companies"><aside id="sidenav"></aside><header id="topbar"></header><main id="record-root"></main><div id="scrim"></div></body>');
 await import(resolve(here, '../src/record.js'));
 const row = (key) => document.querySelector(`#rec-props .props__row[data-key="${key}"] a.cell-link`);
