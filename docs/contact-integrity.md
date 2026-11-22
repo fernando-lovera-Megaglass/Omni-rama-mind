@@ -2,6 +2,8 @@
 
 ## Verificación local del 22 de noviembre
 
+Revisión adicional de relaciones: el reparador incluye tablas particionadas y trata las FK declaradas hacia contactos como referencias incondicionales, incluso cuando la columna se llama `record_id` y existe un discriminador con otro valor. La prueba local cubre ambos casos para evitar que una copia suprimida conserve referencias por un filtro polimórfico incorrecto.
+
 Revalidado en esta intervención: prueba PGlite con 77 pares sintéticos, cero grupos duplicados activos, 77 copias en papelera y cero referencias restantes a esas copias en deals, tickets, activities y contact_companies. La prueba PostgreSQL con dos sesiones independientes observó espera por bloqueo y una sola siembra de 420 contactos. El reparador ahora adquiere el mismo advisory lock que el bootstrap antes de bloquear tablas, evitando órdenes de adquisición incompatibles entre ambos procesos.
 
 El ítem original y su reapertura quedan pendientes en la cola local, sin completedAt: la aceptación de datos reales sigue pendiente. No se ejecutó mgmt-sql.mjs, no se aplicaron migraciones remotas y no se desplegó código. Estos resultados sintéticos no verifican los 423 contactos reportados en producción.

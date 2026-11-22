@@ -14,12 +14,17 @@ await db.exec(sql('../supabase/company_hierarchy.sql'));
 await db.exec(sql('../supabase/contact_companies.sql'));
 await db.exec(`CREATE TABLE activities (id bigint, record_type text, record_id bigint);
 CREATE TABLE extra_links (id bigint, person bigint REFERENCES contacts(id));
+CREATE TABLE partitioned_links (id bigint, person bigint REFERENCES contacts(id)) PARTITION BY RANGE(id);
+CREATE TABLE partitioned_links_first PARTITION OF partitioned_links FOR VALUES FROM (0) TO (100);
+CREATE TABLE declared_record_links (record_type text, record_id bigint REFERENCES contacts(id));
 CREATE TABLE calls (contact_id text);
 CREATE TABLE workflow_enrollments (object_type text, record_id bigint);
 INSERT INTO contacts(id,email) VALUES (1,' Ana@Example.com '),(301,'ana@example.com'),(302,'ANA@example.com'),(9,''),(10,''),(11,null);
 INSERT INTO companies(id,name) VALUES (1,'Test');
 INSERT INTO deals(contact_id) VALUES (301); INSERT INTO tickets(contact_id) VALUES (302);
 INSERT INTO tasks(contact_id) VALUES (301); INSERT INTO extra_links VALUES (1,302);
+INSERT INTO partitioned_links VALUES (1,302);
+INSERT INTO declared_record_links VALUES ('custom',301);
 INSERT INTO calls VALUES ('301');
 INSERT INTO activities VALUES (1,'contacts',301),(2,'deals',301);
 INSERT INTO workflow_enrollments VALUES ('contacts',302),('companies',302);
@@ -35,6 +40,8 @@ for (const t of ['deals','tickets','tasks','calls','contact_companies']) {
   assert.equal(String((await db.query(`SELECT contact_id FROM ${t}`)).rows[0].contact_id), '1');
 }
 assert.equal(Number((await db.query('SELECT person FROM extra_links')).rows[0].person), 1);
+assert.equal(Number((await db.query('SELECT person FROM partitioned_links')).rows[0].person), 1);
+assert.equal(Number((await db.query('SELECT record_id FROM declared_record_links')).rows[0].record_id), 1);
 assert.deepEqual((await db.query('SELECT record_id::int FROM activities ORDER BY id')).rows.map(r=>r.record_id), [1,301]);
 assert.deepEqual((await db.query('SELECT record_id::int FROM workflow_enrollments ORDER BY object_type')).rows.map(r=>r.record_id), [302,1]);
 assert.equal((await db.query('SELECT count(*)::int n FROM contact_companies')).rows[0].n, 1);

@@ -115,13 +115,17 @@ BEGIN
   FOR r IN
     SELECT DISTINCT n.nspname AS schema_name, c.relname AS table_name, a.attname AS column_name,
       format_type(a.atttypid, a.atttypmod) AS column_type,
-      CASE WHEN a.attname = 'record_id' THEN
+      -- A declared FK is unconditional, even if its column is called record_id.
+      CASE WHEN a.attname = 'record_id' AND NOT EXISTS (
+        SELECT 1 FROM pg_constraint f WHERE f.contype='f' AND f.conrelid=c.oid
+          AND f.confrelid='public.contacts'::regclass AND a.attnum=ANY(f.conkey)
+      ) THEN
         CASE WHEN EXISTS (SELECT 1 FROM pg_attribute p WHERE p.attrelid=c.oid AND p.attname='record_type')
           THEN ' AND t.record_type = ''contacts''' ELSE ' AND t.object_type = ''contacts''' END
         ELSE '' END AS predicate
     FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
     JOIN pg_attribute a ON a.attrelid=c.oid AND a.attnum>0 AND NOT a.attisdropped
-    WHERE c.relkind='r' AND (
+    WHERE c.relkind IN ('r','p') AND (
       (n.nspname='public' AND a.attname='contact_id')
       OR (n.nspname='public' AND a.attname='record_id' AND EXISTS (SELECT 1 FROM pg_attribute p WHERE p.attrelid=c.oid AND p.attname IN ('record_type','object_type')))
       OR EXISTS (SELECT 1 FROM pg_constraint f WHERE f.contype='f' AND f.conrelid=c.oid
