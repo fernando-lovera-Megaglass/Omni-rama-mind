@@ -10,6 +10,7 @@ import { saveAssociatedActivity } from './activity-associations.js';
 import './filter-chip.js';
 import { validatePropertyValues, companyDomainPrefill, companyDomains, mergeRecords, mergeConflicts, mergeFillable } from './data.js';
 import { suggestedKeep } from './duplicates.js';
+import { cancelScheduled, rescheduleEmail, scheduledById, datetimeInput as scheduledInput, whenText as scheduledWhen, timeZoneName as scheduledTz } from './scheduled-emails.js';
 import { sensitiveValue } from './property-privacy.js';
 import { mountActivityComments } from './activity-comments.js';
 // Generic record page for contacts, companies, deals, tickets and tasks.
@@ -1453,7 +1454,7 @@ function renderTimeline() {
     <li class="timeline__item${ev === pinned ? ' timeline__item--pinned' : ''}${openEvents.has(evKey(ev)) ? ' is-open' : ''}" data-ev="${esc(evKey(ev))}">
       <span class="timeline__ico" aria-hidden="true">${ev.type === 'call' && ev.extra?.direction === 'Entrante' ? ACT_ICONS.inbound : ICONS[ev.type] || ACT_ICONS.more}</span>
       <div class="timeline__body">
-        <details class="timeline__actions"><summary aria-label="Acciones de actividad">⋮</summary><div class="timeline__actions-panel">${[...( ['note', 'call', 'email', 'meeting', 'message'].includes(ev.type) ? [['edit', 'Editar'], ['delete', 'Eliminar']] : []), ['pin', ev === pinned ? 'Desfijar' : 'Fijar en la parte superior']].map(([action, label]) => `<button type="button" class="btn btn--ghost" data-activity-action="${action}" data-activity-key="${esc(evKey(ev))}">${label}</button>`).join('')}</div></details>
+        <details class="timeline__actions"><summary aria-label="Acciones de actividad">⋮</summary><div class="timeline__actions-panel">${[...(ev.extra?.scheduled && ev.extra.status === 'scheduled' ? [['cancel-send', 'Cancelar envío'], ['edit-send', 'Editar fecha']] : ['note', 'call', 'email', 'meeting', 'message'].includes(ev.type) ? [['edit', 'Editar'], ['delete', 'Eliminar']] : []), ['pin', ev === pinned ? 'Desfijar' : 'Fijar en la parte superior']].map(([action, label]) => `<button type="button" class="btn btn--ghost" data-activity-action="${action}" data-activity-key="${esc(evKey(ev))}">${label}</button>`).join('')}</div></details>
         <button class="timeline__head" type="button" aria-expanded="${openEvents.has(evKey(ev))}">
           <span class="timeline__title">${ev === pinned ? '📌 Fijada · ' : ''}${esc(titleOf(ev))}</span>
           <span class="timeline__chev" aria-hidden="true">⌄</span>
@@ -1477,6 +1478,21 @@ function renderTimeline() {
         localStorage.setItem(pinnedStorageKey, unpin ? '' : evKey(ev));
         renderTimeline();
         toast(unpin ? 'Actividad desfijada' : 'Actividad fijada');
+        return;
+      }
+      // a scheduled e-mail (src/scheduled-emails.js) can be cancelled or moved while it waits
+      if (button.dataset.activityAction === 'cancel-send') {
+        const item = await cancelScheduled(ev.extra.scheduledId);
+        toast(item ? 'Envío cancelado: el correo no se enviará' : 'Ese correo ya no estaba programado');
+        renderTimeline();
+        return;
+      }
+      if (button.dataset.activityAction === 'edit-send') {
+        const item = scheduledById(ev.extra.scheduledId);
+        if (!item || item.status !== 'scheduled') { toast('Ese correo ya no está programado'); renderTimeline(); return; }
+        const min = scheduledInput(new Date(Date.now() + 60000).toISOString());
+        openModal('Editar la fecha de envío', `<p>«${esc(item.subject)}» a ${esc(item.toNames)} · programado para el ${esc(scheduledWhen(item.sendAt))}.</p><label class="field"><span>Nueva fecha y hora</span><input type="datetime-local" id="resched-at" value="${esc(scheduledInput(item.sendAt))}" min="${esc(min)}" /></label><p class="muted">Zona horaria: ${esc(scheduledTz())}</p>`,
+          `<button class="btn btn--primary" type="button" data-confirm="reschedule-send" data-id="${esc(item.id)}">Guardar</button><button class="btn btn--ghost" type="button" data-close>Cancelar</button>`);
         return;
       }
       if (!ev.id) {
@@ -1953,6 +1969,17 @@ $('rec-modal').addEventListener('click', async (e) => {
     if (Number(result.kept.id) !== Number(rec.id)) { location.href = `./?id=${result.kept.id}`; return; }
     Object.assign(rec, findRecord(type, rec.id) || {});
     renderAll();
+  } else if (what === 'reschedule-send') {
+    const v = $('resched-at') && $('resched-at').value;
+    const d = v ? new Date(v) : null;
+    if (!d || Number.isNaN(d.getTime())) { toast('Elige una fecha y hora válidas'); return; }
+    try {
+      const item = await rescheduleEmail(b.dataset.id, d.toISOString());
+      if (!item) { toast('Ese correo ya no está programado'); closeModal(); renderTimeline(); return; }
+      closeModal();
+      toast(`Envío reprogramado para el ${scheduledWhen(item.sendAt)}`);
+      renderTimeline();
+    } catch (e) { toast(e.message || String(e)); }
   } else if (what === 'delete') {
     deleteRecords(type, [rec.id]);
     location.href = cfg.listHref;
@@ -2315,6 +2342,8 @@ if (!rec) {
           email: rec.email || (type === 'companies' ? `info@${rec.domain || 'ejemplo.es'}` : ''),
           company: type === 'companies' ? rec.name : rec.company || '',
           contactId: type === 'contacts' ? rec.id : rec.contactId || '',
+          recordType: type,
+          recordId: rec.id,
           assoc: [
             { label: cfg.title(rec), kind: cfg.singular, on: true },
             ...cfg.assoc(rec).flatMap(([t, rows, kind]) => rows.slice(0, 3).map((r) => ({ label: r.name, kind: t.toLowerCase().replace(/s$/, ''), on: true }))),
@@ -2337,6 +2366,8 @@ if (!rec) {
   // An enrolment made from the e-mail composer's Secuencias tab also lands in this timeline; an enrolment
   // ended by an exclusion criterion (reply, new deal, unsubscribe) updates the Secuencias card too.
   document.addEventListener('crm:enrolled', () => { renderRight(); renderTimeline(); });
+  // A scheduled e-mail of this record going out (or cancelled / moved) refreshes its entry.
+  document.addEventListener('crm:scheduled-email', (e) => { if (e.detail && e.detail.recordType === type && String(e.detail.recordId) === String(id)) renderTimeline(); });
   // A workflow run advancing on this record (the checker finished a delay, a step ran) refreshes the timeline.
   document.addEventListener('crm:workflow', (e) => { if (e.detail && e.detail.recordType === type && Number(e.detail.recordId) === Number(id)) { renderTimeline(); renderAssoc(); } });
 

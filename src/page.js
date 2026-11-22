@@ -14,6 +14,8 @@ export function boot({ root, active, sub, title }) {
   const t = setTimeout(() => {
     import('./workflow-engine.js').then((m) => m.startWorkflowChecker()).catch((e) => console.error('[workflows] verificador', e));
     import('./task-reminders.js').then((m) => m.startReminderChecker()).catch((e) => console.error('[recordatorios] verificador', e));
+    // the scheduled e-mails («Enviar más tarde», src/scheduled-emails.js) go out when their time comes, every minute
+    import('./scheduled-emails.js').then((m) => m.startScheduledEmailChecker()).catch((e) => console.error('[correos programados] verificador', e));
   }, 1500);
   if (t && typeof t.unref === 'function') t.unref();
 }

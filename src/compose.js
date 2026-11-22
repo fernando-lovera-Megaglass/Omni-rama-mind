@@ -5,7 +5,8 @@ import { toast, wireMenus, closeMenus } from './shell.js';
 import { ACT_ICONS } from './action-icons.js';
 import { addRecord, formatDate, TODAY, allContacts } from './data.js';
 import { ready as templatesReady, templates as savedTemplates, resolveTokens, recordTemplateUse, bodyText } from './templates-data.js';
-import { openTokenPicker, chipHtml, chipsToMarkers, renderTokens, contextFromRecord, insertAtCaret, trackCaret } from './tokens.js';
+import { openTokenPicker, chipHtml, chipsToMarkers, renderTokens, contextFromRecord, insertAtCaret, trackCaret, plainText } from './tokens.js';
+import { scheduleEmail, scheduledEntry, logScheduled, SEND_LATER_PRESETS, presetSendAt, datetimeInput as laterInput, whenText as laterText, timeZoneName } from './scheduled-emails.js';
 import { snippets as savedSnippets } from './snippets-data.js';
 import { attachSnippetAutocomplete } from './snippet-autocomplete.js';
 import { ready as sequencesReady, sequences as savedSequences, activeEnrollment } from './sequences-data.js';
@@ -321,11 +322,81 @@ function send(whenLabel) {
   }
   const sender = currentSender();
   const account = sender[2];
-  // A real Google account sends through the Gmail API (scheduled sends stay simulated: Gmail has no scheduling).
+  // A real Google account sends through the Gmail API («Enviar más tarde» queues instead: scheduleSend below).
   if (account && account.real && !whenLabel) { sendViaGmail(account, sender, subject, recipients); return; }
   if (!whenLabel && ctx.templateId) void recordTemplateUse(ctx.templateId);
   logSent(sender, whenLabel, subject, recipients, { simulated: true });
   finishSend(sender, whenLabel, recipients);
+}
+// ---------- «Enviar más tarde»: the dialog with the presets and a custom date-time, then the queue ----------
+function closeSendLater() { const p = el && el.querySelector('#cmp-later'); if (p) p.remove(); }
+function openSendLater() {
+  if (!ctx) return;
+  if (!senders().length) { toast('Conecta tu correo para enviar'); openConnectWizard({ onConnected: reopenAfterConnect }); return; }
+  closeSendLater();
+  const foot = el.querySelector('.compose__foot');
+  if (!foot) return;
+  const now = new Date();
+  const panel = document.createElement('div');
+  panel.className = 'compose__later';
+  panel.id = 'cmp-later';
+  panel.setAttribute('role', 'dialog');
+  panel.setAttribute('aria-label', 'Enviar más tarde');
+  const minLocal = laterInput(new Date(now.getTime() + 60000).toISOString());
+  panel.innerHTML = `
+    <div class="compose__laterhead"><strong>Enviar más tarde</strong><button type="button" class="compose__laterclose" data-later="close" aria-label="Cerrar">×</button></div>
+    <div class="compose__laterpresets">
+      ${SEND_LATER_PRESETS.map(([k, l]) => `<button type="button" class="menu__item" data-later="${k}"><span>${l}</span><span class="muted">${esc(laterText(presetSendAt(k, now)))}</span></button>`).join('')}
+    </div>
+    <form class="compose__latercustom" data-later-form>
+      <label class="field"><span>Fecha y hora personalizadas</span><input type="datetime-local" id="cmp-later-at" name="at" value="${esc(minLocal)}" min="${esc(minLocal)}" required /></label>
+      <p class="muted compose__latertz">Zona horaria: ${esc(timeZoneName())}</p>
+      <div class="compose__laterbtns"><button type="submit" class="btn btn--primary btn--sm" data-later="custom">Programar</button><button type="button" class="btn btn--ghost btn--sm" data-later="close">Cancelar</button></div>
+    </form>`;
+  foot.appendChild(panel);
+  panel.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-later]');
+    if (!b || b.dataset.later === 'custom') return;
+    e.preventDefault();
+    if (b.dataset.later === 'close') { closeSendLater(); return; }
+    scheduleSend(presetSendAt(b.dataset.later));
+  });
+  panel.querySelector('[data-later-form]').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const v = panel.querySelector('#cmp-later-at').value;
+    const d = v ? new Date(v) : null;
+    if (!d || Number.isNaN(d.getTime())) { toast('Elige una fecha y hora válidas'); return; }
+    scheduleSend(d.toISOString());
+  });
+  setTimeout(() => { const i = panel.querySelector('#cmp-later-at'); if (i) i.focus(); }, 30);
+}
+// Queues the e-mail as it is now (tokens resolved, signature included) and logs «Correo programado para el …»
+// on the record; the checker of src/scheduled-emails.js sends it when the time comes.
+function scheduleSend(sendAt) {
+  if (!ctx || ctx.sending) return;
+  if (!senders().length) { toast('Conecta tu correo para enviar'); openConnectWizard({ onConnected: reopenAfterConnect }); return; }
+  syncFields();
+  const tokenCtx = composeContext();
+  const subject = renderTokens((el.querySelector('#cmp-subject') || {}).value || ctx.subject || '(sin asunto)', tokenCtx);
+  ctx.subject = subject;
+  ctx.body = renderTokens(chipsToMarkers(ctx.body || ''), tokenCtx);
+  const recipients = ctx.recipients.map((r) => r.name || r.email).join(', ');
+  if (!ctx.recipients.length) { toast('Añade al menos un destinatario'); return; }
+  const sender = currentSender();
+  const account = sender[2];
+  const html = `${ctx.body || ''}${signatureFor(account, loadSig())}`;
+  let item;
+  try {
+    item = scheduleEmail({
+      to: ctx.recipients.map((x) => x.email).filter(Boolean), toNames: recipients, cc: splitAddresses(ctx.cc), bcc: splitAddresses(ctx.bcc),
+      subject, html, text: plainText(html), fromAccountId: account ? account.id : '', fromName: sender[0], fromEmail: sender[1], via: account && account.real ? 'gmail' : 'simulado',
+      recordType: ctx.recordType || '', recordId: ctx.recordId || '', sendAt, templateId: ctx.templateId || null,
+    });
+  } catch (e) { toast(e.message || String(e)); return; }
+  if (ctx.templateId) void recordTemplateUse(ctx.templateId);
+  if (ctx.onSent) ctx.onSent(scheduledEntry(item, sender[0])); else logScheduled(item);
+  closeSendLater();
+  finishSend(sender, '', recipients, '', `Correo programado para el ${laterText(item.sendAt)}${item.via === 'gmail' ? ' · saldrá por Gmail' : ' · cuenta simulada: no saldrá ningún correo'}`);
 }
 function logSent(sender, whenLabel, subject, recipients, extra) {
   ctx.onSent?.({ type: 'email', when: Date.now(), who: sender[0], text: `${extra.simulated ? `Simulación${whenLabel ? ` de programación (${whenLabel})` : ''} · no se envió ningún correo` : 'Correo enviado'} a ${recipients}: "${subject}" · enviado desde ${sender[1]}${extra.via === 'gmail' ? ' por Gmail' : ''}.`, extra: { from: sender[1], subject, attachments: ctx.attachments.map(attachmentMetadata), ...extra } });
@@ -350,7 +421,7 @@ async function sendViaGmail(account, sender, subject, recipients) {
     if (btn) { btn.disabled = false; btn.textContent = 'Enviar'; }
   }
 }
-function finishSend(sender, whenLabel, recipients, via = '') {
+function finishSend(sender, whenLabel, recipients, via = '', customToast = '') {
   if (el.querySelector('#cmp-follow')?.checked) {
     const days = ctx.followDays || 2;
     const due = businessDaysFrom(days);
@@ -367,7 +438,7 @@ function finishSend(sender, whenLabel, recipients, via = '') {
     });
     ctx.onSent?.({ type: 'task', when: Date.now(), who: sender[0], text: `Tarea de seguimiento creada para el ${formatDate(due)}.` });
   }
-  toast(via ? `Correo enviado a ${recipients} por ${via}` : 'Simulación registrada: no se envió ningún correo ni se programó un envío real.');
+  toast(customToast || (via ? `Correo enviado a ${recipients} por ${via}` : 'Simulación registrada: no se envió ningún correo ni se programó un envío real.'));
   close();
 }
 
@@ -392,10 +463,8 @@ function wire() {
       else if (a === 'cc') { ctx.showCc = !ctx.showCc; syncFields(); render(); }
       else if (a === 'bcc') { ctx.showBcc = !ctx.showBcc; syncFields(); render(); }
       else if (a === 'send') send();
-      else if (a === 'send-later') {
-        const when = window.prompt('¿Cuándo quieres enviarlo? (por ejemplo: mañana 9:00)', 'mañana 9:00');
-        if (when) send(when);
-      } else if (a === 'save-draft') { syncFields(); toast('Borrador guardado'); close(); }
+      else if (a === 'send-later') openSendLater();
+      else if (a === 'save-draft') { syncFields(); toast('Borrador guardado'); close(); }
       else if (a === 'link') {
         const url = window.prompt('Dirección del enlace', 'https://');
         if (url) insertHtml(`<a href="${esc(url)}">${esc(url)}</a>`);
@@ -545,6 +614,9 @@ export function openCompose(options) {
     firstName: options.firstName || (options.to || '').split(' ')[0],
     company: options.company || '',
     contactId: options.contactId || '',
+    // the record whose timeline gets the entries (scheduled sends need it to update theirs later)
+    recordType: options.recordType || (options.contactId ? 'contacts' : ''),
+    recordId: options.recordId || options.contactId || '',
     recipients: options.email ? [{ name: options.to, email: options.email }] : [],
     senderIdx: 0,
     templateId: options.templateId || null,
