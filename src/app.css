@@ -19984,15 +19984,31 @@ td[data-key="deal_tags"] .dtag {
   word-break: break-word;
 }
 
-.props dd,
-.props__value {
+/* The value cell is a flex row (value + pencil): the wrapping goes on the value itself, never on the row — a
+   flex item squeezed to its min-content with «anywhere» stacks letter by letter — and the pencil never shrinks. */
+.props dd {
   min-width: 0;
   overflow-wrap: anywhere;
   word-break: break-word;
 }
 
+.props dd.props__value,
+.props__value {
+  min-width: 0;
+  overflow-wrap: normal;
+  word-break: normal;
+}
+
 .props__value > * {
   min-width: 0;
+  flex: 1 1 auto;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.props__value > .props__edit {
+  flex: 0 0 auto;
+  min-width: auto;
 }
 
 .record .card,
@@ -20002,7 +20018,9 @@ td[data-key="deal_tags"] .dtag {
 }
 
 /* ---------- Tarjetas de asociación: etiquetas y enlaces largos no se salen ---------- */
-.tag {
+/* Long association labels wrap inside the card (only there: elsewhere a .tag keeps its one-line shape). */
+.assoc-card .tag,
+.assoc-card__label {
   max-width: 100%;
   height: auto;
   min-height: 24px;
@@ -20022,13 +20040,44 @@ td[data-key="deal_tags"] .dtag {
   padding: 4px 10px;
 }
 
+/* A row is label + value (+ copy): the label never shrinks nor wraps (overflow-wrap is inherited, and a flex item
+   squeezed to its min-content with «anywhere» stacks letter by letter); the value takes the rest and wraps inside
+   itself, or drops to its own line when the card is narrow. */
 .assoc-card__head,
 .assoc-card__row {
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.assoc-card__row > .muted {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  overflow-wrap: normal;
+}
+
+.assoc-card__row > a,
+.assoc-card__row > .acard-stage {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.assoc-card__row > .copy {
+  flex: 0 0 auto;
+}
+
+.assoc-card__head > a {
+  flex: 1 1 auto;
   min-width: 0;
   overflow-wrap: anywhere;
 }
 
-.assoc-card__head a,
+.assoc-card__head .assoc-card__unlink {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
 .assoc-card__due {
   min-width: 0;
   overflow-wrap: anywhere;
