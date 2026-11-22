@@ -1,3 +1,5 @@
+import { getSetting, setSetting } from './data.js';
+
 // Standard (built-in) saved views of each object and the account-level default tabs.
 // Labels must match the `views` of each list module; the filters live there.
 export const STD_VIEWS = {
@@ -32,23 +34,32 @@ export const DEFAULT_TABS_KEY = (type) => `crm:${type}:defaulttabs`;
 export const DELETED_VIEWS_KEY = (type) => `crm:${type}:deletedviews`;
 export function defaultTabs(type) {
   try {
-    const saved = JSON.parse(localStorage.getItem(DEFAULT_TABS_KEY(type)));
+    const saved = getSetting(DEFAULT_TABS_KEY(type)) ?? JSON.parse(localStorage.getItem(DEFAULT_TABS_KEY(type)));
     if (Array.isArray(saved) && saved.length) return saved;
   } catch {
     /* ignore */
   }
   return [...(BUILTIN_DEFAULT_TABS[type] || [])];
 }
+function saveSettingWithFallback(key, value, scope) {
+  // Storage may be unavailable; that must not prevent the remote write.
+  try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* ignore */ }
+  setSetting(key, value, { scope });
+}
 export function saveDefaultTabs(type, ids) {
-  localStorage.setItem(DEFAULT_TABS_KEY(type), JSON.stringify(ids));
+  saveSettingWithFallback(DEFAULT_TABS_KEY(type), ids, 'global');
 }
 export function deletedViews(type) {
+  let saved;
   try {
-    return JSON.parse(localStorage.getItem(DELETED_VIEWS_KEY(type))) || [];
-  } catch {
-    return [];
-  }
+    saved = getSetting(DELETED_VIEWS_KEY(type)) ?? JSON.parse(localStorage.getItem(DELETED_VIEWS_KEY(type)));
+  } catch { return []; }
+  if (!Array.isArray(saved)) return [];
+  const cutoff = Date.now() - 90 * 24 * 60 * 60 * 1000;
+  const retained = saved.filter((view) => Date.parse(view?.deletedAt) > cutoff);
+  if (retained.length !== saved.length) saveDeletedViews(type, retained);
+  return retained;
 }
 export function saveDeletedViews(type, list) {
-  localStorage.setItem(DELETED_VIEWS_KEY(type), JSON.stringify(list));
+  saveSettingWithFallback(DELETED_VIEWS_KEY(type), list, 'user');
 }
