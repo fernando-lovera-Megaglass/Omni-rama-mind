@@ -737,32 +737,37 @@ function renderHeader() {
   }
 }
 
+// Summaries quote persisted timeline entries; never infer sentiment or web traffic.
+function recentActivityLines() {
+  return activitiesFor(type, id)
+    .filter((a) => a.text?.trim() || a.extra?.outcome)
+    .sort((a, b) => new Date(b.when) - new Date(a.when))
+    .slice(0, 3)
+    .map((a) => `${formatDate(a.when)} · ${KIND_TITLE[a.type] || 'Actividad'}: ${a.text || ''}${a.extra?.outcome ? ` · Resultado registrado: ${a.extra.outcome}` : ''}`);
+}
 function summaryText() {
-  const name = cfg.title(rec);
-  const who = rec.owner && rec.owner !== 'Sin asignar' ? rec.owner : 'nadie todavía';
-  const open = allTasks().filter((t) => Number(t.contactId) === Number(rec.id) && t.status !== 'done');
-  const pending = open.length
-    ? `Hay ${open.length === 1 ? 'una tarea pendiente' : `${open.length} tareas pendientes`}: "${open[0].name}" con vencimiento el ${formatDate(open[0].due)}.`
-    : 'No hay tareas pendientes en este registro.';
-  return {
-    when: fmtTime(new Date()),
-    lines: [
-      `${name} se creó el ${formatDate(rec.created)}${rec.company ? ` y está asociado a ${rec.company}` : ''}. Propietario: ${who}.`,
-      pending,
-      `Acción sugerida: revisar la última actividad del ${formatDate(rec.lastActivity)} y registrar el resultado en el ${cfg.singular}.`,
-    ],
-  };
+  const lines = [`Registro: ${cfg.title(rec)}.`];
+  if (rec.created) lines.push(`Fecha de creación: ${formatDate(rec.created)}.`);
+  if (rec.owner) lines.push(`Propietario: ${rec.owner}.`);
+  const open = allTasks().filter((t) => taskLinksTo(t, type, rec.id) && t.status !== 'done');
+  open.forEach((t) => lines.push(`Tarea pendiente: ${t.name}${t.due ? ` · Vence: ${formatDate(t.due)}` : ''}.`));
+  const recent = recentActivityLines();
+  lines.push(...(recent.length ? recent : ['Sin datos suficientes todavía']));
+  return { when: fmtTime(new Date()), lines };
 }
 function renderAi() {
   const s = summaryText();
   const html = `
     <div class="ai-box__meta">Generado ${s.when} <button class="icon-btn icon-btn--xs" type="button" data-act="summarize" aria-label="Regenerar">↻</button></div>
-    ${s.lines.map((l, i) => `<p>${i === 1 ? '<strong>Tarea pendiente:</strong> ' : ''}${esc(l)} ${i === 1 ? '<span class="src-badge">1</span>' : ''}</p>`).join('')}
-    <div class="ai-box__foot"><span class="src">${ACT_ICONS.link} 2 Fuentes</span><button type="button" data-act="fb-up" aria-label="Útil">${ACT_ICONS.thumbsUp}</button><button type="button" data-act="fb-down" aria-label="No útil">${ACT_ICONS.thumbsDown}</button><button type="button" data-act="copy-summary" aria-label="Copiar">${ACT_ICONS.copy}</button></div>
+    ${s.lines.map((l) => `<p>${esc(l)}</p>`).join('')}
+    <div class="ai-box__foot"><span class="src">${ACT_ICONS.link} Propiedades y cronología del registro</span><button type="button" data-act="fb-up" aria-label="Útil">${ACT_ICONS.thumbsUp}</button><button type="button" data-act="fb-down" aria-label="No útil">${ACT_ICONS.thumbsDown}</button><button type="button" data-act="copy-summary" aria-label="Copiar">${ACT_ICONS.copy}</button></div>
     <button class="btn btn--pill btn--sm" type="button" data-act="ask">✦ Hacer una pregunta</button>`;
   if ($('ai-summary')) $('ai-summary').innerHTML = html;
   if ($('ai-right')) $('ai-right').innerHTML = html;
-  if ($('recent-box')) $('recent-box').innerHTML = `<div class="ai-box__meta">Generado ${s.when}</div><p>${esc(`${cfg.title(rec)} ha tenido ${1 + (Number(rec.id) % 4)} visitas al sitio, la más reciente el ${formatDate(rec.lastActivity)}. ${s.lines[1]}`)}</p><div class="recent__cta"><button class="btn btn--outline btn--sm" type="button" data-action="email">✉ Crear correo</button></div>`;
+  if ($('recent-box')) {
+    const recent = recentActivityLines();
+    $('recent-box').innerHTML = `<div class="ai-box__meta">Cronología del registro</div>${(recent.length ? recent : ['Sin datos suficientes todavía']).map((line) => `<p>${esc(line)}</p>`).join('')}`;
+  }
 }
 
 function renderLead() {
@@ -1055,28 +1060,18 @@ function middleCardHtml(id) {
   const label = (CATALOG[id] || { label: id }).label;
   switch (id) {
     case 'insights':
-      return `<div class="card"><div class="card__head"><h3 class="card__title">Resumen de ${esc(cfg.label.toLowerCase())}</h3><span class="card__tools"><span class="ai-badge">✦ AI</span><button class="icon-btn" type="button" data-act="customize" aria-label="Configurar">⚙</button></span></div><div class="ai-box" id="ai-summary"></div></div>`;
+      return `<div class="card"><div class="card__head"><h3 class="card__title">Resumen de ${esc(cfg.label.toLowerCase())}</h3><span class="card__tools"><span class="muted">Datos del registro</span><button class="icon-btn" type="button" data-act="customize" aria-label="Configurar">⚙</button></span></div><div class="ai-box" id="ai-summary"></div></div>`;
     case 'recent':
-      return `<div class="card"><div class="card__head"><h3 class="card__title">Actividades recientes</h3><span class="card__tools"><span class="ai-badge">✦ AI</span></span></div>
+      return `<div class="card"><div class="card__head"><h3 class="card__title">Actividades recientes</h3><span class="card__tools"><span class="muted">Datos del registro</span></span></div>
         <div class="recent" id="recent-box"></div>
         <div class="recent__split"><div class="recent__col recent__col--empty"><div class="recent__art" aria-hidden="true"></div><p>No hay actividad entrante en este registro.</p></div><div class="recent__col"><h4>Salientes</h4><ul class="timeline timeline--compact" id="rec-timeline-short"></ul></div></div>
         <div class="ai-feedback"><button type="button" data-act="fb-up" aria-label="Útil">${ACT_ICONS.thumbsUp}</button><button type="button" data-act="fb-down" aria-label="No útil">${ACT_ICONS.thumbsDown}</button></div></div>`;
     case 'highlights':
       return `<div class="card"><h3 class="card__title">${esc(label)}</h3><div class="highlights" id="rec-highlights"></div></div>`;
-    case 'sentiment': {
-      const n = Number(rec.id) % 3;
-      const mood = ['Positivo', 'Neutral', 'Atento'][n];
-      const pct = [82, 55, 34][n];
-      return `<div class="card"><div class="card__head"><h3 class="card__title">${esc(label)}</h3><span class="ai-badge">✦ AI</span></div>
-        <div class="gauge"><div class="gauge__bar"><span style="width:${pct}%" class="gauge__fill gauge__fill--${n}"></span></div><div class="gauge__meta"><strong>${mood}</strong><span class="muted">${pct} % de interacciones con tono positivo</span></div></div>
-        <p class="muted">Basado en las últimas ${3 + n} conversaciones registradas.</p></div>`;
-    }
+    case 'sentiment':
     case 'challenges':
-      return `<div class="card"><div class="card__head"><h3 class="card__title">${esc(label)}</h3><span class="ai-badge">✦ AI</span></div><ul class="bullets">
-        <li>Plazos de entrega ajustados en ${esc(rec.company || 'sus proyectos')}.</li><li>Comparación de precios con otros proveedores.</li><li>Necesita confirmar medidas antes de aprobar la cotización.</li></ul></div>`;
     case 'positive':
-      return `<div class="card"><div class="card__head"><h3 class="card__title">${esc(label)}</h3><span class="ai-badge">✦ AI</span></div><ul class="bullets bullets--ok">
-        <li>Valora la calidad del vidrio templado y la garantía.</li><li>Buena experiencia con la última instalación.</li><li>Responde rápido a los correos del equipo.</li></ul></div>`;
+      return `<div class="card"><div class="card__head"><h3 class="card__title">${esc(label)}</h3></div><p class="muted">Sin datos suficientes todavía</p></div>`;
     case 'missing': {
       const empty = currentFields().filter((f) => f[2] !== 'ro' && f[2] !== 'date-ro' && f[2] !== 'calc' && (rec[f[0]] === undefined || rec[f[0]] === null || rec[f[0]] === ''));
       return `<div class="card"><h3 class="card__title">${esc(label)}</h3>${empty.length
@@ -1136,7 +1131,7 @@ function rightCardHtml(cardId) {
   if (cardId.startsWith('x-')) return '';
   const label = (CATALOG[cardId] || { label: cardId }).label;
   if (cardId === 'summary') {
-    return `<div class="card"><button class="card__toggle" type="button" data-toggle="aisum"><span class="chev">⌄</span> ${esc(label)}</button><span class="ai-badge ai-badge--corner">✦ AI</span><div class="ai-box" id="ai-right"></div></div>`;
+    return `<div class="card"><button class="card__toggle" type="button" data-toggle="aisum"><span class="chev">⌄</span> ${esc(label)}</button><span class="ai-badge ai-badge--corner">Datos del registro</span><div class="ai-box" id="ai-right"></div></div>`;
   }
   if (cardId === 'lead') {
     return `<div class="card" id="lead-card"><div class="card__head"><button class="card__toggle" type="button" data-toggle="lead"><span class="chev">⌄</span> ${esc(label)}</button><button class="link-btn" type="button" data-act="add-lead">+Agregar</button></div><div id="lead-box"></div></div>`;

@@ -997,7 +997,8 @@ export function mountList(cfg) {
 
     const groups = [
       ['Vistas estándar', standardViews()],
-      ['Mis vistas', store.custom.filter((v) => v.owner === ME && v.share === 'private')],
+      // own private views; the shared ones (own or by colleagues, with their real author) below
+      ['Mis vistas', store.custom.filter((v) => (v.mine ?? v.owner === ME) && v.share === 'private')],
       ['Vistas compartidas', store.custom.filter((v) => v.share !== 'private')],
     ];
     const picker = `
@@ -1110,9 +1111,9 @@ export function mountList(cfg) {
               <div class="menu__panel menu__panel--right">
                 <button class="menu__item" type="button" data-open-view="${v.id}">Abrir</button>
                 <button class="menu__item" type="button" data-av="clone" data-id="${v.id}">Clonar</button>
-                <button class="menu__item" type="button" data-av="rename" data-id="${v.id}" ${v.standard ? 'disabled' : ''}>Cambiar nombre</button>
-                <button class="menu__item" type="button" data-av="share" data-id="${v.id}" ${v.standard ? 'disabled' : ''}>Administrar uso compartido</button>
-                <button class="menu__item menu__item--danger" type="button" data-av="delete" data-id="${v.id}" ${v.standard ? 'disabled' : ''}>Eliminar</button>
+                <button class="menu__item" type="button" data-av="rename" data-id="${v.id}" ${v.standard || v.mine === false ? 'disabled' : ''}>Cambiar nombre</button>
+                <button class="menu__item" type="button" data-av="share" data-id="${v.id}" ${v.standard || v.mine === false ? 'disabled' : ''}>Administrar uso compartido</button>
+                <button class="menu__item menu__item--danger" type="button" data-av="delete" data-id="${v.id}" ${v.standard || v.mine === false ? 'disabled' : ''}>Eliminar</button>
               </div>
             </div>
           </td>
@@ -1174,10 +1175,10 @@ export function mountList(cfg) {
       ${item('view-save', 'Guardar vista', { disabled: std || !dirty })}
       ${item('view-saveas', 'Guardar como nueva vista')}
       ${item('view-discard', 'Restablecer vista', { disabled: !dirty })}
-      ${item('view-rename', 'Cambiar nombre', { disabled: std })}
+      ${item('view-rename', 'Cambiar nombre', { disabled: std || foreign })}
       ${item('view-clone', 'Clonar vista')}
-      ${item('view-share', 'Administrar uso compartido', { disabled: std })}
-      ${item('view-delete', 'Eliminar vista', { disabled: std, danger: true })}
+      ${item('view-share', 'Administrar uso compartido', { disabled: std || foreign })}
+      ${item('view-delete', 'Eliminar vista', { disabled: std || foreign, danger: true })}
       <div class="menu__sep"></div>
       <a class="menu__item" role="menuitem" href="../views/?type=${cfg.type}">Administrar vistas <span class="ext">↗</span></a>
       <a class="menu__item" role="menuitem" href="../settings/#obj-${cfg.type}:index">Personalizar la página de índice <span class="ext">↗</span></a>
@@ -1448,7 +1449,6 @@ export function mountList(cfg) {
                 <span class="kcard__pill"><span class="kcard__pill-ico">${ACT_ICONS[r.lastActivityType === 'message' ? 'sms' : r.lastActivityType] || ACT_ICONS.email}</span> ${relativeTime(when)} <span class="kcard__pill-sep">|</span> <span class="kcard__info" title="Tiempo desde la última actividad" aria-label="Tiempo desde la última actividad">${ACT_ICONS.info}</span></span>
                 <div class="kcard__actions">
                   <button type="button" data-preview="${r.id}" title="Vista previa" aria-label="Vista previa">${ACT_ICONS.preview}</button>
-                  <button type="button" data-kai="${r.id}" title="Resumen" aria-label="Resumen"><span class="ai-spark">✦</span></button>
                   <a href="./record/?id=${r.id}#email" title="Correo" aria-label="Correo">${ACT_ICONS.email}</a>
                   <a href="./record/?id=${r.id}#note" title="Nota" aria-label="Nota">${ACT_ICONS.note}</a>
                 </div>
@@ -1553,11 +1553,7 @@ export function mountList(cfg) {
       if (mv) { closeMenus(); moveStage(mv.dataset.group, Number(mv.dataset.kcolMove)); return; }
       const add = e.target.closest('[data-kcol-add]');
       if (add) { createEntry({ [cfg.board.key]: add.dataset.kcolAdd }); return; }
-      const ai = e.target.closest('[data-kai]');
-      if (ai) {
-        const r = recordById(ai.dataset.kai);
-        toast(`${r.name}: última actividad ${relativeTime(r.lastActivity || r.created)}. Sugerencia: registrar el resultado y programar el siguiente paso.`);
-      }
+
     });
     board.addEventListener('dragstart', (e) => {
       const card = e.target.closest('.kcard');

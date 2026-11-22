@@ -754,11 +754,72 @@ export function setPrefs(type, prefs) {
   write(K(type, 'prefs'), { ...getPrefs(type), ...prefs });
 }
 
+// ---------- saved views (crm_views, supabase/crm_views.sql) ----------
+// A custom view (filters, columns, sort…) belongs to the user who created it; «Mi equipo» and «Todos» views are
+// read by the account's members (RLS: own rows + share <> 'private'; the team filter is applied here with the
+// member's team). The open tabs / active view are personal (user_settings). Without the table everything stays
+// in localStorage as before.
+let viewRows = null; // the rows of crm_views once read (null: localStorage)
+let myTeam = '';
+export const viewsLive = () => viewRows !== null;
+export const currentTeam = () => myTeam;
+const VIEWS_MIGRATED_KEY = 'crm:views:migrated';
+export const viewFromRow = (r, userId = settingsUserId) => ({ ...(r.payload || {}), id: r.id, name: r.name, share: r.share || 'private', owner: r.owner_name || '', ownerId: r.owner_id, teams: Array.isArray(r.teams) ? r.teams : [], updated: r.updated_at ? new Date(r.updated_at).getTime() : Date.now(), mine: r.owner_id === userId });
+export function viewToRow(type, v, { userId = settingsUserId, team = myTeam } = {}) {
+  const { id, name, share, owner, ownerId, teams, mine, updated, ...payload } = v;
+  const sh = ['private', 'team', 'all'].includes(share) ? share : 'private';
+  return { id: String(id), object_type: type, name: String(name || ''), share: sh, owner_id: ownerId || userId, owner_name: owner || ACTOR, teams: sh === 'team' ? (Array.isArray(teams) && teams.length ? teams : [team].filter(Boolean)) : [], payload, updated_at: new Date(updated || Date.now()).toISOString() };
+}
+// Which of the account's views a member sees: their own, the ones shared with everyone, and the ones shared with
+// their team (a team view without a team recorded is visible to every member).
+export const viewVisibleTo = (v, { userId, team } = {}) => Boolean(v) && (v.ownerId === userId || v.share === 'all' || (v.share === 'team' && (!v.teams || !v.teams.length || v.teams.includes(team))));
+async function fetchViews() {
+  const { data, error } = await supabase.from('crm_views').select('*').order('updated_at');
+  if (error) throw error;
+  try { const { data: me } = await supabase.from('team_members').select('team').eq('user_id', settingsUserId).maybeSingle(); myTeam = (me && me.team) || ''; } catch { myTeam = ''; }
+  viewRows = data || [];
+  // One-time: the views this browser kept in localStorage go to the table, owned by the signed-in user.
+  if (localStorage.getItem(VIEWS_MIGRATED_KEY) !== '1') {
+    for (const type of Object.keys(BUILDERS)) {
+      const local = read(K(type, 'views'), null);
+      const mine = local && Array.isArray(local.custom) ? local.custom.filter((v) => v && v.id && !viewRows.some((r) => r.id === String(v.id))) : [];
+      if (!mine.length) continue;
+      const { data: ins, error: e2 } = await supabase.from('crm_views').upsert(mine.map((v) => viewToRow(type, { ...v, ownerId: settingsUserId })), { onConflict: 'id' }).select('*');
+      if (e2) console.error('[supabase] migrar vistas guardadas', e2); else { viewRows.push(...(ins || [])); console.info(`[supabase] vistas de ${type} migradas desde localStorage: ${mine.length}.`); }
+      if (!e2) write(K(type, 'views'), { custom: [], open: local.open || [], active: local.active || null });
+    }
+    localStorage.setItem(VIEWS_MIGRATED_KEY, '1');
+  }
+}
 export function getViewStore(type) {
-  return read(K(type, 'views'), { custom: [], open: [], active: null });
+  const local = read(K(type, 'views'), { custom: [], open: [], active: null });
+  if (!viewRows) return local;
+  const saved = settingsLive() ? getSetting(K(type, 'views:tabs')) : null;
+  const tabs = saved && typeof saved === 'object' ? saved : { open: local.open || [], active: local.active || null };
+  const custom = viewRows.filter((r) => r.object_type === type).map((r) => viewFromRow(r)).filter((v) => viewVisibleTo(v, { userId: settingsUserId, team: myTeam }));
+  return { custom, open: Array.isArray(tabs.open) ? tabs.open : [], active: tabs.active || null };
 }
 export function setViewStore(type, store) {
-  write(K(type, 'views'), store);
+  if (!viewRows) { write(K(type, 'views'), store); return; }
+  // the tab state is personal: user_settings (plus the local copy)
+  const tabs = { open: Array.isArray(store.open) ? store.open : [], active: store.active || null };
+  write(K(type, 'views'), { custom: [], ...tabs });
+  if (settingsLive()) setSetting(K(type, 'views:tabs'), tabs);
+  // own views: upsert the new / changed ones, delete the removed ones; others' rows are never touched
+  const current = viewRows.filter((r) => r.object_type === type);
+  const next = (store.custom || []).filter((v) => v && v.id && v.mine !== false);
+  const same = (a, b) => JSON.stringify({ ...a, updated_at: '' }) === JSON.stringify({ ...b, updated_at: '' });
+  const changed = next.filter((v) => { const r = current.find((x) => x.id === String(v.id)); return !r || r.owner_id !== settingsUserId ? !r : !same(viewToRow(type, v), viewToRow(type, viewFromRow(r))); });
+  const removed = current.filter((r) => r.owner_id === settingsUserId && !next.some((v) => String(v.id) === r.id));
+  if (removed.length) viewRows = viewRows.filter((r) => !removed.some((x) => x.id === r.id));
+  const rows = changed.map((v) => viewToRow(type, { ...v, ownerId: settingsUserId }));
+  rows.forEach((row) => { const i = viewRows.findIndex((x) => x.id === row.id); if (i >= 0) viewRows[i] = { ...viewRows[i], ...row }; else viewRows.push(row); });
+  if (typeof bump === 'function') bump();
+  if (!rows.length && !removed.length) return;
+  dbWrite(async () => {
+    if (rows.length) { const { error } = await supabase.from('crm_views').upsert(rows, { onConflict: 'id' }); if (error) reportDbError('vistas guardadas', error); }
+    if (removed.length) { const { error } = await supabase.from('crm_views').delete().in('id', removed.map((r) => r.id)); if (error) reportDbError('vistas guardadas', error); }
+  });
 }
 
 // Validate the full catalog, including unique values outside the currently loaded page.
@@ -2802,6 +2863,11 @@ async function initFromSupabase() {
         console.error('[supabase] tablas pipelines no disponibles; pipelines en localStorage.', e);
       }),
       ...Object.keys(BUILDERS).map((type) => (lazyTypes.has(type) ? fetchLazyMeta(type) : fetchTable(type).then((rows) => { dbRows[type] = rows; }))),
+      fetchViews().catch((e) => {
+        // supabase/crm_views.sql not applied yet: the saved views stay in localStorage (not shared).
+        viewRows = null;
+        console.error('[supabase] tabla crm_views no disponible; vistas guardadas en localStorage.', e);
+      }),
       fetchUserSettings(settingsUserId).then(
         (map) => { settingsMap = map; },
         (e) => {
