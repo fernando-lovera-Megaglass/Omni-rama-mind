@@ -148,9 +148,17 @@ const item = [...document.querySelectorAll('#card-selected .colsel')].find((li) 
 let up = item && item.querySelector('[data-cardmove="-1"]');
 let guard = 0;
 while (up && !up.disabled && guard < 40) { click(up); guard += 1; const again = [...document.querySelectorAll('#card-selected .colsel')].find((li) => li.dataset.key === 'asesor_de_ventas'); up = again && again.querySelector('[data-cardmove="-1"]'); }
+const chosenKeys = [...document.querySelectorAll('#card-selected .colsel')].map((li) => li.dataset.key);
+if (chosenKeys[0] !== 'asesor_de_ventas') fail('the custom property should move to the top of the selection');
 click(document.querySelector('[data-confirm="card-save"]'));
 const keysNow = [...document.querySelectorAll('#rec-props .props__row')].map((r) => r.dataset.key);
 const savedCard = JSON.parse(mem['crm:contacts:cardprops']);
 log('card after customising:', keysNow.slice(0, 3).join(','), '… | saved keys:', savedCard.keys.length, '| first:', savedCard.keys[0], '| settings store (local mode):', data.settingsLive());
-if (keysNow[0] !== 'asesor_de_ventas' || savedCard.keys[0] !== 'asesor_de_ventas' || text(row('asesor_de_ventas').querySelector('dd')) !== 'Sofía R.✎') fail('the customised card should show the chosen properties in order');
+if (JSON.stringify(savedCard.keys) !== JSON.stringify(chosenKeys)) fail('the saved card should preserve the complete chosen order');
+// Marketing subscription status, date and reason stay pinned above the customised
+// properties (gap-ui-marketing-bajas-suscripcion), even in an existing saved card.
+const pinnedKeys = ['marketingOptOut', 'marketingOptOutAt', 'marketingOptOutReason'];
+const expectedKeys = [...pinnedKeys, ...chosenKeys.filter((k) => !pinnedKeys.includes(k))];
+if (JSON.stringify(keysNow) !== JSON.stringify(expectedKeys)) fail('the customised card should show the chosen properties in order after the pinned subscription fields');
+if (text(row('asesor_de_ventas').querySelector('dd')) !== 'Sofía R.✎') fail('the customised card should show the saved custom property value');
 log('OK');
