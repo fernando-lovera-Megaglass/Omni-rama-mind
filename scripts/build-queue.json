@@ -1282,10 +1282,11 @@
     },
     {
       "id": "gap-ui-proxima-actividad-calculada",
-      "status": "pending",
+      "status": "done",
       "createdAt": "2026-11-21T13:25:00-06:00",
       "lane": "claude",
-      "instruction": "LÓGICA (Contactos, Empresas, Negocios; propiedad calculada de HubSpot). HubSpot: «Fecha de la próxima actividad» (notes_next_activity_date) se recalcula sola = la fecha-hora futura más cercana entre las tareas abiertas y las reuniones programadas asociadas al registro; se vacía cuando no queda ninguna; se muestra en «Acerca de», se usa como columna y filtro y alimenta el aviso de «sin próxima actividad». Omni HOY: la propiedad está declarada en el catálogo (src/properties.js ~líneas 218 contactos, 420 empresas, 511 negocios) pero NADA la escribe jamás (grep: solo las 3 declaraciones), así que siempre está vacía; el tablero de negocios calcula las tareas abiertas al vuelo solo para sus tarjetas (src/deals.js ~línea 69) y la ficha no muestra «Próxima actividad» en sus destacados (src/record.js ~líneas 66, 87, 104 solo traen «Última actividad»). OJO: es la propiedad hermana de «Última actividad» del ítem gap-ui-actividades-ultima-actividad-real (pendiente, distinto: ese va de la fecha pasada, este de la futura). Pasos: (1) en src/data.js una función recomputeNextActivity(type, id) que mire las tareas abiertas del registro (contactId/companyId según objeto; para negocios también las de su contacto como hace deals.js) y las actividades futuras tipo meeting programadas, y escriba notes_next_activity_date (columna extra) o la vacíe; (2) llamarla en addRecord/deleteRecords/completeTask/reabrir tarea para 'tasks' y al registrar una reunión programada (src/record.js logact con schedule=1); (3) añadir «Próxima actividad» a los highlights de la ficha de contacto, empresa y negocio; (4) la propiedad ya sale en el editor de columnas y filtros al estar en el catálogo — verificar que muestra el valor. Criterio de aceptación: crear una tarea que vence mañana para un contacto → su «Fecha de la próxima actividad» pasa a mañana en el destacado de la ficha y en la columna de la lista; completar la tarea la vacía (o toma la siguiente); programar una reunión futura también la fija; no se rompe nada del ítem de última actividad. No despliegues nada a producción; solo código local."
+      "instruction": "LÓGICA (Contactos, Empresas, Negocios; propiedad calculada de HubSpot). HubSpot: «Fecha de la próxima actividad» (notes_next_activity_date) se recalcula sola = la fecha-hora futura más cercana entre las tareas abiertas y las reuniones programadas asociadas al registro; se vacía cuando no queda ninguna; se muestra en «Acerca de», se usa como columna y filtro y alimenta el aviso de «sin próxima actividad». Omni HOY: la propiedad está declarada en el catálogo (src/properties.js ~líneas 218 contactos, 420 empresas, 511 negocios) pero NADA la escribe jamás (grep: solo las 3 declaraciones), así que siempre está vacía; el tablero de negocios calcula las tareas abiertas al vuelo solo para sus tarjetas (src/deals.js ~línea 69) y la ficha no muestra «Próxima actividad» en sus destacados (src/record.js ~líneas 66, 87, 104 solo traen «Última actividad»). OJO: es la propiedad hermana de «Última actividad» del ítem gap-ui-actividades-ultima-actividad-real (pendiente, distinto: ese va de la fecha pasada, este de la futura). Pasos: (1) en src/data.js una función recomputeNextActivity(type, id) que mire las tareas abiertas del registro (contactId/companyId según objeto; para negocios también las de su contacto como hace deals.js) y las actividades futuras tipo meeting programadas, y escriba notes_next_activity_date (columna extra) o la vacíe; (2) llamarla en addRecord/deleteRecords/completeTask/reabrir tarea para 'tasks' y al registrar una reunión programada (src/record.js logact con schedule=1); (3) añadir «Próxima actividad» a los highlights de la ficha de contacto, empresa y negocio; (4) la propiedad ya sale en el editor de columnas y filtros al estar en el catálogo — verificar que muestra el valor. Criterio de aceptación: crear una tarea que vence mañana para un contacto → su «Fecha de la próxima actividad» pasa a mañana en el destacado de la ficha y en la columna de la lista; completar la tarea la vacía (o toma la siguiente); programar una reunión futura también la fija; no se rompe nada del ítem de última actividad. No despliegues nada a producción; solo código local.",
+      "completedAt": "2026-11-21T21:09:49-0600"
     },
     {
       "id": "gap-ui-tareas-completar-log-resultado",
@@ -1369,12 +1370,10 @@
     },
     {
       "id": "gap-smoke-custom-props-writer",
-      "status": "done",
+      "status": "pending",
       "instruction": "smoke-custom-props falla en «saving should persist through the writer» (contacts, in_form, options Norte/Sur, group_name). Criterio: la prueba pasa. Ejecuta la(s) prueba(s) con node scripts/<smoke>.mjs hasta que pasen. Verifica si es regresión del código o prueba desactualizada por un cambio intencional; corrige lo que corresponda. No despliegues nada a producción; solo código local.",
       "createdAt": "2026-11-21T16:25:45-06:00",
-      "lane": "codex",
-      "completedAt": "2026-11-21T21:00:49-0600",
-      "completedBy": "codex"
+      "lane": "codex"
     },
     {
       "id": "gap-smoke-dedupe-skip",
@@ -1385,12 +1384,10 @@
     },
     {
       "id": "gap-smoke-import-map-en",
-      "status": "done",
+      "status": "pending",
       "instruction": "smoke-import falla en «english fallback auto-map», posible regresión del commit de importación multiarchivo (2853737). Criterio: la prueba pasa. Ejecuta la(s) prueba(s) con node scripts/<smoke>.mjs hasta que pasen. Verifica si es regresión del código o prueba desactualizada por un cambio intencional; corrige lo que corresponda. No despliegues nada a producción; solo código local.",
       "createdAt": "2026-11-21T16:25:45-06:00",
-      "lane": "codex",
-      "completedAt": "2026-11-21T21:05:47-0600",
-      "completedBy": "codex"
+      "lane": "codex"
     },
     {
       "id": "gap-smoke-invitations-reemplazo",
