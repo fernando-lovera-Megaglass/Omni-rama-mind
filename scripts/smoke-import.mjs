@@ -65,6 +65,13 @@ if (mapEs.map((m) => m.key).join(',') !== 'first,last,email,phone,company,owner,
 const mapEn = E.autoMap(['First Name', 'Last Name', 'Email', 'Phone Number', 'Company Name', 'Contact Owner', 'Record ID'], 'es');
 log('map en (fallback):', mapEn.map((m) => m.key).join(','));
 if (mapEn.map((m) => m.key).join(',') !== 'first,last,email,phone,company,owner,hs_object_id') fail('english fallback auto-map');
+// The catalog also contains a custom "Phone number" label. Standard aliases
+// must still import into phone, while the custom field remains addressable by key.
+for (const language of ['es', 'en']) {
+  const headers = ['Phone Number', 'nmero_de_telfono'];
+  if (E.autoMap(headers, language).map((m) => m.key).join(',') !== 'phone,nmero_de_telfono') fail(`phone label collision (${language})`);
+  if (E.autoMapBatch({ headers }, language, 'contacts').map((m) => m.key).join(',') !== 'phone,nmero_de_telfono') fail(`batch phone label collision (${language})`);
+}
 log('unique keys:', E.UNIQUE_KEYS.join(','), '| isUnique(email):', E.isUnique('email'), '| isUnique(domain, companies):', E.isUnique('domain', 'companies'));
 
 // ---------- value conversion ----------

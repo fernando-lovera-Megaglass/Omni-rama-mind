@@ -177,7 +177,10 @@ export function matchHeader(header, language = 'es', type = 'contacts') {
   const byAlias = (ES_ALIASES[type] || ES_ALIASES.contacts)[h];
   const byEnglish = Object.entries(EN_LABELS[type] || EN_LABELS.contacts).find(([, labels]) => labels.includes(h));
   const byKey = catalog.find((p) => strip(p.key) === h);
-  const order = language === 'en' ? [byEnglish && byEnglish[0], byLabel && byLabel.key, byAlias] : [byLabel && byLabel.key, byAlias, byEnglish && byEnglish[0]];
+  // Canonical aliases must win over catalog labels: custom properties can have
+  // the same label (e.g. "Phone number") without being the standard CRM field.
+  const aliases = language === 'en' ? [byEnglish && byEnglish[0], byAlias] : [byAlias, byEnglish && byEnglish[0]];
+  const order = [...aliases, byLabel && byLabel.key];
   return order.find((k) => k && catalog.some((p) => p.key === k)) || (byKey ? byKey.key : '');
 }
 export function autoMap(headers, language = 'es', type = 'contacts') {
