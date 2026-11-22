@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "test:deal-close": "node scripts/smoke-deal-close.mjs && node scripts/smoke-deals-board.mjs",
+    "test:bulk-workflow": "node scripts/smoke-bulk-workflow.mjs",
     "test:workflow-engine": "node scripts/smoke-workflow-engine.mjs",
     "test:workflow-process": "node scripts/smoke-workflow-process.mjs",
     "test:sequence-process": "node scripts/smoke-sequence-process.mjs && node scripts/smoke-sequences.mjs",

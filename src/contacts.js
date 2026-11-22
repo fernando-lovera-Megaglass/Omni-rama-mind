@@ -34,7 +34,7 @@ const list = mountList({
   // "Acciones" next to "Agregar": export, duplicates, trash, bulk edit, format fixes.
   actionsMenu: true,
   // Bulk bar over the table (the original's selection bar): assign, edit, delete, tasks, enrol in a sequence, segment, export.
-  bulk: { actions: ['assign', 'edit', 'delete', 'tasks', 'enroll', 'segment', 'export'] },
+  bulk: { actions: ['assign', 'edit', 'delete', 'tasks', 'enroll', 'workflow', 'segment', 'export'] },
   plural: 'contactos',
   addLabel: 'Agregar contactos',
   createLabel: 'Crear contacto',

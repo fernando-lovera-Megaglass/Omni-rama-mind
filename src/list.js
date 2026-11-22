@@ -469,9 +469,15 @@ export function mountList(cfg) {
           ${bulkActions.includes('edit') ? '<button class="bulk__btn" type="button" data-action="bulk-edit"><span aria-hidden="true">✎</span> Editar</button>' : ''}
           ${bulkActions.includes('delete') ? '<button class="bulk__btn" type="button" data-action="delete"><span aria-hidden="true">🗑</span> Eliminar</button>' : ''}
           ${bulkActions.includes('tasks') ? '<button class="bulk__btn" type="button" data-action="bulk-tasks"><span aria-hidden="true">+</span> Crear tareas</button>' : ''}
-          ${bulkActions.includes('enroll') ? '<button class="bulk__btn" type="button" data-action="bulk-enroll"><span aria-hidden="true">⇢</span> Inscribir en secuencia</button>' : ''}
-          ${bulkActions.includes('segment') ? '<button class="bulk__btn" type="button" data-action="bulk-segment"><span aria-hidden="true">≡</span> Agregar a segmento</button>' : ''}
-          ${bulkActions.includes('export') ? '<button class="bulk__btn" type="button" data-action="bulk-export"><span aria-hidden="true">↧</span> Exportar</button>' : ''}
+          ${bulkActions.some((a) => ['enroll', 'workflow', 'segment', 'export'].includes(a)) ? `<span class="menu">
+            <button class="bulk__btn" type="button" aria-haspopup="true" aria-expanded="false">Más <span class="caret"></span></button>
+            <span class="menu__panel">
+              ${bulkActions.includes('enroll') ? '<button class="menu__item" type="button" data-action="bulk-enroll">Inscribir en secuencia</button>' : ''}
+              ${bulkActions.includes('workflow') ? '<button class="menu__item" type="button" data-action="bulk-workflow">Inscribir en workflow</button>' : ''}
+              ${bulkActions.includes('segment') ? '<button class="menu__item" type="button" data-action="bulk-segment">Agregar a segmento</button>' : ''}
+              ${bulkActions.includes('export') ? '<button class="menu__item" type="button" data-action="bulk-export">Exportar</button>' : ''}
+            </span>
+          </span>` : ''}
         </span>
         <span class="bulk__all" id="bulk-all" hidden></span>
       </div>
@@ -3091,6 +3097,45 @@ export function mountList(cfg) {
           render();
         },
       });
+    } else if (a === 'bulk-workflow') {
+      const rows = cfg.rows().filter((r) => state.selected.has(Number(r.id)));
+      if (!rows.length) { toast('Selecciona primero los registros que quieres inscribir'); return; }
+      Promise.all([import('./workflows-data.js'), import('./workflow-engine.js')]).then(async ([W, E]) => {
+        await Promise.all([W.ready, E.ready]);
+        const available = W.workflows().filter((w) => w.objectType === cfg.type && w.status === 'published');
+        if (!available.length) { toast('No hay workflows publicados para este objeto'); return; }
+        const preview = (id) => `<ul>${rows.map((r) => `<li>${esc(W.recordName(cfg.type, r))} — ${E.activeRun(id, cfg.type, r.id) ? 'Ya inscrito (se omitirá)' : 'Se inscribirá'}</li>`).join('')}</ul>`;
+        bulkDialog({
+          title: 'Inscribir en workflow',
+          body: `<label class="field"><span>Workflow publicado</span><select name="workflow" data-bm="workflow">${available.map((w) => `<option value="${esc(w.id)}">${esc(w.name)}</option>`).join('')}</select></label>
+            <p class="muted">Se omiten los registros con una inscripción activa o en espera en este workflow.</p>
+            <div id="bulk-workflow-preview" aria-live="polite">${preview(available[0].id)}</div>`,
+          okLabel: 'Inscribir',
+          onChange: (form) => { form.querySelector('#bulk-workflow-preview').innerHTML = preview(form.elements.workflow.value); },
+          onOk: async (d) => {
+            const w = W.workflowById(d.workflow);
+            if (!w || w.objectType !== cfg.type || w.status !== 'published') { toast('Elige un workflow publicado de este objeto'); return false; }
+            let enrolled = 0;
+            let skipped = 0;
+            const failures = [];
+            for (const r of rows) {
+              if (E.activeRun(w.id, cfg.type, r.id)) { skipped += 1; continue; }
+              try {
+                const result = await E.enroll(w.id, cfg.type, r);
+                if (result.ok) enrolled += 1;
+                else if (E.activeRun(w.id, cfg.type, r.id)) skipped += 1;
+                else failures.push(`${W.recordName(cfg.type, r)}: ${result.reason}`);
+              } catch (error) { failures.push(`${W.recordName(cfg.type, r)}: ${error.message}`); }
+            }
+            render();
+            toast(`${enrolled} inscritos · ${skipped} ya estaban inscritos${failures.length ? ` · ${failures.length} no se pudieron inscribir` : ''}`);
+            if (failures.length) {
+              $('bulk-workflow-preview').innerHTML = `<p role="alert">${failures.map(esc).join('<br>')}</p>${preview(w.id)}`;
+              return false;
+            }
+          },
+        });
+      }).catch((error) => toast(`No se pudo abrir la inscripción: ${error.message}`));
     } else if (a === 'bulk-enroll') {
       // «Inscribir en secuencia» for the selection: the enrol dialog takes every selected contact at once
       // (sequence-enroll.js skips the ones already active in that sequence and reports the counts).

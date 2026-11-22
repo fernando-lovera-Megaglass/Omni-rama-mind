@@ -14651,6 +14651,12 @@ body.has-slideover {
   gap: var(--sp-10);
 }
 
+#bulk-workflow-preview {
+  max-height: 35vh;
+  overflow-y: auto;
+  overflow-wrap: anywhere;
+}
+
 .bmodal__body .field[hidden] {
   display: none;
 }
