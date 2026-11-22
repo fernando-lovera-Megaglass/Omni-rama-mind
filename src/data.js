@@ -858,16 +858,43 @@ export function restoreRecords(type, ids) {
 
 // "Gestionar duplicados": merges `otherIds` into `keepId`. Empty fields of the kept record are filled from
 // the others, everything associated to the others now points to it, and the others go to the trash.
-export function mergeRecords(type, keepId, otherIds) {
+// Properties the merge never copies between records (identity, dates the app maintains, associations handled below).
+export const MERGE_SKIP = new Set(['id', 'created', 'deletedAt', 'lastActivity', 'lastActivityType', 'company', 'companyId', 'parentCompanyId']);
+const mergeEmpty = (v) => v === undefined || v === null || v === '' || v === 'Sin asignar';
+// The properties where the kept record and a duplicate differ (both filled), for the side-by-side dialog:
+// [{ key, keep: value, other: value }]. Name parts are included so the person can choose them too.
+export function mergeConflicts(type, keep, other) {
+  const out = [];
+  const keys = [...new Set([...Object.keys(keep || {}), ...Object.keys(other || {})])];
+  for (const k of keys) {
+    if (MERGE_SKIP.has(k) || k.startsWith('assoc_') || k.startsWith('num_') || k.startsWith('hs_lifecyclestage_')) continue;
+    const a = keep[k]; const b = other[k];
+    if (mergeEmpty(a) || mergeEmpty(b) || typeof a === 'object' || typeof b === 'object') continue;
+    if (String(a) !== String(b)) out.push({ key: k, keep: a, other: b });
+  }
+  return out;
+}
+// Merges the duplicates into `keep`: empty properties of `keep` are filled from the duplicates; `choices`
+// ({ key: value }) are the values the person picked in the comparison dialog for the properties that differ
+// (default: the kept record's own value); associations (deals, tickets, tasks, companies, hierarchy), the
+// timeline entries and the sequence enrolments of the duplicates move to `keep`; the duplicates go to the trash
+// (restorable) and the timeline records the merge. Returns { kept, merged, filled, chosen }.
+export function mergeRecords(type, keepId, otherIds, { choices = {} } = {}) {
   const all = ALL[type]();
   const keep = all.find((r) => Number(r.id) === Number(keepId));
   const others = (otherIds || []).map((id) => all.find((r) => Number(r.id) === Number(id))).filter((r) => r && Number(r.id) !== Number(keepId));
   if (!keep || !others.length) return null;
-  const SKIP = new Set(['id', 'created', 'deletedAt', 'name', 'first', 'last', 'lastActivity', 'lastActivityType', 'company', 'companyId', 'parentCompanyId']);
   const filled = [];
-  const empty = (v) => v === undefined || v === null || v === '' || v === 'Sin asignar';
+  const chosen = [];
+  const empty = mergeEmpty;
+  // the person's picks first (a chosen value replaces the kept one), then the gaps
+  Object.entries(choices || {}).forEach(([k, v]) => {
+    if (MERGE_SKIP.has(k) || k === 'id' || empty(v) || String(keep[k] ?? '') === String(v)) return;
+    keep[k] = v; chosen.push(k); setField(type, keep.id, k, v);
+  });
+  if (type === 'contacts' && (chosen.includes('first') || chosen.includes('last'))) { const full = `${keep.first || ''} ${keep.last || ''}`.trim(); if (full && full !== keep.name) { keep.name = full; setField(type, keep.id, 'name', full); } }
   others.forEach((o) => Object.entries(o).forEach(([k, v]) => {
-    if (SKIP.has(k) || k.startsWith('assoc_') || k.startsWith('num_') || empty(v)) return;
+    if (MERGE_SKIP.has(k) || k === 'name' || k === 'first' || k === 'last' || k.startsWith('assoc_') || k.startsWith('num_') || empty(v)) return;
     if (empty(keep[k])) { keep[k] = v; filled.push(k); setField(type, keep.id, k, v); }
   }));
   const ids = new Set(others.map((o) => Number(o.id)));
@@ -889,9 +916,36 @@ export function mergeRecords(type, keepId, otherIds) {
     allCompanies().forEach((c) => { if (ids.has(Number(c.parentCompanyId)) && Number(c.id) !== Number(keep.id)) setField('companies', c.id, 'parentCompanyId', Number(keep.id)); });
     if (!keep.parentCompanyId) { const withParent = others.find((o) => o.parentCompanyId && !ids.has(Number(o.parentCompanyId)) && Number(o.parentCompanyId) !== Number(keep.id)); if (withParent) setField('companies', keep.id, 'parentCompanyId', Number(withParent.parentCompanyId)); }
   }
+  // the duplicates' timeline entries and sequence enrolments follow the kept record
+  others.forEach((o) => { try { moveActivities(type, o.id, keep.id); } catch (e) { console.error('[fusión] cronología', e); } });
+  if (type === 'contacts') import('./sequences-data.js').then((m) => m.moveEnrollments([...ids], keep)).catch((e) => console.error('[fusión] secuencias', e));
   addActivity({ type: 'stage', recordType: type, recordId: Number(keep.id), text: `Registros fusionados en este ${type === 'contacts' ? 'contacto' : type === 'companies' ? 'empresa' : 'registro'}: ${others.map((o) => o.name).join(', ')}.`, who: 'Tú', when: Date.now(), extra: { merged: [...ids] } });
   deleteRecords(type, [...ids]);
-  return { kept: keep, merged: others.length, filled };
+  return { kept: keep, merged: others.length, filled, chosen };
+}
+// Every timeline entry (and trashed entry) of `fromId` now belongs to `toId`: a merged duplicate's history is
+// not lost. extra.mergedFrom keeps where it came from.
+export function moveActivities(recordType, fromId, toId) {
+  if (Number(fromId) === Number(toId)) return 0;
+  let n = 0;
+  if (activitiesLive) {
+    activityRows.forEach((a) => { if (a.recordType === recordType && Number(a.recordId) === Number(fromId)) { a.recordId = Number(toId); a.extra = { ...(a.extra || {}), mergedFrom: Number(fromId) }; n += 1; } });
+    dbWrite(async () => {
+      const { error } = await supabase.from('activities').update({ record_id: Number(toId) }).eq('record_type', recordType).eq('record_id', Number(fromId));
+      if (error) console.error('[supabase] mover actividades', error);
+    });
+    return n;
+  }
+  for (const keyOf of [ACT_NOTES_KEY, ACT_TRASH_KEY]) {
+    const from = localActivities(keyOf(recordType, fromId), recordType, fromId);
+    if (!from.length) continue;
+    const to = localActivities(keyOf(recordType, toId), recordType, toId);
+    from.forEach((a) => { a.recordId = Number(toId); a.extra = { ...(a.extra || {}), mergedFrom: Number(fromId) }; });
+    write(keyOf(recordType, toId), [...from, ...to]);
+    write(keyOf(recordType, fromId), []);
+    n += from.length;
+  }
+  return n;
 }
 
 export function restoreAll(type) {

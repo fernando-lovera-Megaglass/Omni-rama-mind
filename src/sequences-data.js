@@ -386,6 +386,25 @@ export const unenrollReasonOf = (e) => (e && e.extra && e.extra.reason) || (e &&
 // stats.<reason> = 1, stats.<reason>At = now and (deal / unsubscribed) extra.reason with the readable label.
 // Returns the enrolments it ended (with the sequence name) so the caller can write the timeline and refresh
 // the record. Nothing else is inferred.
+// A merged duplicate's enrolments follow the kept contact (src/data.js mergeRecords): same status and step; an
+// enrolment in a sequence where the kept contact is already running is cancelled instead of duplicated.
+export function moveEnrollments(fromContactIds, keep) {
+  const from = new Set((fromContactIds || []).map(String));
+  const when = new Date().toISOString();
+  let moved = 0;
+  for (const e of enrollRows) {
+    if (!from.has(String(e.contactId))) continue;
+    const running = (e.status === 'active' || e.status === 'paused') && enrollRows.some((x) => x !== e && String(x.contactId) === String(keep.id) && x.sequenceId === e.sequenceId && (x.status === 'active' || x.status === 'paused'));
+    e.extra = { ...(e.extra || {}), mergedFrom: e.contactId };
+    e.contactId = keep.id;
+    e.contactName = keep.name || e.contactName;
+    if (running) { e.status = 'unenrolled'; e.nextStepAt = null; e.extra.reason = 'Fusionado con un contacto ya inscrito'; }
+    e.updatedAt = when;
+    persistEnr(e);
+    moved += 1;
+  }
+  return moved;
+}
 export function unenrollByReason(contactId, reason, { now = new Date().toISOString() } = {}) {
   const how = UNENROLL_REASONS[reason];
   if (!how || !EXCLUSION_CRITERIA.some(([k]) => k === reason)) return [];

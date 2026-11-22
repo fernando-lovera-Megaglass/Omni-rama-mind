@@ -109,7 +109,10 @@ async function loadFiles(files) {
   state.table = null;
   state.files = [];
   try {
-    const tables = await Promise.all(Array.from(files, E.parseFile));
+    const [tables] = await Promise.all([
+      Promise.all(Array.from(files, E.parseFile)),
+      E.refreshImportOwners(),
+    ]);
     state.files = tables.map((table) => {
       const object = tables.length > 1 ? E.detectObject(table, state.object) : state.object;
       return { table, object, mapping: tables.length > 1 ? E.autoMapBatch(table, state.language, object) : E.autoMap(table.headers, state.language, object) };

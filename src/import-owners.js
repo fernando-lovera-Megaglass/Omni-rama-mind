@@ -14,9 +14,12 @@ export function buildOwnerIndex(owners, { users = [], user = null, invitations =
     return names.filter((owner) => nameKey(owner) === `${parts[0]} ${parts[1][0]}.`);
   };
   const add = (person, inferFromEmail = false) => {
+    if (!person || typeof person !== 'object') return;
     const email = emailKey(person.email);
     if (!email) return;
     const name = person.name || person.full_name || '';
+    // A known directory identity wins over guessing a name from the email.
+    if (!name && [...records.values()].some((record) => record.email === email)) return;
     const matches = candidates(name || (inferFromEmail ? email.split('@')[0] : ''));
     for (const owner of matches) {
       const key = `${email}\n${owner}`;

@@ -31,6 +31,14 @@ const fileOf = (name, text) => ({ name, size: text.length, text: () => Promise.r
 
 // Real account emails, duplicate sources, exact names and persisted assignments.
 const assert = (await import('node:assert/strict')).default;
+const { buildOwnerIndex, resolveIndexedOwner } = await import('../src/import-owners.js');
+const sharedIdentity = buildOwnerIndex(data.OWNERS, {
+  users: [null, { name: 'Sofía R.', email: 'fernando.lovera@real.example' }],
+  user: { email: 'fernando.lovera@real.example' },
+  invitations: [{ email: 'fernando.lovera@real.example' }],
+});
+assert.deepEqual(resolveIndexedOwner(sharedIdentity, 'fernando.lovera@real.example'), { value: 'Sofía R.' });
+assert.equal(resolveIndexedOwner(sharedIdentity, 'sofia.r@omni.crm').error, 'OWNER_NOT_FOUND');
 const auth = await import('../src/auth.js');
 auth.setAuthClient({ auth: { getSession: async () => ({ data: { session: { user: {
   email: 'fernando@real.example', user_metadata: { full_name: 'Fernando Lovera Colin' },
