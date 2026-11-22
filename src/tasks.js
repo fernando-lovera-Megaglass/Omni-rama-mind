@@ -6,7 +6,7 @@ import { boot } from './page.js';
 import { mountList, tag, link, ownerHtml } from './list.js';
 import { toast } from './shell.js';
 import { allTasks, TASK_STATUSES, TASK_TYPES, PRIORITIES, OWNERS, formatDate, labelOf, classOf, TODAY, RECUR_OPTIONS, recurLabel, normalizeRecur } from './data.js';
-import { startQueue, activeQueue, endQueue, queueTask, queueFinished, queueSummary, targetFor, goTo, dueMatches, dueText, dueClass, DUE_OPTIONS, dayDiff, completeTask } from './task-queue.js';
+import { startQueue, activeQueue, endQueue, queueTask, queueFinished, queueSummary, targetFor, goTo, dueMatches, dueText, dueClass, DUE_OPTIONS, dayDiff, completeTaskWithLog } from './task-queue.js';
 import { REMINDER_OPTIONS, defaultReminderOption, reminderFromDue, reminderText } from './task-reminders.js';
 // «Recordatorio» of the create drawer: the default from Ajustes first, the other presets, or a custom date-time.
 const reminderChoices = () => { const def = defaultReminderOption(); return [[def, `${def} (predeterminado)`], ...REMINDER_OPTIONS.filter((o) => o !== def).map((o) => [o, o]), ['custom', 'Fecha y hora personalizadas']]; };
@@ -169,12 +169,18 @@ function renderQueueBanner() {
 }
 renderQueueBanner();
 
-document.getElementById('rows').addEventListener('change', (e) => {
+document.getElementById('rows').addEventListener('change', async (e) => {
   const cb = e.target.closest('.task-done');
   if (!cb) return;
   // The shared task status writer resumes linked sequences after the save succeeds.
-  completeTask(cb.dataset.id, cb.checked);
-  toast(cb.checked ? 'Tarea completada' : 'Tarea reabierta');
+  const done = cb.checked;
+  cb.checked = !done;
+  cb.disabled = true;
+  const result = completeTaskWithLog(cb.dataset.id, done);
+  const saved = result instanceof Promise ? await result : result;
+  cb.disabled = false;
+  if (!saved) return;
+  toast(done ? 'Tarea completada' : 'Tarea reabierta');
   list.render();
 });
 

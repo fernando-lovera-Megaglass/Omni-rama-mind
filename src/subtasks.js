@@ -1,6 +1,6 @@
 import { toast, recordToastAction } from './shell.js';
 import { addRecord, findRecord, subtasksOf } from './data.js';
-import { completeTask } from './task-queue.js';
+import { completeTaskWithLog } from './task-queue.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 
@@ -35,14 +35,20 @@ export function mountSubtasks(container, parentId, onChange = () => {}) {
   container.onchange = (event) => {
     const checkbox = event.target.closest('[data-subtask]');
     if (!checkbox) return;
-    completeTask(checkbox.dataset.subtask, checkbox.checked);
+    completeTaskWithLog(checkbox.dataset.subtask, checkbox.checked);
     const id = checkbox.dataset.subtask;
     render();
     container.querySelector(`[data-subtask="${id}"]`)?.focus();
   };
-  container.onclick = (event) => {
+  container.onclick = async (event) => {
     if (!event.target.closest('[data-complete-parent]')) return;
-    completeTask(parentId);
+    const button = event.target.closest('[data-complete-parent]');
+    if (button.disabled) return;
+    button.disabled = true;
+    const result = completeTaskWithLog(parentId);
+    const saved = result instanceof Promise ? await result : result;
+    button.disabled = false;
+    if (!saved) return;
     render();
     onChange();
   };

@@ -31,6 +31,16 @@ function setup(url, bodyAttrs = '') {
 }
 const clickIn = (dom, el) => { if (!el) fail('missing element to click'); el.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true })); };
 const changeIn = (dom, el) => el.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
+const flush = () => new Promise(resolve => setTimeout(resolve, 0));
+async function saveLog(dom) {
+  const modal = document.getElementById('task-log-modal');
+  if (!modal) fail('registration form missing');
+  const outcome = modal.querySelector('#log-outcome');
+  if (outcome) outcome.value = 'Conectado';
+  modal.querySelector('#log-notes').value = 'Actividad desde la tarea';
+  clickIn(dom, modal.querySelector('[data-confirm="logact"]'));
+  await flush();
+}
 const run = (nextPhase, env) => {
   const r = spawnSync(process.execPath, [fileURLToPath(import.meta.url), nextPhase], { stdio: 'inherit', env: { ...process.env, ...env } });
   if (r.status !== 0) process.exit(r.status || 1);
@@ -138,6 +148,15 @@ if (phase === 'record') {
   if (!cb) fail('task checkbox missing in the Tareas card');
   cb.checked = true;
   changeIn(dom, cb);
+  if (['Llamada', 'Correo'].includes(t0.type)) {
+    if (cb.checked || data.findRecord('tasks', t0.id).status === 'done') fail('must stay pending before save');
+    clickIn(dom, document.querySelector('#task-log-modal [data-close]'));
+    await flush();
+    if (cb.checked || cb.disabled || data.findRecord('tasks', t0.id).status === 'done') fail('cancel must restore checkbox');
+    cb.checked = true;
+    changeIn(dom, cb);
+    await saveLog(dom);
+  }
   const after = data.findRecord('tasks', t0.id);
   log('completed from card: status', after.status, '| completedAt set?', Boolean(after.completedAt), '| bar tag:', bar.querySelector('.tq__title .tag')?.textContent, '| button:', bar.querySelector('[data-tq="complete"]').textContent);
   if (after.status !== 'done' || !bar.querySelector('.tq__title .tag')) fail('complete from card');
@@ -151,6 +170,16 @@ if (phase === 'record') {
   if (data.findRecord('tasks', t0.id).status !== 'todo') fail('reopen from card');
   // complete and move on from the bar
   clickIn(dom, bar.querySelector('[data-tq="complete"]'));
+  if (['Llamada', 'Correo'].includes(t0.type)) {
+    if (tq.activeQueue().index !== 0) fail('queue moved before logging');
+    clickIn(dom, document.querySelector('#task-log-modal [data-close]'));
+    await flush();
+    if (tq.activeQueue().index !== 0 || data.findRecord('tasks', t0.id).status !== 'todo') fail('queue moved on cancel');
+    clickIn(dom, bar.querySelector('[data-tq="complete"]'));
+    await saveLog(dom);
+    const logged = data.activitiesFor('contacts', t0.contactId).filter(e => e.type === (t0.type === 'Llamada' ? 'call' : 'email'));
+    if (!logged.some(e => e.extra.notes === 'Actividad desde la tarea' && (t0.type !== 'Llamada' || e.extra.outcome === 'Conectado'))) fail('logged activity missing');
+  }
   let q = JSON.parse(mem['crm:taskqueue']);
   const t1 = data.findRecord('tasks', q.ids[1]);
   log('after complete: index', q.index, '| done', q.done, '| task status', data.findRecord('tasks', t0.id).status, '| went to:', nav[0], '| pos:', bar.querySelector('.tq__pos strong')?.textContent);

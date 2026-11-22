@@ -152,12 +152,15 @@ const persistConv = (c) => {
   });
 };
 const excerpt = (s, n = 90) => { const t = String(s || '').replace(/\s+/g, ' ').trim(); return t.length > n ? `${t.slice(0, n - 1)}…` : t; };
+// A message body may be rich HTML (the inbox editor): previews and the timeline use its plain text.
+const stripTags = (s) => String(s || '').replace(/<br\s*\/?>/gi, ' ').replace(/<\/(p|div|li)>/gi, ' ').replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/\s+/g, ' ').trim();
+export const messageText = (m) => stripTags(m && m.body);
 // The message on the contact's timeline, typed by channel (e-mail or message).
 function logOnContact(c, m) {
   if (!c.contactId) return;
   const ch = CHANNELS[c.channel] || CHANNELS.email;
   const contact = contactOf(c.contactId);
-  addActivity({ type: ch.activity, recordType: 'contacts', recordId: Number(c.contactId), text: `${m.direction === 'out' ? 'Mensaje enviado' : 'Mensaje recibido'} por ${ch.label}: ${excerpt(m.body, 140)}`, who: m.direction === 'out' ? m.author || ME : (contact && contact.name) || m.author || 'Contacto', when: new Date(m.createdAt).getTime(), extra: { channel: ch.label, subject: c.subject, conversationId: c.id, direction: m.direction === 'out' ? 'Saliente' : 'Entrante' } });
+  addActivity({ type: ch.activity, recordType: 'contacts', recordId: Number(c.contactId), text: `${m.direction === 'out' ? 'Mensaje enviado' : 'Mensaje recibido'} por ${ch.label}: ${excerpt(messageText(m), 140)}`, who: m.direction === 'out' ? m.author || ME : (contact && contact.name) || m.author || 'Contacto', when: new Date(m.createdAt).getTime(), extra: { channel: ch.label, subject: c.subject, conversationId: c.id, direction: m.direction === 'out' ? 'Saliente' : 'Entrante' } });
 }
 export function sendMessage(id, { body, direction = 'out', author = ME, when } = {}) {
   const c = rows.find((x) => x.id === id);

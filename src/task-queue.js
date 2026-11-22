@@ -1,3 +1,4 @@
+import { logTaskActivity } from './task-log.js';
 import { ACT_ICONS } from './action-icons.js';
 // Task queue (the original's "Comenzar N tareas"): the person works the tasks of a view one by one.
 // The queue lives in localStorage (crm:taskqueue) so it survives moving between record pages. Each task
@@ -77,6 +78,24 @@ export function targetFor(task, root = '../') {
 export function completeTask(id, done = true) {
   setField('tasks', id, 'status', done ? 'done' : 'todo');
   setField('tasks', id, 'completedAt', done ? new Date().toISOString() : '');
+}
+// Keep repeated clicks from opening multiple forms for the same task.
+const pendingCompletions = new Map();
+export function completeTaskWithLog(id, done = true) {
+  const task = findRecord('tasks', id);
+  if (!task) return false;
+  if (!done || task.status === 'done' || task.parentId || !['Llamada', 'Correo'].includes(task.type)) {
+    if (!done || task.status !== 'done') completeTask(id, done);
+    return true;
+  }
+  const key = String(id);
+  if (pendingCompletions.has(key)) return pendingCompletions.get(key);
+  const result = logTaskActivity(task).then(saved => {
+    if (saved) completeTask(id);
+    return saved;
+  }).finally(() => pendingCompletions.delete(key));
+  pendingCompletions.set(key, result);
+  return result;
 }
 function step(q, outcome) {
   const id = q.ids[q.index];
@@ -169,7 +188,7 @@ export function mountQueueBar({ container, root = '../../', onChange } = {}) {
     refresh();
     if (onChange) onChange();
   }
-  container.addEventListener('click', (e) => {
+  container.addEventListener('click', async (e) => {
     const b = e.target.closest('[data-tq]');
     if (!b) return;
     const act = b.dataset.tq;
@@ -178,7 +197,22 @@ export function mountQueueBar({ container, root = '../../', onChange } = {}) {
     const q = activeQueue();
     if (!q) { refresh(); return; }
     if (act === 'exit') { endQueue(); refresh(); toast('Saliste de la cola de tareas'); if (onChange) onChange(); return; }
-    if (act === 'complete') { const wasDone = queueTask(q)?.status === 'done'; completeCurrent(q); if (!wasDone) toast('Tarea completada'); go(q); return; }
+    if (act === 'complete') {
+      if (b.disabled) return;
+      const wasDone = queueTask(q)?.status === 'done';
+      b.disabled = true;
+      const result = completeTaskWithLog(q.ids[q.index]);
+      const saved = result instanceof Promise ? await result : result;
+      b.disabled = false;
+      if (!saved) return;
+      // Do not revive a queue that was exited or moved while the form was open.
+      const current = activeQueue();
+      if (!current || current.startedAt !== q.startedAt || current.index !== q.index) { refresh(); return; }
+      step(q, 'done');
+      if (!wasDone) toast('Tarea completada');
+      go(q);
+      return;
+    }
     if (act === 'skip') { skipCurrent(q); go(q); return; }
     if (act === 'prev') { moveTo(q, q.index - 1); go(q); return; }
     if (act === 'next') { moveTo(q, q.index + 1); go(q); return; }

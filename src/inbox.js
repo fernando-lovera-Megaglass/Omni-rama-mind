@@ -3,6 +3,12 @@ import './filter-chip.js';
 // left, the thread (chat bubbles + reply box) in the middle, the contact card and the actions on the right.
 import { boot } from './page.js';
 import { toast, setNavBadge, linkHtml, wireMenus, closeMenus } from './shell.js';
+import { ACT_ICONS } from './action-icons.js';
+import { ready as templatesReady, templates as savedTemplates, resolveTokens, recordTemplateUse } from './templates-data.js';
+import { ready as snippetsReady, snippets as savedSnippets } from './snippets-data.js';
+import { renderTokens, contextFromRecord, insertAtCaret, trackCaret } from './tokens.js';
+import { attachSnippetAutocomplete } from './snippet-autocomplete.js';
+import { sanitizeHtml, isHtml, htmlToText, messageHtml, textToHtml, format as formatEditor, wrapSelection } from './rich-text.js';
 import { ownerHtml } from './owner.js';
 import { emptyStateHtml } from './empty-state.js';
 import { enhanceOwnerSelects } from './owner-select.js';
@@ -85,14 +91,58 @@ const ticketPanel = mountCreateTicket({
       text: `Ticket creado desde la conversación "${conversation.subject}"`, who: ME, when: Date.now(),
       extra: { conversationId: conversation.id, href: `../inbox/?id=${encodeURIComponent(conversation.id)}` } });
     addInternalNote(conversation.id, { body: `Se creó el ticket ${ticket.name} (${href})`, author: ME });
-    const draft = $('inbox-reply')?.elements.body.value;
+    const draft = $('inbox-reply') ? getDraft() : undefined;
     renderAll();
-    if (draft !== undefined && $('inbox-reply')) $('inbox-reply').elements.body.value = draft;
+    if (draft !== undefined && $('inbox-reply')) setDraft(draft);
     toast('Ticket creado', { actionLabel: 'Ver ticket', href });
   },
 });
-// Only turn internal ticket record paths into links; message content remains escaped.
-const noteHtml = (body) => esc(body).replace(/\.\.\/tickets\/record\/\?id=\d+/g, (href) => `<a href="${href}">${href}</a>`);
+// Message bodies: plain text escaped (line breaks kept), rich text from the editor sanitised to the whitelist;
+// in comments, internal ticket record paths become links.
+const noteHtml = (body) => messageHtml(body).replace(/\.\.\/tickets\/record\/\?id=\d+/g, (href) => `<a href="${href}">${href}</a>`);
+// The reply editor: a contenteditable with a mirror <textarea name="body"> (what the form, the drafts and the
+// tests read) — the editor keeps the mirror in sync on input; setDraft() fills both.
+const editorEl = () => $('inbox-editor');
+function getDraft() { const ed = editorEl(); const ta = $('inbox-reply') && $('inbox-reply').elements.body; if (ed && ed.textContent.trim()) return ed.innerHTML; return ta ? ta.value : ''; }
+function setDraft(value) {
+  const ta = $('inbox-reply') && $('inbox-reply').elements.body;
+  const ed = editorEl();
+  if (ta) ta.value = value || '';
+  if (ed) ed.innerHTML = value ? (isHtml(value) ? sanitizeHtml(value) : textToHtml(value)) : '';
+}
+const syncMirror = () => { const ta = $('inbox-reply') && $('inbox-reply').elements.body; const ed = editorEl(); if (ta && ed) ta.value = ed.textContent.trim() || ed.querySelector('ul,ol,a') ? ed.innerHTML : ''; };
+const focusEditor = () => { const ed = editorEl(); if (ed) ed.focus(); };
+// The conversation's contact for the personalisation tokens of templates and snippets.
+const tokenContext = () => { const c = state.activeId ? conversationById(state.activeId) : null; return contextFromRecord('contacts', c && c.contact ? c.contact : null); };
+const DOCUMENTS = ['Catálogo Megaglass 2026.pdf', 'Ficha técnica vidrio templado.pdf', 'Guía de instalación.pdf'];
+const strip = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+const insertListHtml = (kind, q = '') => {
+  const s = strip(q);
+  if (kind === 'tpl') { const list = savedTemplates().filter((t) => !s || strip(`${t.name} ${t.folder || ''}`).includes(s)); return list.length ? list.slice(0, 12).map((t) => `<button class="menu__item" type="button" data-ins-tpl="${esc(t.id)}">${esc(t.name)}${t.folder ? `<span class="muted"> · ${esc(t.folder)}</span>` : ''}</button>`).join('') : '<p class="muted inbox__insempty">Sin plantillas</p>'; }
+  const list = savedSnippets().filter((x) => !s || strip(`${x.name} #${x.shortcut}`).includes(s));
+  return list.length ? list.slice(0, 12).map((x) => `<button class="menu__item" type="button" data-ins-snip="${esc(x.id)}">${esc(x.name)}<span class="muted"> · #${esc(x.shortcut)}</span></button>`).join('') : '<p class="muted inbox__insempty">Sin fragmentos</p>';
+};
+const toolbarHtml = (note) => `
+      <div class="compose__toolbar inbox__toolbar" role="toolbar" aria-label="Formato">
+        <button type="button" data-fmt="bold" title="Negrita" aria-label="Negrita"><b>B</b></button>
+        <button type="button" data-fmt="italic" title="Cursiva" aria-label="Cursiva"><i>I</i></button>
+        <button type="button" data-fmt="insertUnorderedList" title="Lista con viñetas" aria-label="Lista con viñetas">${ACT_ICONS.list || '•'}</button>
+        <button type="button" data-rt="link" title="Insertar enlace" aria-label="Insertar enlace">${ACT_ICONS.link}</button>
+        <span class="compose__sep"></span>
+        <div class="menu inbox__insertmenu"><button type="button" aria-haspopup="true" aria-expanded="false" data-rt-insert>Insertar <span class="caret"></span></button><div class="menu__panel inbox__insert">
+          <div class="menu__title">Plantilla</div>
+          <div class="inbox__inssearch search search--sm"><span class="ico ico--search" aria-hidden="true"></span><input type="search" placeholder="Buscar plantillas" aria-label="Buscar plantillas" data-ins-search="tpl" autocomplete="off" /></div>
+          <div data-ins-list="tpl">${insertListHtml('tpl')}</div>
+          <div class="menu__sep"></div>
+          <div class="menu__title">Fragmento</div>
+          <div class="inbox__inssearch search search--sm"><span class="ico ico--search" aria-hidden="true"></span><input type="search" placeholder="Buscar fragmentos" aria-label="Buscar fragmentos" data-ins-search="snip" autocomplete="off" /></div>
+          <div data-ins-list="snip">${insertListHtml('snip')}</div>
+          <div class="menu__sep"></div>
+          <div class="menu__title">Documento</div>
+          ${DOCUMENTS.map((d) => `<button class="menu__item" type="button" data-ins-doc="${esc(d)}">${ACT_ICONS.attach || '📄'} ${esc(d)}</button>`).join('')}
+        </div></div>
+        ${note ? '<span class="muted inbox__toolhint">Comentario interno</span>' : ''}
+      </div>`;
 
 // «Sincronizar Gmail» appears once a real Google account is connected (src/gmail.js): it brings the latest INBOX
 // messages, turns them into conversations and logs them on the matching contacts.
@@ -145,7 +195,7 @@ function renderList() {
           <span class="inbox__itembody">
             <span class="inbox__itemtop"><strong class="inbox__who">${esc(who)}</strong><span class="inbox__time">${esc(relativeTimeFine(c.lastMessageAt))}</span></span>
             <span class="inbox__subject">${esc(c.subject)}</span>
-            <span class="inbox__excerpt">${c.lastMessage ? esc(excerpt(c.lastMessage.body)) : '<em class="muted">Sin mensajes</em>'}</span>
+            <span class="inbox__excerpt">${c.lastMessage ? esc(excerpt(messageText(c.lastMessage))) : '<em class="muted">Sin mensajes</em>'}</span>
           </span>
         </button>
       </li>`;
@@ -169,7 +219,7 @@ function applyBulk(action, who) {
   const ids = [...state.selected];
   if (!ids.length) return;
   const affectsOpen = state.selected.has(state.activeId);
-  const draft = $('inbox-reply')?.elements.body.value;
+  const draft = $('inbox-reply') ? getDraft() : undefined;
   let count;
   let result;
   if (action === 'assign') {
@@ -189,7 +239,7 @@ function applyBulk(action, who) {
   renderList();
   if (affectsOpen) {
     renderThread(); renderSide();
-    if (action !== 'delete' && draft !== undefined && $('inbox-reply')) $('inbox-reply').elements.body.value = draft;
+    if (action !== 'delete' && draft !== undefined && $('inbox-reply')) setDraft(draft);
   }
   refreshBadge();
   toast(`${count} conversaciones ${result}`);
@@ -207,7 +257,7 @@ function renderThread() {
     <div class="inbox__messages" id="inbox-messages">
       ${msgs.map((m) => (isInternalNote(m)
     ? `<div class="msg msg--note"><div class="msg__bubble">${noteHtml(m.body)}</div><div class="msg__meta">Comentario interno · ${esc(m.author)} · <span title="${esc(timeOf(m.createdAt))}">${esc(relativeTimeFine(m.createdAt))}</span></div></div>`
-    : `<div class="msg msg--${m.direction}"><div class="msg__bubble">${esc(m.body)}</div><div class="msg__meta">${esc(m.author)} · <span title="${esc(timeOf(m.createdAt))}">${esc(relativeTimeFine(m.createdAt))}</span></div></div>`)).join('') || '<p class="muted">Todavía no hay mensajes.</p>'}
+    : `<div class="msg msg--${m.direction}"><div class="msg__bubble">${messageHtml(m.body)}</div><div class="msg__meta">${esc(m.author)} · <span title="${esc(timeOf(m.createdAt))}">${esc(relativeTimeFine(m.createdAt))}</span></div></div>`)).join('') || '<p class="muted">Todavía no hay mensajes.</p>'}
     </div>
     ${(() => { const mode = composeMode(c.id); const note = mode === 'note'; return `
     <form class="inbox__reply${note ? ' inbox__reply--note' : ''}" id="inbox-reply" data-mode="${mode}">
@@ -215,11 +265,26 @@ function renderThread() {
         <button type="button" role="tab" class="${note ? '' : 'is-active'}" aria-selected="${!note}" data-compose="reply">Responder</button>
         <button type="button" role="tab" class="${note ? 'is-active' : ''}" aria-selected="${note}" data-compose="note">Comentario</button>
       </div>
-      <textarea name="body" rows="3" placeholder="${note ? 'Escribe un comentario interno…' : 'Escribe una respuesta…'}" aria-label="${note ? 'Comentario interno' : 'Respuesta'}"></textarea>
+      ${toolbarHtml(note)}
+      <div class="inbox__editor" id="inbox-editor" contenteditable="true" role="textbox" aria-multiline="true" aria-label="${note ? 'Comentario interno' : 'Respuesta'}" data-placeholder="${note ? 'Escribe un comentario interno…' : 'Escribe una respuesta…'}"></div>
+      <textarea name="body" hidden placeholder="${note ? 'Escribe un comentario interno…' : 'Escribe una respuesta…'}" aria-hidden="true" tabindex="-1"></textarea>
       <div class="inbox__replyfoot"><span class="muted">${note ? 'Solo lo ve tu equipo: no se envía al contacto · Ctrl + Enter guarda' : c.status === 'closed' ? 'La conversación está cerrada: al responder se reabre.' : 'Ctrl + Enter envía'}</span><button class="btn btn--primary" type="submit">${note ? 'Comentar' : 'Enviar'}</button></div>
     </form>`; })()}`;
   const box = $('inbox-messages');
   box.scrollTop = box.scrollHeight;
+  const ed = editorEl();
+  if (ed) {
+    ed.addEventListener('input', syncMirror);
+    attachSnippetAutocomplete(ed, { context: tokenContext }); // "#atajo" inserts a snippet with this contact's data
+    trackCaret(ed); // templates, snippets, documents and links land where the caret was
+    ed.addEventListener('paste', (e) => { // pasted content arrives as plain text (no foreign markup)
+      if (!e.clipboardData) return;
+      e.preventDefault();
+      const t = e.clipboardData.getData('text/plain');
+      if (t) insertAtCaret(ed, textToHtml(t));
+      syncMirror();
+    });
+  }
 }
 function renderSide() {
   const c = state.activeId ? conversationById(state.activeId) : null;
@@ -361,13 +426,59 @@ root.addEventListener('input', (e) => { if (e.target.id === 'inbox-q') { const b
 root.addEventListener('click', (e) => {
   const tab = e.target.closest('[data-compose]');
   if (!tab || !state.activeId) return;
-  const ta = $('inbox-reply') && $('inbox-reply').elements.body;
-  const draft = ta ? ta.value : '';
+  const draft = $('inbox-reply') ? getDraft() : '';
   state.compose.set(state.activeId, tab.dataset.compose === 'note' ? 'note' : 'reply');
   renderThread();
-  const ta2 = $('inbox-reply') && $('inbox-reply').elements.body;
-  if (ta2) { ta2.value = draft; ta2.focus(); }
+  if ($('inbox-reply')) { setDraft(draft); focusEditor(); }
 });
+// The editor's toolbar and «Insertar» menu (templates and snippets with the conversation's contact, documents).
+root.addEventListener('click', (e) => {
+  const ed = editorEl();
+  if (!ed) return;
+  if (e.target.closest('.inbox__insert')) e.stopPropagation(); // searching inside the menu must not close it
+  const fmt = e.target.closest('[data-fmt]');
+  if (fmt) { e.preventDefault(); formatEditor(ed, fmt.dataset.fmt); syncMirror(); return; }
+  const rt = e.target.closest('[data-rt]');
+  if (rt && rt.dataset.rt === 'link') {
+    e.preventDefault();
+    const url = window.prompt('Dirección del enlace', 'https://');
+    if (!url || !/^(https?:|mailto:)/i.test(url.trim())) { if (url) toast('Escribe una dirección que empiece por https://'); return; }
+    if (!wrapSelection(ed, 'a', { href: url.trim() })) insertAtCaret(ed, `<a href="${esc(url.trim())}">${esc(url.trim())}</a>`);
+    syncMirror();
+    return;
+  }
+  const tpl = e.target.closest('[data-ins-tpl]');
+  if (tpl) {
+    const t = savedTemplates().find((x) => x.id === tpl.dataset.insTpl);
+    closeMenus();
+    if (!t) { toast('Esa plantilla ya no existe.'); return; }
+    const c = state.activeId ? conversationById(state.activeId) : null;
+    insertAtCaret(ed, sanitizeHtml(resolveTokens(t.body, c && c.contact, { name: ME })));
+    try { recordTemplateUse(t.id); } catch { /* usage counter is best effort */ }
+    syncMirror();
+    toast(`Plantilla «${t.name}» insertada`);
+    return;
+  }
+  const snip = e.target.closest('[data-ins-snip]');
+  if (snip) {
+    const s = savedSnippets().find((x) => x.id === snip.dataset.insSnip);
+    closeMenus();
+    if (!s) { toast('Ese fragmento ya no existe.'); return; }
+    insertAtCaret(ed, sanitizeHtml(renderTokens(s.body, tokenContext())));
+    syncMirror();
+    return;
+  }
+  const doc = e.target.closest('[data-ins-doc]');
+  if (doc) { closeMenus(); insertAtCaret(ed, `<p>📄 <a href="#">${esc(doc.dataset.insDoc)}</a></p>`); syncMirror(); }
+});
+root.addEventListener('input', (e) => {
+  const s = e.target.closest && e.target.closest('[data-ins-search]');
+  if (!s) return;
+  const list = root.querySelector(`[data-ins-list="${s.dataset.insSearch}"]`);
+  if (list) list.innerHTML = insertListHtml(s.dataset.insSearch, s.value);
+});
+// Late loads of the templates / snippets refresh the «Insertar» lists.
+Promise.all([templatesReady, snippetsReady]).then(() => { root.querySelectorAll('[data-ins-list]').forEach((l) => { l.innerHTML = insertListHtml(l.dataset.insList); }); }).catch(() => {});
 root.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && e.target.closest('#inbox-reply')) { e.preventDefault(); $('inbox-reply').requestSubmit ? $('inbox-reply').requestSubmit() : $('inbox-reply').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })); }
 });
@@ -375,27 +486,30 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && modal().
 root.addEventListener('submit', (e) => {
   if (e.target.id === 'inbox-reply') {
     e.preventDefault();
-    const body = e.target.elements.body.value.trim();
-    if (!body || !state.activeId) return;
+    // the editor's HTML (sanitised) or, for a plain draft, the text as it is; `plain` is the text part / checks
+    const raw = getDraft();
+    const rich = isHtml(raw);
+    const body = rich ? sanitizeHtml(raw) : String(raw || '').trim();
+    const plain = rich ? htmlToText(body) : body;
+    if (!plain.trim() || !state.activeId) return;
     if (composeMode(state.activeId) === 'note') {
       // «Comentario»: internal, never leaves the CRM (no sendMessage, no Gmail), the thread keeps its status.
       const n = addInternalNote(state.activeId, { body, author: ME });
       if (!n) return;
       toast('Comentario guardado');
       renderAll();
-      const ta2 = $('inbox-reply') && $('inbox-reply').elements.body;
-      if (ta2) ta2.focus();
+      focusEditor();
       return;
     }
     const m = sendMessage(state.activeId, { body, direction: 'out', author: ME });
     if (!m) return;
-    // A conversation imported from Gmail answers in the same Gmail thread, from the connected account.
+    // A conversation imported from Gmail answers in the same Gmail thread, from the connected account: the
+    // editor's HTML as the HTML part and its plain text as the text part.
     const th = gmailThreadFor(state.activeId);
-    if (th && th.fromEmail) sendMail({ accountId: th.accountId, to: th.fromEmail, subject: /^re:/i.test(th.subject) ? th.subject : `Re: ${th.subject}`, html: `<p>${esc(body).replace(/\n/g, '<br>')}</p>`, text: body, threadId: th.threadId, inReplyTo: th.rfcMessageId, references: th.rfcMessageId }).then(() => toast('Respuesta enviada por Gmail')).catch((e2) => toast(`No se pudo enviar por Gmail: ${e2.message}`));
+    if (th && th.fromEmail) sendMail({ accountId: th.accountId, to: th.fromEmail, subject: /^re:/i.test(th.subject) ? th.subject : `Re: ${th.subject}`, html: rich ? body : textToHtml(body), text: plain, threadId: th.threadId, inReplyTo: th.rfcMessageId, references: th.rfcMessageId }).then(() => toast('Respuesta enviada por Gmail')).catch((e2) => toast(`No se pudo enviar por Gmail: ${e2.message}`));
     toast('Mensaje enviado');
     renderAll();
-    const ta = $('inbox-reply') && $('inbox-reply').elements.body;
-    if (ta) ta.focus();
+    focusEditor();
     return;
   }
   if (e.target.matches && e.target.matches('[data-snooze-custom]')) {

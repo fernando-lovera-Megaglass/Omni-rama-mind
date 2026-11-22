@@ -72,3 +72,5 @@ export function gmailThreadFor(conversationId) {
   return { accountId: t.account_id, threadId: t.thread_id, rfcMessageId: t.rfc_message_id || '', fromEmail: t.from_email || '', subject: t.subject || '' };
 }
 export const gmailThreads = () => threads.slice();
+// Tests inject imported threads directly (no Supabase).
+export const setThreads = (rows) => { threads = Array.isArray(rows) ? rows.slice() : []; };
