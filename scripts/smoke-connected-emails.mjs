@@ -196,7 +196,8 @@ if (!text(q('.compose__frombtn')).includes('pedro@megaglass.us')) fail('sender s
 click(q('[data-cm="send"]'));
 const tl = text($('rec-timeline').firstElementChild);
 if ($('compose').hidden !== true) fail('composer should close after sending');
-const mail = [...$('rec-timeline').children].map(text).find((t) => t.includes('Correo enviado'));
+// Demo accounts log a simulation, never a successful real delivery.
+const mail = [...$('rec-timeline').children].map(text).find((t) => t.includes('Simulación · no se envió ningún correo'));
 if (!mail || !mail.includes('enviado desde pedro@megaglass.us')) fail(`timeline: ${mail || tl}`);
 E.accounts().forEach((a) => E.disable(a.id));
 click(q('.record__quick [data-action="email"]'));

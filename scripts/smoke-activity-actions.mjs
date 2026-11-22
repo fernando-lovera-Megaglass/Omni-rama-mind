@@ -37,14 +37,26 @@ data.addActivity({ type: 'note', recordType: 'contacts', recordId: 1, when: 1, t
 const note = data.activitiesFor('contacts', 1).find(a => a.type === 'note');
 await data.updateActivity(note.id, { extra: { pinned: true } });
 await click('[data-close]');
-// Refresh the timeline through a UI action.
-await click('[data-activity-action="pin"]');
-await click('[data-activity-action="pin"]');
+// Pinning is a timeline action per record (crm:<type>:<id>:pinned): pin the note from its own ⋮ menu → it leads the
+// timeline under «Fijado» with the «Fijada» title; pinning it again unpins it (the legacy extra.pinned flag no longer
+// decides once the person has pinned or unpinned something).
+const notePin = () => document.querySelector(`#rec-timeline [data-activity-action="pin"][data-activity-key^="${note.id}:"]`);
+// the note was added through the data layer: refresh the timeline through a UI action (the search box)
+document.getElementById('act-search').dispatchEvent(new dom.window.Event('input', { bubbles: true })); await tick();
+assert.ok(notePin(), 'the note offers «Fijar»');
+notePin().click(); await tick();
 assert.match(document.querySelector('#rec-timeline .timeline__title').textContent, /Fijada/);
+assert.ok(document.querySelector('#rec-timeline .timeline__item--pinned').dataset.ev.startsWith(`${note.id}:`), 'the pinned item is the note');
+assert.equal(localStorage.getItem('crm:contacts:1:pinned'), `${note.id}:1:note`);
+notePin().click(); await tick();
+assert.doesNotMatch(document.querySelector('#rec-timeline .timeline__title').textContent, /Fijada/);
+assert.equal(document.querySelector('#rec-timeline .timeline__item--pinned'), null, 'pinning again unpins');
 assert.equal(fresh.activitiesFor('contacts', 1)[0].id, note.id);
 const created = [...document.querySelectorAll('#rec-timeline .timeline__item')].find(el => el.textContent.includes('Registro creado'));
 assert.ok(created);
-assert.equal(created.querySelector('[data-activity-action]'), null);
+// system entries can be pinned like any other, but never edited or deleted
+assert.equal(created.querySelector('[data-activity-action="edit"], [data-activity-action="delete"]'), null);
+assert.ok(created.querySelector('[data-activity-action="pin"]'));
 for (const type of ['system', 'prop']) {
   data.addActivity({ type, recordType: 'contacts', recordId: 1, when: 2, text: 'Sistema' });
   const entry = data.activitiesFor('contacts', 1).find(a => a.type === type);
