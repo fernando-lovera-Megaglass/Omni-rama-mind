@@ -57,6 +57,6 @@ export function companyAvatarHtml(company, size = 'sm') {
   const safeSize = ['xs', 'sm', 'lg'].includes(size) ? size : 'sm';
   const url = company.domain && (company.logoUrl || company.extra?.logoUrl);
   const image = typeof url === 'string' && /^https:\/\//i.test(url)
-    ? `<img src="${esc(url)}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:white;border-radius:inherit" onerror="this.remove()" />` : '';
+    ? `<img src="${esc(url)}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:white;border-radius:inherit;visibility:hidden" onload="this.style.visibility='visible'" onerror="this.remove()" />` : '';
   return `<span class="avatar avatar--${safeSize} avatar--soft" style="position:relative;overflow:hidden" aria-hidden="true">${esc(ownerInitials(company.name))}${image}</span>`;
 }

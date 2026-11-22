@@ -13,6 +13,9 @@ assert.equal(saved().logoUrl, 'https://www.google.com/s2/favicons?domain=acme.co
 assert.deepEqual(data.dbColumnFor('companies', 'logoUrl'), { column: 'extra->>logoUrl', json: true });
 document.body.innerHTML = companyAvatarHtml(saved(), 'lg');
 assert.ok(document.querySelector('img'));
+assert.equal(document.querySelector('img').style.visibility, 'hidden');
+document.querySelector('img').dispatchEvent(new dom.window.Event('load'));
+assert.equal(document.querySelector('img').style.visibility, 'visible');
 document.querySelector('img').dispatchEvent(new dom.window.Event('error'));
 assert.equal(document.querySelector('img'), null);
 assert.equal(document.body.textContent, 'AC');
