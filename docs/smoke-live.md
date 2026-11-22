@@ -42,9 +42,39 @@ Sin `SMOKE_LIVE=1` cada smoke corre como siempre (JSDOM, sin tocar la base). En 
 2. Crea un usuario desechable `smoke.<prueba>.<marca>@megaglass.us` (invitación en `invitations`, fila en `auth.users` con contraseña, fila activa en `team_members`) e inicia sesión con él en el propio cliente de la app. El usuario de la cuenta no se toca.
 3. Importa `src/data.js`, que arranca en modo Supabase con esa sesión (misma ruta que el navegador: `requireSession`, políticas `is_team_member()`, `fetchUserSettings`…).
 4. Ejecuta la operación con las funciones de la app (`addRecord`, `setField`, `deleteRecords`, `restoreRecords`, `mergeRecords`, `setSetting`), espera `dbIdle()` (la cola de escrituras) y consulta las filas por SQL con la API de gestión.
-5. Limpia siempre, también si una comprobación falla: borra todo registro «SMOKE …» (contactos, empresas, negocios, tickets, tareas, sus actividades y elementos de pedido), los `user_settings` del usuario, su fila de `team_members`, la invitación y el usuario.
+5. Limpia siempre, también si una comprobación falla: primero borra las asociaciones de `contact_companies` cuyo contacto o empresa cumple el criterio SMOKE; después borra todo registro «SMOKE …» (contactos, empresas, negocios, tickets, tareas, sus actividades y elementos de pedido), los `user_settings` del usuario, su fila de `team_members`, la invitación y el usuario.
 
 Los registros de prueba llevan el prefijo **«SMOKE»** (contactos con correo `smoke.<marca>@ejemplo.com`), así que si una corrida se interrumpe se reconocen y se pueden borrar a mano con el mismo criterio.
+
+## Higiene de asociaciones contacto–empresa
+
+Ejecutar esta consulta antes y después de cada smoke live. Debe devolver **0 filas** (no se filtra por `deleted_at`: un contacto en la papelera todavía existe).
+
+```sql
+select cc.id, cc.contact_id, cc.company_id, cc.is_primary
+from public.contact_companies cc
+where not exists (select 1 from public.contacts c where c.id = cc.contact_id)
+   or not exists (select 1 from public.companies c where c.id = cc.company_id);
+```
+
+Se puede ejecutar con `node scripts/mgmt-sql.mjs "<consulta SQL>"`. Comprobar que sigue devolviendo 0 filas después de **cada** comando, ejecutados en serie porque la limpieza usa un prefijo SMOKE compartido:
+
+```bash
+SMOKE_LIVE=1 node scripts/smoke-create-contact.mjs
+SMOKE_LIVE=1 node scripts/smoke-record-merge.mjs
+```
+
+Reparación puntual de las dos asociaciones huérfanas detectadas el 22-nov-2026. El reporte inicial indicaba los IDs 389 y 391; al consultar antes de la reparación, los IDs actuales eran 413 (contacto 424) y 411 (contacto 425). El filtro vuelve a comprobar que los contactos faltan antes de borrar y conserva la empresa 39:
+
+```sql
+delete from public.contact_companies cc
+where ((cc.id = 413 and cc.contact_id = 424)
+    or (cc.id = 411 and cc.contact_id = 425))
+  and cc.company_id = 39
+  and cc.is_primary = true
+  and not exists (select 1 from public.contacts c where c.id = cc.contact_id)
+returning cc.id, cc.contact_id, cc.company_id;
+```
 
 ## Precondiciones que detecta
 

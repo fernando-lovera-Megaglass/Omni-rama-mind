@@ -64,10 +64,12 @@ export async function startLiveSession(tag, supabase) {
 export async function removeLiveUser({ email, uid }) {
   await sql(`delete from public.user_settings where user_id = ${lit(uid)}; delete from public.team_members where user_id = ${lit(uid)}; delete from auth.users where id = ${lit(uid)}; delete from public.invitations where lower(email::text) = ${lit(email.toLowerCase())};`);
 }
-// Every «SMOKE …» record of the run (and their activities, tasks and line items), then the user.
+// Every «SMOKE …» record of the run (and their associations, activities, tasks and line items), then the user.
 export async function cleanupLive(session) {
   const like = lit('SMOKE %');
-  await sql(`delete from public.activities a using public.contacts c where a.record_type = 'contacts' and a.record_id = c.id and (c.name like ${like} or c.email like 'smoke.%@ejemplo.com');
+  await sql(`delete from public.contact_companies cc using public.contacts c where cc.contact_id = c.id and (c.name like ${like} or c.email like 'smoke.%@ejemplo.com');
+    delete from public.contact_companies cc using public.companies c where cc.company_id = c.id and c.name like ${like};
+    delete from public.activities a using public.contacts c where a.record_type = 'contacts' and a.record_id = c.id and (c.name like ${like} or c.email like 'smoke.%@ejemplo.com');
     delete from public.activities a using public.companies c where a.record_type = 'companies' and a.record_id = c.id and c.name like ${like};
     delete from public.activities a using public.deals d where a.record_type = 'deals' and a.record_id = d.id and d.name like ${like};
     delete from public.activities a using public.tickets t where a.record_type = 'tickets' and a.record_id = t.id and t.name like ${like};
