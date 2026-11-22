@@ -2196,10 +2196,12 @@
     },
     {
       "id": "gap-smoke-templates-ultima",
-      "status": "pending",
+      "status": "done",
       "instruction": "smoke-templates: «only the last applied template counts» — aplicar plantillas en secuencia ya no deja solo la última (posible cambio en cómo se registran/apilan). OBLIGATORIO: ejecuta node scripts/<smoke>.mjs DESPUÉS de tu cambio e itera hasta que termine con código 0; no des por terminado sin verificarlo. Si el fallo es una limitación del harness jsdom (API de navegador inexistente), agrega el shim en la prueba, no cambies la app para complacer al harness. No despliegues nada a producción; solo código local.",
       "createdAt": "2026-11-22T08:22:54-06:00",
-      "lane": "claude"
+      "lane": "claude",
+      "completedAt": "2026-11-22T09:34:18-0600",
+      "completedBy": "claude"
     },
     {
       "id": "gap-smoke-timeline-negocio-contacto",
