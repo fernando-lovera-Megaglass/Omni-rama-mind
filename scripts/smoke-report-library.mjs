@@ -65,7 +65,7 @@ for (const row of rows) {
   assert.ok(visible[0].hasAttribute('data-view') && visible[0].classList.contains('btn'));
   assert.ok(visible[1].closest('.menu') && visible[1].getAttribute('aria-haspopup') === 'true' && /Acciones/.test(visible[1].textContent), 'second control is the Acciones menu button');
   const items = [...row.querySelectorAll('.menu__panel .menu__item')].map((b) => b.textContent.trim());
-  assert.deepEqual(items, ['Duplicar', 'Renombrar', 'Anclar al panel principal', 'Eliminar']);
+  assert.deepEqual(items, ['Duplicar', 'Renombrar', 'Anclar a este panel', 'Eliminar']);
   assert.ok(row.querySelector('.menu__panel [data-delete].menu__item--danger'), 'Eliminar is a danger item');
   assert.equal(row.querySelectorAll('.btn--ghost').length, 0);
 }
@@ -74,7 +74,7 @@ click(rows[0].querySelector('.menu > button'));
 assert.ok(rows[0].querySelector('.menu').classList.contains('is-open'), 'Acciones opens its panel');
 click(rows[0].querySelector('[data-pin]')); await tick();
 assert.equal(q('.menu.is-open'), null, 'menu closes after an action');
-assert.match(qa('.custom-library-row')[0].textContent, /Anclado al panel principal/);
+assert.match(qa('.custom-library-row')[0].textContent, /Anclado a este panel/);
 assert.equal(qa('.custom-library-row')[0].querySelector('[data-pin]').textContent.trim(), 'Quitar del panel');
 log('rows: «Abrir» + menú Acciones (Duplicar / Renombrar / Anclar / Eliminar en rojo); opens and closes');
 
