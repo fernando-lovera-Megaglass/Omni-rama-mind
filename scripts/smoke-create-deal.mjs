@@ -197,6 +197,7 @@ await import(resolve(here, '../src/record.js'));
 await wait(20);
 const liCard = document.querySelector('[data-card="lineitems"]');
 const liRows = liCard ? [...liCard.querySelectorAll('tbody tr')].map((tr) => [...tr.querySelectorAll('td')].map(text).join(' | ')) : [];
-log('record card:', text(liCard && liCard.querySelector('.card__toggle')), '| rows:', liRows.join(' // '), '| total:', text(liCard && liCard.querySelector('tfoot td:last-child')));
-if (!liCard || liRows.length !== 2 || !/Vidrio templado 10 mm \| 12 \| \$1,500 \| \$18,000/.test(liRows[0]) || text(liCard.querySelector('tfoot td:last-child')) !== '$18,751.50') fail('the deal record should list the line items with the total');
+// (the card is editable now: each row ends with Editar / Quitar and the total sits in [data-li-total])
+log('record card:', text(liCard && liCard.querySelector('.card__toggle')), '| rows:', liRows.join(' // '), '| total:', text(liCard && liCard.querySelector('[data-li-total]')));
+if (!liCard || liRows.length !== 2 || !/Vidrio templado 10 mm \| 12 \| \$1,500 \| \$18,000/.test(liRows[0]) || text(liCard.querySelector('[data-li-total]')) !== '$18,751.50') fail('the deal record should list the line items with the total');
 log('OK');

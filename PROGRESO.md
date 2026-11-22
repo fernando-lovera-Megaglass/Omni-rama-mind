@@ -1,5 +1,13 @@
 # Progreso — Omni CRM
 
+## 2026-11-22 (sesión 6) · Negocios: «Elementos de pedido» editables en la ficha con el importe recalculado
+
+- `src/data.js`: `updateLineItem(id, { name, quantity, price })` (UPDATE en `deal_line_items` / localStorage), `removeLineItem(id)` (DELETE / localStorage) y `applyLineItemsToDeal(dealId)`: el importe del negocio pasa a ser el total de las líneas mientras haya líneas (el importe anterior se guarda en `amountBeforeLines`) y vuelve a ese valor cuando se quita la última; cada cambio deja «Elementos de pedido actualizados: total <moneda> (N líneas) · importe del negocio …» en la cronología del negocio.
+- `src/record.js`: la tarjeta «Elementos de pedido» deja de ser de solo lectura: «+ Agregar elemento de pedido» abre una fila editable (producto, cantidad, precio; importe calculado al teclear) con Guardar/Cancelar y validación (nombre, cantidad > 0, precio ≥ 0); cada línea tiene «Editar» (edición en línea) y «Quitar» (con confirmación); al guardar o quitar se persiste, se recalcula el importe (`applyLineItemsToDeal`), se refresca la cabecera (importe), la tabla, el total y la cronología, con toast «Elemento de pedido agregado/actualizado/quitado · importe del negocio …». El total vive en `[data-li-total]`.
+- `src/app.css`: `.lineitems--editable`, `.lineitems__editrow`, `.lineitems__actions`.
+- Pruebas: `scripts/smoke-line-items.mjs` (negocio sin líneas: añadir 2 × 500 → fila, total 1 000, importe 900 → 1 000 con el anterior guardado, cronología y toast; recarga de la ficha con todo persistido; editar a 3 × 500 → 1 500; segunda línea → 1 602; cancelar sin cambios; fila sin nombre rechazada; quitar una recalcula y quitar la última devuelve el importe a 900 con la tarjeta vacía y 5 entradas de cronología). `scripts/smoke-create-deal.mjs` ajustado a la tabla editable. Pasan deal-close, deal-close-date, record-merge, lifecycle-rules, mentions, send-later.
+- Solo código local; nada desplegado (la tabla `deal_line_items` ya estaba aplicada).
+
 ## 2026-11-22 (sesión 6) · Menciones «@usuario» y notificaciones de asignación en la campana
 
 - `src/mention-autocomplete.js` (nuevo, mismo patrón que `snippet-autocomplete.js`): al teclear «@» en una nota o comentario (textarea o `contenteditable`) lista los usuarios de la cuenta (`OWNERS` sin «Sin asignar») con avatar; flechas, Enter/Tab o clic insertan «@Nombre »; `mentionsIn(texto)` resuelve «@Laura M.» o «@Laura» (sin distinguir acentos ni mayúsculas).
