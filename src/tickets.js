@@ -30,6 +30,8 @@ const list = mountList({
   addLabel: 'Agregar tickets',
   createLabel: 'Crear ticket',
   addDirect: true,
+  // Bulk bar as the original's: «Crear tareas» makes one task per ticket, associated to it.
+  bulk: { actions: ['assign', 'edit', 'delete', 'tasks', 'export'] },
   // The panel opens on the pipeline being looked at (the board's "+ Ticket" also passes its status).
   openCreate: (prefill) => createPanel && createPanel.open({ pipeline: list.state.pipeline || undefined, ...(prefill || {}) }),
   // "Acciones" next to "Agregar" (export, trash, bulk edit); tickets have no duplicate management nor format fixes.

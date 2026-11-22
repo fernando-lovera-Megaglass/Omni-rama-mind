@@ -1,4 +1,4 @@
-import { mountTaskAssociations, logTaskAssociations } from './task-associations.js';
+import { mountTaskAssociations, logTaskAssociations, taskAssociatedRecords, taskAssociationLinks } from './task-associations.js';
 import './filter-chip.js';
 import { taskQueues, loadTaskQueues, saveTaskQueue, deleteTaskQueue } from './task-queues.js';
 import { assignTaskQueue } from './data.js';
@@ -89,6 +89,10 @@ const list = mountList({
     { key: 'name', label: 'Título', render: (r) => `<a href="./record/?id=${r.id}" class="${r.status === 'done' ? 'is-done' : ''}">${esc(r.name)}</a>` },
     { key: 'done', label: 'Hecha', text: (r) => (r.status === 'done' ? 'Sí' : 'No'), render: (r) => `<input type="checkbox" class="task-done" data-id="${r.id}" ${r.status === 'done' ? 'checked' : ''} aria-label="Marcar como completada" />` },
     { key: 'contact', label: 'Contacto asociado', render: (r) => (r.contact ? link(`../contacts/record/?id=${r.contactId}`, r.contact) : '<span class="muted">—</span>') },
+    // The other associations (companyId / dealId / ticketId or assoc_<kind>): hidden by default, in «Editar columnas».
+    { key: 'company', label: 'Empresa asociada', default: false, text: (r) => taskAssociatedRecords(r, 'companies').map((x) => x.name).join(', '), render: (r) => taskAssociationLinks(r, 'companies', '../') },
+    { key: 'deal', label: 'Negocio asociado', default: false, text: (r) => taskAssociatedRecords(r, 'deals').map((x) => x.name).join(', '), render: (r) => taskAssociationLinks(r, 'deals', '../') },
+    { key: 'ticket', label: 'Ticket asociado', default: false, text: (r) => taskAssociatedRecords(r, 'tickets').map((x) => x.name).join(', '), render: (r) => taskAssociationLinks(r, 'tickets', '../') },
     { key: 'due', label: 'Fecha de vencimiento', text: (r) => formatDate(r.due), sortValue: (r) => new Date(r.due).getTime(), render: (r) => `<span class="${pending(r) ? dueClass(r) : ''}" title="${pending(r) ? dueText(r) : 'Completada'}">${formatDate(r.due)}</span>` },
     { key: 'type', label: 'Tipo de tarea' },
     { key: 'priority', label: 'Prioridad', text: (r) => labelOf(PRIORITIES, r.priority), render: (r) => tag(labelOf(PRIORITIES, r.priority), classOf(PRIORITIES, r.priority)) },

@@ -1,6 +1,6 @@
 import { openLogModal as showLogModal, selectedActivityAssociations, readLogActivity, logAssociationsHtml as sharedLogAssociationsHtml } from './log-modal.js';
 import { formatAttachmentSize } from './mail-attachments.js';
-import { TASK_ASSOCIATIONS, taskAssociationLinks } from './task-associations.js';
+import { TASK_ASSOCIATIONS, taskAssociationLinks, taskLinksTo } from './task-associations.js';
 import { ready as sequencesReady, scheduled, sequenceById, pauseEnrollment, resumeEnrollment, unenroll, enrollmentsOfContact, unenrollReasonOf, STATUS_LABELS as SEQ_STATUS } from './sequences-data.js';
 import { propertyEditor } from './property-editor.js';
 import { mountCreateDeal } from './create-deal.js';
@@ -80,7 +80,7 @@ const CONFIG = {
       ['Empresas', r.companyId ? [byId(allCompanies(), r.companyId)].filter(Boolean) : [], 'companies'],
       ['Negocios', allDeals().filter((d) => Number(d.contactId) === Number(r.id)), 'deals'],
       ['Tickets', allTickets().filter((t) => Number(t.contactId) === Number(r.id)), 'tickets'],
-      ['Tareas', allTasks().filter((t) => Number(t.contactId) === Number(r.id)), 'tasks'],
+      ['Tareas', allTasks().filter((t) => taskLinksTo(t, 'contacts', r.id)), 'tasks'],
     ],
     leadStage: true,
   },
@@ -103,6 +103,8 @@ const CONFIG = {
       ['Contactos', allContacts().filter((c) => Number(c.companyId) === Number(r.id) || (Array.isArray(c.assoc_companies) && c.assoc_companies.map(Number).includes(Number(r.id)))), 'contacts'],
       ['Negocios', allDeals().filter((d) => Number(d.companyId) === Number(r.id)), 'deals'],
       ['Tickets', allTickets().filter((t) => Number(t.companyId) === Number(r.id) || allContacts().some((c) => Number(c.id) === Number(t.contactId) && Number(c.companyId) === Number(r.id))), 'tickets'],
+      // Tasks tied to the company (companyId or assoc_companies: bulk «Crear tareas», the task form).
+      ['Tareas', allTasks().filter((t) => taskLinksTo(t, 'companies', r.id)), 'tasks'],
     ],
   },
   deals: {
@@ -120,6 +122,7 @@ const CONFIG = {
     assoc: (r) => [
       ['Contactos', r.contactId ? [byId(allContacts(), r.contactId)].filter(Boolean) : [], 'contacts'],
       ['Empresas', r.companyId ? [byId(allCompanies(), r.companyId)].filter(Boolean) : [], 'companies'],
+      ['Tareas', allTasks().filter((t) => taskLinksTo(t, 'deals', r.id)), 'tasks'],
     ],
   },
   tickets: {
@@ -139,6 +142,7 @@ const CONFIG = {
     assoc: (r) => [
       ['Contactos', r.contactId ? [byId(allContacts(), r.contactId)].filter(Boolean) : [], 'contacts'],
       ['Empresas', r.companyId ? [byId(allCompanies(), r.companyId)].filter(Boolean) : [], 'companies'],
+      ['Tareas', allTasks().filter((t) => taskLinksTo(t, 'tickets', r.id)), 'tasks'],
     ],
   },
   tasks: {

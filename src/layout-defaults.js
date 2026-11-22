@@ -9,11 +9,12 @@ const TYPE_META = {
   tasks: { s: 'Tarea', p: 'Tareas' },
 };
 
+// Every record shows its tasks card (bulk «Crear tareas» and the task form tie tasks to any of the four objects).
 const ASSOC_KINDS = {
   contacts: ['companies', 'deals', 'tickets', 'tasks'],
-  companies: ['contacts', 'deals', 'tickets'],
-  deals: ['contacts', 'companies'],
-  tickets: ['contacts', 'companies'],
+  companies: ['contacts', 'deals', 'tickets', 'tasks'],
+  deals: ['contacts', 'companies', 'tasks'],
+  tickets: ['contacts', 'companies', 'tasks'],
   tasks: ['contacts', 'companies', 'deals', 'tickets'],
 };
 
@@ -94,7 +95,8 @@ export function previewCatalog(type) {
   return cards;
 }
 export function defaultPreview(type, name = 'Vista predeterminada') {
-  const assoc = [...(ASSOC_KINDS[type] || [])];
+  // The preview panel keeps its three record cards; the tasks card stays available in its catalogue.
+  const assoc = [...(ASSOC_KINDS[type] || [])].filter((k) => k !== 'tasks');
   if (type === 'deals' && !assoc.includes('tickets')) assoc.push('tickets');
   return { name, teams: [], isDefault: name === 'Vista predeterminada', props: [...(PREVIEW_PROPS[type] || PREVIEW_PROPS.contacts)], left: [], tabs: [], right: ['about', 'activity', 'upcoming', ...assoc.slice(0, 3).map((k) => `assoc-${k}`)] };
 }

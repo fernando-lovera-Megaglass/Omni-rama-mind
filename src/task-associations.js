@@ -1,11 +1,24 @@
 import { allContacts, allCompanies, allDeals, allTickets, strip, addActivity } from './data.js';
 
 export const TASK_ASSOCIATIONS = { contacts: 'Contactos', companies: 'Empresas', deals: 'Negocios', tickets: 'Tickets' };
+// A task links to one record of each kind through a scalar key (+ its name) — the primary association the
+// record pages, the queue and «Próxima actividad» read — and to any number of them through assoc_<kind>.
+export const TASK_LINK_KEYS = { contacts: ['contactId', 'contact'], companies: ['companyId', 'company'], deals: ['dealId', 'deal'], tickets: ['ticketId', 'ticket'] };
 const pools = { contacts: allContacts, companies: allCompanies, deals: allDeals, tickets: allTickets };
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const linkedIds = (task, kind) => {
+  const [key] = TASK_LINK_KEYS[kind] || [];
+  return new Set([...(task[`assoc_${kind}`] || []), ...(key && task[key] ? [task[key]] : [])].map(String));
+};
+export const taskLinksTo = (task, kind, id) => linkedIds(task, kind).has(String(id));
 export function taskAssociatedRecords(task, kind) {
-  const ids = new Set([...(task[`assoc_${kind}`] || []), ...(kind === 'contacts' && task.contactId ? [task.contactId] : [])].map(String));
+  const ids = linkedIds(task, kind);
   return pools[kind]().filter(r => ids.has(String(r.id)));
+}
+// The fields that tie a new task to one record (bulk «Crear tareas», tasks created from a record).
+export function taskAssociationFields(kind, record) {
+  const [key, name] = TASK_LINK_KEYS[kind] || [];
+  return key ? { [key]: record.id, [name]: record.name || '', [`assoc_${kind}`]: [record.id] } : {};
 }
 export function taskAssociationLinks(task, kind, root = '../../') {
   return taskAssociatedRecords(task, kind).map(r => `<a href="${root}${kind}/record/?id=${encodeURIComponent(r.id)}">${esc(r.name)}</a>`).join('<br>') || '—';

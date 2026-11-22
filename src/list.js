@@ -5,6 +5,7 @@ import { validatePropertyValues, addHistoryEntry } from './data.js';
 import { sensitiveValue } from './property-privacy.js';
 import { propertyEditor } from './property-editor.js';
 import { focusPhoneInput } from './phone.js';
+import { logTaskAssociations, taskAssociationFields } from './task-associations.js';
 // Generic object list: views, filter menus, search, sort, paging, selection,
 // column editor (full property catalog), advanced filters, CSV export/import, create drawer.
 import { wireMenus, closeMenus, toast, linkHtml, wireLinkTooltips, recordToastAction } from './shell.js';
@@ -3079,7 +3080,12 @@ export function mountList(cfg) {
         okLabel: 'Crear tareas',
         onOk: (d) => {
           const rows = cfg.rows().filter((r) => state.selected.has(Number(r.id)));
-          rows.forEach((r) => addRecord('tasks', { name: `${d.title.trim() || 'Seguimiento'}: ${r.name}`, type: d.type, due: d.due ? new Date(`${d.due}T09:00`).toISOString() : TODAY.toISOString(), priority: 'medium', status: 'todo', owner: d.owner, contactId: r.id, contact: r.name, lastActivity: TODAY.toISOString() }));
+          // One task per record, tied to it through the key of its own object (contactId / companyId / dealId /
+          // ticketId + assoc_<kind>), logged on the record's timeline as the task form does.
+          rows.forEach((r) => {
+            const task = addRecord('tasks', { name: `${d.title.trim() || 'Seguimiento'}: ${r.name}`, type: d.type, due: d.due ? new Date(`${d.due}T09:00`).toISOString() : TODAY.toISOString(), priority: 'medium', status: 'todo', owner: d.owner, lastActivity: TODAY.toISOString(), ...taskAssociationFields(cfg.type, r) });
+            try { logTaskAssociations(task); } catch (e) { console.error('[tareas masivas] asociación', e); }
+          });
           toast(`${rows.length} ${rows.length === 1 ? 'tarea creada' : 'tareas creadas'}`);
           state.selected.clear();
           render();
