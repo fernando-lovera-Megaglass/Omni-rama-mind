@@ -19,6 +19,11 @@ BEGIN
        WHERE (v->>'id')::bigint BETWEEN 1 AND expected) <> expected THEN
       RAISE EXCEPTION 'Invalid seed ids/count for %', t;
     END IF;
+    -- Reject duplicate identities even if the separate unique-index migration is absent.
+    IF t = 'contacts' AND EXISTS (
+      SELECT lower(btrim(v->>'email')) FROM jsonb_array_elements(payload->t) v
+      WHERE btrim(v->>'email') <> '' GROUP BY 1 HAVING count(*) > 1
+    ) THEN RAISE EXCEPTION 'Duplicate seed contact emails'; END IF;
     -- Only supplied columns: preserve database defaults for other columns.
     SELECT string_agg(format('%I', key), ', ' ORDER BY key) INTO cols
       FROM jsonb_object_keys(payload->t->0) key;

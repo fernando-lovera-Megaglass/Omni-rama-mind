@@ -30,6 +30,7 @@ INSERT INTO calls VALUES ('301');
 INSERT INTO activities VALUES (1,'contacts',301),(2,'deals',301);
 INSERT INTO workflow_enrollments VALUES ('contacts',302),('companies',302);
 INSERT INTO contact_companies(contact_id,company_id,is_primary) VALUES (1,1,false),(301,1,true),(302,1,false);`);
+await db.exec("UPDATE contacts SET first='Canonical' WHERE id=1");
 // Bootstrap protection installs even while live duplicate emails still exist.
 await db.exec(sql('../supabase/bootstrap-demo.sql'));
 const repair = sql('./sql/dedupe-contacts.sql');
@@ -72,6 +73,12 @@ await db.exec(`BEGIN; ${repair} COMMIT;`);
 assert.equal((await db.query('SELECT first FROM contacts WHERE id=60')).rows[0].first, 'Original');
 assert.ok((await db.query('SELECT deleted_at FROM contacts WHERE id=360')).rows[0].deleted_at);
 assert.equal((await db.query('SELECT first FROM contacts WHERE id=360')).rows[0].first, 'Other');
+// Activity wins ties even when the active copy has a higher id.
+await db.exec(`INSERT INTO contacts(id,email) VALUES (70,'activity@example.com'),(370,'activity@example.com');
+ INSERT INTO activities VALUES (370,'contacts',370);`);
+await db.exec(`BEGIN; ${repair} COMMIT;`);
+assert.ok((await db.query('SELECT deleted_at FROM contacts WHERE id=70')).rows[0].deleted_at);
+assert.equal((await db.query('SELECT deleted_at FROM contacts WHERE id=370')).rows[0].deleted_at,null);
 // An existing orphan must fail acceptance and roll back the entire repair.
 await db.exec('INSERT INTO deals(contact_id) VALUES (99999)');
 await assert.rejects(db.exec(`BEGIN; ${repair} COMMIT;`), /Orphans/);
@@ -85,6 +92,7 @@ await db.exec(`
  INSERT INTO contacts(id,email)
  SELECT n, 'pair' || n || '@example.com' FROM generate_series(1000,1076) n
  UNION ALL SELECT n+300, 'pair' || n || '@example.com' FROM generate_series(1000,1076) n;
+ UPDATE contacts SET first='Canonical' WHERE id BETWEEN 1000 AND 1076;
  INSERT INTO deals(contact_id) SELECT n FROM generate_series(1300,1376) n;
  INSERT INTO tickets(contact_id) SELECT n FROM generate_series(1300,1376) n;
  INSERT INTO tasks(contact_id) SELECT n FROM generate_series(1300,1376) n;
@@ -130,6 +138,15 @@ const emails = payload.contacts.map(c=>c.email).filter(Boolean);
 assert.equal(new Set(emails).size, emails.length);
 assert.equal((await db.query('SELECT bootstrap_demo_v1($1) seeded',[JSON.stringify(payload)])).rows[0].seeded, false);
 await db.exec('TRUNCATE contacts,companies,deals,tickets,tasks,extra_links RESTART IDENTITY CASCADE');
+// A partial historical seed must not restart insertion of the entire batch.
+await db.exec("INSERT INTO companies(id,name) VALUES (9000,'Existing partial seed')");
+assert.equal((await db.query('SELECT bootstrap_demo_v1($1) seeded',[JSON.stringify(payload)])).rows[0].seeded,false);
+assert.equal((await db.query('SELECT count(*)::int n FROM contacts')).rows[0].n,0);
+await db.exec('DELETE FROM companies WHERE id=9000');
+const duplicatePayload = structuredClone(payload);
+duplicatePayload.contacts[1].email = duplicatePayload.contacts[0].email;
+await assert.rejects(db.query('SELECT bootstrap_demo_v1($1)',[JSON.stringify(duplicatePayload)]), /Duplicate seed contact emails/);
+assert.equal((await db.query('SELECT count(*)::int n FROM companies')).rows[0].n,0);
 const invalid = structuredClone(payload); invalid.tickets[0].id=invalid.tickets[1].id;
 await assert.rejects(db.query('SELECT bootstrap_demo_v1($1)',[JSON.stringify(invalid)]));
 assert.equal((await db.query('SELECT count(*)::int n FROM contacts')).rows[0].n, 0);

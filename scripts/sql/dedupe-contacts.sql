@@ -33,7 +33,7 @@ DO $$ BEGIN
 END $$;
 CREATE TEMP TABLE contact_merge ON COMMIT DROP AS
 SELECT id AS duplicate_id, canonical_id FROM (
-  SELECT id, first_value(id) OVER (PARTITION BY email ORDER BY filled_fields DESC, id) AS canonical_id
+  SELECT id, first_value(id) OVER (PARTITION BY email ORDER BY filled_fields DESC, activities DESC, (deals+tickets+tasks+enrollments) DESC, id) AS canonical_id
   FROM contact_inventory
 ) c WHERE id <> canonical_id;
 SELECT i.*, min(i.id) OVER (PARTITION BY i.email) AS lower_id,
@@ -42,13 +42,13 @@ FROM contact_inventory i WHERE email IN (SELECT email FROM contact_inventory GRO
 ORDER BY email, id;
 SELECT m.*, i.email, i.filled_fields AS duplicate_fields,
  k.filled_fields AS canonical_fields,
- 'filled_fields DESC, id ASC' AS selection_rule
+ 'filled_fields DESC, activities DESC, associations DESC, id ASC' AS selection_rule
 FROM contact_merge m JOIN contact_inventory i ON i.id=m.duplicate_id
 JOIN contact_inventory k ON k.id=m.canonical_id
 ORDER BY canonical_id, duplicate_id;
 
 -- Email defines identity for this repair. Keep the richest persisted record.
--- Equal field counts use the smallest active ID. Before images retain conflicts.
+-- Equal field counts prefer activity, then associations, then the smallest active ID. Before images retain conflicts.
 -- Like mergeRecords: retain principal values and fill empty scalar properties.
 -- Full before images above include conflicting values for review and recovery.
 DO $$
@@ -172,10 +172,21 @@ END $$;
 DO $$
 DECLARE t text; n bigint;
 BEGIN
- FOREACH t IN ARRAY ARRAY['deals','tickets'] LOOP
+ FOREACH t IN ARRAY ARRAY['deals','tickets','tasks','contact_companies'] LOOP
   EXECUTE format('SELECT count(*) FROM %I r LEFT JOIN contacts c ON c.id=r.contact_id WHERE r.contact_id IS NOT NULL AND c.id IS NULL',t) INTO n;
   RAISE NOTICE '% orphan contact references: %', t, n;
   IF n <> 0 THEN RAISE EXCEPTION 'Orphans in %, rolling back',t; END IF;
  END LOOP;
 END $$;
 SELECT count(*) AS merged_copies, count(DISTINCT canonical_id) AS merged_groups FROM contact_merge;
+
+-- Single final result also retains before images through the Management API.
+SELECT jsonb_build_object(
+ 'merged_copies', (SELECT count(*) FROM contact_merge),
+ 'merged_groups', (SELECT count(DISTINCT canonical_id) FROM contact_merge),
+ 'before_images', (SELECT jsonb_agg(i.before) FROM contact_inventory i WHERE i.id IN
+   (SELECT duplicate_id FROM contact_merge UNION SELECT canonical_id FROM contact_merge)),
+ 'merge_map', (SELECT jsonb_agg(to_jsonb(m)) FROM contact_merge m),
+ 'duplicate_groups', (SELECT count(*) FROM (SELECT lower(email) FROM contacts
+    WHERE email IS NOT NULL AND email<>'' AND deleted_at IS NULL GROUP BY 1 HAVING count(*)>1) d)
+) AS audit;

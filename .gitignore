@@ -4,3 +4,6 @@ dist/
 .env
 .supabase-mgmt-token
 .hubspot-token
+
+# Private contact repair audit snapshots
+.dedupe-audit-*.json
