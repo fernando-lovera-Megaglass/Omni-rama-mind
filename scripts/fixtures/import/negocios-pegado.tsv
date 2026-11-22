@@ -1,0 +1,9 @@
+Nombre del negocio	Pipeline	Etapa del negocio	Importe	Moneda	Fecha de cierre	Propietario del negocio	Empresa asociada	Prioridad	Tipo de negocio
+Instalación fachada Torre Norte	Pipeline de ventas	Cita programada	$1,250,000.50	MXN	31/12/2026	Sofía R.	Cristales Ejemplo	Alta	Nuevo negocio
+Ventanas residencial	pipeline de ventas	calificado para comprar	85.000,00	EUR	2026-11-30		vidriosmuestra.es	media	Negocio existente
+Etapa de otro pipeline	Pipeline de ventas	Presentación	100						
+Pipeline inexistente	Pipeline Fantasma	Cita programada	100						
+Sin etapa	Pipeline de ventas		100						
+Empresa desconocida	Pipeline de ventas	appointmentscheduled	5000		15/01/2027		Empresa Fantasma		
+Importe raro	Pipeline de ventas	Cita programada	mucho	USD		Diego G.		Baja	
+Cierre día-mes	Pipeline de ventas	Cita programada	100	USD	02/03/2027				

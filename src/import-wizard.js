@@ -219,7 +219,9 @@ function renderStep3() {
   const o = state.options;
   const d = def();
   const mapped = new Set(state.mapping.filter((m) => !m.skip).map((m) => m.key));
-  const uniqueChoices = d.unique.filter((k) => k === 'hs_object_id' ? mapped.has('hs_object_id') : true);
+  // «ID de registro» is offered when the file maps it or when it is the object's only identifier (deals, tickets,
+  // tasks): then the select says that without the column every row creates a record.
+  const uniqueChoices = d.unique.filter((k) => k !== 'hs_object_id' || mapped.has('hs_object_id') || d.unique.length === 1);
   if (!uniqueChoices.includes(o.uniqueKey)) o.uniqueKey = uniqueChoices.includes(d.defaultUnique) ? d.defaultUnique : uniqueChoices[0];
   const plan = state.files.length > 1 ? E.planBatch(state.files, o) : E.planImport(state.table, state.mapping, { ...o, object: state.object });
   const dup = E.analyzeDuplicates(state.table, state.mapping, { ...o, object: state.object });

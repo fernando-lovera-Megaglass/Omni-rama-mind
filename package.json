@@ -17,6 +17,7 @@
     "test:import-transfer": "node scripts/smoke-import-transfer.mjs",
     "test:import-multifile": "node scripts/smoke-import-multifile.mjs",
     "test:import-undo": "node scripts/smoke-import-undo.mjs",
+    "test:import-e2e": "node scripts/smoke-import-e2e.mjs",
     "test:marketing-subscriptions": "node scripts/smoke-marketing-subscriptions.mjs"
   },
   "devDependencies": {

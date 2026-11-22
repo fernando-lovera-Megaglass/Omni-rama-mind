@@ -923,7 +923,8 @@ export function setField(type, id, field, value, opts = {}) {
     const col = (CAMEL_TO_DB[type] && CAMEL_TO_DB[type][field]) || field;
     dbWrite(async () => {
       if (TABLE_COLS[type].includes(col)) {
-        const { error } = await supabase.from(type).update({ [col]: value }).eq('id', id);
+        const stored = INTEGER_COLS.has(col) && value !== null && value !== '' && Number.isFinite(Number(value)) ? Math.round(Number(value)) : value;
+        const { error } = await supabase.from(type).update({ [col]: stored }).eq('id', id);
         if (error) reportDbError(`actualizar ${type}`, error);
         else if (type === 'tasks' && field === 'status' && value === 'done') {
           await resumeTaskSequence(findRecord('tasks', id), completedAt);

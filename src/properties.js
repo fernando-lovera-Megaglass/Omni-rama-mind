@@ -747,8 +747,11 @@ export function saveCustomProperties(type, listIn) {
   const list = Array.isArray(listIn) ? listIn.map(stampArchived) : listIn;
   if (remote && CUSTOM_OBJECT_NAME[type]) {
     const next = list.map((p) => ({ ...p }));
-    if (writer) return Promise.resolve(writer(type, next)).then(() => { remote[type] = next; });
+    // The catalog shows the change at once (a property created inline during an import must be mappable and
+    // importable right away); a refused write puts the previous list back.
+    const previous = remote[type];
     remote[type] = next;
+    if (writer) return Promise.resolve(writer(type, next)).catch((e) => { remote[type] = previous; throw e; });
     return;
   }
   localStorage.setItem(CUSTOM_KEY(type), JSON.stringify(list));

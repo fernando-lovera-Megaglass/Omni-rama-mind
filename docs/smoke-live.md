@@ -2,7 +2,7 @@
 
 Las pruebas `scripts/smoke-*.mjs` corren sobre JSDOM con un `localStorage` en memoria y sin cliente de Supabase: validan la lógica y la interfaz, pero no la base de datos. Por eso una migración sin aplicar (una columna que falta, una tabla que no existe) no las hace fallar.
 
-Catorce smokes de persistencia tienen un **modo live opcional** que repite la operación clave contra el proyecto real y la comprueba con SQL:
+Quince smokes de persistencia tienen un **modo live opcional** que repite la operación clave contra el proyecto real y la comprueba con SQL:
 
 | Smoke | Qué comprueba en vivo |
 | --- | --- |
@@ -20,6 +20,7 @@ Catorce smokes de persistencia tienen un **modo live opcional** que repite la op
 | `smoke-record-merge.mjs` | Fusionar dos contactos (y dos empresas): las asociaciones múltiples del `extra` de negocios, tickets y contactos (`assoc_contacts`, `assoc_companies`, `assoc_deals`) pasan al registro conservado con sus etiquetas (verificado con SQL); además, fusionar dos contactos → el duplicado queda en la papelera (`deleted_at`) y el principal toma el valor elegido |
 | `smoke-record-customize.mjs` | Exige `user_settings.scope` y la tabla `account_settings` (migración `user_settings.sql`); personalizar «Acerca de» → fila en `user_settings` con `scope = 'user'`; «Aplicar a todos» → fila en `account_settings` solo con rol admin |
 | `smoke-views-shared.mjs` | Exige la tabla `crm_views` (migración `crm_views.sql`); el usuario A guarda vistas privada / equipo / todos → filas suyas; un segundo usuario SMOKE (B) lee con su sesión las compartidas con el autor A y no la privada, y RLS le impide editarlas; borrar una vista propia borra su fila |
+| `smoke-import-e2e.mjs` | El asistente de importación de punta a punta con archivos reales (`scripts/import-fixtures.mjs`): XLSX de 100 contactos con casos borde, CSV de empresas con dominios repetidos, negocios, tickets y tareas pegados con pipeline y etapa en texto, contactos con columna de empresa por dominio. Mapeo automático y manual (propiedad creada en línea), modo, identificador, formato de número, vista previa, importación, página de revisión, descargas de errores, monitor y «Deshacer». Con SQL: tipos convertidos (`extra->annualrevenue` numérico, fechas ISO), propietario, `company_id` y `contact_companies`, sin correos duplicados, actualizaciones en sitio, `deleted_at` exacto tras deshacer, historial y ledger en `user_settings`. Limpieza extra: empresas creadas por la regla de dominio y la propiedad «Zona comercial» |
 
 ## Cómo correrlo
 
@@ -39,6 +40,7 @@ SMOKE_LIVE=1 node scripts/smoke-list-prefs.mjs
 SMOKE_LIVE=1 node scripts/smoke-attachments.mjs
 SMOKE_LIVE=1 node scripts/smoke-quick-order.mjs
 SMOKE_LIVE=1 node scripts/smoke-record-merge.mjs
+SMOKE_LIVE=1 node scripts/smoke-import-e2e.mjs
 ```
 
 Sin `SMOKE_LIVE=1` cada smoke corre como siempre (JSDOM, sin tocar la base). En modo live el smoke **no** ejecuta la parte local: solo el escenario en vivo.
