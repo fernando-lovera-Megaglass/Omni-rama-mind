@@ -128,7 +128,7 @@ for (const type of ['manual_email', 'call', 'task', 'inmail', 'connection']) {
   const noSend = async () => assert.fail(`${type}: email sent while waiting for task`);
   await processDue(store, noSend, now);
   const [task] = await query("select * from tasks where extra->>'enrollmentId'=$1", [enrollment.id]);
-  assert.deepEqual(task.extra, { sequenceId: sequence.id, enrollmentId: enrollment.id, stepPosition: 0 });
+  assert.deepEqual(task.extra, { sequenceId: sequence.id, enrollmentId: enrollment.id, stepPosition: 0, ...(type === 'manual_email' ? { email: { subject: '', html: '', title: '' } } : {}) });
   assert.equal(task.type, type === 'call' ? 'Llamada' : type === 'manual_email' ? 'Correo' : 'Tarea');
   assert.equal((await get(enrollment.id)).current_step, 1);
   assert.equal((await get(enrollment.id)).next_step_at, null);
@@ -142,6 +142,24 @@ for (const type of ['manual_email', 'call', 'task', 'inmail', 'connection']) {
   assert.equal(new Date(advanced.next_step_at).toISOString(), now.toISOString());
   assert.equal(advanced.extra.waiting_task, undefined);
   await query("update sequence_enrollments set status='paused' where id=$1", [enrollment.id]);
+}
+// Persisted overrides follow stable step IDs, preserving template content and other enrollments.
+await query("update sequence_enrollments set status='paused' where status='active'");
+for (const type of ['auto_email', 'manual_email']) {
+  const [sequence] = await query("insert into sequences(name) values('Overrides') returning id");
+  const [step] = await query("insert into sequence_steps(sequence_id, position, type, subject, body) values($1, 9, $2, 'Original', '<p>Original</p>') returning *", [sequence.id, type]);
+  const extra = { stepOverrides: { [step.id]: { subject: 'Solo {{contacto.nombre}}', body: '<p>[[PRODUCT]]</p>', type: 'call' } } };
+  const [enrollment] = await query("insert into sequence_enrollments(sequence_id, contact_id, next_step_at, extra, placeholders) values($1, 1, '2020-01-01', $2, $3) returning *", [sequence.id, JSON.stringify(extra), JSON.stringify({ PRODUCT: 'Especial' })]);
+  let sent = 0;
+  await processDue(store, async (e, st, payload) => { sent++; assert.equal(st.type, 'auto_email'); assert.equal(payload.subject, 'Solo Ana'); assert.equal(payload.html, '<p>Especial</p>'); return { id: 'override-test' }; }, now);
+  assert.equal(sent, type === 'auto_email' ? 1 : 0);
+  if (type === 'manual_email') {
+    const [task] = await query("select * from tasks where extra->>'enrollmentId'=$1", [enrollment.id]);
+    assert.equal(task.extra.email.subject, 'Solo Ana');
+    assert.equal(task.extra.email.html, '<p>Especial</p>');
+  }
+  assert.deepEqual((await get(enrollment.id)).extra.stepOverrides, extra.stepOverrides);
+  assert.equal((await query('select subject from sequence_steps where id=$1', [step.id]))[0].subject, 'Original');
 }
 await db.exec('set role anon');
 await assert.rejects(() => query('select * from sequence_claim($1)', [first.id]), /permission denied/);

@@ -77,8 +77,8 @@ if (!text($('enr-preview')).includes(`Llamar a ${firstName(people[0])}`)) fail('
 change($('enr-preview-contact'), '2');
 await wait(10);
 if (!text($('enr-preview')).includes(`Llamar a ${firstName(people[2])}`)) fail('preview switches contact');
-if ($('enr-confirm').disabled || text($('enr-confirm')) !== 'Inscribir 2 de 3') fail(`confirm label (${text($('enr-confirm'))})`);
-log('dialog: 3 contactos, opción «1 ya inscrito», aviso de omisión, vista previa por contacto, botón «Inscribir 2 de 3»');
+if ($('enr-confirm').disabled || text($('enr-confirm')) !== 'Iniciar secuencia · 2 de 3') fail(`confirm label (${text($('enr-confirm'))})`);
+log('dialog: 3 contactos, opción «1 ya inscrito», aviso de omisión, vista previa por contacto, botón «Iniciar secuencia · 2 de 3»');
 
 // ---- confirm → 2 enrolments, tasks, timeline, toast, scheduled ----
 let fired = null;

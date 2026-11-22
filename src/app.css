@@ -20200,3 +20200,32 @@ td[data-key="deal_tags"] .dtag {
 .dashboard-dialog { width: min(440px, calc(100vw - 48px)); border: 1px solid var(--border, #cbd6e2); border-radius: 8px; padding: 24px; color: var(--text, #33475b); background: var(--surface, #fff); }
 .dashboard-dialog::backdrop { background: #192b4280; }
 .dashboard-dialog h2 { margin-top: 0; }
+
+/* Sequence enrollment: timeline and per-enrollment mail edits. */
+#cmp-seq-panel { width: 480px; max-width: calc(100vw - 32px); }
+.compose__seqrow { display: flex; flex-direction: column; align-items: stretch; gap: 8px; white-space: normal; padding: 14px 16px; border-bottom: 1px solid var(--c-border); }
+.compose__seqtitle { display: flex; justify-content: space-between; gap: 12px; }
+.compose__seqtypes { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; }
+#enr-modal .bmodal__panel { width: 1100px; max-width: calc(100vw - 32px); }
+.enr__layout { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 24px; }
+.enr__timeline { min-width: 0; display: flex; flex-direction: column; gap: 16px; }
+.enr__options { border-left: 1px solid var(--c-border); padding-left: 24px; }
+.enr__options .enr__row { display: block; }
+.enr__options .field { display: flex; flex-direction: column; margin-bottom: 16px; gap: 8px; }
+.enr__options select, .enr__options input { width: 100%; min-width: 0; }
+#enr-schedule[hidden] { display: none; }
+.enr__steps { border-left: 2px solid var(--c-border); margin-left: 12px; padding-left: 18px; gap: 20px; }
+.enr__step { position: relative; }
+.enr__step::before { content: ''; position: absolute; width: 10px; height: 10px; border-radius: 50%; background: var(--c-white); border: 2px solid #00a4bd; left: -26px; top: 18px; }
+.enr__mail { padding: 10px 0 0; }
+.enr__mail summary { color: #007a8c; cursor: pointer; overflow-wrap: anywhere; }
+.enr__mail .field { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }
+.enr__mail input, .enr__mail textarea { box-sizing: border-box; width: 100%; padding: 10px; border: 1px solid var(--c-border); border-radius: 4px; background: var(--c-white); color: inherit; font: inherit; }
+.enr__mail textarea { resize: vertical; }
+.enr__resolved { margin-top: 16px; padding: 12px; background: var(--c-head); overflow-wrap: anywhere; }
+@media (max-width: 760px) {
+  .enr__layout { grid-template-columns: minmax(0, 1fr); }
+  .enr__options { border-left: 0; border-top: 1px solid var(--c-border); padding: 16px 0 0; }
+}
+.enr__editor { min-height: 150px; padding: 12px; border: 1px solid var(--c-border); border-radius: 4px; line-height: 1.6; background: var(--c-white); overflow-wrap: anywhere; }
+.enr__editor:focus { outline: 2px solid #00a4bd; outline-offset: 2px; }

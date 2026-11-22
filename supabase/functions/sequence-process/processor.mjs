@@ -38,7 +38,12 @@ export async function processDue(store, send, now = new Date()) {
     if (!enrollment || enrollment.extra?.waiting_task) continue;
     try {
       const steps = (await store.steps(enrollment.sequence_id)).sort((a, b) => a.position - b.position);
-      const step = steps[enrollment.current_step - 1];
+      const original = steps[enrollment.current_step - 1];
+      const override = enrollment.extra?.stepOverrides?.[original?.id];
+      const step = original && { ...original };
+      if (step && ['auto_email', 'manual_email'].includes(step.type) && override) {
+        for (const field of ['subject', 'body']) if (typeof override[field] === 'string') step[field] = override[field];
+      }
       if (!step) throw new Error('Pending step missing; review sequence edits');
       const next = steps[enrollment.current_step];
       const nextAt = step.type === 'auto_email' && next ? nextDate(now, next.delay_days) : null;
@@ -54,7 +59,7 @@ export async function processDue(store, send, now = new Date()) {
         results.push({ id: enrollment.id, status: 'cancelled' });
         continue;
       }
-      let receipt = null;
+      let receipt = step.type === 'manual_email' ? { email: payload } : null;
       if (step.type === 'auto_email') {
         // A contact without e-mail (enrolled in bulk with the warning) skips its e-mail steps instead of
         // breaking the enrolment: the step advances with a receipt that says so (counted as processed).

@@ -197,3 +197,26 @@ visibles sin cuenta atrás y el filtro de estado de Análisis incluye «En pausa
 Las consultas y RPC del ejecutor exigen status = 'active': una inscripción pausada
 no se ejecuta aunque su fecha anterior haya vencido. Un envío ya en vuelo no puede
 retirarse.
+
+## Personalización desde el compositor
+
+El selector de Secuencias mantiene el buscador visible y resume los tipos de pasos.
+El diálogo muestra una línea de tiempo editable y opciones de propietario, remitente
+ e inicio inmediato/programado. La vista previa permite alternar contactos.
+Los cambios de asunto/cuerpo se guardan en `sequence_enrollments.extra.stepOverrides`,
+un objeto por ID estable de paso (`{ "<step-id>": { "subject": "…", "body": "…" } }`).
+Solo se admiten esos dos campos y solo en pasos de correo. En selección múltiple se
+copia la personalización a cada inscripción; los tokens se resuelven por contacto.
+Las plantillas y `sequence_steps` no se modifican. Reabrir una nueva inscripción
+parte de la plantilla; cambiar de secuencia dentro del diálogo conserva sus ediciones.
+
+El procesador aplica los overrides antes de resolver tokens/marcadores. Para correos
+manuales conserva el contenido resuelto en `tasks.extra.email` mediante la misma
+transacción de `sequence_finish` que crea la tarea y pausa la inscripción. Los automáticos
+usan el transporte existente. Se requiere la versión local actualizada de
+`sequence-process.sql` y del procesador; no se aplicaron cambios remotos.
+
+Verificación aislada: `node scripts/smoke-compose.mjs` comprueba ficha → Correo →
+Secuencias → edición → inscripción, persistencia, plantilla intacta, cronología y tarjeta.
+`node scripts/smoke-sequence-process.mjs` comprueba overrides persistidos con PostgreSQL
+local en memoria para correo automático y manual. Gmail se simula.

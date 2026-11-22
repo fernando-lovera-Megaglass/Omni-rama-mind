@@ -10,7 +10,7 @@ import { openTokenPicker, chipHtml, chipsToMarkers, renderTokens, contextFromRec
 import { scheduleEmail, scheduledEntry, logScheduled, SEND_LATER_PRESETS, presetSendAt, datetimeInput as laterInput, whenText as laterText, timeZoneName } from './scheduled-emails.js';
 import { snippets as savedSnippets } from './snippets-data.js';
 import { attachSnippetAutocomplete } from './snippet-autocomplete.js';
-import { ready as sequencesReady, sequences as savedSequences, activeEnrollment } from './sequences-data.js';
+import { ready as sequencesReady, sequences as savedSequences, activeEnrollment, STEP_TYPES } from './sequences-data.js';
 import { openEnrollDialog } from './sequence-enroll.js';
 import { ready as emailsReady, activeAccounts, signatureById, PROVIDERS } from './connected-emails.js';
 import { openConnectWizard } from './connected-emails-ui.js';
@@ -50,7 +50,11 @@ const tplPanelHtml = () => {
 const seqPanelHtml = () => {
   const list = savedSequences().filter((s) => s.steps.length);
   const cid = ctx && ctx.contactId;
-  return `${list.length > 5 ? '<div class="compose__seqsearch"><input type="search" placeholder="Buscar secuencias" aria-label="Buscar secuencias" data-seq-search autocomplete="off" /></div>' : ''}<div class="compose__seqlist">${list.length ? list.map((s) => `<button class="menu__item" type="button" data-seq="${esc(s.id)}" data-name="${esc(s.name.toLowerCase())}">${esc(s.name)} <span class="muted">· ${s.steps.length} pasos${cid && activeEnrollment(cid, s.id) ? ' · ya inscrito' : ''}</span></button>`).join('') : '<div class="menu__note">Todavía no hay secuencias</div>'}</div><div class="menu__sep"></div><a class="menu__item" href="${rootPath()}sequences/">Administrar secuencias</a>`;
+  return `<div class="compose__seqsearch"><input type="search" placeholder="Buscar secuencias" aria-label="Buscar secuencias" data-seq-search autocomplete="off" /></div><div class="compose__seqlist">${list.length ? list.map((s) => {
+    const counts = Object.entries(STEP_TYPES).map(([type, meta]) => { const n = s.steps.filter(st => st.type === type).length; return n ? `<span>${meta.icon} ${n} ${esc(meta.label)}</span>` : ''; }).join('');
+    const active = cid && activeEnrollment(cid, s.id);
+    return `<button class="menu__item compose__seqrow" type="button" data-seq="${esc(s.id)}" data-name="${esc(s.name.toLowerCase())}"><span class="compose__seqtitle"><strong>${esc(s.name)}</strong><span class="tag">${active ? (active.status === 'paused' ? 'En pausa' : 'Ya inscrito') : 'Disponible'}</span></span><span class="compose__seqtypes">${counts}</span><span class="muted">${s.steps.length} pasos</span></button>`;
+  }).join('') : '<div class="menu__note">Todavía no hay secuencias</div>'}<div class="menu__note" data-seq-no-results role="status" hidden>Sin secuencias que coincidan</div></div><div class="menu__sep"></div><a class="menu__item" href="${rootPath()}sequences/">Administrar secuencias</a>`;
 };
 const DOCUMENTS = ['Catálogo Megaglass 2026.pdf', 'Ficha técnica vidrio templado.pdf', 'Guía de instalación.pdf'];
 const MEETINGS = ['Llamada de 15 minutos', 'Visita técnica (60 min)', 'Presentación de propuesta (30 min)'];
@@ -107,6 +111,10 @@ function mount() {
   el.setAttribute('role', 'dialog');
   el.setAttribute('aria-label', 'Correo');
   document.body.appendChild(el);
+  document.addEventListener('crm:enrolled', () => {
+    const panel = el.querySelector('#cmp-seq-panel');
+    if (panel && ctx) { panel.innerHTML = seqPanelHtml(); wireSeqSearch(); }
+  });
 }
 
 // The search box inside the Secuencias menu (shown when there are many): filters the list, keeps the menu open.
@@ -115,7 +123,7 @@ function wireSeqSearch() {
   if (!ss || ss.dataset.wired) return;
   ss.dataset.wired = '1';
   ss.addEventListener('click', (e) => e.stopPropagation());
-  ss.addEventListener('input', () => { const q = ss.value.trim().toLowerCase(); el.querySelectorAll('#cmp-seq-panel [data-seq]').forEach((b) => { b.hidden = Boolean(q) && !b.dataset.name.includes(q); }); });
+  ss.addEventListener('input', () => { const q = ss.value.trim().toLowerCase(); el.querySelectorAll('#cmp-seq-panel [data-seq]').forEach((b) => { b.hidden = Boolean(q) && !b.dataset.name.includes(q); }); el.querySelector('[data-seq-no-results]').hidden = !q || Boolean(el.querySelector('#cmp-seq-panel [data-seq]:not([hidden])')); });
 }
 function wireTplSearch() {
   const search = el && el.querySelector('[data-tpl-search]');

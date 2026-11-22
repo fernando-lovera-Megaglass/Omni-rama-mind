@@ -6,6 +6,7 @@
 // .enroll). A single contact already active in that sequence gets a warning and the option to re-enrol; with
 // several contacts the ones already active are skipped and counted. Contacts without e-mail are enrolled too but
 // the summary says their e-mail steps will be skipped (the processor does not send to them).
+import { sanitizeHtml } from './rich-text.js';
 import { toast } from './shell.js';
 import { ready, sequences, sequenceById, STEP_TYPES, stepDay, isAuto, isEmail, placeholdersOf, fillPlaceholders, enroll, unenroll, activeEnrollment, ME } from './sequences-data.js';
 import { OWNERS, formatDate } from './data.js';
@@ -13,8 +14,9 @@ import { renderTokens, contextFromRecord, plainText } from './tokens.js';
 import { activeAccounts } from './connected-emails.js';
 import { enhanceOwnerSelects } from './owner-select.js';
 
-// The sequence's e-mails go out from the user's first connected account (Ajustes › General › Correo).
-const senderEmail = () => (activeAccounts().find((a) => a.real) || {}).email || '';
+// The selected connected account is persisted on each enrollment.
+const senderAccount = () => activeAccounts().find(a => a.id === dlg?.senderId);
+const senderEmail = () => senderAccount()?.email || '';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const $ = (id) => document.getElementById(id);
@@ -33,7 +35,7 @@ export async function openEnrollDialog({ contact, contacts, onEnrolled, sequence
   if (!people.length) { toast('Abre la ficha de un contacto o selecciona contactos para inscribirlos en una secuencia.'); return null; }
   const list = sequences().filter((s) => s.steps.length);
   const now = new Date();
-  dlg = { contacts: people, previewIndex: 0, onEnrolled, sequenceId: list.some((s) => s.id === sequenceId) ? sequenceId : '', by: ME, placeholders: {}, date: localDate(now), time: localTime(now), reenroll: false };
+  dlg = { contacts: people, previewIndex: 0, onEnrolled, sequenceId: list.some((s) => s.id === sequenceId) ? sequenceId : '', by: ME, placeholders: {}, overrides: {}, senderId: activeAccounts().find(a => a.real)?.id || activeAccounts()[0]?.id || '', startMode: 'now', date: localDate(now), time: localTime(now), reenroll: false };
   let m = $('enr-modal');
   if (!m) {
     m = document.createElement('div');
@@ -52,19 +54,19 @@ export async function openEnrollDialog({ contact, contacts, onEnrolled, sequence
   const optionNote = (s) => { const k = activeCount(s); return !k ? '' : multi ? ` · ${k} ya inscrito${k === 1 ? '' : 's'}` : ' · ya inscrito'; };
   m.innerHTML = `<div class="bmodal__scrim" data-bm="close"></div><div class="bmodal__panel bmodal__panel--wide" role="dialog" aria-modal="true" aria-labelledby="enr-title"><div class="bmodal__head"><h3 id="enr-title">${title}</h3><button class="bmodal__close" type="button" data-bm="close" aria-label="Cerrar">×</button></div><div class="bmodal__body enr">
     ${multi ? `<details class="enr__contacts" id="enr-contacts"><summary><strong>${n} contactos seleccionados</strong> <span class="muted">· ${people.filter(hasEmail).length} con correo</span></summary><ul>${people.map((c) => `<li>${esc(nameOf(c))}${hasEmail(c) ? ` <span class="muted">${esc(c.email)}</span>` : ' <span class="tag tag--open">sin correo</span>'}</li>`).join('')}</ul></details>` : ''}
-    <div class="enr__row">
+    <div class="enr__layout"><section class="enr__timeline"><div id="enr-warn"></div><div id="enr-ph"></div><div id="enr-preview" class="enr__preview"><p class="muted enr__hint">${hintText()}</p></div></section><aside class="enr__options"><h4>Opciones de inscripción</h4><div class="enr__row">
       <label class="field"><span>Secuencia</span><select id="enr-seq"><option value="">Seleccionar una secuencia</option>${list.map((s) => `<option value="${esc(s.id)}" ${s.id === dlg.sequenceId ? 'selected' : ''}>${esc(s.name)} (${s.steps.length} pasos)${optionNote(s)}</option>`).join('')}</select></label>
       <label class="field"><span>Inscribir como</span><select id="enr-by" data-owner-select>${OWNERS.filter((o) => o !== 'Sin asignar').map((o) => `<option value="${esc(o)}" ${o === ME ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select></label>
     </div>
-    <div class="enr__row enr__row--start">
+    <label class="field"><span>Remitente</span><select id="enr-sender">${activeAccounts().map(a => `<option value="${esc(a.id)}" ${a.id === dlg.senderId ? 'selected' : ''}>${esc(a.email)}</option>`).join('') || '<option value="">Sin cuenta conectada</option>'}</select></label>
+    <label class="field"><span>Inicio</span><select id="enr-start"><option value="now">Iniciar ahora</option><option value="schedule">Programar fecha y hora</option></select></label>
+    <div class="enr__row enr__row--start" id="enr-schedule" hidden>
       <label class="field"><span>Fecha de inicio</span><input type="date" id="enr-date" value="${dlg.date}" /></label>
       <label class="field"><span>Hora de inicio</span><input type="time" id="enr-time" value="${dlg.time}" /></label>
       <p class="muted enr__starthint">El primer paso se ejecuta en esa fecha; los siguientes cuentan días laborables desde ahí.</p>
     </div>
-    <div id="enr-warn"></div>
-    <div id="enr-ph"></div>
-    <div id="enr-preview" class="enr__preview"><p class="muted enr__hint">${hintText()}</p></div>
-  </div><div class="bmodal__foot"><button class="btn btn--primary" type="button" id="enr-confirm" data-enr="confirm" disabled>Inscribir</button><button class="btn btn--secondary" type="button" data-bm="close">Cancelar</button></div></div>`;
+    </aside></div>
+  </div><div class="bmodal__foot"><button class="btn btn--primary" type="button" id="enr-confirm" data-enr="confirm" disabled>Iniciar secuencia</button><button class="btn btn--secondary" type="button" data-bm="close">Cancelar</button></div></div>`;
   enhanceOwnerSelects(m);
   m.classList.add('is-open');
   m.setAttribute('aria-hidden', 'false');
@@ -93,7 +95,7 @@ function renderWarning(seq) {
   }
   const c = previewContact();
   const active = activeEnrollment(c.id, seq.id);
-  if (!active) { box.innerHTML = ''; return; }
+  if (!active) { box.innerHTML = noEmail(seq).length ? '<div class="enr__warn" role="alert">Contacto sin correo: sus pasos de correo automático se omitirán.</div>' : ''; return; }
   box.innerHTML = `<div class="enr__warn" role="alert"><strong>${esc(c.first || c.name || 'Este contacto')} ya tiene una inscripción ${active.status === 'paused' ? 'en pausa' : 'activa'} en esta secuencia</strong> (desde el ${esc(formatDate(new Date(active.enrolledAt)))}, paso ${active.currentStep} de ${seq.steps.length}).<label class="snp__check"><input type="checkbox" id="enr-reenroll" ${dlg.reenroll ? 'checked' : ''} /> Reinscribir: cancelar la inscripción actual y empezar de nuevo</label></div>`;
 }
 function renderPreview() {
@@ -102,11 +104,8 @@ function renderPreview() {
   const phBox = $('enr-ph');
   renderWarning(seq);
   if (!seq) { box.innerHTML = `<p class="muted enr__hint">${hintText()}</p>`; phBox.innerHTML = ''; phBox.dataset.seq = ''; syncConfirm(); return; }
-  const names = placeholdersOf(seq);
-  if (phBox.dataset.seq !== seq.id) {
-    phBox.dataset.seq = seq.id;
-    phBox.innerHTML = names.length ? `<fieldset class="enr__ph"><legend>Marcadores de posición</legend><p class="muted">${isMulti() ? 'Un mismo texto para todos los contactos seleccionados.' : 'Completa el contenido que piden los correos de esta secuencia.'}</p>${names.map((n) => `<label class="field"><span>${esc(n)}</span><input data-ph="${esc(n)}" value="${esc(dlg.placeholders[n] || '')}" placeholder="Texto para «${esc(n)}»" /></label>`).join('')}</fieldset>` : '';
-  }
+  const effective = effectiveSequence(seq);
+  refreshPlaceholders(effective);
   const c = previewContact();
   const ctx = contextFromRecord('contacts', c, { owner: dlg.by });
   const resolve = (text) => renderTokens(fillPlaceholders(text, dlg.placeholders), ctx);
@@ -114,37 +113,62 @@ function renderPreview() {
   box.innerHTML = `<h4 class="enr__h">${esc(seq.name)} <span class="muted">· ${seq.steps.length} pasos · ${stepDay(seq.steps, seq.steps.length - 1)} días</span></h4>
     ${picker}
     <p class="muted enr__from" id="enr-from">${senderEmail() ? `Los correos se enviarán desde <strong>${esc(senderEmail())}</strong>.` : 'No hay ninguna cuenta de correo conectada: conéctala en Ajustes › General › Correo para que se envíen los correos.'}</p>
-    <ol class="enr__steps">${seq.steps.map((st, i) => { const t = STEP_TYPES[st.type]; return `<li class="enr__step"><div class="enr__stephead"><span class="seqstep__ico" aria-hidden="true">${t.icon}</span><strong>${i + 1}. ${esc(t.label)}</strong><span class="muted">Día ${stepDay(seq.steps, i)}</span>${isAuto(st) ? '<span class="tag tag--open">Automático</span>' : '<span class="seqstep__pause seqstep__pause--sm">Pausa la secuencia</span>'}</div>${isEmail(st) ? `<div class="enr__mail"><div><span class="muted">Asunto:</span> ${esc(resolve(st.subject) || '(sin asunto)')}</div><div class="enr__body">${resolve(st.body)}</div></div>` : `<div class="enr__task">${esc(resolve(st.title) || t.label)}${st.body ? `<div class="muted">${esc(plainText(resolve(st.body)))}</div>` : ''}</div>`}</li>`; }).join('')}</ol>`;
+    <ol class="enr__steps">${effective.steps.map((st, i) => { const t = STEP_TYPES[st.type]; return `<li class="enr__step"><div class="enr__stephead"><span class="seqstep__ico" aria-hidden="true">${t.icon}</span><strong>${i + 1}. ${esc(t.label)}</strong><span class="muted">Día ${stepDay(seq.steps, i)}</span>${isAuto(st) ? '<span class="tag tag--open">Automático</span>' : '<span class="seqstep__pause seqstep__pause--sm">Pausa la secuencia</span>'}</div>${isEmail(st) ? `<details class="enr__mail" ${i === 0 ? 'open' : ''}><summary>Editar correo · ${esc(resolve(st.subject) || '(sin asunto)')}</summary><p class="muted">Cambios solo para esta inscripción${isMulti() ? ' de los contactos seleccionados' : ''}. Puedes usar {{contacto.nombre}} y [[marcadores]].</p><label class="field"><span>Asunto</span><input data-step="${esc(st.id)}" data-edit="subject" value="${esc(st.subject)}" /></label><label class="field"><span>Cuerpo</span><div class="enr__editor" contenteditable="true" role="textbox" aria-label="Cuerpo del paso ${i + 1}" aria-multiline="true" data-step="${esc(st.id)}" data-edit="body">${sanitizeHtml(st.body)}</div></label><div class="enr__resolved"><strong>Vista previa</strong><div data-preview-subject="${esc(st.id)}">${esc(resolve(st.subject))}</div><div class="enr__body" data-preview-body="${esc(st.id)}">${sanitizeHtml(resolve(st.body))}</div></div></details>` : `<div class="enr__task">${esc(resolve(st.title) || t.label)}${st.body ? `<div class="muted">${esc(plainText(resolve(st.body)))}</div>` : ''}</div>`}</li>`; }).join('')}</ol>`;
   syncConfirm();
 }
+function refreshPlaceholders(seq) {
+  const names = placeholdersOf(seq);
+  if ($('enr-ph').dataset.seq !== seq.id + JSON.stringify(names)) {
+    $('enr-ph').dataset.seq = seq.id + JSON.stringify(names);
+    $('enr-ph').innerHTML = names.length ? `<fieldset class="enr__ph"><legend>Marcadores de posición</legend><p class="muted">${isMulti() ? 'Un mismo texto para todos los contactos seleccionados.' : 'Completa el contenido que piden los correos de esta secuencia.'}</p>${names.map((n) => `<label class="field"><span>${esc(n)}</span><input data-ph="${esc(n)}" value="${esc(dlg.placeholders[n] || '')}" placeholder="Texto para «${esc(n)}»" /></label>`).join('')}</fieldset>` : '';
+  }
+}
+function effectiveSequence(seq) {
+  return { ...seq, steps: seq.steps.map(st => ({ ...st, ...dlg.overrides[seq.id]?.[st.id] })) };
+}
 function startDate() {
+  if (dlg.startMode === 'now') return new Date();
   const d = new Date(`${dlg.date || localDate(new Date())}T${dlg.time || '09:00'}:00`);
-  return Number.isNaN(d.getTime()) ? new Date() : d;
+  return d;
 }
 function syncConfirm() {
   const b = $('enr-confirm');
   if (!b || !dlg) return;
   const seq = dlg.sequenceId ? sequenceById(dlg.sequenceId) : null;
-  const missing = seq ? placeholdersOf(seq).filter((n) => !String(dlg.placeholders[n] || '').trim()) : [];
+  const missing = seq ? placeholdersOf(effectiveSequence(seq)).filter((n) => !String(dlg.placeholders[n] || '').trim()) : [];
   const blocked = seq && (isMulti() ? skipped(seq).length === dlg.contacts.length : activeEnrollment(previewContact().id, seq.id) && !dlg.reenroll);
-  b.disabled = !seq || missing.length > 0 || Boolean(blocked);
-  b.title = blocked ? (isMulti() ? 'Todos los contactos seleccionados ya están inscritos' : 'Marca «Reinscribir» para volver a inscribir al contacto') : missing.length ? `Completa: ${missing.join(', ')}` : '';
-  if (seq && isMulti()) { const n = dlg.contacts.length - skipped(seq).length; b.textContent = n > 0 && n < dlg.contacts.length ? `Inscribir ${n} de ${dlg.contacts.length}` : `Inscribir ${dlg.contacts.length}`; }
+  const invalidDate = dlg.startMode === 'schedule' && (!dlg.date || !dlg.time || !Number.isFinite(startDate().getTime()) || startDate() <= new Date());
+  b.disabled = !seq || missing.length > 0 || Boolean(blocked) || invalidDate;
+  b.title = invalidDate ? 'Elige una fecha y hora futuras' : blocked ? (isMulti() ? 'Todos los contactos seleccionados ya están inscritos' : 'Marca «Reinscribir» para volver a inscribir al contacto') : missing.length ? `Completa: ${missing.join(', ')}` : '';
+  if (seq && isMulti()) { const n = dlg.contacts.length - skipped(seq).length; b.textContent = n > 0 && n < dlg.contacts.length ? `Iniciar secuencia · ${n} de ${dlg.contacts.length}` : `Iniciar secuencia · ${dlg.contacts.length}`; }
 }
 function onInput(e) {
   if (!dlg) return;
   const t = e.target;
-  if (t.id === 'enr-seq') { dlg.sequenceId = t.value; dlg.reenroll = false; renderPreview(); } else if (t.id === 'enr-by') { dlg.by = t.value; renderPreview(); } else if (t.id === 'enr-date') dlg.date = t.value;
-  else if (t.id === 'enr-time') dlg.time = t.value;
+  if (t.dataset.edit) {
+    const changes = dlg.overrides[dlg.sequenceId] ||= {};
+    const value = t.dataset.edit === 'body' ? sanitizeHtml(t.innerHTML) : t.value;
+    (changes[t.dataset.step] ||= {})[t.dataset.edit] = value;
+    const resolved = renderTokens(fillPlaceholders(value, dlg.placeholders), contextFromRecord('contacts', previewContact(), { owner: dlg.by }));
+    const preview = [...$('enr-preview').querySelectorAll(`[data-preview-${t.dataset.edit}]`)].find(el => el.dataset[t.dataset.edit === 'body' ? 'previewBody' : 'previewSubject'] === t.dataset.step);
+    if (t.dataset.edit === 'body') preview.innerHTML = sanitizeHtml(resolved); else preview.textContent = resolved;
+    syncConfirm();
+    refreshPlaceholders(effectiveSequence(sequenceById(dlg.sequenceId)));
+  } else if (t.id === 'enr-start') { dlg.startMode = t.value; $('enr-schedule').hidden = t.value !== 'schedule'; syncConfirm(); }
+  else if (t.id === 'enr-sender') { dlg.senderId = t.value; renderPreview(); }
+  else if (t.id === 'enr-seq') { dlg.sequenceId = t.value; dlg.reenroll = false; renderPreview(); } else if (t.id === 'enr-by') { dlg.by = t.value; renderPreview(); } else if (t.id === 'enr-date') { dlg.date = t.value; syncConfirm(); }
+  else if (t.id === 'enr-time') { dlg.time = t.value; syncConfirm(); }
   else if (t.id === 'enr-preview-contact') { dlg.previewIndex = Number(t.value) || 0; renderPreview(); }
   else if (t.id === 'enr-reenroll') { dlg.reenroll = t.checked; syncConfirm(); } else if (t.dataset.ph) { dlg.placeholders[t.dataset.ph] = t.value; if (e.type === 'change') renderPreview(); else syncConfirm(); }
 }
 function onClick(e) {
   if (e.target.closest('[data-bm="close"]')) { e.preventDefault(); close(); return; }
   if (!e.target.closest('[data-enr="confirm"]') || !dlg) return;
+  syncConfirm();
+  if ($('enr-confirm').disabled) return;
   const seq = sequenceById(dlg.sequenceId);
   if (!seq) return;
-  const common = { sequenceId: dlg.sequenceId, placeholders: dlg.placeholders, enrolledBy: dlg.by, now: startDate(), from: senderEmail(), senderAccountId: activeAccounts().find((a) => a.real)?.id || null };
+  const common = { sequenceId: dlg.sequenceId, placeholders: dlg.placeholders, enrolledBy: dlg.by, now: startDate(), from: senderEmail(), senderAccountId: senderAccount()?.id || null, stepOverrides: dlg.overrides[dlg.sequenceId] || {} };
   if (!isMulti()) {
     const c = previewContact();
     const active = activeEnrollment(c.id, dlg.sequenceId);

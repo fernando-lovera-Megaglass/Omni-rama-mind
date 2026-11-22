@@ -305,23 +305,24 @@ export function sequencesCsv(list = sequences()) {
 }
 
 // Enrols a contact: the enrolment row, the first step scheduled (a task when it is manual) and the timeline entry.
-export function enroll({ sequenceId, contact, placeholders = {}, enrolledBy = ME, now = new Date(), from = '', senderAccountId = null } = {}) {
+export function enroll({ sequenceId, contact, placeholders = {}, enrolledBy = ME, now = new Date(), from = '', senderAccountId = null, stepOverrides = {} } = {}) {
   const seq = rows.find((x) => x.id === sequenceId && !x.deletedAt);
   if (!seq || !contact || !seq.steps.length) return null;
-  const first = seq.steps[0];
+  const overrides = Object.fromEntries(seq.steps.filter(isEmail).filter(st => stepOverrides[st.id]).map(st => [st.id, Object.fromEntries(['subject', 'body'].filter(key => typeof stepOverrides[st.id][key] === 'string').map(key => [key, stepOverrides[st.id][key]]))]));
+  const first = { ...seq.steps[0], ...overrides[seq.steps[0].id] };
   const when = new Date(now);
   // A start later than now schedules the first step instead of running it right away.
   const future = when.getTime() > Date.now() + 60000;
   const company = contact.companyId ? allCompanies().find((x) => Number(x.id) === Number(contact.companyId)) : allCompanies().find((x) => x.name && x.name === contact.company);
-  const e = { id: uuid(), sequenceId, contactId: contact.id, contactName: contact.name || `${contact.first || ''} ${contact.last || ''}`.trim(), companyId: company ? company.id : null, companyName: company ? company.name : contact.company || '', enrolledBy, senderAccountId, status: 'active', currentStep: 1, nextStepAt: when.toISOString(), placeholders: { ...placeholders }, stats: { sent: 0, opens: 0, clicks: 0, replied: 0, meeting: 0, bounced: 0, unsubscribed: 0 }, enrolledAt: when.toISOString(), updatedAt: new Date().toISOString() };
+  const e = { id: uuid(), sequenceId, contactId: contact.id, contactName: contact.name || `${contact.first || ''} ${contact.last || ''}`.trim(), companyId: company ? company.id : null, companyName: company ? company.name : contact.company || '', enrolledBy, senderAccountId, status: 'active', currentStep: 1, nextStepAt: when.toISOString(), placeholders: { ...placeholders }, extra: { stepOverrides: overrides }, stats: { sent: 0, opens: 0, clicks: 0, replied: 0, meeting: 0, bounced: 0, unsubscribed: 0 }, enrolledAt: when.toISOString(), updatedAt: new Date().toISOString() };
   enrollRows.unshift(e);
   persistEnr(e);
   const label = STEP_TYPES[first.type].label;
   let task = null;
   if (!live && !isAuto(first)) {
-    task = addRecord('tasks', { name: fillPlaceholders(first.title || `${label} · ${seq.name}`, placeholders).replace(/{{[^}]+}}/g, contact.first || contact.name || ''), type: first.type === 'call' ? 'Llamada' : first.type === 'manual_email' ? 'Correo' : 'Tarea', status: 'todo', priority: 'medium', owner: enrolledBy, contactId: contact.id, contact: e.contactName, due: when.toISOString(), lastActivity: when.toISOString(), extra: { sequenceId, enrollmentId: e.id, stepPosition: 0 } });
+    task = addRecord('tasks', { name: fillPlaceholders(first.title || `${label} · ${seq.name}`, placeholders).replace(/{{[^}]+}}/g, contact.first || contact.name || ''), type: first.type === 'call' ? 'Llamada' : first.type === 'manual_email' ? 'Correo' : 'Tarea', status: 'todo', priority: 'medium', owner: enrolledBy, contactId: contact.id, contact: e.contactName, due: when.toISOString(), lastActivity: when.toISOString(), extra: { sequenceId, enrollmentId: e.id, stepPosition: 0, ...(first.type === 'manual_email' ? { email: { subject: fillPlaceholders(first.subject, placeholders), html: fillPlaceholders(first.body, placeholders) } } : {}) } });
     e.nextStepAt = null;
-    e.extra = { waiting_task: task.id };
+    e.extra = { ...e.extra, waiting_task: task.id };
     persistEnr(e);
   }
   const timeStr = `${String(when.getHours()).padStart(2, '0')}:${String(when.getMinutes()).padStart(2, '0')}`;

@@ -49,7 +49,7 @@ begin
       values(coalesce(nullif(p_title, ''), 'Paso manual de secuencia'),
         case p_type when 'call' then 'Llamada' when 'manual_email' then 'Correo' else 'Tarea' end,
         'todo', 'medium', e.enrolled_by, e.contact_id, e.contact_name, now(),
-        jsonb_build_object('sequenceId', e.sequence_id, 'enrollmentId', e.id, 'stepPosition', step_position)) returning id into task_id;
+        jsonb_build_object('sequenceId', e.sequence_id, 'enrollmentId', e.id, 'stepPosition', step_position) || case when p_type = 'manual_email' and p_receipt ? 'email' then jsonb_build_object('email', p_receipt->'email') else '{}'::jsonb end) returning id into task_id;
     update public.sequence_enrollments set next_step_at = null,
       extra = extra || jsonb_build_object('waiting_task', task_id), updated_at = now() where id = p_id;
     return true;
