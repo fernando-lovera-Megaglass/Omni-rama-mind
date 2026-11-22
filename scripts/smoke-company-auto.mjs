@@ -169,7 +169,8 @@ const run9 = await E.runImport(entry9.id, plan9, { sleep: () => Promise.resolve(
 const cinco = data.allContacts().find((c) => c.email === 'imp.cinco@marca-tres.com');
 const seis = data.allContacts().find((c) => c.email === 'imp.seis@gmail.com');
 log('import by additional domain:', JSON.stringify({ created: run9.created, autoCompanies: run9.autoCompanies }), '| cinco →', cinco?.company, '| seis →', seis?.company, '| companies now:', companies().length - nPanel - 1, 'new');
-if (run9.created !== 2 || run9.autoCompanies !== 0 || Number(cinco?.companyId) !== Number(grupo.id) || Number(seis?.companyId) !== Number(grupo.id) || companies().length !== nPanel + 1) fail('import associates by additional domain (e-mail and company column) without creating companies');
+// (autoCompanies counts the associations made by the e-mail rule: Cinco; Seis comes from the company column)
+if (run9.created !== 2 || run9.autoCompanies !== 1 || Number(cinco?.companyId) !== Number(grupo.id) || Number(seis?.companyId) !== Number(grupo.id) || companies().length !== nPanel + 1) fail('import associates by additional domain (e-mail and company column) without creating companies');
 // duplicates: a company whose main domain is another's additional domain → one group by domain; the main domain wins the association
 const D = await import(resolve(here, '../src/duplicates.js'));
 const suelta = data.addRecord('companies', { name: 'Filial Suelta', domain: 'filial.com', owner: 'Sin asignar', lifecycle: 'Lead' });
