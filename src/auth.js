@@ -45,6 +45,19 @@ export async function currentUser() {
   const s = await getSession();
   return s ? s.user : null;
 }
+// Resolve at save time so attribution follows the current session, not a demo actor.
+export async function currentUserName() {
+  const user = await currentUser();
+  if (!user) return '';
+  const name = (profile) => [profile?.name, profile?.full_name, profile?.display_name]
+    .find((value) => typeof value === 'string' && value.trim())?.trim() || '';
+  try {
+    // Some installations only have membership fields; optional profile fields may be absent.
+    const { data, error } = await client.from('team_members').select('*').eq('user_id', user.id).maybeSingle();
+    if (!error && name(data)) return name(data);
+  } catch { /* Fall back to the authenticated user's metadata when the profile is unavailable. */ }
+  return name(user.user_metadata) || user.email || '';
+}
 // Route protection: resolves with the session, or sends the browser to the login page and never resolves
 // (the page is leaving, nothing else should render).
 export async function requireSession() {

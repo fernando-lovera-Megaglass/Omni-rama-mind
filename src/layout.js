@@ -5,6 +5,7 @@ import { cardCatalog, defaultLayout, loadLayout, saveLayout, teamViewLayout, loa
 import { propertyList } from './properties.js';
 // Initialise the shared settings binding and session before reading any layouts.
 import { dbIdle } from './data.js';
+import { currentUserName } from './auth.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
 const params = new URLSearchParams(location.search);
@@ -329,13 +330,14 @@ function listFor(zone, si) {
   return tab && tab.sections && tab.sections[si] ? tab.sections[si].cards : null;
 }
 async function doSave(exit) {
+  const by = teamView ? await currentUserName() : '';
   if (previewMode) {
     // Preview panel: the default layout feeds the lists' side panel; team views are listed in Configuración.
     if (teamView) {
       let list = loadViewsList(type, 'preview');
       if (viewName && viewName !== layout.name) { savePreview(type, viewName, null); list = list.filter((v) => v.name !== viewName); }
       list = list.filter((v) => v.name !== layout.name);
-      list.push({ name: layout.name, teams: [...layout.teams], updated: new Date().toISOString(), by: 'Fernando Lovera Colin' });
+      list.push({ name: layout.name, teams: [...layout.teams], updated: new Date().toISOString(), by });
       saveViewsList(type, 'preview', list);
       savePreview(type, layout.name, layout);
       viewName = layout.name;
@@ -353,7 +355,7 @@ async function doSave(exit) {
     let list = loadViewsList(type, 'record');
     if (viewName && viewName !== layout.name) { deleteViewLayout(type, viewName); list = list.filter((v) => v.name !== viewName); }
     list = list.filter((v) => v.name !== layout.name);
-    list.push({ name: layout.name, teams: [...layout.teams], updated: new Date().toISOString(), by: 'Fernando Lovera Colin' });
+    list.push({ name: layout.name, teams: [...layout.teams], updated: new Date().toISOString(), by });
     saveViewsList(type, 'record', list);
     saveViewLayout(type, layout.name, layout);
     viewName = layout.name;

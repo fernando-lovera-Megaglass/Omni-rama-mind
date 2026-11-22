@@ -1969,10 +1969,12 @@
     },
     {
       "id": "gap-ui-quickorder-solo-local",
-      "status": "pending",
+      "status": "done",
       "createdAt": "2026-11-22T06:32:18-06:00",
       "lane": "claude",
-      "instruction": "Los 4 módulos: «Reordenar botones de actividad» no persiste como el resto de la personalización. En src/record.js (líneas ~374-379), el orden de los botones rápidos Nota/Correo/Llamada/Tarea/Reunión se guarda con la clave única crm:quickorder solo en localStorage: es global para todos los objetos, no distingue contactos/empresas/negocios/tickets, no persiste en Supabase (user_settings) y se pierde al cambiar de navegador. En HubSpot el orden elegido de los botones de actividad persiste por usuario en la cuenta. Fix: persistir el orden con setSetting (scope user, como hace CARD_KEY en el mismo archivo) usando una clave por tipo de objeto, p. ej. crm:<type>:quickorder, manteniendo localStorage solo como respaldo offline; quickOrder() debe leer primero el setting remoto cuando settingsLive(). Criterio de aceptación: reordenar los botones en la ficha de un contacto, recargar la página y ver el orden elegido; con sesión Supabase activa el orden se recupera también en otra sesión; el orden elegido en contactos no altera el de tickets. No despliegues nada a producción; solo código local."
+      "instruction": "Los 4 módulos: «Reordenar botones de actividad» no persiste como el resto de la personalización. En src/record.js (líneas ~374-379), el orden de los botones rápidos Nota/Correo/Llamada/Tarea/Reunión se guarda con la clave única crm:quickorder solo en localStorage: es global para todos los objetos, no distingue contactos/empresas/negocios/tickets, no persiste en Supabase (user_settings) y se pierde al cambiar de navegador. En HubSpot el orden elegido de los botones de actividad persiste por usuario en la cuenta. Fix: persistir el orden con setSetting (scope user, como hace CARD_KEY en el mismo archivo) usando una clave por tipo de objeto, p. ej. crm:<type>:quickorder, manteniendo localStorage solo como respaldo offline; quickOrder() debe leer primero el setting remoto cuando settingsLive(). Criterio de aceptación: reordenar los botones en la ficha de un contacto, recargar la página y ver el orden elegido; con sesión Supabase activa el orden se recupera también en otra sesión; el orden elegido en contactos no altera el de tickets. No despliegues nada a producción; solo código local.",
+      "completedAt": "2026-11-22T06:45:52-0600",
+      "completedBy": "claude"
     },
     {
       "id": "gap-ui-secuencias-fuera-layout",
