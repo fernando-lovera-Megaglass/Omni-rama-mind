@@ -41,9 +41,6 @@ export function createSettingsStore({ client, storage, onError = () => {} }) {
       for (const key of Object.keys(pending)) {
         const value = clone(pending[key]);
         const scope = settingsScope(key);
-        if (scope === 'account' && user.app_metadata?.role !== 'admin') {
-          delete pending[key]; delete cache[key]; persist(); onError(new Error('Solo administradores pueden guardar ajustes de cuenta.')); continue;
-        }
         try {
           const row = { key, value, scope, ...(scope === 'user' ? { user_id: user.id } : {}) };
           const { error } = await client.from(scope === 'user' ? 'user_settings' : 'account_settings').upsert(row, { onConflict: scope === 'user' ? 'user_id,key' : 'key' });
@@ -58,7 +55,6 @@ export function createSettingsStore({ client, storage, onError = () => {} }) {
   function save(key, value) {
     if (!client) { try { storage.setItem(key, JSON.stringify(value)); } catch { /* Offline demo. */ } return; }
     if (!user) { onError(new Error('Inicia sesión para guardar ajustes.')); return; }
-    if (settingsScope(key) === 'account' && user.app_metadata?.role !== 'admin') { onError(new Error('Solo administradores pueden guardar ajustes de cuenta.')); return; }
     cache[key] = clone(value); pending[key] = clone(value); persist(); void flush();
   }
   return { ready, load, save, flush };

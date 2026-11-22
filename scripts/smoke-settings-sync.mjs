@@ -15,7 +15,7 @@ function session(id, role = 'admin', disk = storage()) {
   return { ...createSettingsStore({ client, storage: disk, onError: e => errors.push(e) }), errors };
 }
 const disk = storage();
-const first = session('alice', 'admin', disk); await first.ready;
+const first = session('alice', null, disk); await first.ready;
 first.save('crm:settings:general-correo', { track: false });
 assert.equal(first.load('crm:settings:general-correo').track, false, 'optimistic toggle');
 first.save('crm:profile', { first: 'Alice' }); first.save('crm:notif', { push_tasks: false });
@@ -28,13 +28,15 @@ assert.equal(second.load('crm:notif').push_tasks, false);
 const other = session('bob', 'user', disk); await other.ready;
 assert.equal(other.load('crm:profile', null), null, 'no cross-user cache leak');
 assert.equal(other.load('crm:account').name, 'Shared');
-other.save('crm:account', { name: 'Forbidden' }); await other.flush();
-assert.equal(other.load('crm:account').name, 'Shared'); assert.equal(other.errors.length, 1);
+other.save('crm:account', { name: 'Updated by member' }); await other.flush();
+assert.equal(other.load('crm:account').name, 'Updated by member'); assert.equal(other.errors.length, 0);
+const fresh = session('charlie', null); await fresh.ready;
+assert.equal(fresh.load('crm:account').name, 'Updated by member');
 offline = true;
 first.save('crm:notif', { push_tasks: true }); await first.flush();
-const restarted = session('alice', 'admin', disk); await restarted.ready;
+const restarted = session('alice', null, disk); await restarted.ready;
 assert.equal(restarted.load('crm:notif').push_tasks, true);
 offline = false; await restarted.flush();
 const third = session('alice'); await third.ready;
 assert.equal(third.load('crm:notif').push_tasks, true, 'offline queue survives reload');
-console.log('PASS: independent browser stores, personal isolation, shared account, admin guard, offline retry');
+console.log('PASS: independent browser stores, personal isolation, shared account, authenticated writes, offline retry');
