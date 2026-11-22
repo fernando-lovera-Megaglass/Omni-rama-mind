@@ -179,7 +179,7 @@ function renderPane() {
             : emptyStateHtml({ art: 'records', compact: true, title: 'Aún no has importado datos', text: 'Las importaciones que hagas aparecerán aquí con su estado, sus recuentos y sus errores. Empieza con Importar datos.', action: { label: 'Importar datos', href: './import/' } })}</td></tr>`}</tbody>
         </table>
       </div>
-      <p class="muted dint__count">${rows.length} importación${rows.length === 1 ? '' : 'es'}</p>`;
+      <p class="muted dint__count">${rows.length} ${rows.length === 1 ? 'importación' : 'importaciones'}</p>`;
     wireMenus(pane);
     const q = $('dint-q');
     q.addEventListener('input', () => { state.q = q.value.trim(); const pos = q.selectionStart; renderPane(); const nq = $('dint-q'); nq.focus(); nq.setSelectionRange(pos, pos); });

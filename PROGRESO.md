@@ -1,5 +1,11 @@
 # Progreso — Omni CRM
 
+## 2026-11-22 (sesión 6) · Integración de datos: el historial lista solo las importaciones reales (sin filas ni modales de muestra)
+
+- `src/integration.js`: desaparecen `SAMPLE_IMPORTS` (16 importaciones ficticias inyectadas cuando `crm:imports` estaba vacío) y los modales estáticos `data-import` / `data-errors`; `imports()` lee únicamente el historial real del asistente (`crm:imports`, `src/import-engine.js`). Cada fila real enlaza a `./import/?id=<id>` en el nombre y en el contador de errores (y «Ver detalle» en Acciones). Sin importaciones, la tabla muestra el estado vacío útil «Aún no has importado datos» con el botón «Importar datos» (`emptyStateHtml`, patrón de estados vacíos); si los filtros o la búsqueda no dejan ninguna, «No hay importaciones que coincidan con estos filtros». Filtros (sistema, fuente, usuario, fecha), búsqueda y editor de columnas siguen operando sobre las reales. Contador corregido («1 importación» / «N importaciones»).
+- Pruebas: `scripts/smoke-integration-history.mjs` (cuenta sin importaciones → estado vacío con CTA a `./import/`, 0 filas y nada inyectado; tras una importación real del motor → exactamente esa fila, nombre y errores enlazan a `./import/?id=`, sin modales estáticos ni nombres ficticios; filtro por usuario solo con importadores reales, filtro excluyente → mensaje de «no coincide», búsqueda, editor de columnas). `scripts/smoke-integration.mjs` ahora siembra cinco importaciones propias con la forma del motor en vez de contar con las de muestra.
+- Solo código local; nada desplegado.
+
 ## 2026-11-22 (sesión 6) · Importación: «Ver segmento» abre la vista de la corrida (`?view=imp<id>`)
 
 - `src/list.js`: al arrancar, la lista de cada objeto honra `?view=<id>`: si la vista existe en el store (`viewById`) la activa como pestaña (`activateView`: filtros, orden y columnas de la vista, queda como activa y abierta); un id desconocido se ignora sin romper nada.
