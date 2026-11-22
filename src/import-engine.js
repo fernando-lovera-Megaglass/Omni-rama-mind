@@ -7,6 +7,9 @@
 import { ALL, deleteRecords, addRecord, setField, OWNERS, TODAY, getViewStore, setViewStore, strip, dealPipelines, stagesFor, ticketPipelines, ticketStatusesFor, TICKET_STATUSES, TASK_STATUSES, DEAL_STAGES, companyDomains } from './data.js';
 import { propertyList, customProperties, saveCustomProperties } from './properties.js';
 import { addSegment } from './segments-data.js';
+import { currentUser } from './auth.js';
+import { listInvitations } from './invitations.js';
+import { buildOwnerIndex, resolveIndexedOwner } from './import-owners.js';
 
 export const ME = 'Fernando L.';
 export const IMPORTS_KEY = 'crm:imports';
@@ -258,16 +261,22 @@ export function normalizeDomain(raw) {
   s = s.replace(/^[a-z]+:\/\//, '').replace(/^www\./, '').split(/[/?#\s]/)[0].replace(/:\d+$/, '');
   return /^[a-z0-9.-]+\.[a-z]{2,}$/.test(s) ? s : null;
 }
-const ownerIndex = () => OWNERS.filter((o) => o !== 'Sin asignar').map((name) => ({ name, email: `${strip(name).replace(/[^a-z]+/g, '.').replace(/^\.|\.$/g, '')}@omni.crm` }));
+// Load remote identities before any synchronous preview or import plan can run.
+let ownerUser = null;
+let ownerInvitations = [];
+export async function refreshImportOwners() {
+  const results = await Promise.allSettled([currentUser(), listInvitations()]);
+  ownerUser = results[0].status === 'fulfilled' ? results[0].value : null;
+  ownerInvitations = results[1].status === 'fulfilled' ? results[1].value : [];
+}
+await refreshImportOwners();
+const ownerIndex = () => {
+  let users = [];
+  try { users = JSON.parse(localStorage.getItem('crm:users')) || []; } catch { /* No saved directory. */ }
+  return buildOwnerIndex(OWNERS, { users, user: ownerUser, invitations: ownerInvitations });
+};
 export function resolveOwner(raw) {
-  const s = strip(raw);
-  if (!s) return { value: '' };
-  const byEmail = ownerIndex().filter((o) => o.email === s);
-  if (byEmail.length === 1) return { value: byEmail[0].name };
-  const byName = ownerIndex().filter((o) => strip(o.name) === s || strip(o.name).startsWith(s) || (s.startsWith(strip(o.name).split(' ')[0]) && s.includes(strip(o.name).split(' ')[1] || '\u0000')));
-  if (byName.length === 1) return { value: byName[0].name };
-  if (byName.length > 1) return { value: '', error: 'MULTIPLE_OWNERS_FOUND' };
-  return { value: '', error: 'OWNER_NOT_FOUND' };
+  return resolveIndexedOwner(ownerIndex(), raw);
 }
 const enumOptions = (p) => (Array.isArray(p.options) ? p.options.map((o) => (Array.isArray(o) ? { value: o[0], label: o[1] } : { value: o, label: o })) : []);
 const pickOption = (list, s) => {

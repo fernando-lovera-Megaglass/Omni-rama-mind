@@ -78,7 +78,7 @@ const checks = [
   ['hs_lead_status_date', '28/10/2020 14:30', '14:30'],
   ['hs_sequences_is_enrolled', 'Verdadero', 'Sí'], ['hs_sequences_is_enrolled', 'No', 'No'], ['hs_sequences_is_enrolled', 'tal vez', undefined, 'INVALID_ENUMERATION_OPTION'],
   ['lifecycle', 'Cliente', 'Cliente'], ['lifecycle', 'Astronauta', undefined, 'INVALID_ENUMERATION_OPTION'], ['lifecycle', 'Lead', 'Lead'],
-  ['owner', 'Sofía R.', 'Sofía R.'], ['owner', 'sofia.r@omni.crm', 'Sofía R.'], ['owner', 'Nadie Conocido', undefined, 'OWNER_NOT_FOUND'],
+  ['owner', 'Sofía R.', 'Sofía R.'], ['owner', 'sofia.r@omni.crm', undefined, 'OWNER_NOT_FOUND'], ['owner', 'Nadie Conocido', undefined, 'OWNER_NOT_FOUND'],
   ['website', 'ejemplo.com', 'https://ejemplo.com'],
 ];
 for (const [key, raw, expected, code] of checks) {
