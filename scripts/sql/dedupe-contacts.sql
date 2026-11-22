@@ -33,7 +33,7 @@ DO $$ BEGIN
 END $$;
 CREATE TEMP TABLE contact_merge ON COMMIT DROP AS
 SELECT id AS duplicate_id, canonical_id FROM (
-  SELECT id, first_value(id) OVER (PARTITION BY email ORDER BY filled_fields DESC, id) AS canonical_id
+  SELECT id, first_value(id) OVER (PARTITION BY email ORDER BY id) AS canonical_id
   FROM contact_inventory
 ) c WHERE id <> canonical_id;
 SELECT i.*, min(i.id) OVER (PARTITION BY i.email) AS lower_id,
@@ -42,19 +42,12 @@ FROM contact_inventory i WHERE email IN (SELECT email FROM contact_inventory GRO
 ORDER BY email, id;
 SELECT * FROM contact_merge ORDER BY canonical_id, duplicate_id;
 
--- Conflicting identities require review; do not partially commit a repair.
+-- Report conflicting identity values; the requested minimum-ID policy still applies.
+-- Copies retain their original values for audit, and canonical nonempty values win.
 SELECT m.*, 'conflicting identity' AS review_reason
 FROM contact_merge m JOIN contacts k ON k.id=m.canonical_id JOIN contacts d ON d.id=m.duplicate_id
 WHERE (btrim(k.first) <> '' AND btrim(d.first) <> '' AND lower(btrim(k.first)) <> lower(btrim(d.first)))
  OR (btrim(k.last) <> '' AND btrim(d.last) <> '' AND lower(btrim(k.last)) <> lower(btrim(d.last)));
-DO $$ BEGIN
- IF EXISTS (SELECT 1 FROM contact_merge m JOIN contacts k ON k.id=m.canonical_id JOIN contacts d ON d.id=m.duplicate_id
- WHERE (btrim(k.first) <> '' AND btrim(d.first) <> '' AND lower(btrim(k.first)) <> lower(btrim(d.first)))
- OR (btrim(k.last) <> '' AND btrim(d.last) <> '' AND lower(btrim(k.last)) <> lower(btrim(d.last)))) THEN
- RAISE EXCEPTION 'Ambiguous identities: review inventory; entire repair rolled back';
- END IF;
-END $$;
-
 -- Like mergeRecords: retain principal values and fill empty scalar properties.
 -- Full before images above include conflicting values for review and recovery.
 DO $$

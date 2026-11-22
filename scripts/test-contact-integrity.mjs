@@ -48,31 +48,38 @@ assert.deepEqual((await db.query('SELECT record_id::int FROM workflow_enrollment
 assert.equal((await db.query('SELECT count(*)::int n FROM contact_companies')).rows[0].n, 1);
 assert.equal((await db.query('SELECT is_primary FROM contact_companies')).rows[0].is_primary, true);
 await db.exec(`BEGIN; ${repair} COMMIT;`);
-// Richest persisted row wins; fill blanks and preserve the entire discarded row.
+// Minimum ID wins even when the newer row is richer; fill blanks and preserve the copy.
 await db.exec(`INSERT INTO contacts(id,email,first,phone,city,extra) VALUES
  (50,'rich@example.com','Ana','555','','{"custom":"retained"}'),
  (350,'rich@example.com','','','Madrid','{"a":"1","b":"2","c":"3"}');
  INSERT INTO deals(contact_id) VALUES (350);
  INSERT INTO tickets(contact_id) VALUES (350);`);
 await db.exec(`BEGIN; ${repair} COMMIT;`);
-const rich = (await db.query('SELECT * FROM contacts WHERE id=350')).rows[0];
+const rich = (await db.query('SELECT * FROM contacts WHERE id=50')).rows[0];
 assert.equal(rich.deleted_at, null);
 assert.equal(rich.phone, '555');
 assert.equal(rich.first, 'Ana');
 assert.equal(rich.city, 'Madrid');
 assert.equal(rich.extra.a, '1');
 assert.equal(rich.extra.custom, 'retained');
-assert.ok((await db.query('SELECT deleted_at FROM contacts WHERE id=50')).rows[0].deleted_at);
-assert.equal((await db.query('SELECT count(*)::int n FROM deals WHERE contact_id=50')).rows[0].n, 0);
-assert.equal((await db.query('SELECT count(*)::int n FROM tickets WHERE contact_id=350')).rows[0].n, 1);
+assert.ok((await db.query('SELECT deleted_at FROM contacts WHERE id=350')).rows[0].deleted_at);
+assert.equal((await db.query('SELECT count(*)::int n FROM deals WHERE contact_id=350')).rows[0].n, 0);
+assert.equal((await db.query('SELECT count(*)::int n FROM tickets WHERE contact_id=50')).rows[0].n, 1);
+// Email is the identity key even when names differ; keep the minimum-ID name.
+await db.exec(`INSERT INTO contacts(id,email,first) VALUES
+ (60,'identity@example.com','Original'),(360,' IDENTITY@example.com ','Other');`);
+await db.exec(`BEGIN; ${repair} COMMIT;`);
+assert.equal((await db.query('SELECT first FROM contacts WHERE id=60')).rows[0].first, 'Original');
+assert.ok((await db.query('SELECT deleted_at FROM contacts WHERE id=360')).rows[0].deleted_at);
+assert.equal((await db.query('SELECT first FROM contacts WHERE id=360')).rows[0].first, 'Other');
 // An existing orphan must fail acceptance and roll back the entire repair.
 await db.exec('INSERT INTO deals(contact_id) VALUES (99999)');
 await assert.rejects(db.exec(`BEGIN; ${repair} COMMIT;`), /Orphans/);
 await db.exec('ROLLBACK; DELETE FROM deals WHERE contact_id=99999');
 // Existing references to previously trashed contacts must also fail acceptance.
-await db.exec('INSERT INTO tasks(contact_id) VALUES (50)');
+await db.exec('INSERT INTO tasks(contact_id) VALUES (350)');
 await assert.rejects(db.exec(`BEGIN; ${repair} COMMIT;`), /References to trashed contacts/);
-await db.exec('ROLLBACK; DELETE FROM tasks WHERE contact_id=50');
+await db.exec('ROLLBACK; DELETE FROM tasks WHERE contact_id=350');
 // Regression for 77 pairs with all six required relationship types.
 await db.exec(`
  INSERT INTO contacts(id,email)
@@ -102,6 +109,7 @@ for (const [table,column,predicate] of [
 }
 // Soft delete preserves the copies byte-for-byte except deleted_at.
 assert.equal((await db.query('SELECT count(*)::int n FROM contacts WHERE id BETWEEN 1000 AND 1376')).rows[0].n,154);
+await db.exec(sql('../supabase/contact-integrity.sql'));
 await db.exec(sql('../supabase/contact-integrity.sql'));
 // Restoration retains the original payload. Resolve the email conflict first;
 // restoring with the same live email must never bypass the uniqueness guard.
