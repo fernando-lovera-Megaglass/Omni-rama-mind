@@ -1,7 +1,8 @@
 // Synchronous memory reads, serialized optimistic writes and identity-isolated offline backup.
-export const settingsScope = (key) => key === 'crm:call_outcomes' || key === 'crm:account' || key === 'crm:integrations' ||
+export const indexSetting = (key) => /^crm:(contacts|companies|deals|tickets|tasks):(defaultcolumns|quickfilters|boardcard)$/.test(key);
+export const settingsScope = (key) => indexSetting(key) || key === 'crm:call_outcomes' || key === 'crm:account' || key === 'crm:integrations' ||
   (key.startsWith('crm:settings:') && !/^crm:settings:(general-|navcollapsed)/.test(key)) ? 'account' : 'user';
-export const managedSetting = (key) => ['crm:call_outcomes', 'crm:profile', 'crm:notif', 'crm:account', 'crm:integrations'].includes(key) || key.startsWith('crm:settings:');
+export const managedSetting = (key) => indexSetting(key) || ['crm:call_outcomes', 'crm:profile', 'crm:notif', 'crm:account', 'crm:integrations'].includes(key) || key.startsWith('crm:settings:');
 export function createSettingsStore({ client, storage, onError = () => {} }) {
   let user, cache = {}, pending = {}, queue = Promise.resolve();
   const clone = (v) => v === undefined ? v : JSON.parse(JSON.stringify(v));
@@ -29,6 +30,10 @@ export function createSettingsStore({ client, storage, onError = () => {} }) {
   })();
   function load(key, fallback) {
     if (!client) { try { return JSON.parse(storage.getItem(key)) ?? fallback; } catch { return fallback; } }
+    // Legacy index defaults remain a fallback only; never upload them implicitly.
+    if (indexSetting(key) && !(key in cache)) {
+      try { return JSON.parse(storage.getItem(key)) ?? fallback; } catch { return fallback; }
+    }
     return clone(cache[key] ?? fallback);
   }
   function flush() {

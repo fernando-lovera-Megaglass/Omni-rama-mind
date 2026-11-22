@@ -206,7 +206,7 @@ click(document.getElementById('ix-save'));
 log('default columns saved:', JSON.parse(mem['crm:deals:defaultcolumns']).join(','));
 click(document.querySelector('[data-act="ix-filters"]'));
 click(document.getElementById('ix-reset'));
-log('filters reset:', mem['crm:deals:quickfilters'] === undefined);
+log('filters reset:', JSON.parse(mem['crm:deals:quickfilters']).includes('owner'));
 // switch object through the selector
 const osel = document.querySelector('[data-objects-object]');
 osel.value = 'contacts';

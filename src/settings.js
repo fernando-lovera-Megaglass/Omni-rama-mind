@@ -1289,11 +1289,11 @@ function openIndexPicker(kind, type) {
   const propItems = propertyList(type).map((p) => ({ key: p.key, label: p.label }));
   const withExtras = (keys) => [...keys.filter((k) => !propItems.some((p) => p.key === k)).map((k) => ({ key: k, label: indexLabel(type, k) })), ...propItems];
   if (kind === 'columns') {
-    orderedPicker({ title: `Columnas predeterminadas de ${m.p}`, intro: 'Las columnas se muestran en este orden a quien no haya personalizado las suyas.', items: withExtras(INDEX_DEFAULT_COLUMNS[type] || []), chosen: indexColumns(type), max: 12, onSave: (sel) => { save(`crm:${type}:defaultcolumns`, sel); toast('Columnas predeterminadas guardadas'); }, onReset: () => { localStorage.removeItem(`crm:${type}:defaultcolumns`); toast('Columnas restablecidas'); } });
+    orderedPicker({ title: `Columnas predeterminadas de ${m.p}`, intro: 'Las columnas se muestran en este orden a quien no haya personalizado las suyas.', items: withExtras(INDEX_DEFAULT_COLUMNS[type] || []), chosen: indexColumns(type), max: 12, onSave: (sel) => { save(`crm:${type}:defaultcolumns`, sel); toast('Columnas predeterminadas guardadas'); }, onReset: () => { save(`crm:${type}:defaultcolumns`, INDEX_DEFAULT_COLUMNS[type] || []); toast('Columnas restablecidas'); } });
   } else if (kind === 'filters') {
-    orderedPicker({ title: `Filtros rápidos de ${m.p}`, intro: 'Hasta cinco filtros, en este orden, encima de la lista y del tablero.', items: withExtras(INDEX_DEFAULT_FILTERS[type] || []), chosen: indexFilters(type), max: 5, onSave: (sel) => { save(`crm:${type}:quickfilters`, sel); toast('Filtros rápidos guardados'); }, onReset: () => { localStorage.removeItem(`crm:${type}:quickfilters`); toast('Filtros rápidos restablecidos'); } });
+    orderedPicker({ title: `Filtros rápidos de ${m.p}`, intro: 'Hasta cinco filtros, en este orden, encima de la lista y del tablero.', items: withExtras(INDEX_DEFAULT_FILTERS[type] || []), chosen: indexFilters(type), max: 5, onSave: (sel) => { save(`crm:${type}:quickfilters`, sel); toast('Filtros rápidos guardados'); }, onReset: () => { save(`crm:${type}:quickfilters`, INDEX_DEFAULT_FILTERS[type] || []); toast('Filtros rápidos restablecidos'); } });
   } else {
-    orderedPicker({ title: `Tarjetas del tablero de ${m.p}`, intro: 'Hasta cuatro propiedades por tarjeta, en este orden.', items: propItems, chosen: indexBoard(type) || [], max: 4, onSave: (sel) => { save(`crm:${type}:boardcard`, sel); toast('Tarjetas del tablero guardadas'); }, onReset: () => { localStorage.removeItem(`crm:${type}:boardcard`); toast('Tarjetas del tablero restablecidas'); } });
+    orderedPicker({ title: `Tarjetas del tablero de ${m.p}`, intro: 'Hasta cuatro propiedades por tarjeta, en este orden.', items: propItems, chosen: indexBoard(type) || [], max: 4, onSave: (sel) => { save(`crm:${type}:boardcard`, sel); toast('Tarjetas del tablero guardadas'); }, onReset: () => { save(`crm:${type}:boardcard`, []); toast('Tarjetas del tablero restablecidas'); } });
   }
 }
 function objectAssocHtml(type) {
@@ -1958,7 +1958,7 @@ root.addEventListener('click', (e) => {
   else if (a === 'ix-columns') openIndexPicker('columns', act.dataset.type);
   else if (a === 'ix-filters') openIndexPicker('filters', act.dataset.type);
   else if (a === 'ix-board') openIndexPicker('board', act.dataset.type);
-  else if (a === 'reset-boardcard') { localStorage.removeItem(`crm:${act.dataset.type}:boardcard`); render(); toast('Tarjetas del tablero restablecidas'); }
+  else if (a === 'reset-boardcard') { save(`crm:${act.dataset.type}:boardcard`, []); render(); toast('Tarjetas del tablero restablecidas'); }
   else if (a === 'new-recordview') promptModal('Crear vista de equipo', [['name', 'Nombre de la vista'], ['teams', 'Asignar al equipo', 'select', teams().map((t) => t.name)]], 'Crear', (d) => { const type = act.dataset.type; const list = recordViews(type); const name = d.name.trim(); if (!name) return; if (list.some((v) => v.name.toLowerCase() === name.toLowerCase())) { toast('Ya existe una vista con ese nombre'); return; } list.push({ name, teams: [d.teams], updated: new Date().toISOString(), by: 'Fernando Lovera Colin' }); saveRecordViews(type, list); toast(`Vista "${name}" creada`); });
   else if (a === 'rv-delete-sel') { const type = act.dataset.type; const list = recordViews(type).filter((v) => !state.rvSel.has(v.name)); saveRecordViews(type, list); state.rvSel = new Set(); render(); toast('Vistas eliminadas'); }
   else if (a === 'rv-clear-sel') { state.rvSel = new Set(); render(); }

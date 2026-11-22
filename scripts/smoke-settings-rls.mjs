@@ -35,6 +35,14 @@ assert.deepEqual((await db.query(`select value from account_settings where key='
 await assert.rejects(db.exec(`insert into account_settings (scope,key,value) values ('user','invalid','true')`));
 assert.equal((await db.query(`delete from account_settings where key='crm:contacts:preview:Equipo' returning key`)).rows.length, 1);
 await assert.rejects(db.exec(`insert into user_settings (user_id,key,value) values ('22222222-2222-2222-2222-222222222222','forbidden','true')`));
+for (const type of ['contacts', 'companies', 'deals', 'tickets']) {
+  for (const suffix of ['defaultcolumns', 'quickfilters', 'boardcard']) {
+    const key = `crm:${type}:${suffix}`;
+    await db.query(`insert into account_settings (scope,key,value) values ('account',$1,'["name","owner"]') on conflict (key) do update set value=excluded.value`, [key]);
+  }
+}
+await db.exec("set test.uid='22222222-2222-2222-2222-222222222222'");
+assert.deepEqual((await db.query("select scope,value from account_settings where key='crm:contacts:defaultcolumns'")).rows, [{ scope: 'account', value: ['name', 'owner'] }]);
 await db.exec('reset role; set role anon');
 await assert.rejects(db.exec('select * from account_settings'));
 await assert.rejects(db.exec(`insert into account_settings (key,value) values ('anonymous','true')`));

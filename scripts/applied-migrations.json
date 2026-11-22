@@ -228,5 +228,9 @@
   "account-settings-authenticated.sql": {
     "status": "pendiente",
     "nota": "Opción (b). Solo código local; no aplicada en remoto. Permite ajustes globales a usuarios autenticados de la única cuenta del proyecto. Ver docs/settings-sync.md."
+  },
+  "deal-ticket-associations.sql": {
+    "status": "aplicada",
+    "at": "2026-11-22T04:17:15-0600"
   }
 }

@@ -1,6 +1,6 @@
 import { associationIds, hasAssociation, isMultiAssociation } from './crm-associations.js';
 import { createPreviewActions } from './preview-actions.js';
-import { activitiesFor, ensureActivitiesFor } from './data.js';
+import { getSetting, activitiesFor, ensureActivitiesFor } from './data.js';
 import { changeDealStage } from './deal-close.js';
 import { pagination, bindPagination } from './pagination.js';
 import { customFieldsHtml } from './create-contact.js';
@@ -71,7 +71,7 @@ export function mountList(cfg) {
   const groups = propertyGroups(cfg.type);
   const props = propertyMap(cfg.type);
   // Account-wide defaults set in Configuración › Objetos › Personalización del índice (columns and quick filters).
-  const adminJson = (what) => { try { const s = JSON.parse(localStorage.getItem(`crm:${cfg.type}:${what}`)); return Array.isArray(s) && s.length ? s : null; } catch { return null; } };
+  const adminJson = (what) => { try { const s = getSetting(`crm:${cfg.type}:${what}`) ?? JSON.parse(localStorage.getItem(`crm:${cfg.type}:${what}`)); return Array.isArray(s) && s.length ? s : null; } catch { return null; } };
   const adminColumns = (adminJson('defaultcolumns') || []).filter((k) => cfg.columns.some((c) => c.key === k) || props[k]);
   const defaultColumns = adminColumns.length ? adminColumns : cfg.columns.filter((c) => c.default !== false).map((c) => c.key);
   const adminFilters = adminJson('quickfilters');
@@ -1426,7 +1426,7 @@ export function mountList(cfg) {
     const groups = boardGroups();
     // Card properties chosen in Configuración › Objetos › Personalización del índice replace the default lines.
     let cardKeys = null;
-    try { const saved = JSON.parse(localStorage.getItem(`crm:${cfg.type}:boardcard`)); if (Array.isArray(saved) && saved.length) cardKeys = saved; } catch { /* ignore */ }
+    try { const saved = getSetting(`crm:${cfg.type}:boardcard`) ?? JSON.parse(localStorage.getItem(`crm:${cfg.type}:boardcard`)); if (Array.isArray(saved) && saved.length) cardKeys = saved; } catch { /* ignore */ }
     // Each line is [label, value, kind]; a 'user' kind renders the value as an owner (avatar + name).
     const linesOf = (r) => (cardKeys ? cardKeys.map((k) => { const c = cfg.columns.find((x) => x.key === k); const p = props[k]; const label = (c && c.label) || (p && p.label) || k; const v = c && c.text ? c.text(r) : r[k]; const isUser = k === 'owner' || (p && p.kind === 'user'); return [label, isUser ? v : v === undefined || v === null || v === '' ? '--' : String(v), isUser ? 'user' : '']; }) : b.lines(r));
     const lineHtml = ([k, v, kind]) => `<div><span class="kcard__k">${esc(k)}:</span> ${kind === 'user' ? ownerHtml(v) : esc(v)}</div>`;

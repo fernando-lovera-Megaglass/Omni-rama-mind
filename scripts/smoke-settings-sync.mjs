@@ -40,3 +40,23 @@ offline = false; await restarted.flush();
 const third = session('alice'); await third.ready;
 assert.equal(third.load('crm:notif').push_tasks, true, 'offline queue survives reload');
 console.log('PASS: independent browser stores, personal isolation, shared account, authenticated writes, offline retry');
+// Index defaults are account-wide, with legacy local values used only when absent.
+for (const type of ['contacts', 'companies', 'deals', 'tickets', 'tasks']) {
+  for (const suffix of ['defaultcolumns', 'quickfilters', 'boardcard']) {
+    const key = `crm:${type}:${suffix}`;
+    const legacy = storage(); legacy.setItem(key, '["legacy"]');
+    const writer = session('index-writer', null, legacy); await writer.ready;
+    assert.deepEqual(writer.load(key), ['legacy']);
+    assert.equal(rows.account_settings.some(r => r.key === key), false, 'no implicit migration');
+    writer.save(key, ['name', 'owner']); await writer.flush();
+    assert.deepEqual(rows.account_settings.find(r => r.key === key), { key, value: ['name', 'owner'], scope: 'account' });
+    const reader = session('index-reader', null); await reader.ready;
+    assert.deepEqual(reader.load(key), ['name', 'owner'], 'fresh browser gets account defaults');
+    const stale = session('index-reader', null, legacy); await stale.ready;
+    assert.deepEqual(stale.load(key), ['name', 'owner'], 'remote wins over legacy');
+    writer.save(key, []); await writer.flush();
+    const reset = session('index-reader', null, legacy); await reset.ready;
+    assert.deepEqual(reset.load(key), [], 'reset does not revive legacy values');
+  }
+}
+console.log('PASS: index account defaults, fresh browsers, local fallback, remote precedence and reset');

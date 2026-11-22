@@ -31,3 +31,21 @@ Aceptación en ese entorno (pendiente, no sustituida por los tests locales):
 4. Crear y guardar una vista de equipo y una vista previa con nombre. Recargar y verificar que persisten sin toast. Consultar `select key, value from public.account_settings where key in ('crm:contacts:recordviews', 'crm:contacts:previewviews') or key like 'crm:contacts:layout:%' or key like 'crm:contacts:preview:%';`.
 
 El smoke SQL local reproduce el rechazo anterior, aplica dos veces la corrección y verifica INSERT/UPSERT/DELETE sin rol, lectura con otra identidad, claves de tarjeta/vistas/preview, rechazo anónimo y aislamiento personal. El smoke del almacén verifica persistencia entre sesiones simuladas y cola offline sin rol admin. No equivalen a aceptación E2E con navegador y Supabase real.
+
+## Personalización del índice
+
+Las claves `crm:<type>:defaultcolumns`, `crm:<type>:quickfilters` y `crm:<type>:boardcard`
+son ajustes de cuenta gestionados por `settings-store` para contactos, empresas,
+negocios, tickets y tareas. La configuración y las listas priorizan el valor remoto;
+si no existe, leen la clave local antigua, sin subirla automáticamente. Las columnas
+personales de la lista conservan precedencia sobre las predeterminadas de cuenta.
+Restablecer guarda los valores predeterminados de columnas/filtros y una lista vacía
+para tarjetas, evitando que resurja una personalización local antigua.
+
+Requiere la política de `account-settings-authenticated.sql` descrita arriba para
+usuarios sin rol admin. Este cambio no aplica migraciones ni despliega código.
+Los smoke de sincronización y RLS cubren estas claves con almacenes independientes
+y PostgreSQL local. La aceptación en Supabase real sigue pendiente: guardar columnas
+de Contactos, consultar
+`select scope, key, value from public.account_settings where key = 'crm:contacts:defaultcolumns';`
+y abrir Contactos en otro navegador sin almacenamiento local ni columnas personales.
