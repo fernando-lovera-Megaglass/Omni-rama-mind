@@ -1350,10 +1350,11 @@
     },
     {
       "id": "gap-smoke-bulk-assign",
-      "status": "pending",
+      "status": "done",
       "instruction": "smoke-bulk falla en «assign»: la asignación masiva no funciona como espera la prueba. Criterio: smoke-bulk pasa. Ejecuta la(s) prueba(s) con node scripts/<smoke>.mjs hasta que pasen. Verifica si es regresión del código o prueba desactualizada por un cambio intencional; corrige lo que corresponda. No despliegues nada a producción; solo código local.",
       "createdAt": "2026-11-21T16:25:45-06:00",
-      "lane": "claude"
+      "lane": "claude",
+      "completedAt": "2026-11-21T21:39:48-0600"
     },
     {
       "id": "gap-smoke-currency-registro",
