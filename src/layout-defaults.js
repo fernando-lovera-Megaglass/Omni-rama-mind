@@ -48,8 +48,7 @@ export function cardCatalog(type) {
   if (type === 'deals') cards.dealscore = { label: 'Calificación de negocios', desc: 'Calificación de negocios (valor predeterminado)', zone: 'middle' };
   // The deal's line items (deal_line_items), as added from the "Crear negocio" panel.
   if (type === 'deals') cards.lineitems = { label: 'Elementos de pedido', desc: 'Elementos de pedido del negocio (valor predeterminado)', zone: 'right' };
-  const extraAssoc = type === 'deals' ? ['Cotizaciones', 'Tickets', 'Enlaces de pago', 'Pagos', 'Negocios', 'Facturas', 'Suscripciones', 'Pedidos', 'Carritos', 'Contratos', 'Notas de crédito'] : type === 'companies' ? ['Cotizaciones', 'Facturas', 'Suscripciones', 'Pedidos', 'Contratos'] : type === 'contacts' ? ['Cotizaciones', 'Pagos', 'Suscripciones', 'Pedidos', 'Carritos'] : ['Negocios', 'Empresas'];
-  extraAssoc.forEach((label, i) => { cards[`x-${i}-${label.toLowerCase().replace(/[^a-z]+/g, '')}`] = { label, desc: `${label} Tarjeta de asociación (valor predeterminado)`, zone: 'right', extra: true }; });
+  // Document association cards stay unavailable until backed by persistent objects.
   cards.gdrive = { label: 'Archivos adjuntos de Google Drive', desc: 'Google Drive Attachments (valor predeterminado)', zone: 'right' };
   return cards;
 }
@@ -136,7 +135,7 @@ export function resetPreview(type) {
 export const VIEW_KEY = (type, name) => `crm:${type}:layout:${name}`;
 export function loadViewLayout(type, name) {
   const saved = readStored(VIEW_KEY(type, name));
-  if (saved && Array.isArray(saved.tabs)) return saved;
+  if (saved && Array.isArray(saved.tabs)) return { ...saved, right: (saved.right || []).filter((id) => !id.startsWith('x-')) };
   return teamViewLayout(type, name);
 }
 // Team views are shared by the account (scope global).
@@ -209,7 +208,7 @@ export const LAYOUT_KEY = (type) => `crm:${type}:layout`;
 const validLayout = (saved) => Boolean(saved && Array.isArray(saved.tabs) && Array.isArray(saved.right));
 export function loadLayout(type) {
   const saved = readStored(LAYOUT_KEY(type));
-  if (validLayout(saved)) return { ...saved, left: Array.isArray(saved.left) ? saved.left : ['about'] };
+  if (validLayout(saved)) return { ...saved, right: saved.right.filter((id) => !id.startsWith('x-')), left: Array.isArray(saved.left) ? saved.left : ['about'] };
   return defaultLayout(type);
 }
 

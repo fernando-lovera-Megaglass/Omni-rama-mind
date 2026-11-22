@@ -368,10 +368,6 @@ const quickOrder = () => {
   return keys.map((k) => QUICK.find((q) => q[0] === k)).filter(Boolean);
 };
 const MORE_ITEMS = [
-  ['invoice', ACT_ICONS.invoice, 'Crea una factura'],
-  ['quote', ACT_ICONS.quote, 'Crear cotización'],
-  ['paylink', ACT_ICONS.paylink, 'Crear enlace de pago'],
-  ['contract', ACT_ICONS.contract, 'Crear un contrato'],
   ['sequence', ACT_ICONS.sequence, 'Inscribir en una secuencia'],
   ['linkedin', ACT_ICONS.linkedin, 'Interactuar en LinkedIn', ['Ver perfil de LinkedIn', 'Enviar solicitud de conexión', 'Enviar InMail']],
   ['log', ACT_ICONS.log, 'Registrar actividad', ['Llamada', 'Correo', 'Reunión', 'Mensaje de LinkedIn', 'Mensaje de WhatsApp', 'SMS']],
@@ -1081,6 +1077,8 @@ function setParentCompany(parentId) {
   toast(parent ? `Empresa matriz: ${parent.name}` : 'Empresa matriz quitada');
 }
 function rightCardHtml(cardId) {
+  // Older saved views may still reference unsupported association cards.
+  if (cardId.startsWith('x-')) return '';
   const label = (CATALOG[cardId] || { label: cardId }).label;
   if (cardId === 'summary') {
     return `<div class="card"><button class="card__toggle" type="button" data-toggle="aisum"><span class="chev">⌄</span> ${esc(label)}</button><span class="ai-badge ai-badge--corner">✦ AI</span><div class="ai-box" id="ai-right"></div></div>`;
@@ -1681,13 +1679,6 @@ function addHistory(key, from, to, label) {
   addHistoryEntry(type, id, key, from, to, label);
 }
 
-function nextNumber(prefix) {
-  const k = `crm:counter:${prefix}`;
-  const n = Number(localStorage.getItem(k) || '1040') + 1;
-  localStorage.setItem(k, String(n));
-  return `${prefix}-${n}`;
-}
-
 // Mount outside the record content so card refreshes preserve the creation forms.
 const refreshAfterCreation = () => { renderAssoc(); renderTimeline(); };
 const recordCreateDeal = mountCreateDeal({ root: document.body, onCreated: refreshAfterCreation });
@@ -1700,18 +1691,7 @@ function recordAssociationPrefill() {
 
 function runMore(kind, sub) {
   const name = cfg.title(rec);
-  const docForm = (title, label) => openModal(
-    title,
-    `<label class="field"><span>Importe (€)</span><input id="doc-amount" type="number" value="${rec.amount || 2500}" /></label>
-     <label class="field"><span>Descripción</span><input id="doc-desc" type="text" value="${esc(label)} para ${esc(name)}" /></label>
-     <label class="field"><span>Vence</span><input id="doc-due" type="date" value="${new Date(TODAY.getTime() + 30 * 86400000).toISOString().slice(0, 10)}" /></label>`,
-    `<button class="btn btn--primary" type="button" data-confirm="doc" data-kind="${kind}">Crear</button><button class="btn btn--ghost" type="button" data-close>Cancelar</button>`,
-  );
   switch (kind) {
-    case 'invoice': docForm('Crear factura', 'Factura'); break;
-    case 'quote': docForm('Crear cotización', 'Cotización'); break;
-    case 'paylink': docForm('Crear enlace de pago', 'Enlace de pago'); break;
-    case 'contract': docForm('Crear contrato', 'Contrato'); break;
     case 'sequence':
       // Ventas › Secuencias: pick the sequence, fill its placeholders, preview the steps with this contact's data.
       if (type !== 'contacts') { toast('Las secuencias se inscriben desde la ficha de un contacto.'); break; }
@@ -2178,15 +2158,6 @@ $('rec-modal').addEventListener('click', async (e) => {
     closeModal();
     renderProps();
     toast('Tarjeta restablecida');
-  } else if (what === 'doc') {
-    const kind = b.dataset.kind;
-    const labels = { invoice: ['Factura', 'INV'], quote: ['Cotización', 'COT'], paylink: ['Enlace de pago', 'PAY'], contract: ['Contrato', 'CTR'] };
-    const [label, prefix] = labels[kind];
-    const num = nextNumber(prefix);
-    const amount = Number($('doc-amount').value) || 0;
-    addEvent({ type: 'stage', when: Date.now(), who: 'Tú', text: `${label} ${num} creada por ${formatMoney(amount)}: ${$('doc-desc').value.trim()}. Vence el ${formatDate($('doc-due').value)}.` });
-    closeModal();
-    toast(`${label} ${num} creada`);
   } else if (what === 'sendsms') {
     const to = $('sms-to').value.trim();
     const body = $('sms-body').value.trim();
