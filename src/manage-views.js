@@ -69,7 +69,7 @@ function allHtml() {
       <section class="mv__main">
         <div class="mv__toolbar"><div class="search search--sm mv__search"><input type="search" id="mv-qall" placeholder="Buscar vistas" aria-label="Buscar vistas" value="${esc(qAll)}" /><span class="ico ico--search" aria-hidden="true"></span></div><span class="muted">${rows.length} vistas · ${standardViews().length} estándar, ${store().custom.length} personalizadas</span><a class="btn btn--primary" href="../${type}/">Crear vista en la lista ↗</a></div>
         <table class="mini-table stable mvtable"><thead><tr><th>Nombre</th><th>Tipo</th><th>Propietario</th><th>Compartida con</th><th>Pestaña predeterminada</th><th>Última modificación</th><th></th></tr></thead><tbody>
-          ${rows.map((v) => `<tr><td><strong>${esc(v.name)}</strong></td><td>${v.standard ? 'Estándar' : 'Personalizada'}</td><td>${v.standard ? 'Omni' : ownerHtml(v.owner)}</td><td>${SHARE[v.share] || 'Todos'}</td><td>${selected.includes(v.id) ? '<span class="tag tag--done">Sí</span>' : '<span class="muted">No</span>'}</td><td class="muted">${v.updated ? esc(formatDate(v.updated)) : '--'}</td><td class="num"><div class="menu"><button class="icon-btn icon-btn--round" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Acciones">⋯</button><div class="menu__panel menu__panel--right"><a class="menu__item" href="../${type}/">Abrir en la lista ↗</a>${selected.includes(v.id) ? `<button class="menu__item" type="button" data-untab="${esc(v.id)}" data-goto="defaults">Quitar de las pestañas predeterminadas</button>` : `<button class="menu__item" type="button" data-addtab="${esc(v.id)}">Añadir a las pestañas predeterminadas</button>`}${v.standard ? '' : `<button class="menu__item menu__item--danger" type="button" data-del="${esc(v.id)}">Eliminar</button>`}</div></div></td></tr>`).join('')}
+          ${rows.map((v) => `<tr><td><strong>${esc(v.name)}</strong></td><td>${v.standard ? 'Estándar' : 'Personalizada'}</td><td>${v.standard ? 'Omni' : ownerHtml(v.owner)}</td><td>${SHARE[v.share] || 'Todos'}</td><td>${selected.includes(v.id) ? '<span class="tag tag--done">Sí</span>' : '<span class="muted">No</span>'}</td><td class="muted">${v.updated ? esc(formatDate(v.updated)) : '--'}</td><td class="num"><div class="menu"><button class="icon-btn icon-btn--round" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Acciones">⋯</button><div class="menu__panel menu__panel--right"><a class="menu__item" href="../${type}/">Abrir en la lista ↗</a>${selected.includes(v.id) ? `<button class="menu__item" type="button" data-untab="${esc(v.id)}" data-goto="defaults">Quitar de las pestañas predeterminadas</button>` : `<button class="menu__item" type="button" data-addtab="${esc(v.id)}">Añadir a las pestañas predeterminadas</button>`}${v.standard ? '' : `<button class="menu__item menu__item--danger" type="button" data-del="${esc(v.id)}" ${v.mine === false ? 'disabled' : ''}>Eliminar</button>`}</div></div></td></tr>`).join('')}
         </tbody></table>
       </section>
     </div>`;
@@ -120,9 +120,11 @@ root.addEventListener('click', (e) => {
   if (del) {
     closeMenus();
     const s = store(); const v = s.custom.find((x) => x.id === del.dataset.del);
-    if (!v || !window.confirm(`¿Eliminar la vista "${v.name}"?`)) return;
-    saveDeletedViews(type, [{ ...v, deletedAt: new Date().toISOString() }, ...deletedViews(type).filter((x) => x.id !== v.id)].slice(0, 50));
+    if (!v || v.mine === false || !window.confirm(`¿Eliminar la vista "${v.name}"?`)) return;
     s.custom = s.custom.filter((x) => x.id !== v.id); s.open = (s.open || []).filter((x) => x !== v.id); if (s.active === v.id) s.active = null; setViewStore(type, s);
+    // A retained view must not become a trash entry or produce a success toast.
+    if (store().custom.some((x) => x.id === v.id)) { render(); return; }
+    saveDeletedViews(type, [{ ...v, deletedAt: new Date().toISOString() }, ...deletedViews(type).filter((x) => x.id !== v.id)].slice(0, 50));
     selected = selected.filter((id) => id !== v.id);
     render(); toast(`Vista "${v.name}" eliminada`); return;
   }
