@@ -1,5 +1,11 @@
 # Progreso — Omni CRM
 
+## 2026-11-22 (sesión 6) · smoke-pagers-unified vuelve a pasar: el paginador de las etiquetas de negocio vive en el motor compartido
+
+- Diagnóstico: las etiquetas de negocio sí migraron al paginador compartido en bd34e2d; después, al generalizar las etiquetas para tickets, `src/deal-tags-ui.js` quedó en 13 líneas que enlazan el motor de negocios con la interfaz compartida `src/object-tags-ui.js`, y es esa interfaz la que usa `pagination()` + `bindPagination()` (tamaños 10/25/50/100). La prueba estática seguía buscando esas llamadas en `deal-tags-ui.js`. No es un fallo de la app ni del harness.
+- `scripts/smoke-pagers-unified.mjs`: comprueba el paginador compartido en `object-tags-ui.js` (negocios y tickets) y que `deal-tags-ui.js` construye su interfaz con ese módulo; el resto (sin marcado ni CSS del paginador antiguo, opciones de tamaño, pruebas DOM) sigue igual. Sin cambios en la app; termina con código 0.
+- Solo código local; nada desplegado.
+
 ## 2026-11-22 (sesión 6) · smoke-links vuelve a pasar: el sitio web de una empresa es dato real, no decoración
 
 - Diagnóstico: la ficha sí muestra los enlaces (dominio, teléfono, LinkedIn); faltaba solo «URL del sitio web» porque `src/data.js` dejó de inventar un sitio web de muestra para las empresas (es dato real: solo se rellena a mano o al asociar una empresa por dominio). La prueba daba por hecho que la empresa 2 de la demo tendría sitio web. No es un fallo de la app ni del harness.

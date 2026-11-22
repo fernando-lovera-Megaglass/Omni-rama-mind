@@ -20,10 +20,13 @@ for (const f of readdirSync(srcDir).filter((x) => x.endsWith('.js') || x.endsWit
   const m = src.match(OLD);
   if (m) fail(`src/${f} still uses the old pager «${m[0]}»`);
 }
-for (const f of ['snippets.js', 'settings.js', 'deal-tags-ui.js']) {
+// The deal tags UI (src/deal-tags-ui.js) is now a thin binding of the shared tags engine UI (src/object-tags-ui.js,
+// also used by the ticket tags): the shared pager lives there.
+for (const f of ['snippets.js', 'settings.js', 'object-tags-ui.js']) {
   const src = readFileSync(resolve(srcDir, f), 'utf8');
   if (!src.includes("from './pagination.js'") || !src.includes('pagination({') || !src.includes('bindPagination(')) fail(`src/${f} must use pagination() + bindPagination()`);
 }
+if (!readFileSync(resolve(srcDir, 'deal-tags-ui.js'), 'utf8').includes("from './object-tags-ui.js'")) fail('src/deal-tags-ui.js must build its UI with the shared object-tags-ui.js (which carries the shared pager)');
 const { pagination } = await import(resolve(srcDir, 'pagination.js'));
 const html = pagination({ page: 7, pages: 30, size: 10, sizes: [10, 25, 50, 100] });
 if ((html.match(/pager__ellipsis/g) || []).length !== 2 || !/data-pagination-size="10"[^>]*>10 por página/.test(html) || !html.includes('aria-current="page"') || html.includes('aria-current="false"')) fail('pagination(): ellipsis, 10 in the size menu and a valid aria-current');
