@@ -1845,10 +1845,12 @@
     },
     {
       "id": "gap-ui-adjuntos-ficha-se-pierden",
-      "status": "pending",
+      "status": "done",
       "lane": "claude",
       "createdAt": "2026-11-22T03:55:00-06:00",
-      "instruction": "ADJUNTOS FANTASMA (tarjeta «Archivos adjuntos» de la ficha, los 4 módulos): el input de subida (src/record.js:1154-1158) guarda SOLO nombre/tamaño/fecha en localStorage (crm:<type>:files:<id>, record.js:2690-2697) y DESCARTA el contenido del archivo: no se sube a Supabase Storage ni a ningún sitio, la lista de adjuntos solo pinta «📎 nombre · fecha» sin forma de abrirlo o descargarlo, y desaparece al cambiar de navegador. El toast «Archivo adjuntado» promete algo que no ocurre: pérdida de datos encubierta. HubSpot sube el archivo real y permite descargarlo y eliminarlo. Arreglo: crear un bucket de Storage (p. ej. attachments, con políticas por miembro de equipo siguiendo el patrón de las grabaciones de llamadas en supabase/), subir el binario, guardar la ruta en la fila local (o tabla attachments), ofrecer descarga y borrado real del objeto; sin sesión, ocultar «+ Subir» en vez de fingir. Criterio de aceptación: sube un PDF desde la ficha de un negocio, recarga, pulsa el archivo: se abre/descarga el contenido real; quitarlo lo borra del bucket (verificado en Storage); la tarjeta «Archivos adjuntos» del panel de vista previa de la lista (src/list.js:2161) muestra el mismo conteo. No despliegues nada a producción; solo código local."
+      "instruction": "ADJUNTOS FANTASMA (tarjeta «Archivos adjuntos» de la ficha, los 4 módulos): el input de subida (src/record.js:1154-1158) guarda SOLO nombre/tamaño/fecha en localStorage (crm:<type>:files:<id>, record.js:2690-2697) y DESCARTA el contenido del archivo: no se sube a Supabase Storage ni a ningún sitio, la lista de adjuntos solo pinta «📎 nombre · fecha» sin forma de abrirlo o descargarlo, y desaparece al cambiar de navegador. El toast «Archivo adjuntado» promete algo que no ocurre: pérdida de datos encubierta. HubSpot sube el archivo real y permite descargarlo y eliminarlo. Arreglo: crear un bucket de Storage (p. ej. attachments, con políticas por miembro de equipo siguiendo el patrón de las grabaciones de llamadas en supabase/), subir el binario, guardar la ruta en la fila local (o tabla attachments), ofrecer descarga y borrado real del objeto; sin sesión, ocultar «+ Subir» en vez de fingir. Criterio de aceptación: sube un PDF desde la ficha de un negocio, recarga, pulsa el archivo: se abre/descarga el contenido real; quitarlo lo borra del bucket (verificado en Storage); la tarjeta «Archivos adjuntos» del panel de vista previa de la lista (src/list.js:2161) muestra el mismo conteo. No despliegues nada a producción; solo código local.",
+      "completedAt": "2026-11-22T04:40:58-0600",
+      "completedBy": "claude"
     },
     {
       "id": "gap-ui-adm-vistas-eliminar-ajena",
