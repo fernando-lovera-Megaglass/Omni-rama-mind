@@ -1265,10 +1265,11 @@
     },
     {
       "id": "gap-ui-ficha-agregar-lista-real",
-      "status": "pending",
+      "status": "done",
       "createdAt": "2026-11-21T13:25:00-06:00",
       "lane": "claude",
-      "instruction": "LÓGICA CRÍTICA (ficha de contacto/empresa/negocio/ticket). HubSpot: la acción «Agregar a lista» de la ficha abre «Administrar membresías de lista»: las listas ESTÁTICAS reales del objeto con una casilla por lista ya marcada según la membresía actual (marcar agrega, desmarcar quita), y las listas ACTIVAS se muestran calculadas de solo lectura («el registro cumple los criterios»). Omni HOY: el caso 'list' de src/record.js (~líneas 1693-1699) muestra un <select> con 4 nombres de listas FICTICIOS quemados ('Instaladores Florida', 'Clientes 2026', 'Arquitectos México', 'Boletín mensual') y el confirmador (~líneas 2068-2069) solo escribe una entrada en la cronología («Agregado a la lista…»): no agrega nada a ningún segmento real — la acción miente al usuario. El módulo de segmentos ya tiene la API completa: segments(), segmentById, segmentMembers, addStaticMembers(id, recordIds) y removeStaticMembers(id, recordIds) en src/segments-data.js (~líneas 52-147), con TYPE_LABELS active/static y objetos por SEGMENT_OBJECTS. Pasos: (1) sustituir el modal por uno que liste los segmentos reales del mismo objeto que el registro (seg.object === type de la ficha): los estáticos con checkbox según segmentMembers(seg) contenga rec.id, los activos en una sección aparte de solo lectura con la marca «Miembro»/«No miembro» calculada; (2) al marcar/desmarcar un estático llamar a addStaticMembers/removeStaticMembers (ya persisten y dejan la entrada de cronología la primera vez), refrescar el modal y mostrar toast «Agregado a «X»» / «Quitado de «X»»; (3) cada segmento enlaza a su página (../../segments/ con la vista); (4) eliminar los 4 nombres ficticios. Criterio de aceptación: desde la ficha de un contacto se ven los segmentos estáticos reales con su membresía actual; marcar uno lo agrega de verdad (el tamaño del segmento sube en CRM › Segmentos y el registro aparece en su tabla), desmarcarlo lo quita; un segmento activo se muestra como miembro calculado sin casilla editable; la cronología registra solo cambios reales. No despliegues nada a producción; solo código local."
+      "instruction": "LÓGICA CRÍTICA (ficha de contacto/empresa/negocio/ticket). HubSpot: la acción «Agregar a lista» de la ficha abre «Administrar membresías de lista»: las listas ESTÁTICAS reales del objeto con una casilla por lista ya marcada según la membresía actual (marcar agrega, desmarcar quita), y las listas ACTIVAS se muestran calculadas de solo lectura («el registro cumple los criterios»). Omni HOY: el caso 'list' de src/record.js (~líneas 1693-1699) muestra un <select> con 4 nombres de listas FICTICIOS quemados ('Instaladores Florida', 'Clientes 2026', 'Arquitectos México', 'Boletín mensual') y el confirmador (~líneas 2068-2069) solo escribe una entrada en la cronología («Agregado a la lista…»): no agrega nada a ningún segmento real — la acción miente al usuario. El módulo de segmentos ya tiene la API completa: segments(), segmentById, segmentMembers, addStaticMembers(id, recordIds) y removeStaticMembers(id, recordIds) en src/segments-data.js (~líneas 52-147), con TYPE_LABELS active/static y objetos por SEGMENT_OBJECTS. Pasos: (1) sustituir el modal por uno que liste los segmentos reales del mismo objeto que el registro (seg.object === type de la ficha): los estáticos con checkbox según segmentMembers(seg) contenga rec.id, los activos en una sección aparte de solo lectura con la marca «Miembro»/«No miembro» calculada; (2) al marcar/desmarcar un estático llamar a addStaticMembers/removeStaticMembers (ya persisten y dejan la entrada de cronología la primera vez), refrescar el modal y mostrar toast «Agregado a «X»» / «Quitado de «X»»; (3) cada segmento enlaza a su página (../../segments/ con la vista); (4) eliminar los 4 nombres ficticios. Criterio de aceptación: desde la ficha de un contacto se ven los segmentos estáticos reales con su membresía actual; marcar uno lo agrega de verdad (el tamaño del segmento sube en CRM › Segmentos y el registro aparece en su tabla), desmarcarlo lo quita; un segmento activo se muestra como miembro calculado sin casilla editable; la cronología registra solo cambios reales. No despliegues nada a producción; solo código local.",
+      "completedAt": "2026-11-21T20:56:45-0600"
     },
     {
       "id": "gap-ui-tareas-estados-hubspot",
@@ -1368,12 +1369,10 @@
     },
     {
       "id": "gap-smoke-custom-props-writer",
-      "status": "done",
+      "status": "pending",
       "instruction": "smoke-custom-props falla en «saving should persist through the writer» (contacts, in_form, options Norte/Sur, group_name). Criterio: la prueba pasa. Ejecuta la(s) prueba(s) con node scripts/<smoke>.mjs hasta que pasen. Verifica si es regresión del código o prueba desactualizada por un cambio intencional; corrige lo que corresponda. No despliegues nada a producción; solo código local.",
       "createdAt": "2026-11-21T16:25:45-06:00",
-      "lane": "codex",
-      "completedAt": "2026-11-21T20:55:56-0600",
-      "completedBy": "codex"
+      "lane": "codex"
     },
     {
       "id": "gap-smoke-dedupe-skip",
