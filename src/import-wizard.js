@@ -298,9 +298,9 @@ function renderReview() {
   root.innerHTML = frame(`
     <section class="imp__card">
       <div class="imp__review-head"><div><h2>${esc(entry.name)}</h2><p class="muted">${esc(label)} · ${Number(entry.rows || 0).toLocaleString('es-ES')} filas · ${entry.mode === 'create' ? 'Solo crear' : entry.mode === 'update' ? 'Solo actualizar' : 'Crear y actualizar'} · identificador: ${E.UNIQUE_LABELS[entry.uniqueKey] || entry.uniqueKey} · creada por ${esc(entry.by)} el ${fmtDate(entry.when)}</p></div>
-        <span class="imp__state imp__state--${entry.state}">${E.stateLabel(entry.state)}</span></div>
+        <span class="imp__state imp__state--${entry.state}">${entry.undone ? 'Anulada' : E.stateLabel(entry.state)}</span></div>
       <div class="imp__timeline">
-        ${(d.timeline || []).map((t) => `<div class="imp__tl${t.state === entry.state ? ' is-current' : ''}"><span class="imp__tl-dot"></span><strong>${E.stateLabel(t.state)}</strong><span class="muted">${fmtTime(t.at)}${t.note ? ` · ${esc(t.note)}` : ''}</span></div>`).join('')}
+        ${(d.timeline || []).map((t) => `<div class="imp__tl${t.state === entry.state ? ' is-current' : ''}"><span class="imp__tl-dot"></span><strong>${entry.undone && t.state === 'CANCELED' ? 'Anulada' : E.stateLabel(t.state)}</strong><span class="muted">${fmtTime(t.at)}${t.note ? ` · ${esc(t.note)}` : ''}</span></div>`).join('')}
         ${running ? `<div class="imp__tl is-next"><span class="imp__tl-dot"></span><strong>Completada</strong><span class="muted">tiempo estimado: ${E.estimateSeconds(entry.rows || 0)} s</span></div>` : ''}
       </div>
       ${running ? `<div class="imp__progress" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100"><span style="width:${pct}%"></span></div><p class="muted">${p ? `${p.done} de ${p.total} registros procesados` : entry.state === 'DEFERRED' ? 'En cola: empezará cuando termine otra importación.' : 'Preparando…'}</p><button class="btn btn--ghost btn--sm" type="button" data-act="cancel">Cancelar importación</button>` : ''}
@@ -314,7 +314,7 @@ function renderReview() {
         <div class="imp__stat"><span>Errores</span><strong>${(d.errors || []).length.toLocaleString('es-ES')}</strong></div>
       </div>
       ${entry.state === 'DONE' ? `<p class="muted">Las filas importadas pueden no coincidir con los registros: un identificador secundario que actualiza un ${esc(singular)} no cuenta como nuevo.</p>` : ''}
-      <div class="imp__row">${entry.state === 'DONE' ? `<a class="btn btn--primary btn--sm" href="../../${type}/">Ver ${esc(label.toLowerCase())}</a>${entry.options && entry.options.createSegment ? `<a class="btn btn--ghost btn--sm" href="../../${type}/">Ver segmento</a>` : ''}` : ''}<a class="btn btn--ghost btn--sm" href="../">Historial de importaciones</a>${!running ? '<a class="btn btn--ghost btn--sm" href="./">Nueva importación</a>' : ''}</div>
+      <div class="imp__row">${E.undoInfo(entry.id) ? '<button class="btn btn--ghost btn--sm" type="button" data-act="undo-import">Deshacer importación…</button>' : ''}${entry.state === 'DONE' ? `<a class="btn btn--primary btn--sm" href="../../${type}/">Ver ${esc(label.toLowerCase())}</a>${entry.options && entry.options.createSegment ? `<a class="btn btn--ghost btn--sm" href="../../${type}/">Ver segmento</a>` : ''}` : ''}<a class="btn btn--ghost btn--sm" href="../">Historial de importaciones</a>${!running ? '<a class="btn btn--ghost btn--sm" href="./">Nueva importación</a>' : ''}</div>
     </section>
     <section class="imp__card">
       <div class="imp__review-head"><h2>Importar errores</h2><div class="imp__row">${(d.errors || []).length ? `<button class="btn btn--ghost btn--sm" type="button" data-act="dl-errors">Descargar errores (zip)</button>` : ''}${(d.failedRows || []).length ? `<button class="btn btn--ghost btn--sm" type="button" data-act="dl-rows">Descargar filas con errores (zip)</button>` : ''}</div></div>
@@ -368,6 +368,7 @@ root.addEventListener('click', (e) => {
   const drop = e.target.closest('[data-drop]');
   const errBtn = e.target.closest('[data-errors]');
   const act = e.target.closest('[data-act]');
+  if (act?.dataset.act === 'undo-import') { if (E.confirmUndoImport(state.importId)) renderReview(); return; }
   if (rep) {
     const m = state.mapping.find((x) => x.index === state.panelColumn);
     const input = [...root.querySelectorAll('[data-replace-input]')].find((el) => el.dataset.replaceInput === rep.dataset.replace);

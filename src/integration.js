@@ -1,5 +1,6 @@
 // Gestión de datos › Integración de datos: the four ways to bring data in (file import, app sync, transfer,
 // Data Hub) and the monitor of imports and synchronisations (file imports, app syncs, Data Studio syncs).
+import { undoInfo, confirmUndoImport } from './import-engine.js';
 import { boot } from './page.js';
 import { wireMenus, closeMenus, toast } from './shell.js';
 import { OWNERS, TODAY, formatDate, initials, colorFor, strip } from './data.js';
@@ -157,7 +158,7 @@ const chip = (key, label, current, options) => `
 function cellHtml(key, r) {
   switch (key) {
     case 'name': return r.sample ? `<a class="dint__name" href="#" data-import="${r.id}">${esc(r.name)}</a>` : `<a class="dint__name" href="./import/?id=${r.id}">${esc(r.name)}</a>`;
-    case 'state': return `<span class="dint__state"><span class="dint__dot ${stateClass(r.state)}"></span>${STATE_LABELS[r.state] || 'Listo'}</span>`;
+    case 'state': return `<span class="dint__state"><span class="dint__dot ${stateClass(r.state)}"></span>${r.undone ? 'Anulada' : STATE_LABELS[r.state] || 'Listo'}</span>`;
     case 'newRecords': return String(r.newRecords);
     case 'updated': return r.updated ? String(r.updated) : '<span class="muted">--</span>';
     case 'associations': return r.associations ? String(r.associations) : '<span class="muted">--</span>';
@@ -191,8 +192,8 @@ function renderPane() {
       <div class="search search--sm dint__search"><input type="search" id="dint-q" value="${esc(state.q)}" placeholder="Buscar" aria-label="Buscar importaciones" /><span class="ico ico--search" aria-hidden="true"></span></div>
       <div class="table-wrap dint__tablewrap">
         <table class="table dint__table">
-          <thead><tr>${cols.map((k) => `<th>${esc((COLUMNS.find((c) => c[0] === k) || [k, k])[1])}</th>`).join('')}</tr></thead>
-          <tbody>${rows.length ? rows.map((r) => `<tr data-id="${r.id}">${cols.map((k) => `<td data-key="${k}">${cellHtml(k, r)}</td>`).join('')}</tr>`).join('') : `<tr><td colspan="${cols.length}" class="muted dint__empty">No hay importaciones que coincidan.</td></tr>`}</tbody>
+          <thead><tr>${cols.map((k) => `<th>${esc((COLUMNS.find((c) => c[0] === k) || [k, k])[1])}</th>`).join('')}<th>Acciones</th></tr></thead>
+          <tbody>${rows.length ? rows.map((r) => `<tr data-id="${r.id}">${cols.map((k) => `<td data-key="${k}">${cellHtml(k, r)}</td>`).join('')}<td>${r.sample ? '' : `<div class="menu"><button class="btn btn--ghost btn--sm" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Acciones de ${esc(r.name)}">Acciones <span class="caret"></span></button><div class="menu__panel"><a class="menu__item" href="./import/?id=${r.id}">Ver detalle</a>${undoInfo(r.id) ? `<button class="menu__item" type="button" data-undo-import="${r.id}">Deshacer importación…</button>` : ''}</div></div>`}</td></tr>`).join('') : `<tr><td colspan="${cols.length + 1}" class="muted dint__empty">No hay importaciones que coincidan.</td></tr>`}</tbody>
         </table>
       </div>
       <p class="muted dint__count">${rows.length} importación${rows.length === 1 ? '' : 'es'}</p>`;
@@ -266,6 +267,8 @@ function openColumns() {
 
 // ---------- events ----------
 root.addEventListener('click', (e) => {
+  const undo = e.target.closest('[data-undo-import]');
+  if (undo) { closeMenus(); if (confirmUndoImport(undo.dataset.undoImport)) renderPane(); return; }
   const tab = e.target.closest('[data-tab]');
   if (tab) { state.tab = tab.dataset.tab; renderPane(); return; }
   const f = e.target.closest('[data-filter]');
@@ -274,7 +277,7 @@ root.addEventListener('click', (e) => {
   if (imp) {
     e.preventDefault();
     const r = imports().find((x) => x.id === Number(imp.dataset.import));
-    openModal(r.name, `<dl class="colinfo"><div><dt>Objeto</dt><dd>${esc(objectLabel(r.object))}</dd></div><div><dt>Estado</dt><dd>${STATE_LABELS[r.state] || 'Listo'}</dd></div><div><dt>Registros nuevos</dt><dd>${r.newRecords}</dd></div><div><dt>Registros actualizados</dt><dd>${r.updated || '--'}</dd></div><div><dt>Asociaciones nuevas</dt><dd>${r.associations || '--'}</dd></div><div><dt>Errores</dt><dd>${r.errors || '--'}</dd></div><div><dt>Creado por</dt><dd>${esc(r.by)}</dd></div><div><dt>Fecha</dt><dd>${esc(fmtWhen(r.when))}</dd></div><div><dt>Fuente</dt><dd>${esc(sourceLabel(r.source))} · ${esc(systemLabel(r.system))}</dd></div></dl>`, '<button class="btn btn--primary" type="button" data-close>Cerrar</button>');
+    openModal(r.name, `<dl class="colinfo"><div><dt>Objeto</dt><dd>${esc(objectLabel(r.object))}</dd></div><div><dt>Estado</dt><dd>${r.undone ? 'Anulada' : STATE_LABELS[r.state] || 'Listo'}</dd></div><div><dt>Registros nuevos</dt><dd>${r.newRecords}</dd></div><div><dt>Registros actualizados</dt><dd>${r.updated || '--'}</dd></div><div><dt>Asociaciones nuevas</dt><dd>${r.associations || '--'}</dd></div><div><dt>Errores</dt><dd>${r.errors || '--'}</dd></div><div><dt>Creado por</dt><dd>${esc(r.by)}</dd></div><div><dt>Fecha</dt><dd>${esc(fmtWhen(r.when))}</dd></div><div><dt>Fuente</dt><dd>${esc(sourceLabel(r.source))} · ${esc(systemLabel(r.system))}</dd></div></dl>`, '<button class="btn btn--primary" type="button" data-close>Cerrar</button>');
     return;
   }
   const err = e.target.closest('[data-errors]');

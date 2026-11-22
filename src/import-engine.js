@@ -4,7 +4,7 @@
 // de-duplication (e-mail, domain or record ID), the three import modes, associations by company, the error
 // catalogue with its impact, the import states (STARTED → PROCESSING → DONE / FAILED / CANCELED, DEFERRED when
 // three are running), the limits and the downloads.
-import { ALL, addRecord, setField, OWNERS, TODAY, getViewStore, setViewStore, strip, dealPipelines, stagesFor, ticketPipelines, ticketStatusesFor, TICKET_STATUSES, TASK_STATUSES, DEAL_STAGES, companyDomains } from './data.js';
+import { ALL, deleteRecords, addRecord, setField, OWNERS, TODAY, getViewStore, setViewStore, strip, dealPipelines, stagesFor, ticketPipelines, ticketStatusesFor, TICKET_STATUSES, TASK_STATUSES, DEAL_STAGES, companyDomains } from './data.js';
 import { propertyList, customProperties, saveCustomProperties } from './properties.js';
 import { addSegment } from './segments-data.js';
 
@@ -561,6 +561,30 @@ export function setState(id, state, note) {
   saveDetail(id, d);
   return updateImport(id, { state, ...(state === 'DONE' || state === 'FAILED' || state === 'CANCELED' ? { finishedAt: now } : {}) });
 }
+// Only the persisted creation ledger authorizes undo; import stamps also include updates.
+export function undoInfo(id) {
+  const entry = importHistory().find((r) => Number(r.id) === Number(id));
+  const detail = importDetail(id);
+  if (!entry || entry.sample || entry.state !== 'DONE' || entry.undone || detail?.undone || !detail?.createdIds) return null;
+  const groups = Object.entries(detail.createdIds).filter(([type]) => OBJECT_KEYS.includes(type));
+  const active = Object.fromEntries(groups.map(([type, ids]) => [type, [...new Set(ids.map(Number))]]));
+  return { active, count: Object.values(active).reduce((n, ids) => n + ids.length, 0) };
+}
+export function undoImport(id) {
+  const info = undoInfo(id);
+  if (!info) return false;
+  for (const [type, ids] of Object.entries(info.active)) if (ids.length) deleteRecords(type, ids);
+  saveDetail(id, { ...importDetail(id), undone: true, undoneCount: info.count });
+  updateImport(id, { undone: true });
+  setState(id, 'CANCELED', `Anulada por el usuario: ${info.count} registros eliminados`);
+  return true;
+}
+export function confirmUndoImport(id) {
+  const info = undoInfo(id);
+  if (!info) return false;
+  if (!window.confirm(`¿Deshacer importación? Se eliminarán ${info.count} registros creados por esta importación y se enviarán a la papelera, donde podrás restaurarlos. Los registros que solo se actualizaron se conservan con sus cambios. La importación quedará anulada y no podrá deshacerse de nuevo.`)) return false;
+  return undoImport(id);
+}
 export function recentWindow(hours = 24) {
   const since = Date.now() - hours * 3600000;
   return importHistory().filter((r) => !r.sample && new Date(r.when).getTime() >= since);
@@ -591,7 +615,7 @@ export function registerImport({ name, table, plan, options }) {
     duplicates: plan.summary.duplicatesExisting || 0, fileDuplicates: plan.summary.duplicatesInFile || 0, merged: plan.summary.merged || 0, filePolicy: plan.filePolicy || 'first',
   };
   saveHistory([entry, ...list]);
-  saveDetail(id, { timeline: [{ state: entry.state, at: entry.when, note: deferred ? 'Hay 3 importaciones en proceso; esta empezará cuando termine una.' : '' }], headers: table.headers, mapping: options.mapping || [], errors: plan.errors, failedRows: plan.records.filter((r) => r.action === 'skip').map((r) => ({ row: r.rowNumber, code: r.code, cells: r.cells })), summary: plan.summary });
+  saveDetail(id, { createdIds: {}, timeline: [{ state: entry.state, at: entry.when, note: deferred ? 'Hay 3 importaciones en proceso; esta empezará cuando termine una.' : '' }], headers: table.headers, mapping: options.mapping || [], errors: plan.errors, failedRows: plan.records.filter((r) => r.action === 'skip').map((r) => ({ row: r.rowNumber, code: r.code, cells: r.cells })), summary: plan.summary });
   return entry;
 }
 
@@ -630,6 +654,8 @@ export async function runImport(id, plan, { onProgress, isCanceled, chunk = 40, 
           r.importedId = rec.id;
           result.created += 1;
           result.createdIds.push(rec.id);
+          const detail = importDetail(id);
+          saveDetail(id, { ...detail, createdIds: { ...detail.createdIds, [type]: [...(detail.createdIds?.[type] || []), rec.id] } });
           // a company found or created from the e-mail domain (companies specification §2) counts as an association
           if (type === 'contacts' && rec.companyId && !data.companyId) { result.associations += 1; result.autoCompanies += 1; }
         } else {

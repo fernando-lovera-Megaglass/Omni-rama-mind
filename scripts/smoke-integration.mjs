@@ -40,7 +40,7 @@ log('tabs:', [...document.querySelectorAll('.dint__tab')].map((t) => t.textConte
 if (rows() < 10) fail('the imports table should list the sample imports');
 const headers = [...document.querySelectorAll('#dint-pane thead th')].map((t) => t.textContent);
 log('columns:', headers.join(' | '));
-if (headers.join('|') !== 'Nombre de la importación|Import State|New Records|Registros actualizados|New Associations|Errors|Creado por ID de usuario|Fecha y hora de creación del objeto') fail('columns differ');
+if (headers.join('|') !== 'Nombre de la importación|Import State|New Records|Registros actualizados|New Associations|Errors|Creado por ID de usuario|Fecha y hora de creación del objeto|Acciones') fail('columns differ');
 log('first row:', [...document.querySelector('#dint-pane tbody tr').querySelectorAll('td')].map((td) => td.textContent.trim()).join(' | '));
 log('chips:', [...document.querySelectorAll('.dint__chips .qchip')].map((c) => c.textContent.trim()).join(' | '));
 
