@@ -82,6 +82,7 @@ export function openCallDetail(row, { contactName = '', duration = '—', onSave
     finally { button.disabled = false; }
   });
   drawer.querySelector('[data-detail-save]')?.addEventListener('click', async (event) => {
+    if (saving) return;
     const button = event.currentTarget;
     saving = true;
     button.disabled = true;
@@ -90,8 +91,11 @@ export function openCallDetail(row, { contactName = '', duration = '—', onSave
     const notes = drawer.querySelector('textarea').value;
     drawer.querySelectorAll('select, textarea').forEach((input) => { input.disabled = true; });
     try {
-      await updateActivity(row.activity.id, { text: notes || row.title, extra: { outcome, notes } });
-      onSaved();
+      const activity = await updateActivity(row.activity.id, { text: notes || row.title, extra: { outcome, notes } });
+      row.activity = activity;
+      row.status = outcome;
+      row.notes = notes;
+      await onSaved(activity);
       status.textContent = 'Llamada guardada';
     } catch (error) { status.textContent = `No se pudo guardar: ${error.message}`; }
     finally {

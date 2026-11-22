@@ -31,6 +31,8 @@ drawer.querySelector('[data-detail-save]').click();
 assert.equal(drawer.querySelector('textarea').disabled, true);
 await new Promise(resolve => setTimeout(resolve, 0));
 assert.equal(refreshed, 1);
+assert.equal(row.status, 'Conectado');
+assert.equal(row.notes, 'Notas completas\n<texto>');
 const fresh = await import('../src/data.js?call-detail-reload');
 const saved = fresh.activitiesFor('contacts', 1)[0];
 assert.equal(saved.extra.outcome, 'Conectado');
@@ -38,6 +40,17 @@ assert.equal(saved.text, 'Notas completas\n<texto>');
 assert.equal(saved.extra.durationMin, 3);
 assert.equal(saved.extra.direction, 'Entrante');
 drawer.querySelector('[data-detail-close]').click();
+assert.equal(document.querySelector('#call-detail'), null);
+
+// A failed write must keep the user's edits available for retry.
+const failed = openCallDetail({ ...row, activity: { ...activity, id: 'missing-activity' } }, { onSaved: () => { throw new Error('Must not refresh after a failed write'); } });
+failed.querySelector('textarea').value = 'Conservar borrador';
+failed.querySelector('[data-detail-save]').click();
+await new Promise(resolve => setTimeout(resolve, 0));
+assert.match(failed.querySelector('[data-detail-status]').textContent, /No se pudo guardar/);
+assert.equal(failed.querySelector('textarea').value, 'Conservar borrador');
+assert.equal(failed.querySelector('[data-detail-save]').disabled, false);
+document.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
 assert.equal(document.querySelector('#call-detail'), null);
 
 // Open the actual contact timeline against the persisted activity.

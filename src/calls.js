@@ -204,7 +204,7 @@ function normalize() {
 async function loadTwilio() {
   if (!dbIsLive() || !supabase) return [];
   try {
-    const { data, error } = await supabase.from('call_logs').select('id,call_sid,direction,from_number,to_number,status,duration_sec,started_at,contact_id,recording_url,transcript,extra').order('started_at', { ascending: false }).limit(500);
+    const { data, error } = await supabase.from('call_logs').select('id,call_sid,direction,from_number,to_number,status,outcome,duration_sec,started_at,contact_id,recording_url,transcript,extra').order('started_at', { ascending: false }).limit(500);
     if (error || !Array.isArray(data)) return [];
     return data.map((r) => {
       const isOut = r.direction === 'outbound';
@@ -221,11 +221,11 @@ async function loadTwilio() {
         durationSec: Number(r.duration_sec) || 0,
         owner: 'Tú',
         direction: r.direction || '',
-        status: STATUS_LABEL[r.status] || r.status || '',
+        status: r.outcome || STATUS_LABEL[r.status] || r.status || '',
         number: displayPhone(num),
         contactId: r.contact_id || '',
         source: 'twilio',
-        notes: '',
+        notes: r.extra?.notes || '',
       };
     });
   } catch { return []; }
