@@ -2188,10 +2188,12 @@
     },
     {
       "id": "gap-smoke-timeline-negocio-contacto",
-      "status": "pending",
+      "status": "done",
       "instruction": "smoke-timeline: «deal creation on the contact» — al crear un negocio, la línea de tiempo del contacto muestra el cambio de ciclo de vida pero quizá falta la entrada de creación del negocio. Verifica qué entradas genera hoy ebc2fc6. OBLIGATORIO: ejecuta node scripts/<smoke>.mjs DESPUÉS de tu cambio e itera hasta que termine con código 0; no des por terminado sin verificarlo. Si el fallo es una limitación del harness jsdom (API de navegador inexistente), agrega el shim en la prueba, no cambies la app para complacer al harness. No despliegues nada a producción; solo código local.",
       "createdAt": "2026-11-22T08:22:54-06:00",
-      "lane": "codex"
+      "lane": "codex",
+      "completedAt": "2026-11-22T09:10:41-0600",
+      "completedBy": "codex"
     }
   ]
 }

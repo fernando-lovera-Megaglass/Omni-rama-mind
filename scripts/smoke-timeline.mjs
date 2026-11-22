@@ -42,9 +42,9 @@ const deal = data.addRecord('deals', { name: 'Fachada Cronología', amount: 1000
 const contactEntries = sys('contacts', contact.id);
 log('deal created → contact:', contactEntries.map((a) => a.text).join(' | '), '| company:', sys('companies', company.id).map((a) => a.text).join(' | '));
 // Lifecycle automation runs after the association entry, so creation need not be first.
-if (contactEntries.filter((a) => a.text === 'Negocio «Fachada Cronología» creado y asociado a este contacto.' && a.deals === deal.id).length !== 1) fail('deal creation on the contact');
-if (contactEntries.filter((a) => a.text === 'Etapa del ciclo de vida cambiada a «Oportunidad» por el negocio «Fachada Cronología».' && a.deal === deal.id).length !== 1 || data.findContact(contact.id)?.lifecycle !== 'Oportunidad') fail('deal lifecycle advancement on the contact');
-if (sys('companies', company.id).filter((a) => a.text === 'Negocio «Fachada Cronología» creado y asociado a esta empresa.' && a.deals === deal.id).length !== 1) fail('deal creation on the company');
+if (contactEntries.filter((a) => a.text === 'Negocio «Fachada Cronología» creado y asociado a este contacto.' && a.extra?.deals === deal.id).length !== 1) fail('deal creation on the contact');
+if (contactEntries.filter((a) => a.text === 'Etapa del ciclo de vida cambiada a «Oportunidad» por el negocio «Fachada Cronología».' && a.extra?.deal === deal.id).length !== 1 || data.findRecord('contacts', contact.id)?.lifecycle !== 'Oportunidad') fail('deal lifecycle advancement on the contact');
+if (sys('companies', company.id).filter((a) => a.text === 'Negocio «Fachada Cronología» creado y asociado a esta empresa.' && a.extra?.deals === deal.id).length !== 1) fail('deal creation on the company');
 data.setField('deals', deal.id, 'stage', 'evalua');
 log('stage change → deal:', sys('deals', deal.id)[0].text, '| contact:', sys('contacts', contact.id)[0].text, '| company:', sys('companies', company.id)[0].text);
 if (sys('deals', deal.id)[0].text !== 'Etapa cambiada a «Evalua».' || !/pasó a la etapa «Evalua»/.test(sys('contacts', contact.id)[0].text) || !/pasó a la etapa «Evalua»/.test(sys('companies', company.id)[0].text)) fail('stage change entries');
