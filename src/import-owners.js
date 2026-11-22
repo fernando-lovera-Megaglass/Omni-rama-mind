@@ -31,6 +31,9 @@ export function buildOwnerIndex(owners, { users = [], user = null, invitations =
   };
   (Array.isArray(users) ? users : []).forEach((person) => add(person));
   if (user) add({ email: user.email, name: user.user_metadata?.name || user.user_metadata?.full_name }, true);
+  // Saved invitation-only directory rows may outlive an unavailable invitation
+  // fetch. Infer their label only after explicit directory/session identities.
+  (Array.isArray(users) ? users : []).forEach((person) => add(person, true));
   (Array.isArray(invitations) ? invitations : []).forEach((person) => {
     if (!person || typeof person !== 'object') return;
     // An invitation repeats an existing identity; it must not create ambiguity.

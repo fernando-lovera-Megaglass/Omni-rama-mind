@@ -39,6 +39,16 @@ const sharedIdentity = buildOwnerIndex(data.OWNERS, {
 });
 assert.deepEqual(resolveIndexedOwner(sharedIdentity, 'fernando.lovera@real.example'), { value: 'Sofía R.' });
 assert.equal(resolveIndexedOwner(sharedIdentity, 'sofia.r@omni.crm').error, 'OWNER_NOT_FOUND');
+const directoryOnly = buildOwnerIndex(data.OWNERS, {
+  users: [{ name: 'laura.martinez@real.example', email: 'laura.martinez@real.example', invitationOnly: true }],
+});
+assert.deepEqual(resolveIndexedOwner(directoryOnly, 'laura.martinez@real.example'), { value: 'Laura M.' });
+assert.deepEqual(resolveIndexedOwner(directoryOnly, 'unknown@real.example'), { value: '', error: 'OWNER_NOT_FOUND' });
+const sessionOverPlaceholder = buildOwnerIndex(data.OWNERS, {
+  users: [{ name: 'laura.martinez@real.example', email: 'laura.martinez@real.example' }],
+  user: { email: 'laura.martinez@real.example', user_metadata: { name: 'Sofía R.' } },
+});
+assert.deepEqual(resolveIndexedOwner(sessionOverPlaceholder, 'laura.martinez@real.example'), { value: 'Sofía R.' });
 const placeholderIdentity = buildOwnerIndex(data.OWNERS, {
   users: [{ name: 'laura.martinez@real.example', email: 'laura.martinez@real.example', invitationOnly: true }],
   user: { email: 'fernando.lovera@real.example', user_metadata: { name: 'fernando.lovera@real.example' } },
