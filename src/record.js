@@ -794,6 +794,28 @@ function kindSortValue(kind, key, r) {
   return String(v ?? '');
 }
 const acardUi = {}; // per kind: { q, showSearch, filter }
+// The card's own filters («Editar tarjeta» › «Gestionar filtros», saved with the card): every condition must hold
+// on the associated record, compared on the raw value and on what the card shows (stage / status labels, dates…).
+const CARD_FILTER_OPS = [['is', 'es igual a'], ['not', 'no es igual a'], ['contains', 'contiene'], ['known', 'tiene valor'], ['unknown', 'no tiene valor']];
+const cardOpLabel = (op) => (CARD_FILTER_OPS.find(([k]) => k === op) || [op, op])[1];
+const cleanCardFilters = (filters) => (Array.isArray(filters) ? filters : []).filter((f) => f && f.key && CARD_FILTER_OPS.some(([k]) => k === f.op) && (['known', 'unknown'].includes(f.op) || String(f.value || '').trim() !== ''));
+function applyCardFilters(list, kind, filters) {
+  const conds = cleanCardFilters(filters);
+  if (!conds.length) return list;
+  return list.filter((r) => conds.every((f) => {
+    const raw = r[f.key];
+    const str = raw === undefined || raw === null ? '' : String(raw).trim();
+    const shown = str === '' ? '' : String(kindValue(kind, f.key, r));
+    const val = String(f.value || '').trim().toLowerCase();
+    const same = str.toLowerCase() === val || shown.toLowerCase() === val;
+    if (f.op === 'known') return str !== '';
+    if (f.op === 'unknown') return str === '';
+    if (f.op === 'contains') return `${str} ${shown}`.toLowerCase().includes(val);
+    if (f.op === 'not') return !same;
+    return same;
+  }));
+}
+const internalNameDefault = (kind) => `${(KIND_META[kind] || { p: kind }).p} Tarjeta de asociación (${cfg.label})`;
 function assocCard(title, rows, kind) {
   const s = acardSettings(kind);
   const ui = acardUi[kind] || (acardUi[kind] = { q: '', showSearch: false, filter: 'all', sortKey: null, sortDir: null });
@@ -801,6 +823,8 @@ function assocCard(title, rows, kind) {
   const sortKey = ui.sortKey || s.sortKey;
   const sortDir = ui.sortDir || s.sortDir;
   let list = rows.map((r, i) => ({ ...r, assocLabel: r.assocLabel || (i === 0 ? 'Principal' : 'Sin etiqueta') }));
+  list = applyCardFilters(list, kind, s.filters);
+  const filteredCount = list.length;
   if (ui.q) list = list.filter((r) => `${r.name} ${s.props.map((k) => kindValue(kind, k, r)).join(' ')}`.toLowerCase().includes(ui.q.toLowerCase()));
   if (ui.filter === 'primary') list = list.filter((r) => r.assocLabel === 'Principal');
   if (ui.filter === 'unlabeled') list = list.filter((r) => r.assocLabel === 'Sin etiqueta');
@@ -820,7 +844,7 @@ function assocCard(title, rows, kind) {
   return `
     <div class="card card--assoc" data-kind="${kind}">
       <div class="card__head">
-        <button class="card__toggle" type="button" data-toggle="assoc-${kind}"><span class="chev">⌄</span> ${esc(s.title)} (${rows.length})</button>
+        <button class="card__toggle" type="button" data-toggle="assoc-${kind}"><span class="chev">⌄</span> ${esc(s.title)} (${filteredCount})</button>
         <span class="card__tools">
           <button class="link-btn" type="button" data-act="add-assoc" data-kind="${kind}">+ Agregar</button>
           <button class="icon-btn icon-btn--round icon-btn--sm tip" type="button" data-act="acard-edit" data-kind="${kind}" aria-label="Editar tarjeta"><span class="ico ico--gear"></span><span class="tip__text">Editar tarjeta</span></button>
@@ -873,7 +897,7 @@ let cd = null;
 function openAcardEditor(kind) {
   const s = acardSettings(kind);
   const sample = assocRows().find((x) => x[2] === kind);
-  cd = { kind, global: settingScope(ACARD_KEY(kind)) === 'global', title: s.title, props: s.props.slice(), quick: s.quick, sortKey: s.sortKey, sortDir: s.sortDir, previewId: rec.id, sampleRows: sample ? sample[1] : [] };
+  cd = { kind, global: settingScope(ACARD_KEY(kind)) === 'global', title: s.title, props: s.props.slice(), quick: s.quick, sortKey: s.sortKey, sortDir: s.sortDir, previewId: rec.id, sampleRows: sample ? sample[1] : [], filters: (Array.isArray(s.filters) ? s.filters : []).map((f) => ({ ...f })), internal: s.internal || internalNameDefault(kind), showFilters: false, editInternal: false };
   renderAcardEditor();
   $('card-drawer').hidden = false;
 }
@@ -888,7 +912,8 @@ function renderAcardEditor() {
   const allKeys = catalog.flatMap((g) => g.items.map(([k, l]) => [k, l]));
   const sortOptions = [['created', 'Fecha de creación'], ...cd.props.filter((k) => k !== 'name').map((k) => [k, kindLabel(cd.kind, k)])];
   const previewSettings = { title: cd.title, props: cd.props, quick: cd.quick, sortKey: cd.sortKey, sortDir: cd.sortDir };
-  const previewRows = cd.sampleRows;
+  const previewRows = applyCardFilters(cd.sampleRows, cd.kind, cd.filters);
+  const valueless = (op) => ['known', 'unknown'].includes(op);
   $('card-drawer').innerHTML = `
     <div class="cdrawer__panel" role="dialog" aria-labelledby="cd-title">
       <header class="cdrawer__head"><h2 id="cd-title">Editar tarjeta predeterminada</h2><button class="icon-btn" type="button" data-cd="close" aria-label="Cerrar">×</button></header>
@@ -898,9 +923,11 @@ function renderAcardEditor() {
           <div class="cd-row">
             <input class="cd-input" id="cd-name" type="text" value="${esc(cd.title)}" maxlength="40" />
             <div class="menu"><button class="icon-btn icon-btn--round" type="button" aria-haspopup="true" aria-label="Más opciones">⋯</button>
-              <div class="menu__panel menu__panel--right"><button class="menu__item" type="button" data-cd="reset">Restablecer valores predeterminados</button><button class="menu__item menu__item--danger" type="button" data-cd="remove">Eliminar tarjeta</button></div></div>
+              <div class="menu__panel menu__panel--right"><button class="menu__item" type="button" data-cd="reset">Restablecer valores predeterminados</button></div></div>
           </div>
-          <p class="muted cd-internal">Nombre int… <span class="info">ⓘ</span>: ${esc(meta.p)} Tarjeta de asociación (${esc(cfg.label)}) <button class="pencil" type="button" data-cd="rename-internal" aria-label="Editar nombre interno">✎</button></p>
+          <p class="muted cd-internal">Nombre int… <span class="info" title="Nombre interno: solo se usa en la configuración, no lo ven los usuarios.">ⓘ</span>: ${cd.editInternal
+            ? `<input class="cd-input cd-input--inline" id="cd-internal" type="text" maxlength="80" value="${esc(cd.internal)}" aria-label="Nombre interno" />`
+            : `<span id="cd-internal-text">${esc(cd.internal)}</span> <button class="pencil" type="button" data-cd="rename-internal" aria-label="Editar nombre interno">✎</button>`}</p>
           <hr class="cd-sep" />
           <label class="ocheck ocheck--sm cardprops__scope"><input type="checkbox" data-cd="global" ${cd.global ? 'checked' : ''} /><span><strong>Aplicar a todos los usuarios de la cuenta</strong><small>${settingsLive() ? 'Guarda esta configuración para ti o para toda la cuenta.' : 'Sin conexión se guarda en este navegador.'}</small></span></label>
           <h3 class="cd-h">Propiedades</h3>
@@ -923,7 +950,16 @@ function renderAcardEditor() {
             .join('')}</ul>
           <hr class="cd-sep" />
           <h3 class="cd-h">Filtrar y ordenar</h3>
-          <div class="cd-line"><span>Filtro <span class="info">ⓘ</span></span><button class="link-btn link-btn--dark" type="button" data-cd="filters">⚟ Gestionar filtros</button></div>
+          <div class="cd-line"><span>Filtro <span class="info" title="Solo se muestran los registros asociados que cumplen todas las condiciones.">ⓘ</span></span><button class="link-btn link-btn--dark" type="button" data-cd="filters" aria-expanded="${cd.showFilters ? 'true' : 'false'}">⚟ ${cd.filters.length ? `${cd.filters.length} filtro${cd.filters.length > 1 ? 's' : ''}` : 'Gestionar filtros'}</button></div>
+          ${cd.showFilters ? `<div class="cd-filters" id="cd-filters">
+            ${cd.filters.length ? cd.filters.map((f, i) => `<div class="cd-filter" data-fi="${i}">
+              <select class="cd-input cd-filter__key" data-cdf="key" data-fi="${i}" aria-label="Propiedad">${allKeys.map(([k, l]) => `<option value="${esc(k)}" ${f.key === k ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>
+              <select class="cd-input cd-filter__op" data-cdf="op" data-fi="${i}" aria-label="Condición">${CARD_FILTER_OPS.map(([k, l]) => `<option value="${k}" ${f.op === k ? 'selected' : ''}>${l}</option>`).join('')}</select>
+              ${valueless(f.op) ? '<span class="muted cd-filter__novalue">—</span>' : `<input class="cd-input cd-filter__value" type="text" data-cdf="value" data-fi="${i}" value="${esc(f.value || '')}" placeholder="Valor" aria-label="Valor" />`}
+              <button class="icon-btn" type="button" data-cdf-rm="${i}" aria-label="Quitar filtro">×</button>
+            </div>`).join('') : '<p class="muted">Sin filtros: la tarjeta muestra todos los registros asociados.</p>'}
+            <button class="link-btn" type="button" data-cd="add-filter">+ Agregar filtro</button>
+          </div>` : (cd.filters.length ? `<div class="cd-chips">${cd.filters.map((f) => `<span class="tag tag--none">${esc(kindLabel(cd.kind, f.key))} ${esc(cardOpLabel(f.op))}${valueless(f.op) ? '' : ` «${esc(f.value || '')}»`}</span>`).join('')}</div>` : '')}
           <hr class="cd-sep cd-sep--light" />
           <div class="cd-line"><span>Filtros rápidos <span class="info">ⓘ</span></span>
             <div class="menu"><button class="link-btn link-btn--dark" type="button" aria-haspopup="true">${cd.quick ? '1 filtro rápido' : '0 filtros rápidos'} <span class="caret"></span></button>
@@ -2770,7 +2806,7 @@ if (rec) {
       else if (a === 'save') {
         cd.title = $('cd-name').value.trim() || KIND_META[cd.kind].p;
         const key = ACARD_KEY(cd.kind);
-        const card = { title: cd.title, props: cd.props, quick: cd.quick, sortKey: cd.sortKey, sortDir: cd.sortDir };
+        const card = { title: cd.title, props: cd.props, quick: cd.quick, sortKey: cd.sortKey, sortDir: cd.sortDir, filters: cleanCardFilters(cd.filters), internal: cd.internal || internalNameDefault(cd.kind) };
         saveJson(key, card);
         setSetting(key, card, { scope: cd.global ? 'global' : 'user' });
         closeAcardEditor();
@@ -2783,11 +2819,20 @@ if (rec) {
         setSetting(key, null, { scope: settingScope(key) === 'global' ? 'global' : 'user' });
         closeAcardEditor(); renderAssoc(); toast('Tarjeta restablecida'); openAcardEditor(kind);
       }
-      else if (a === 'remove') toast('Las tarjetas predeterminadas no se pueden eliminar; puedes ocultarla desde "Personalizar".');
-      else if (a === 'filters') toast('Los filtros de la tarjeta se gestionan por etiqueta de asociación en esta versión.');
-      else if (a === 'rename-internal') toast('El nombre interno solo se usa en la configuración.');
+      else if (a === 'filters') { cd.title = $('cd-name').value; cd.showFilters = !cd.showFilters; renderAcardEditor(); }
+      else if (a === 'add-filter') {
+        cd.title = $('cd-name').value;
+        cd.showFilters = true;
+        const first = (PROPERTIES[cd.kind] || []).flatMap((g) => g.items)[0];
+        cd.filters.push({ key: first ? first[0] : 'name', op: 'is', value: '' });
+        renderAcardEditor();
+        el.querySelector(`.cd-filter[data-fi="${cd.filters.length - 1}"] [data-cdf="value"]`)?.focus();
+      }
+      else if (a === 'rename-internal') { cd.title = $('cd-name').value; cd.editInternal = true; renderAcardEditor(); const inp = $('cd-internal'); if (inp) { inp.focus(); inp.select(); } }
       return;
     }
+    const frm = e.target.closest('[data-cdf-rm]');
+    if (frm) { cd.title = $('cd-name').value; cd.filters.splice(Number(frm.dataset.cdfRm), 1); renderAcardEditor(); return; }
     const rm = e.target.closest('[data-cdremove]');
     if (rm && !rm.disabled) { cd.title = $('cd-name').value; cd.props.splice(Number(rm.dataset.cdremove), 1); renderAcardEditor(); return; }
     const so = e.target.closest('[data-cdsort]');
@@ -2798,6 +2843,14 @@ if (rec) {
   el.addEventListener('change', (e) => {
     if (e.target.matches('[data-cd="global"]')) { cd.global = e.target.checked; return; }
     if (e.target.matches('[data-cd="quick"]')) { cd.quick = e.target.checked; cd.title = $('cd-name').value; renderAcardEditor(); return; }
+    // the card's filters: property / condition / value of each row
+    const cf = e.target.closest('[data-cdf]');
+    if (cf) {
+      const f = cd.filters[Number(cf.dataset.fi)];
+      if (f) { f[cf.dataset.cdf] = cf.value; if (['known', 'unknown'].includes(f.op)) f.value = ''; cd.title = $('cd-name').value; renderAcardEditor(); }
+      return;
+    }
+    if (e.target.id === 'cd-internal') { cd.internal = e.target.value.trim() || internalNameDefault(cd.kind); cd.editInternal = false; cd.title = $('cd-name').value; renderAcardEditor(); return; }
     const add = e.target.closest('[data-cdadd]');
     if (add) {
       cd.title = $('cd-name').value;

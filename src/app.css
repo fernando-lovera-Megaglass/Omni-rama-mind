@@ -9325,6 +9325,25 @@ textarea.cellpop__input {
   gap: var(--sp-16);
   font-weight: 600;
 }
+/* «Gestionar filtros» of an association card: one row per condition (property, condition, value). */
+.cd-filters {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+  margin: var(--sp-8) 0;
+}
+.cd-filter {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr 1fr auto;
+  gap: var(--sp-8);
+  align-items: center;
+}
+.cd-filter__novalue { text-align: center; }
+.cd-input--inline {
+  display: inline-block;
+  width: auto;
+  min-width: 220px;
+}
 
 .cd-chips {
   margin-top: var(--sp-10);

@@ -1,5 +1,13 @@
 # Progreso — Omni CRM
 
+## 2026-11-22 (sesión 6) · «Editar tarjeta predeterminada» de las tarjetas de asociación: filtros reales, nombre interno editable y sin botones de adorno (4 módulos)
+
+- `src/record.js`: «⚟ Gestionar filtros» abre un editor dentro del cajón (una fila por condición: propiedad del objeto asociado, condición «es igual a / no es igual a / contiene / tiene valor / no tiene valor», valor; «+ Agregar filtro», quitar); la vista previa del cajón y el contador del botón siguen los filtros al instante. Al guardar, los filtros viajan en el mismo ajuste de la tarjeta (`crm:<objeto>:assoccard:<kind>`, por usuario o para toda la cuenta) y `assocCard` los aplica al listar (`applyCardFilters`, compara el valor crudo y el mostrado: etapas, estados, fechas); el título de la tarjeta muestra el conteo filtrado.
+- El lápiz del nombre interno lo convierte en un campo editable y el valor se guarda con la tarjeta (`internal`; «Restablecer» lo devuelve al predeterminado). «Eliminar tarjeta» desaparece del menú ⋯: las tarjetas predeterminadas no se eliminan (se ocultan desde «Personalizar»), así que no se ofrece en rojo algo que nunca se podía usar. Ya no queda ningún botón del cajón que solo lance un toast.
+- `src/app.css`: estilos de las filas de filtro y del campo de nombre interno.
+- Pruebas: `scripts/smoke-assoc-card-filters.mjs` (en una empresa con 35 contactos: filtro «Correo contiene …» → vista previa y tarjeta pasan a 2, persiste tras recargar, «no tiene valor» y «no es igual a» funcionan, quitar el filtro devuelve todos; el nombre interno se edita y persiste; restablecer limpia; contactos, negocios y tickets ofrecen el mismo editor sin «Eliminar tarjeta»; estático: sin manejadores que solo lanzan toast). Smokes de ficha, personalización, vista previa y asociaciones en verde.
+- Solo código local; nada desplegado.
+
 ## 2026-11-22 (sesión 6) · Adjuntos: `supabase/attachments.sql` aplicada; la tabla y el bucket existen y los adjuntos persisten
 
 - A petición expresa, `supabase/attachments.sql` se aplicó con `scripts/apply-migration.mjs`: tabla `public.attachments` (id, object_type, record_id, name, path, size, content_type, uploaded_by, uploaded_by_name, created_at) con política «team access» (`is_team_member()`), bucket privado `attachments` y políticas `attachments_team_select/insert/delete` en `storage.objects`. Registrada como aplicada con la verificación en `scripts/applied-migrations.json`.
