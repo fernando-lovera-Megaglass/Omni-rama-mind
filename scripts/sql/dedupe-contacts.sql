@@ -9,12 +9,76 @@ BEGIN
     EXECUTE format('LOCK TABLE %I.%I IN SHARE ROW EXCLUSIVE MODE', r.schemaname, r.tablename);
   END LOOP;
 END $$;
+-- Inventory and scoring use persisted values, never UI demo decorations.
+CREATE TEMP TABLE contact_inventory ON COMMIT DROP AS
+SELECT c.id, lower(btrim(c.email)) AS email, c.created, to_jsonb(c) AS before,
+  (SELECT count(*) FROM jsonb_each(to_jsonb(c) - ARRAY['id','created','deleted_at','extra','last_activity','last_activity_type']) e
+   WHERE e.value NOT IN ('null'::jsonb, '""'::jsonb, '{}'::jsonb, '[]'::jsonb)) +
+  (SELECT count(*) FROM jsonb_each(coalesce(c.extra,'{}')) e
+   WHERE e.value NOT IN ('null'::jsonb, '""'::jsonb, '{}'::jsonb, '[]'::jsonb)) AS filled_fields,
+  (SELECT count(*) FROM deals d WHERE d.contact_id=c.id) AS deals,
+  (SELECT count(*) FROM tickets t WHERE t.contact_id=c.id) AS tickets,
+  (SELECT count(*) FROM tasks t WHERE t.contact_id=c.id) AS tasks,
+  0::bigint AS activities, 0::bigint AS enrollments
+FROM public.contacts c WHERE c.deleted_at IS NULL AND btrim(c.email) <> '';
+DO $$ BEGIN
+  IF to_regclass('public.activities') IS NOT NULL THEN
+    UPDATE contact_inventory i SET activities=(SELECT count(*) FROM public.activities a WHERE a.record_type='contacts' AND a.record_id=i.id);
+  END IF;
+  IF to_regclass('public.sequence_enrollments') IS NOT NULL THEN
+    UPDATE contact_inventory i SET enrollments=(SELECT count(*) FROM public.sequence_enrollments e WHERE e.contact_id=i.id);
+  END IF;
+END $$;
 CREATE TEMP TABLE contact_merge ON COMMIT DROP AS
 SELECT id AS duplicate_id, canonical_id FROM (
-  SELECT id, min(id) OVER (PARTITION BY lower(btrim(email))) AS canonical_id
-  FROM public.contacts WHERE deleted_at IS NULL AND btrim(email) <> ''
+  SELECT id, first_value(id) OVER (PARTITION BY email ORDER BY filled_fields DESC, id) AS canonical_id
+  FROM contact_inventory
 ) c WHERE id <> canonical_id;
-SELECT m.*, row_to_json(c) AS duplicate_before FROM contact_merge m JOIN public.contacts c ON c.id=m.duplicate_id ORDER BY duplicate_id;
+SELECT i.*, min(i.id) OVER (PARTITION BY i.email) AS lower_id,
+ max(i.id) OVER (PARTITION BY i.email) AS higher_id
+FROM contact_inventory i WHERE email IN (SELECT email FROM contact_inventory GROUP BY email HAVING count(*)>1)
+ORDER BY email, id;
+SELECT * FROM contact_merge ORDER BY canonical_id, duplicate_id;
+
+-- Conflicting identities require review; do not partially commit a repair.
+SELECT m.*, 'conflicting identity' AS review_reason
+FROM contact_merge m JOIN contacts k ON k.id=m.canonical_id JOIN contacts d ON d.id=m.duplicate_id
+WHERE (btrim(k.first) <> '' AND btrim(d.first) <> '' AND lower(btrim(k.first)) <> lower(btrim(d.first)))
+ OR (btrim(k.last) <> '' AND btrim(d.last) <> '' AND lower(btrim(k.last)) <> lower(btrim(d.last)));
+DO $$ BEGIN
+ IF EXISTS (SELECT 1 FROM contact_merge m JOIN contacts k ON k.id=m.canonical_id JOIN contacts d ON d.id=m.duplicate_id
+ WHERE (btrim(k.first) <> '' AND btrim(d.first) <> '' AND lower(btrim(k.first)) <> lower(btrim(d.first)))
+ OR (btrim(k.last) <> '' AND btrim(d.last) <> '' AND lower(btrim(k.last)) <> lower(btrim(d.last)))) THEN
+ RAISE EXCEPTION 'Ambiguous identities: review inventory; entire repair rolled back';
+ END IF;
+END $$;
+
+-- Like mergeRecords: retain principal values and fill empty scalar properties.
+-- Full before images above include conflicting values for review and recovery.
+DO $$
+DECLARE m record; col record; patch jsonb; source jsonb; target jsonb; e record;
+BEGIN
+ FOR m IN SELECT * FROM contact_merge ORDER BY canonical_id, duplicate_id LOOP
+  SELECT to_jsonb(c) INTO source FROM contacts c WHERE id=m.duplicate_id;
+  SELECT to_jsonb(c) INTO target FROM contacts c WHERE id=m.canonical_id;
+  FOR col IN SELECT attname FROM pg_attribute WHERE attrelid='public.contacts'::regclass
+    AND attnum>0 AND NOT attisdropped AND attgenerated='' AND attname NOT IN
+    ('id','created','deleted_at','name','first','last','extra') LOOP
+    IF target->col.attname IN ('null'::jsonb, '""'::jsonb) AND source->col.attname NOT IN ('null'::jsonb, '""'::jsonb) THEN
+      EXECUTE format('UPDATE contacts SET %1$I=(jsonb_populate_record(NULL::contacts,$1)).%1$I WHERE id=$2',col.attname)
+        USING source, m.canonical_id;
+    END IF;
+  END LOOP;
+  patch := coalesce(target->'extra','{}');
+  FOR e IN SELECT * FROM jsonb_each(coalesce(source->'extra','{}')) LOOP
+    IF (patch->e.key IS NULL OR patch->e.key IN ('null'::jsonb,'""'::jsonb))
+       AND jsonb_typeof(e.value) NOT IN ('object','array','null') THEN
+      patch := jsonb_set(patch,ARRAY[e.key],e.value);
+    END IF;
+  END LOOP;
+  UPDATE contacts SET extra=patch WHERE id=m.canonical_id;
+ END LOOP;
+END $$;
 
 -- Merge bridge collisions before updating its unique (contact_id, company_id).
 DO $$
@@ -82,3 +146,15 @@ BEGIN
     GROUP BY 1 HAVING count(*) > 1
   ) THEN RAISE EXCEPTION 'Live duplicate emails remain; rolling back'; END IF;
 END $$;
+
+-- Check existing orphans too, not only links touched by this run.
+DO $$
+DECLARE t text; n bigint;
+BEGIN
+ FOREACH t IN ARRAY ARRAY['deals','tickets'] LOOP
+  EXECUTE format('SELECT count(*) FROM %I r LEFT JOIN contacts c ON c.id=r.contact_id WHERE r.contact_id IS NOT NULL AND c.id IS NULL',t) INTO n;
+  RAISE NOTICE '% orphan contact references: %', t, n;
+  IF n <> 0 THEN RAISE EXCEPTION 'Orphans in %, rolling back',t; END IF;
+ END LOOP;
+END $$;
+SELECT count(*) AS merged_copies, count(DISTINCT canonical_id) AS merged_groups FROM contact_merge;

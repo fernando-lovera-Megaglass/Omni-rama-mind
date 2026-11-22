@@ -16,7 +16,7 @@ Requisitos: una copia local de PostgreSQL, `psql`, esquema actual (incluyendo `s
    psql -X -v ON_ERROR_STOP=1 postgres://localhost/omni_local -f supabase/contact-integrity.sql
    ```
 
-La reparación bloquea las tablas durante una única transacción. Agrupa contactos activos por `lower(btrim(email))`, omite emails vacíos/null y conserva el menor ID activo. Conserva las copias con `deleted_at`, reapunta las columnas `contact_id`, las referencias polimórficas `record_id` con discriminador `record_type`/`object_type` y las FK simples declaradas hacia contactos, incluso en otros esquemas. Una FK compuesta o una restricción desconocida incompatible aborta toda la transacción para permitir su revisión explícita. Referencias arbitrarias dentro de JSON no son FK y no se modifican.
+La reparación bloquea las tablas durante una única transacción. Agrupa contactos activos por `lower(btrim(email))`, omite emails vacíos/null y conserva el contacto con más campos persistidos no vacíos (incluidas propiedades extra); desempata por menor ID activo. Conserva las copias con `deleted_at`, reapunta las columnas `contact_id`, las referencias polimórficas `record_id` con discriminador `record_type`/`object_type` y las FK simples declaradas hacia contactos, incluso en otros esquemas. Una FK compuesta o una restricción desconocida incompatible aborta toda la transacción para permitir su revisión explícita. Referencias arbitrarias dentro de JSON no son FK y no se modifican.
 
 Cuando varias asociaciones apuntan a la misma empresa, conserva la asociación canónica (o la de menor ID), combina `is_primary` mediante OR y conserva su etiqueta. Las filas anteriores, incluidas las etiquetas de asociaciones redundantes, quedan en el log de auditoría. Las asociaciones redundantes se eliminan para respetar su restricción única; los contactos duplicados solo reciben soft delete. Proteger los logs porque contienen datos de contactos.
 
@@ -57,3 +57,14 @@ No se ejecutó la reparación contra la base real: la instrucción vigente limit
 Orden de aplicación futura: `bootstrap-demo.sql`, reparación transaccional y `contact-integrity.sql`. El registro local mantiene ambas migraciones como pendientes, nunca como aplicadas. El índice aborta si quedan duplicados; el reparador también aborta si la verificación final no da cero grupos. El estado histórico `done` no acredita una reparación de la base viva.
 
 La consulta original sin `deleted_at IS NULL` seguirá mostrando correos repetidos después de un soft delete correcto. La aceptación debe usar la consulta de activos de arriba; las copias se conservan para auditoría.
+
+
+## Reapertura del 21 de noviembre: 77 pares
+
+Estado: pendiente de ejecución y aceptación en los datos reales. Fusiones reales realizadas en esta intervención: **0**. Pares ambiguos reales: **no evaluados**, porque no se consultó ni modificó la base remota y no se proporcionó una copia local. Los 77 pares reportados equivalen a 154 filas implicadas y 77 copias sobrantes, no 154 copias sobrantes.
+
+El inventario transaccional imprime ambos IDs, fechas de creación, datos completos anteriores, puntuación de campos y conteos de negocios, tickets, tareas, actividades e inscripciones (si existe `sequence_enrollments`). La selección prioriza cantidad de campos y desempata por ID; las asociaciones se trasladan independientemente de esa selección. Completa campos escalares vacíos y propiedades escalares de `extra`, preservando los valores del principal. Nombres o apellidos contradictorios se imprimen como ambiguos y abortan toda la reparación para revisión, sin fusiones parciales. Restricciones de inscripciones incompatibles también abortan y requieren revisión; no se borran inscripciones para forzar su traslado.
+
+El resultado muestra grupos y copias fusionados y exige cero huérfanos en negocios/tickets, además de cero grupos duplicados vivos y cero referencias inspeccionadas a las copias. Las imágenes anteriores permiten revisar conflictos; la restauración del contacto desde papelera no revierte automáticamente sus asociaciones. JSON de asociaciones requiere revisión explícita, como ya se indica arriba.
+
+Validación local con PGlite: rollback, repetibilidad, principal de ID mayor con más datos, completado de teléfono y propiedad personalizada, contactos conservados físicamente, relaciones trasladadas y rechazo de huérfanos preexistentes. Esto valida el código, no acredita que los 77 pares reales estén resueltos.
