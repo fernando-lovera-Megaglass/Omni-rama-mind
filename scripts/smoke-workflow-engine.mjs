@@ -189,8 +189,9 @@ log('delay: next run scheduled in 2 days (not due after 1 day; resumed after 2 �
 // ===== 5) The editor: active enrolees + action history, process due, cancel =====
 useDom('<!doctype html><body class="app app--editor"><main class="wfe-root" id="wfe-root"></main></body>', `http://localhost/automation/editor/?id=${wf2.id}`);
 await import(resolve(here, '../src/workflow-editor.js'));
-if (text(q('[data-we="runs"]')) !== 'Inscritos activos (1)') fail(`runs button: ${text(q('[data-we="runs"]'))}`);
-click(q('[data-we="runs"]'));
+// the active enrolees show as a count on «Historial del rendimiento» (one dark bar, as the original's editor)
+if (text(q('[data-we="history"] .wfe__count')) !== '1') fail(`runs count on the history button: ${text(q('[data-we="history"]'))}`);
+click(q('[data-we="history"]'));
 if (!$('wfe-modal').classList.contains('is-open') || text($('wfe-modal-title')) !== 'Inscritos e historial del workflow') fail('runs modal');
 if (text($('wfe-runs-title')) !== 'Inscritos activos (1)' || qa('#wfe-runs tbody tr[data-run]').length !== 1) fail('active enrolees table');
 const activeRow = q('#wfe-runs tbody tr[data-run]');
@@ -202,7 +203,7 @@ click(q('[data-wm="process-due"]'));
 await wait(30);
 if (!toastText().includes('No hay pasos vencidos')) fail(`process due toast: ${toastText()}`);
 click(q('#wfe-runs [data-wm="cancel-run"]'));
-if (E.runById(r6.run.id).estado !== 'cancelled' || qa('#wfe-runs tbody tr[data-run]').length !== 0 || !text($('wfe-hist')).includes('Cancelada') || text(q('[data-we="runs"]')) !== 'Inscritos activos') fail('cancel from the view');
+if (E.runById(r6.run.id).estado !== 'cancelled' || qa('#wfe-runs tbody tr[data-run]').length !== 0 || !text($('wfe-hist')).includes('Cancelada') || q('[data-we="history"] .wfe__count')) fail('cancel from the view');
 if (!data.activitiesFor('contacts', c3.id).some((a) => a.text === 'Inscripción en el workflow «Seguimiento (motor)» cancelada por Fernando L.')) fail('cancel timeline entry');
 click(q('#wfe-modal [data-bm="close"]'));
 log('editor: «Inscritos activos (1)» → table with step, state, next run, cancel; action history; enrolment table; «Procesar pasos vencidos»');
@@ -215,7 +216,7 @@ if (E.checkerRunning()) fail('stop');
 E.startWorkflowChecker({ intervalMs: 25 });
 await wait(80);
 if (!E.checkerRunning() || E.runById(r7.run.id).estado !== 'completed' || !E.lastCheckAt()) fail(`checker did not advance the run: ${E.runById(r7.run.id).estado}`);
-if (text(q('[data-we="runs"]')) !== 'Inscritos activos') fail('the editor button refreshes after the checker');
+if (q('[data-we="history"] .wfe__count')) fail('the editor button refreshes after the checker');
 E.stopWorkflowChecker();
 log('checker: the due run resumed by itself (start → every 25 ms here, every minute in the app)');
 

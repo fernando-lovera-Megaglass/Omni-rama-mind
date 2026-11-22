@@ -84,7 +84,7 @@ assert.equal(E.runsOf(wf.id).length, 3);
 useDom('<body class="app app--editor"><main class="wfe-root" id="wfe-root"></main></body>', `http://localhost/automation/editor/?id=${wf.id}`);
 await import('../src/workflow-editor.js');
 await wait(30);
-click(q('[data-we="runs"]'));
+click(q('[data-we="history"]')); // «Historial del rendimiento» (with the active count) opens the enrolees view
 await wait(20);
 assert.equal(qa('#wfe-runs tbody tr[data-run]').length, 3);
 for (const c of contacts) assert(text($('wfe-runs')).includes(W.recordName('contacts', c)));
