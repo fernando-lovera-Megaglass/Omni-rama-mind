@@ -210,5 +210,12 @@
   "ticket_tags.sql": {
     "status": "pendiente",
     "nota": "Solo código local; no aplicada a producción. Tabla ticket_tags (misma forma que deal_tags) para las Etiquetas de Ticket; mientras tanto la app usa localStorage crm:ticket_tags."
+  },
+  "crm_views.sql": {
+    "status": "aplicada",
+    "at": "2026-11-22T06:30:00Z",
+    "nota": "Aplicada por el otro carril al barrer el archivo (f038459); escrita aquí como migración local.",
+    "verificada": "2026-11-22T06:38:00Z",
+    "verificacion": "SQL: tabla crm_views con id,object_type,name,share,owner_id,owner_name,teams,payload,created_at,updated_at y políticas crm_views_read/insert/update/delete; SMOKE_LIVE=1 scripts/smoke-views-shared.mjs: el usuario A guarda privada/equipo/todos, B ve solo las compartidas con autor A y RLS le impide editarlas; 0 filas al terminar."
   }
 }

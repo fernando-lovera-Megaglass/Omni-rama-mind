@@ -1158,6 +1158,7 @@ export function mountList(cfg) {
     if (!el) return;
     const v = viewById(state.viewId);
     const std = !v || v.standard;
+    const foreign = Boolean(v) && v.mine === false; // shared by a colleague: usable, not editable here
     const dirty = isDirty();
     const check = (on) => `<span class="vsmenu__check${on ? ' is-on' : ''}" aria-hidden="true">✓</span>`;
     const toggle = (action, on, label) => `<button class="menu__item vsmenu__toggle" type="button" role="menuitemcheckbox" aria-checked="${on}" data-action="${action}">${check(on)}<span>${label}</span></button>`;

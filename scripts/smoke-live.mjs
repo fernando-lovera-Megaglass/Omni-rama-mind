@@ -78,6 +78,8 @@ export async function cleanupLive(session) {
     delete from public.tickets where name like ${like};
     delete from public.companies where name like ${like};
     delete from public.contacts where name like ${like} or email like 'smoke.%@ejemplo.com';`);
+  // Saved views of the run (the table may not exist yet: crm_views.sql pending).
+  try { await sql(`delete from public.crm_views where name like ${like}`); } catch { /* no table */ }
   if (session) await removeLiveUser(session);
 }
 

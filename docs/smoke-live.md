@@ -12,6 +12,7 @@ Seis smokes de persistencia tienen un **modo live opcional** que repite la opera
 | `smoke-tickets-trash.mjs` | Exige la columna `tickets.deleted_at` (migración `soft_delete_tickets.sql`); borrar → `deleted_at` con fecha; restaurar → `null` |
 | `smoke-record-merge.mjs` | Fusionar dos contactos → el duplicado queda en la papelera (`deleted_at`) y el principal toma el valor elegido |
 | `smoke-record-customize.mjs` | Exige `user_settings.scope` y la tabla `account_settings` (migración `user_settings.sql`); personalizar «Acerca de» → fila en `user_settings` con `scope = 'user'`; «Aplicar a todos» → fila en `account_settings` solo con rol admin |
+| `smoke-views-shared.mjs` | Exige la tabla `crm_views` (migración `crm_views.sql`); el usuario A guarda vistas privada / equipo / todos → filas suyas; un segundo usuario SMOKE (B) lee con su sesión las compartidas con el autor A y no la privada, y RLS le impide editarlas; borrar una vista propia borra su fila |
 
 ## Cómo correrlo
 
