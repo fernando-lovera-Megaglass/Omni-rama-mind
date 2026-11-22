@@ -8159,6 +8159,13 @@ textarea.cellpop__input {
   display: flex;
 }
 
+.preview__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
 .preview__top {
   display: flex;
   align-items: flex-start;
@@ -8176,7 +8183,7 @@ textarea.cellpop__input {
   overflow-wrap: anywhere;
   font-size: 24px;
   line-height: 30px;
-  font-weight: 500;
+  font-weight: 700;
 }
 
 .preview__sub {
@@ -8204,8 +8211,8 @@ textarea.cellpop__input {
 }
 
 .preview__quick {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   justify-content: center;
   gap: var(--sp-4);
   padding: var(--sp-16) var(--sp-16);
@@ -8214,7 +8221,7 @@ textarea.cellpop__input {
 
 .preview__quick .quick {
   width: auto;
-  min-width: 56px;
+  min-width: 0;
   flex-shrink: 0;
   white-space: nowrap;
 }
@@ -8225,13 +8232,12 @@ textarea.cellpop__input {
 }
 
 .preview__about {
-  flex: 1;
-  overflow-y: auto;
   padding: var(--sp-16) var(--sp-24);
 }
 
 .preview__about-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: var(--sp-8);
@@ -8246,7 +8252,8 @@ textarea.cellpop__input {
   display: none;
 }
 
-.preview__about .props__row {
+.preview .props__row {
+  display: block;
   border-bottom: 0;
   padding: var(--sp-10) 0;
 }
@@ -8261,13 +8268,34 @@ textarea.cellpop__input {
 }
 
 .preview__foot {
+  flex-shrink: 0;
   padding: var(--sp-16) var(--sp-24);
   border-top: 1px solid var(--c-border);
 }
 
 .preview__foot .btn {
   height: 44px;
+  border-radius: 999px;
+  background: #253342;
+  border-color: #253342;
+  color: #fff;
 }
+.preview__foot .btn:hover { background: #354b60; }
+.preview__mail .copy, .preview__mail .ext {
+  display: inline-flex;
+  padding: 4px;
+  color: var(--c-link);
+}
+.preview__mail svg, .preview__info svg { width: 16px; height: 16px; }
+.preview__info { display: inline-flex; margin-left: 6px; vertical-align: middle; color: var(--c-muted); }
+.pvcard__records { display: grid; gap: 8px; }
+.pvcard__record { display: flex; align-items: flex-start; gap: 12px; padding: 12px; border: 1px solid var(--c-border); border-radius: 6px; }
+.pvcard__record > div { min-width: 0; overflow-wrap: anywhere; }
+.pvcard__record a { font-weight: 600; }
+.pvcard__record-icon { display: flex; padding: 8px; background: var(--c-soft); border-radius: 4px; flex: none; }
+.pvcard__record-icon svg { width: 20px; height: 20px; }
+.preview .pvcard__record p { margin-top: 4px; }
+
 
 @media (max-width: 1279px) {
   .lpage.has-preview {

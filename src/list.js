@@ -9,7 +9,7 @@ import { sensitiveValue } from './property-privacy.js';
 import { propertyEditor } from './property-editor.js';
 import { focusPhoneInput } from './phone.js';
 import { logTaskAssociations, taskAssociationFields, taskLinksTo } from './task-associations.js';
-import { resolvePreview } from './layout-defaults.js';
+import { defaultPreview, resolvePreview } from './layout-defaults.js';
 import { isFollowing, toggleFollow } from './follows.js';
 // Generic object list: views, filter menus, search, sort, paging, selection,
 // column editor (full property catalog), advanced filters, CSV export/import, create drawer.
@@ -558,6 +558,7 @@ export function mountList(cfg) {
     </div>
 
     <aside class="preview" id="preview" aria-hidden="true" aria-label="Vista previa">
+      <div class="preview__body">
       <div class="preview__top">
         <span class="avatar avatar--lg avatar--soft" id="pv-avatar">··</span>
         <span class="preview__tools">
@@ -603,6 +604,7 @@ export function mountList(cfg) {
         <dl class="props" id="pv-props"></dl>
       </div>
       <div class="preview__extra" id="pv-extra"></div>
+      </div>
       <div class="preview__foot"><a class="btn btn--primary btn--block btn--pillx" id="pv-open" href="#">Ver registro</a></div>
     </aside>
 
@@ -2188,9 +2190,10 @@ export function mountList(cfg) {
     if (cfg.type === 'companies') av.outerHTML = companyAvatarHtml(r, 'lg').replace('<span ', '<span id="pv-avatar" ');
     else av.textContent = String(name).split(' ').filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase();
     $('pv-name').textContent = name;
-    $('pv-sub').textContent = cfg.type === 'contacts' ? r.company || '' : cfg.type === 'deals' ? `${formatMoney(r.amount, r.deal_currency_code)} · ${r.company || ''}` : r.industry || r.description || r.type || '';
+    $('pv-sub').textContent = cfg.type === 'contacts' ? [r.jobTitle, r.company].filter(Boolean).join(' en ') : cfg.type === 'deals' ? `${formatMoney(r.amount, r.deal_currency_code)} · ${r.company || ''}` : r.industry || r.description || r.type || '';
     const mail = r.email || r.domain || '';
-    $('pv-mail').innerHTML = mail ? `<a href="${mail.includes('@') ? `mailto:${esc(mail)}` : '#'}">${esc(mail)}</a> <span class="ext">↗</span> <button class="copy" type="button" data-copy="${esc(mail)}" aria-label="Copiar">⧉</button>` : '';
+    const mailHref = mail.includes('@') ? `mailto:${mail}` : /^https?:\/\//i.test(mail) ? mail : `https://${mail}`;
+    $('pv-mail').innerHTML = mail ? `<a href="${esc(mailHref)}">${esc(mail)}</a><button class="copy" type="button" data-copy="${esc(mail)}" aria-label="Copiar ${mail.includes('@') ? 'correo' : 'dominio'}">${ACT_ICONS.copy}</button><a class="ext" href="${esc(mailHref)}" target="_blank" rel="noopener noreferrer" aria-label="Abrir ${mail.includes('@') ? 'correo' : 'sitio web'}">${ACT_ICONS.outbound}</a>` : '';
     $('pv-type').textContent = cfg.singular[0].toUpperCase() + cfg.singular.slice(1);
     // «Seguir» / «Dejar de seguir» from the real per-user follow store (src/follows.js), the same the record uses.
     if ($('pv-follow-item')) $('pv-follow-item').textContent = isFollowing(cfg.type, r.id) ? 'Dejar de seguir' : 'Seguir';
@@ -2199,14 +2202,27 @@ export function mountList(cfg) {
     const pvLayout = resolvePreview(cfg.type);
     const fields = pvLayout ? pvLayout.props : cfg.previewFields || state.columns.slice(0, 10);
     $('pv-props').closest('.preview__about').hidden = Boolean(pvLayout) && !pvLayout.right.includes('about');
-    const previewCards = pvLayout || { right: ['upcoming', 'activity'] };
+    const previewCards = pvLayout || defaultPreview(cfg.type);
     $('pv-extra').innerHTML = previewCards
       ? previewCards.right.filter((c) => c !== 'about').map((c) => {
           if (c.startsWith('assoc-')) {
             const kind = c.slice(6);
             const label = { contacts: 'Contactos', companies: 'Empresas', deals: 'Negocios', tickets: 'Tickets', tasks: 'Tareas' }[kind] || kind;
-            const related = isMultiAssociation(cfg.type, kind) ? associationIds(r, kind).map(id => ALL[kind]().find(x => Number(x.id) === id)).filter(Boolean).map(x => ({ name: x.name, href: `../${kind}/record/?id=${x.id}` })) : isMultiAssociation(kind, cfg.type) ? ALL[kind]().filter(x => hasAssociation(x, cfg.type, r.id)).map(x => ({ name: x.name, href: `../${kind}/record/?id=${x.id}` })) : kind === 'companies' ? (r.company ? [{ name: r.company, href: `../companies/record/?id=${r.companyId || ''}` }] : []) : kind === 'contacts' ? (r.contact ? [{ name: r.contact, href: `../contacts/record/?id=${r.contactId || ''}` }] : r.contactId && ALL.contacts ? ALL.contacts().filter((x) => Number(x.id) === Number(r.contactId)).map((x) => ({ name: x.name, href: `../contacts/record/?id=${x.id}` })) : (ALL.contacts ? ALL.contacts().filter((x) => (cfg.type === 'companies' ? Number(x.companyId) === Number(r.id) : false)).slice(0, 3).map((x) => ({ name: x.name, href: `../contacts/record/?id=${x.id}` })) : [])) : (ALL[kind] ? ALL[kind]().filter((x) => (cfg.type === 'contacts' ? Number(x.contactId) === Number(r.id) : cfg.type === 'companies' ? Number(x.companyId) === Number(r.id) : r.contactId ? Number(x.contactId) === Number(r.contactId) : false)).slice(0, 3).map((x) => ({ name: x.name, href: `../${kind}/record/?id=${x.id}` })) : []);
-            return `<section class="pvcard"><h3 class="pvcard__title">${label} <span class="muted">(${related.length})</span></h3>${related.length ? `<ul class="pvcard__list">${related.map((x) => `<li><a href="${x.href}">${esc(x.name)}</a></li>`).join('')}</ul>` : '<p class="muted">Sin registros asociados.</p>'}</section>`;
+            const records = ALL[kind]?.() || [];
+            const related = (isMultiAssociation(cfg.type, kind)
+              ? records.filter(x => hasAssociation(r, kind, x.id))
+              : isMultiAssociation(kind, cfg.type)
+                ? records.filter(x => hasAssociation(x, cfg.type, r.id))
+                : associationsFor(cfg.type).find(a => a.key === kind)?.records(r)
+                  || records.filter(x => (r[`assoc_${kind}`] || []).map(Number).includes(Number(x.id))
+                    || (r.contactId && Number(x.contactId) === Number(r.contactId))))
+              .map(record => ({ record, name: record.name, href: `../${kind}/record/?id=${record.id}` }));
+            return `<section class="pvcard"><h3 class="pvcard__title">${label} <span class="muted">(${related.length})</span></h3>${related.length ? `<div class="pvcard__records">${related.map((x) => {
+              const { record } = x;
+              const detail = record ? kind === 'deals' ? formatMoney(record.amount, record.deal_currency_code) : record.domain || record.email || record.status || record.phone || '' : '';
+              const icon = { contacts: ACT_ICONS.user, companies: ACT_ICONS.preview, deals: ACT_ICONS.deal, tickets: ACT_ICONS.ticket, tasks: ACT_ICONS.task }[kind] || ACT_ICONS.preview;
+              return `<article class="pvcard__record">${kind === 'companies' ? companyAvatarHtml(record, 'sm') : `<span class="pvcard__record-icon">${icon}</span>`}<div><a href="${x.href}">${esc(x.name)}</a>${detail ? `<p class="muted">${esc(detail)}</p>` : ''}</div></article>`;
+            }).join('')}</div>` : '<p class="muted">Sin registros asociados.</p>'}</section>`;
           }
           if (c === 'upcoming' || c === 'tasks') {
             const pending = (ALL.tasks?.() || []).filter(t => t.status !== 'done' && taskLinksTo(t, cfg.type, r.id)).map(t => ({ name: t.name, when: t.due }));
@@ -2240,7 +2256,7 @@ export function mountList(cfg) {
         const isUser = key === 'owner' || (props[key] && props[key].kind === 'user');
         const value = props[key]?.sensitive ? sensitiveValue(r[key]) : isUser ? ownerHtml(v, 'sm') : v === '' || v === undefined || v === null ? '<span class="muted">--</span>' : esc(v);
         const pencil = previewEditable(key) ? `<button class="props__edit" type="button" data-pv-edit="${esc(key)}" aria-label="Editar ${esc(String(label))}">✎</button>` : '';
-        return `<div class="props__row" data-key="${esc(key)}"><dt>${label}</dt><dd class="props__value">${value}${pencil}</dd></div>`;
+        return `<div class="props__row" data-key="${esc(key)}"><dt>${esc(label)}${props[key]?.desc ? `<span class="preview__info" tabindex="0" title="${esc(props[key].desc)}" aria-label="${esc(props[key].desc)}">${ACT_ICONS.info}</span>` : ''}</dt><dd class="props__value">${value}${pencil}</dd></div>`;
       })
       .join('');
     $('pv-open').href = `./record/?id=${r.id}`;
@@ -2251,7 +2267,7 @@ export function mountList(cfg) {
   function openPreview(rid) {
     state.previewId = Number(rid);
     render();
-    Promise.all([ensureActivitiesFor(cfg.type, [rid]), ensureAll('tasks')]).then(() => { if (state.previewId === Number(rid)) renderPreview(); }).catch(error => toast(`No se pudieron cargar las actividades: ${error.message}`));
+    Promise.all([ensureActivitiesFor(cfg.type, [rid]), ...['contacts', 'companies', 'deals', 'tickets', 'tasks'].filter(type => type !== cfg.type).map(type => ensureAll(type))]).then(() => { if (state.previewId === Number(rid)) renderPreview(); }).catch(error => toast(`No se pudieron cargar las actividades o asociaciones: ${error.message}`));
   }
   function closePreview() {
     state.previewId = null;
