@@ -1469,28 +1469,25 @@
     },
     {
       "id": "gap-ui-actividades-asociacion-automatica",
-      "status": "done",
+      "status": "pending",
       "createdAt": "2026-11-21T21:23:00-06:00",
       "lane": "codex",
-      "instruction": "LÓGICA (registro de actividades + Ajustes). HubSpot (especificacion-actividades-crm.md §5, que el propio repo marca como «siguen pendientes»): en Configuración → Objetos → Actividades → pestaña Asociaciones se configura, por objeto de origen y tipo de actividad, dónde se asocia automáticamente lo registrado: Ninguna / Registrar en todos los registros asociados / Registrar en 1 asociado más reciente / Registrar en los 5 asociados más recientes / Registrar en la empresa principal (excepción fija: en llamadas y correos el contacto llamado/escrito siempre queda asociado). Omni HOY: solo hay una casilla global «Asociar por defecto las actividades a la empresa principal» (ACTIVITY_COMPANY_SETTING en src/activity-associations.js; UI en tabActividades() de src/settings.js ~línea 192), y el formulario de registro (src/log-modal.js logAssociationsHtml, ~línea 21) muestra TODOS los registros relacionados con checkboxes marcados por defecto, sin reglas por tipo ni por cantidad. Pasos: (1) en Ajustes (settings.js tabActividades o una pestaña «Asociaciones» de la sección de objetos) crea la tabla de reglas: filas = tipo de actividad (Nota, Llamada, Correo, Reunión, Mensaje), columnas = objeto de origen (contactos, empresas, negocios, tickets), valor = las 5 opciones; persiste en settings (getSetting/setSetting, patrón ACTIVITY_COMPANY_SETTING); (2) activityAssociations() (src/activity-associations.js) aplica la regla: ordena los asociados por fecha de creación desc y pre-marca según Ninguna (solo el registro actual) / Todos / 1 más reciente / 5 más recientes / solo empresa principal; la casilla global actual queda como alias de «Registrar en la empresa principal» para no romper smoke-activity-associations; (3) excepción llamadas/correos: el contacto destino siempre marcado; (4) saveAssociatedActivity no cambia (recibe los elegidos). Criterio de aceptación: smoke que configura contactos→notas = «1 asociado más reciente», abre Registrar nota en un contacto con 3 negocios asociados → solo el negocio más reciente pre-marcado (+ el propio contacto); con «Ninguna» solo queda el registro actual; guardar registra la entrada en la cronología del registro y de los marcados. No despliegues nada a producción; solo código local.",
-      "completedAt": "2026-11-21T22:21:53-0600",
-      "completedBy": "codex"
+      "instruction": "LÓGICA (registro de actividades + Ajustes). HubSpot (especificacion-actividades-crm.md §5, que el propio repo marca como «siguen pendientes»): en Configuración → Objetos → Actividades → pestaña Asociaciones se configura, por objeto de origen y tipo de actividad, dónde se asocia automáticamente lo registrado: Ninguna / Registrar en todos los registros asociados / Registrar en 1 asociado más reciente / Registrar en los 5 asociados más recientes / Registrar en la empresa principal (excepción fija: en llamadas y correos el contacto llamado/escrito siempre queda asociado). Omni HOY: solo hay una casilla global «Asociar por defecto las actividades a la empresa principal» (ACTIVITY_COMPANY_SETTING en src/activity-associations.js; UI en tabActividades() de src/settings.js ~línea 192), y el formulario de registro (src/log-modal.js logAssociationsHtml, ~línea 21) muestra TODOS los registros relacionados con checkboxes marcados por defecto, sin reglas por tipo ni por cantidad. Pasos: (1) en Ajustes (settings.js tabActividades o una pestaña «Asociaciones» de la sección de objetos) crea la tabla de reglas: filas = tipo de actividad (Nota, Llamada, Correo, Reunión, Mensaje), columnas = objeto de origen (contactos, empresas, negocios, tickets), valor = las 5 opciones; persiste en settings (getSetting/setSetting, patrón ACTIVITY_COMPANY_SETTING); (2) activityAssociations() (src/activity-associations.js) aplica la regla: ordena los asociados por fecha de creación desc y pre-marca según Ninguna (solo el registro actual) / Todos / 1 más reciente / 5 más recientes / solo empresa principal; la casilla global actual queda como alias de «Registrar en la empresa principal» para no romper smoke-activity-associations; (3) excepción llamadas/correos: el contacto destino siempre marcado; (4) saveAssociatedActivity no cambia (recibe los elegidos). Criterio de aceptación: smoke que configura contactos→notas = «1 asociado más reciente», abre Registrar nota en un contacto con 3 negocios asociados → solo el negocio más reciente pre-marcado (+ el propio contacto); con «Ninguna» solo queda el registro actual; guardar registra la entrada en la cronología del registro y de los marcados. No despliegues nada a producción; solo código local."
     },
     {
       "id": "gap-ui-ficha-seguir-notificaciones",
-      "status": "pending",
+      "status": "done",
       "createdAt": "2026-11-21T21:24:00-06:00",
       "lane": "claude",
-      "instruction": "LÓGICA (ficha de registro + campana). HubSpot: «Seguir» un registro te suscribe a su actividad: cuando alguien registra una nota, llamada, correo o cambio en ese registro, el seguidor recibe una notificación (campana/correo según sus preferencias). Omni HOY: el caso 'follow' de src/record.js (~línea 1885) solo conmuta localStorage `crm:<type>:follow:<id>`, cambia la etiqueta a «Dejar de seguir» y muestra el toast «Ahora sigues a X. Recibirás notificaciones de su actividad.» — promesa falsa: nunca llega ninguna notificación (es una mentira funcional). Pasos: (1) crea un store de seguimiento por usuario (p. ej. src/follows.js o dentro de notifications.js): mapa usuarioActual → conjunto de `<type>:<id>` que sigue, persistido (localStorage por usuario; Supabase user_settings si ya hay patrón, ver settingsLive/settingScope en data.js); (2) en src/data.js, cuando addActivity registra una actividad real (no tipo 'system') en un registro, o afterSet cambia el propietario/etapa, notifica a cada seguidor distinto del autor con addNotificationOnce (src/notifications.js, ya admite key/to): título «Nueva actividad en <registro>», texto con el tipo y extracto, href a la ficha; (3) añade el interruptor «Registros que sigues» en Ajustes › Notificaciones (notifPrefs, patrón email_mention/email_assign de gap-ui-notas-menciones-y-asignacion) y respétalo; (4) el estado «Seguir/Dejar de seguir» debe leerse del store por usuario, no de una clave suelta; (5) no notificar al autor de la actividad ni duplicar por clave. Criterio de aceptación: smoke que sigue un contacto como usuario A, registra una nota como usuario B (o simulado con otro actor), y A ve la notificación en la campana con enlace a la ficha; dejar de seguir corta las notificaciones; el interruptor apagado silencia todo. No despliegues nada a producción; solo código local."
+      "instruction": "LÓGICA (ficha de registro + campana). HubSpot: «Seguir» un registro te suscribe a su actividad: cuando alguien registra una nota, llamada, correo o cambio en ese registro, el seguidor recibe una notificación (campana/correo según sus preferencias). Omni HOY: el caso 'follow' de src/record.js (~línea 1885) solo conmuta localStorage `crm:<type>:follow:<id>`, cambia la etiqueta a «Dejar de seguir» y muestra el toast «Ahora sigues a X. Recibirás notificaciones de su actividad.» — promesa falsa: nunca llega ninguna notificación (es una mentira funcional). Pasos: (1) crea un store de seguimiento por usuario (p. ej. src/follows.js o dentro de notifications.js): mapa usuarioActual → conjunto de `<type>:<id>` que sigue, persistido (localStorage por usuario; Supabase user_settings si ya hay patrón, ver settingsLive/settingScope en data.js); (2) en src/data.js, cuando addActivity registra una actividad real (no tipo 'system') en un registro, o afterSet cambia el propietario/etapa, notifica a cada seguidor distinto del autor con addNotificationOnce (src/notifications.js, ya admite key/to): título «Nueva actividad en <registro>», texto con el tipo y extracto, href a la ficha; (3) añade el interruptor «Registros que sigues» en Ajustes › Notificaciones (notifPrefs, patrón email_mention/email_assign de gap-ui-notas-menciones-y-asignacion) y respétalo; (4) el estado «Seguir/Dejar de seguir» debe leerse del store por usuario, no de una clave suelta; (5) no notificar al autor de la actividad ni duplicar por clave. Criterio de aceptación: smoke que sigue un contacto como usuario A, registra una nota como usuario B (o simulado con otro actor), y A ve la notificación en la campana con enlace a la ficha; dejar de seguir corta las notificaciones; el interruptor apagado silencia todo. No despliegues nada a producción; solo código local.",
+      "completedAt": "2026-11-21T22:34:07-0600"
     },
     {
       "id": "gap-ui-bulk-inscribir-workflow",
-      "status": "done",
+      "status": "pending",
       "createdAt": "2026-11-21T21:25:00-06:00",
       "lane": "codex",
-      "instruction": "LÓGICA + UX (listas, barra masiva). HubSpot: el menú «Más» de la barra de selección masiva incluye «Inscribir en workflow»: eliges un workflow del objeto y todos los seleccionados quedan inscritos (los ya inscritos se saltan y el resumen lo dice). Omni HOY: la inscripción en workflow existe solo registro a registro (caso 'workflow' de src/record.js ~línea 1694, que abre un modal con los workflows del objeto y llama a enroll() de src/workflow-engine.js ~línea 247); la barra masiva de src/list.js (~línea 334) no tiene ninguna acción de workflow (bulk.actions en contacts/companies/deals: assign, edit, delete, tasks, enroll-secuencia, segment, export). Pasos: (1) añade la acción 'workflow' al sistema de bulk actions de list.js (botón en la barra o dentro de un menú «Más» si ya hay demasiados botones — revisa el ancho con los existentes) actívala en contacts.js (y en companies.js/deals.js si existen workflows de esos objetos en workflows-data.js); (2) el modal lista los workflows publicados del objeto (workflows().filter(w => w.objectType === cfg.type)), con aviso «ya inscrito» por registro cuando proceda; (3) al confirmar, enroll() por cada registro seleccionado saltando los que ya tienen run activo; toast «N inscritos · M ya estaban inscritos»; (4) cada inscripción deja su entrada en la cronología del registro (ya lo hace el engine) y refresca la lista; (5) reutiliza bulkDialog de list.js como hacen bulk-tasks/bulk-segment. Criterio de aceptación: smoke con un workflow de contactos publicado: selecciona 3 contactos (1 ya inscrito), «Inscribir en workflow» → 2 runs nuevos visibles en Automatización › Workflows y en la cronología de cada contacto, toast con el desglose, y reintentar no duplica inscripciones. No despliegues nada a producción; solo código local.",
-      "completedAt": "2026-11-21T22:33:03-0600",
-      "completedBy": "codex"
+      "instruction": "LÓGICA + UX (listas, barra masiva). HubSpot: el menú «Más» de la barra de selección masiva incluye «Inscribir en workflow»: eliges un workflow del objeto y todos los seleccionados quedan inscritos (los ya inscritos se saltan y el resumen lo dice). Omni HOY: la inscripción en workflow existe solo registro a registro (caso 'workflow' de src/record.js ~línea 1694, que abre un modal con los workflows del objeto y llama a enroll() de src/workflow-engine.js ~línea 247); la barra masiva de src/list.js (~línea 334) no tiene ninguna acción de workflow (bulk.actions en contacts/companies/deals: assign, edit, delete, tasks, enroll-secuencia, segment, export). Pasos: (1) añade la acción 'workflow' al sistema de bulk actions de list.js (botón en la barra o dentro de un menú «Más» si ya hay demasiados botones — revisa el ancho con los existentes) actívala en contacts.js (y en companies.js/deals.js si existen workflows de esos objetos en workflows-data.js); (2) el modal lista los workflows publicados del objeto (workflows().filter(w => w.objectType === cfg.type)), con aviso «ya inscrito» por registro cuando proceda; (3) al confirmar, enroll() por cada registro seleccionado saltando los que ya tienen run activo; toast «N inscritos · M ya estaban inscritos»; (4) cada inscripción deja su entrada en la cronología del registro (ya lo hace el engine) y refresca la lista; (5) reutiliza bulkDialog de list.js como hacen bulk-tasks/bulk-segment. Criterio de aceptación: smoke con un workflow de contactos publicado: selecciona 3 contactos (1 ya inscrito), «Inscribir en workflow» → 2 runs nuevos visibles en Automatización › Workflows y en la cronología de cada contacto, toast con el desglose, y reintentar no duplica inscripciones. No despliegues nada a producción; solo código local."
     },
     {
       "id": "gap-ui-tickets-etiquetas-objeto",
@@ -1512,83 +1509,6 @@
       "createdAt": "2026-11-21T21:28:00-06:00",
       "lane": "claude",
       "instruction": "LÓGICA + UX (registrar/programar reunión). HubSpot (especificacion-actividades-crm.md §2): las reuniones tienen Asistentes — al registrar/programar desde la ficha de un contacto ese contacto queda añadido automáticamente y se pueden buscar y agregar más contactos (la reunión se registra también en la cronología de cada asistente). Omni HOY: el formulario de reunión de src/log-modal.js (~línea 58, kind 'meeting') tiene Título, Fecha/Hora, Duración, Ubicación, Resultado y Descripción — no hay asistentes en ninguna parte (búsqueda 'attendee/asistente' en src/ sin resultados funcionales), así que una reunión con 3 contactos solo queda en el registro desde el que se abrió y el resto no la ve en su cronología salvo que se marquen a mano en «Asociado a». Pasos: (1) en el formulario de reunión de log-modal.js añade el campo «Asistentes»: chips con buscador de contactos (patrón del buscador de asociaciones de create-deal.js/create-ticket.js, hasta 6 resultados, Enter elige el primero), el contacto del registro actual pre-marcado cuando aplique; (2) guarda extra.attendees = [{id, name}] en la actividad (readLogActivity, ~línea 102) y muéstralos en la entrada de la cronología («con Ana, Luis…», extraTags de record.js ~línea 1489); (3) al guardar, registra copia de la reunión en la cronología de cada asistente (reutiliza saveAssociatedActivity de src/activity-associations.js con los asistentes como destinos, marcando associatedFrom como ya hace); (4) la edición de la reunión (openLogModal con activity) precarga los asistentes guardados; (5) respeta las reglas de asociación automática del resto de objetos sin duplicar entradas (saveAssociatedActivity ya deduplica por clave). Criterio de aceptación: smoke que programa una reunión desde un negocio eligiendo 2 contactos asistentes → la entrada aparece en la cronología del negocio y de ambos contactos con «con <nombres>»; editar la reunión conserva los asistentes; sin asistentes funciona como hoy. No despliegues nada a producción; solo código local."
-    },
-    {
-      "id": "gap-smoke-activity-actions-fijada",
-      "status": "pending",
-      "instruction": "smoke-activity-actions falla: AssertionError, el texto ya no coincide con /Fijada/ (la acción de fijar actividad cambió de etiqueta o desapareció). Criterio: la prueba pasa. Determina si es regresión del código o prueba desactualizada por un cambio intencional reciente (revisa git log de los últimos 2 días) y corrige lo que corresponda. Ejecuta la prueba con node scripts/<smoke>.mjs hasta que pase. No despliegues nada a producción; solo código local.",
-      "createdAt": "2026-11-21T22:22:11-06:00",
-      "lane": "claude"
-    },
-    {
-      "id": "gap-smoke-call-transcription-nulo",
-      "status": "pending",
-      "instruction": "smoke-call-transcription falla: TypeError «Cannot read properties of null (reading textContent)» — un elemento que la prueba busca ya no existe tras los cambios recientes en llamadas. Criterio: la prueba pasa. Determina si es regresión del código o prueba desactualizada por un cambio intencional reciente (revisa git log de los últimos 2 días) y corrige lo que corresponda. Ejecuta la prueba con node scripts/<smoke>.mjs hasta que pase. No despliegues nada a producción; solo código local.",
-      "createdAt": "2026-11-21T22:22:11-06:00",
-      "lane": "codex"
-    },
-    {
-      "id": "gap-smoke-connected-emails-flujo",
-      "status": "pending",
-      "instruction": "smoke-connected-emails falla al final del flujo (wizard OK; deactivate → error de conexión → reconnect → removed). Criterio: la prueba pasa. Determina si es regresión del código o prueba desactualizada por un cambio intencional reciente (revisa git log de los últimos 2 días) y corrige lo que corresponda. Ejecuta la prueba con node scripts/<smoke>.mjs hasta que pase. No despliegues nada a producción; solo código local.",
-      "createdAt": "2026-11-21T22:22:11-06:00",
-      "lane": "claude"
-    },
-    {
-      "id": "gap-smoke-dark-theme-fondos",
-      "status": "pending",
-      "instruction": "smoke-dark-theme falla: quedan fondos claros sin override de tema oscuro (la prueba lista cuáles al correrla). Relacionado con 527ac39. Criterio: la prueba pasa. Determina si es regresión del código o prueba desactualizada por un cambio intencional reciente (revisa git log de los últimos 2 días) y corrige lo que corresponda. Ejecuta la prueba con node scripts/<smoke>.mjs hasta que pase. No despliegues nada a producción; solo código local.",
-      "createdAt": "2026-11-21T22:22:11-06:00",
-      "lane": "codex"
-    },
-    {
-      "id": "gap-smoke-empty-states-inbox",
-      "status": "pending",
-      "instruction": "smoke-empty-states falla: «inbox thread pane: no .estate» — el panel de hilo de la bandeja ya no usa .estate para el estado vacío (posible regresión del editor 36f4a8a). Criterio: la prueba pasa. Determina si es regresión del código o prueba desactualizada por un cambio intencional reciente (revisa git log de los últimos 2 días) y corrige lo que corresponda. Ejecuta la prueba con node scripts/<smoke>.mjs hasta que pase. No despliegues nada a producción; solo código local.",
-      "createdAt": "2026-11-21T22:22:11-06:00",
-      "lane": "claude"
-    },
-    {
-      "id": "gap-smoke-links-tarjeta",
-      "status": "pending",
-      "instruction": "smoke-links falla: «record card should show the links» — la tarjeta del registro no muestra los enlaces. Criterio: la prueba pasa. Determina si es regresión del código o prueba desactualizada por un cambio intencional reciente (revisa git log de los últimos 2 días) y corrige lo que corresponda. Ejecuta la prueba con node scripts/<smoke>.mjs hasta que pase. No despliegues nada a producción; solo código local.",
-      "createdAt": "2026-11-21T22:22:11-06:00",
-      "lane": "codex"
-    },
-    {
-      "id": "gap-smoke-report-library-valores",
-      "status": "pending",
-      "instruction": "smoke-report-library falla: AssertionError de valores (deep-equal) tras el commit c856d83 de biblioteca de informes. Criterio: la prueba pasa. Determina si es regresión del código o prueba desactualizada por un cambio intencional reciente (revisa git log de los últimos 2 días) y corrige lo que corresponda. Ejecuta la prueba con node scripts/<smoke>.mjs hasta que pase. No despliegues nada a producción; solo código local.",
-      "createdAt": "2026-11-21T22:22:11-06:00",
-      "lane": "claude"
-    },
-    {
-      "id": "gap-smoke-sequence-backfill-conteo",
-      "status": "pending",
-      "instruction": "smoke-sequence-backfill falla: AssertionError de igualdad estricta (conteo o valor del backfill de secuencias). Criterio: la prueba pasa. Determina si es regresión del código o prueba desactualizada por un cambio intencional reciente (revisa git log de los últimos 2 días) y corrige lo que corresponda. Ejecuta la prueba con node scripts/<smoke>.mjs hasta que pase. No despliegues nada a producción; solo código local.",
-      "createdAt": "2026-11-21T22:22:11-06:00",
-      "lane": "codex"
-    },
-    {
-      "id": "gap-smoke-sequences-timeline",
-      "status": "pending",
-      "instruction": "smoke-sequences falla: «timeline: Actividad» — la entrada de secuencia en la línea de tiempo ya no coincide (posible cambio por ebc2fc6). Criterio: la prueba pasa. Determina si es regresión del código o prueba desactualizada por un cambio intencional reciente (revisa git log de los últimos 2 días) y corrige lo que corresponda. Ejecuta la prueba con node scripts/<smoke>.mjs hasta que pase. No despliegues nada a producción; solo código local.",
-      "createdAt": "2026-11-21T22:22:11-06:00",
-      "lane": "claude"
-    },
-    {
-      "id": "gap-smoke-task-recurrence-siguiente",
-      "status": "pending",
-      "instruction": "smoke-task-recurrence falla: «list checkbox completes and spawns next (+7)» — completar una tarea recurrente ya no genera la siguiente. Criterio: la prueba pasa. Determina si es regresión del código o prueba desactualizada por un cambio intencional reciente (revisa git log de los últimos 2 días) y corrige lo que corresponda. Ejecuta la prueba con node scripts/<smoke>.mjs hasta que pase. No despliegues nada a producción; solo código local.",
-      "createdAt": "2026-11-21T22:22:11-06:00",
-      "lane": "codex"
-    },
-    {
-      "id": "gap-smoke-timeline-negocio-contacto",
-      "status": "pending",
-      "instruction": "smoke-timeline falla en «deal creation on the contact»: tras ebc2fc6 (ciclo de vida), al crear un negocio la línea de tiempo del contacto muestra «Etapa del ciclo de vida cambiada a «Oportunidad»…». Actualiza la prueba si el nuevo comportamiento es correcto, o corrige el código si se perdió la entrada original. Criterio: la prueba pasa. Determina si es regresión del código o prueba desactualizada por un cambio intencional reciente (revisa git log de los últimos 2 días) y corrige lo que corresponda. Ejecuta la prueba con node scripts/<smoke>.mjs hasta que pase. No despliegues nada a producción; solo código local.",
-      "createdAt": "2026-11-21T22:22:11-06:00",
-      "lane": "claude"
     }
   ]
 }
