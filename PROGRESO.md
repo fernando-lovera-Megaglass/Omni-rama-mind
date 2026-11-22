@@ -1,5 +1,12 @@
 # Progreso — Omni CRM
 
+## 2026-11-22 (sesión 6) · «Restablecer diseño predeterminado» conserva la identidad de la vista de equipo (editor de diseño, 4 módulos)
+
+- Antes: restablecer sustituía todo el layout por `defaultLayout(type)` (nombre «Vista predeterminada», sin equipos, `isDefault: true`); al guardar, `doSave` veía otro nombre, borraba la vista de equipo original y creaba un duplicado «Vista predeterminada» sin equipos.
+- `src/layout.js`: restablecer toma solo las tarjetas del diseño predeterminado (izquierda, pestañas, derecha; en el panel de vista previa, propiedades y tarjetas) y conserva `name`, `teams` e `isDefault` del layout actual, en ambos modos. Guardar después sigue escribiendo la misma vista de equipo con sus equipos.
+- Pruebas: `scripts/smoke-layout-reset.mjs` (vista de equipo «Ventas» asignada a SACA con una tarjeta movida → editar, restablecer y guardar: sigue «Ventas», sigue asignada, tarjetas predeterminadas, sin «Vista predeterminada» duplicada ni capa huérfana; la vista predeterminada sigue restableciéndose a sí misma sin tocar las vistas de equipo). Smokes del editor, vistas de equipo, personalización y configuración en verde.
+- Solo código local; nada desplegado.
+
 ## 2026-11-22 (sesión 6) · El ⚙ de «Acerca de» del panel de vista previa abre el editor de ese panel (4 listas)
 
 - Antes: el engranaje de la tarjeta «Acerca de este objeto» del panel de vista previa disparaba `data-action="columns"`, el editor de columnas de la tabla, que no toca el panel; el editor correcto solo estaba en Configuración › Objetos › Previsualizar personalización.

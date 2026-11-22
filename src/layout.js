@@ -450,7 +450,12 @@ root.addEventListener('click', (e) => {
       toast('Configuración aplicada. Recuerda guardar.');
       break;
     case 'reset-layout':
-      if (window.confirm('¿Restablecer el diseño predeterminado? Se perderán los cambios de esta vista.')) commit(() => { layout = previewMode ? defaultPreview(type, layout.name) : defaultLayout(type); });
+      // Back to the default cards only: the view keeps its identity (name, teams, isDefault), so saving a reset team
+      // view never renames it into a second «Vista predeterminada» nor drops its teams (as the original).
+      if (window.confirm('¿Restablecer el diseño predeterminado? Se perderán los cambios de esta vista.')) commit(() => {
+        const base = previewMode ? defaultPreview(type, layout.name) : defaultLayout(type);
+        layout = { ...base, name: layout.name, teams: [...(layout.teams || [])], isDefault: Boolean(layout.isDefault) };
+      });
       break;
     default: break;
   }
