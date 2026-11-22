@@ -12038,6 +12038,11 @@ textarea.cellpop__input {
   font-size: var(--fs-xs);
   white-space: nowrap;
 }
+/* The team of the signed-in person: the view assigned to it is the one they see on the records. */
+.rvchip--mine {
+  border-color: var(--c-brand, #ff7a59);
+  box-shadow: inset 0 0 0 1px var(--c-brand, #ff7a59);
+}
 
 /* Deal pipelines tab */
 .ptabs {
