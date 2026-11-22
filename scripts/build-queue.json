@@ -2034,10 +2034,12 @@
     },
     {
       "id": "gap-smoke-call-transcription-nulo",
-      "status": "pending",
+      "status": "done",
       "instruction": "smoke-call-transcription: busca [role=status] con «Transcripción fallida» y el elemento no existe (null.textContent). Revisa cómo se muestra ahora el estado de transcripción fallida en llamadas. OBLIGATORIO: ejecuta node scripts/<smoke>.mjs DESPUÉS de tu cambio e itera hasta que termine con código 0; no des por terminado sin verificarlo. Si el fallo es una limitación del harness jsdom (API de navegador inexistente), agrega el shim en la prueba, no cambies la app para complacer al harness. No despliegues nada a producción; solo código local.",
       "createdAt": "2026-11-22T08:22:54-06:00",
-      "lane": "claude"
+      "lane": "claude",
+      "completedAt": "2026-11-22T08:35:15-0600",
+      "completedBy": "claude"
     },
     {
       "id": "gap-smoke-connected-emails-flujo",

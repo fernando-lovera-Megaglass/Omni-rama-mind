@@ -103,11 +103,21 @@ log('calls: illustration + «No hay llamadas con estos filtros» + «Abrir el ma
 useDom('<!doctype html><body class="app"><aside id="sidenav"></aside><header id="topbar"></header><main id="inbox-root"></main><div id="scrim"></div></body>', 'http://localhost/inbox/');
 await import(resolve(here, '../src/inbox.js'));
 await wait(40);
-// The inbox opens the first conversation by itself: the thread pane's empty state shows once nothing is listed.
+// Filtering keeps the open conversation independent from the visible list.
 const search = $('inbox-q'); // not the shell's global search, which comes first in the document
 if (!search) fail('inbox search');
+const openThread = q('#inbox-thread .inbox__threadhead');
+if (!openThread) fail('inbox: initial conversation must be open');
 input(search, 'zzzz-sin-conversaciones');
 await wait(20);
+if (q('#inbox-thread .inbox__threadhead') !== openThread) fail('inbox: filtering must preserve the open thread');
+checkState(q('.inbox__empty .estate'), 'inbox filtered list', { title: 'No hay conversaciones', cta: 'Nueva conversación', art: true });
+// Remove the visible fixture conversations through the UI to exercise a genuinely empty pane.
+input(search, '');
+click($('inbox-select-all'));
+click(q('[data-bulk="delete"]'));
+await wait(20);
+if (q('#inbox-items [data-id]')) fail('inbox: fixture conversations must be removed');
 const thread = q('#inbox-thread .inbox__placeholder .estate');
 checkState(thread, 'inbox thread pane', { title: 'Selecciona una conversación', cta: 'Nueva conversación', art: true });
 const listEmpty = q('.inbox__empty .estate');
