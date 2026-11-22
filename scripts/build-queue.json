@@ -1773,10 +1773,12 @@
     },
     {
       "id": "gap-ui-preview-acciones-salen",
-      "status": "pending",
+      "status": "done",
       "lane": "codex",
       "createdAt": "2026-11-22T02:13:47-06:00",
-      "instruction": "ACCIONES RÁPIDAS QUE SACAN DE LA LISTA (panel de vista previa de Contactos, Empresas, Negocios y Tickets): los botones Nota, Correo, Llamada, Tarea, Reunión y Más del panel de vista previa (src/list.js:546-551) se limitan a navegar a ./record/?id=X#note (manejador list.js:2302-2304; la ficha abre el formulario vía record.js:2318-2323). Funciona, pero el usuario pierde el contexto de la lista (página, scroll, selección, filtros) para una acción que HubSpot resuelve DENTRO del panel: allí el editor de nota/correo/llamada/tarea/reunión se abre en la propia vista previa, sobre la lista. Arreglo: monta en la página de lista los mismos formularios que usa la ficha — modal de registro de actividad (src/log-modal.js), compositor de correo (src/compose.js), formulario de tarea y menú de llamada — con el registro pre-asociado, sin cambiar de página; tras guardar, refresca el panel (actividades recientes / próximas actividades). Criterio de aceptación: desde la lista de contactos, abre la vista previa de un contacto, pulsa Nota, escribe y guarda: la nota queda registrada con la asociación correcta y el usuario sigue en la lista con su scroll y selección intactos; Correo/Llamada/Tarea/Reunión igual. No despliegues nada a producción; solo código local."
+      "instruction": "ACCIONES RÁPIDAS QUE SACAN DE LA LISTA (panel de vista previa de Contactos, Empresas, Negocios y Tickets): los botones Nota, Correo, Llamada, Tarea, Reunión y Más del panel de vista previa (src/list.js:546-551) se limitan a navegar a ./record/?id=X#note (manejador list.js:2302-2304; la ficha abre el formulario vía record.js:2318-2323). Funciona, pero el usuario pierde el contexto de la lista (página, scroll, selección, filtros) para una acción que HubSpot resuelve DENTRO del panel: allí el editor de nota/correo/llamada/tarea/reunión se abre en la propia vista previa, sobre la lista. Arreglo: monta en la página de lista los mismos formularios que usa la ficha — modal de registro de actividad (src/log-modal.js), compositor de correo (src/compose.js), formulario de tarea y menú de llamada — con el registro pre-asociado, sin cambiar de página; tras guardar, refresca el panel (actividades recientes / próximas actividades). Criterio de aceptación: desde la lista de contactos, abre la vista previa de un contacto, pulsa Nota, escribe y guarda: la nota queda registrada con la asociación correcta y el usuario sigue en la lista con su scroll y selección intactos; Correo/Llamada/Tarea/Reunión igual. No despliegues nada a producción; solo código local.",
+      "completedAt": "2026-11-22T04:13:27-0600",
+      "completedBy": "codex"
     },
     {
       "id": "gap-ui-administrar-vistas-enlaces-muertos",

@@ -1,3 +1,5 @@
+import { createPreviewActions } from './preview-actions.js';
+import { activitiesFor, ensureActivitiesFor } from './data.js';
 import { changeDealStage } from './deal-close.js';
 import { pagination, bindPagination } from './pagination.js';
 import { customFieldsHtml } from './create-contact.js';
@@ -5,7 +7,7 @@ import { validatePropertyValues, addHistoryEntry } from './data.js';
 import { sensitiveValue } from './property-privacy.js';
 import { propertyEditor } from './property-editor.js';
 import { focusPhoneInput } from './phone.js';
-import { logTaskAssociations, taskAssociationFields } from './task-associations.js';
+import { logTaskAssociations, taskAssociationFields, taskLinksTo } from './task-associations.js';
 import { resolvePreview } from './layout-defaults.js';
 import { isFollowing, toggleFollow } from './follows.js';
 // Generic object list: views, filter menus, search, sort, paging, selection,
@@ -2123,6 +2125,7 @@ export function mountList(cfg) {
   function recordById(rid) {
     return cfg.rows().find((r) => Number(r.id) === Number(rid));
   }
+  const previewActions = createPreviewActions({ type: cfg.type, singular: cfg.singular, refresh: () => renderPreview() });
   function renderPreview() {
     const panel = $('preview');
     const r = state.previewId ? recordById(state.previewId) : null;
@@ -2147,19 +2150,27 @@ export function mountList(cfg) {
     const pvLayout = resolvePreview(cfg.type);
     const fields = pvLayout ? pvLayout.props : cfg.previewFields || state.columns.slice(0, 10);
     $('pv-props').closest('.preview__about').hidden = Boolean(pvLayout) && !pvLayout.right.includes('about');
-    $('pv-extra').innerHTML = pvLayout
-      ? pvLayout.right.filter((c) => c !== 'about').map((c) => {
+    const previewCards = pvLayout || { right: ['upcoming', 'activity'] };
+    $('pv-extra').innerHTML = previewCards
+      ? previewCards.right.filter((c) => c !== 'about').map((c) => {
           if (c.startsWith('assoc-')) {
             const kind = c.slice(6);
             const label = { contacts: 'Contactos', companies: 'Empresas', deals: 'Negocios', tickets: 'Tickets', tasks: 'Tareas' }[kind] || kind;
             const related = kind === 'companies' ? (r.company ? [{ name: r.company, href: `../companies/record/?id=${r.companyId || ''}` }] : []) : kind === 'contacts' ? (r.contact ? [{ name: r.contact, href: `../contacts/record/?id=${r.contactId || ''}` }] : r.contactId && ALL.contacts ? ALL.contacts().filter((x) => Number(x.id) === Number(r.contactId)).map((x) => ({ name: x.name, href: `../contacts/record/?id=${x.id}` })) : (ALL.contacts ? ALL.contacts().filter((x) => (cfg.type === 'companies' ? Number(x.companyId) === Number(r.id) : false)).slice(0, 3).map((x) => ({ name: x.name, href: `../contacts/record/?id=${x.id}` })) : [])) : (ALL[kind] ? ALL[kind]().filter((x) => (cfg.type === 'contacts' ? Number(x.contactId) === Number(r.id) : cfg.type === 'companies' ? Number(x.companyId) === Number(r.id) : r.contactId ? Number(x.contactId) === Number(r.contactId) : false)).slice(0, 3).map((x) => ({ name: x.name, href: `../${kind}/record/?id=${x.id}` })) : []);
             return `<section class="pvcard"><h3 class="pvcard__title">${label} <span class="muted">(${related.length})</span></h3>${related.length ? `<ul class="pvcard__list">${related.map((x) => `<li><a href="${x.href}">${esc(x.name)}</a></li>`).join('')}</ul>` : '<p class="muted">Sin registros asociados.</p>'}</section>`;
           }
-          if (c === 'upcoming') { const ts = ALL.tasks ? ALL.tasks().filter((t) => t.status !== 'done' && (cfg.type === 'contacts' ? Number(t.contactId) === Number(r.id) : cfg.type === 'tasks' ? Number(t.id) === Number(r.id) : t.owner === r.owner)).sort((a, b) => new Date(a.due) - new Date(b.due)).slice(0, 3) : []; return `<section class="pvcard"><h3 class="pvcard__title">Próximas actividades <span class="muted">(${ts.length})</span></h3>${ts.length ? `<ul class="pvcard__list">${ts.map((t) => `<li><a href="../tasks/record/?id=${t.id}">${esc(t.name)}</a> <span class="muted">· ${esc(formatDate(t.due))}</span></li>`).join('')}</ul>` : '<p class="muted">No hay actividades programadas.</p>'}</section>`; }
-          if (c === 'activity') return `<section class="pvcard"><h3 class="pvcard__title">Actividades recientes</h3><p>${esc(relativeTime(r.lastActivity || r.created))} · ${esc({ email: 'Correo', call: 'Llamada', meeting: 'Reunión', note: 'Nota', task: 'Tarea' }[r.lastActivityType] || 'Actividad')}</p><p class="muted">Creado el ${esc(formatDate(r.created))}</p></section>`;
+          if (c === 'upcoming' || c === 'tasks') {
+            const pending = (ALL.tasks?.() || []).filter(t => t.status !== 'done' && taskLinksTo(t, cfg.type, r.id)).map(t => ({ name: t.name, when: t.due }));
+            if (c === 'upcoming') pending.push(...activitiesFor(cfg.type, r.id).filter(a => a.type === 'meeting' && Number(a.when) > Date.now()).map(a => ({ name: a.extra?.title || a.text, when: Number(a.when) })));
+            pending.sort((a, b) => new Date(a.when) - new Date(b.when));
+            return `<section class="pvcard"><h3 class="pvcard__title">${c === 'tasks' ? 'Tareas' : 'Próximas actividades'} <span class="muted">(${pending.length})</span></h3>${pending.length ? `<ul class="pvcard__list">${pending.slice(0, 3).map(t => `<li>${esc(t.name)} <span class="muted">· ${esc(formatDate(t.when))}</span></li>`).join('')}</ul>` : '<p class="muted">No hay actividades programadas.</p>'}</section>`;
+          }
+          if (c === 'activity') {
+            const recent = activitiesFor(cfg.type, r.id).filter(a => Number(a.when) <= Date.now()).sort((a, b) => Number(b.when) - Number(a.when)).slice(0, 3);
+            return `<section class="pvcard"><h3 class="pvcard__title">Actividades recientes</h3>${recent.length ? `<ul class="pvcard__list">${recent.map(a => `<li>${esc({ note: 'Nota', email: 'Correo', call: 'Llamada', task: 'Tarea', meeting: 'Reunión' }[a.type] || 'Actividad')}: ${esc(a.text)} <span class="muted">· ${esc(relativeTime(a.when))}</span></li>`).join('')}</ul>` : '<p class="muted">Sin actividades recientes.</p>'}</section>`;
+          }
           if (c === 'summary') return `<section class="pvcard"><h3 class="pvcard__title">Resumen de registros <span class="ai-badge">✦ AI</span></h3><p class="muted">${esc(r.name)} · propietario ${ownerHtml(r.owner)} · última actividad ${esc(relativeTime(r.lastActivity || r.created))}.</p></section>`;
           if (c === 'attachments') { let n = 0; try { n = (JSON.parse(localStorage.getItem(`crm:${cfg.type}:files:${r.id}`)) || []).length; } catch { n = 0; } return `<section class="pvcard"><h3 class="pvcard__title">Archivos adjuntos <span class="muted">(${n})</span></h3><p class="muted">${n ? `${n} archivo${n > 1 ? 's' : ''} adjunto${n > 1 ? 's' : ''}.` : 'Sin archivos adjuntos.'}</p></section>`; }
-          if (c === 'tasks') { const ts = ALL.tasks ? ALL.tasks().filter((t) => t.status !== 'done' && (cfg.type === 'contacts' ? Number(t.contactId) === Number(r.id) : t.owner === r.owner)).slice(0, 3) : []; return `<section class="pvcard"><h3 class="pvcard__title">Tareas <span class="muted">(${ts.length})</span></h3>${ts.length ? `<ul class="pvcard__list">${ts.map((t) => `<li><a href="../tasks/record/?id=${t.id}">${esc(t.name)}</a></li>`).join('')}</ul>` : '<p class="muted">Sin tareas pendientes.</p>'}</section>`; }
           if (c.startsWith('pcard-') && pvLayout.cards && pvLayout.cards[c]) {
             // Custom property card created in the preview editor.
             const card = pvLayout.cards[c];
@@ -2191,6 +2202,7 @@ export function mountList(cfg) {
   function openPreview(rid) {
     state.previewId = Number(rid);
     render();
+    Promise.all([ensureActivitiesFor(cfg.type, [rid]), ensureAll('tasks')]).then(() => { if (state.previewId === Number(rid)) renderPreview(); }).catch(error => toast(`No se pudieron cargar las actividades: ${error.message}`));
   }
   function closePreview() {
     state.previewId = null;
@@ -2334,7 +2346,7 @@ export function mountList(cfg) {
       download(`${cfg.singular}-${r.id}.csv`, toCsv([r], visibleColumns(), cfg.type));
       toast('Exportado a CSV');
     } else if (['note', 'email', 'call', 'task', 'meeting', 'more'].includes(a)) {
-      location.href = `./record/?id=${r.id}#${a}`;
+      previewActions.open(a, r, b);
     }
   });
 
