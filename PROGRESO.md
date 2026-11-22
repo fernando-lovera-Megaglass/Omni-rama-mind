@@ -1,5 +1,11 @@
 # Progreso — Omni CRM
 
+## 2026-11-22 (sesión 6) · Llamadas: chip «Resultado de la llamada» entre Dirección y Actividad asignada
+
+- `src/calls.js`: el chip «Resultado de la llamada» (añadido con las vistas guardadas) pasa a su sitio, entre «Dirección» y «Actividad asignada a», con la misma mecánica de `filterChip`; sus opciones son la unión de los resultados de Twilio (`STATUS_LABEL`: Conectado, En curso, Sonando, En cola, Ocupado, Sin respuesta, Fallida, Cancelada, Iniciada), los resultados libres de las llamadas manuales presentes en las filas cargadas y el valor elegido, ordenadas; `filtered()` compara por igualdad de etiqueta. `load()` no toca el estado de filtros, así que recargar las filas conserva el resultado elegido y solo reconstruye las opciones. Se exporta `load` para las pruebas.
+- Pruebas: `scripts/smoke-calls-status-filter.mjs` (orden de chips; opciones Twilio ∪ manuales con «Todos» primero; «Sin respuesta» → solo esas filas, chip `is-set` con el valor, pie «2 llamadas» y opción marcada; tras `load()` con una llamada nueva el filtro sigue (3 filas) y las opciones se reconstruyen; un resultado sin llamadas → estado vacío filtrado; «Todos» devuelve la lista completa). Pasan `smoke-calls` y `smoke-calls-views`.
+- Solo código local; nada desplegado.
+
 ## 2026-11-22 (sesión 6) · Integración de datos: el historial lista solo las importaciones reales (sin filas ni modales de muestra)
 
 - `src/integration.js`: desaparecen `SAMPLE_IMPORTS` (16 importaciones ficticias inyectadas cuando `crm:imports` estaba vacío) y los modales estáticos `data-import` / `data-errors`; `imports()` lee únicamente el historial real del asistente (`crm:imports`, `src/import-engine.js`). Cada fila real enlaza a `./import/?id=<id>` en el nombre y en el contador de errores (y «Ver detalle» en Acciones). Sin importaciones, la tabla muestra el estado vacío útil «Aún no has importado datos» con el botón «Importar datos» (`emptyStateHtml`, patrón de estados vacíos); si los filtros o la búsqueda no dejan ninguna, «No hay importaciones que coincidan con estos filtros». Filtros (sistema, fuente, usuario, fecha), búsqueda y editor de columnas siguen operando sobre las reales. Contador corregido («1 importación» / «N importaciones»).

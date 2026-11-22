@@ -305,7 +305,9 @@ function render() {
   if (state.page > pages) state.page = pages;
   const slice = list.slice((state.page - 1) * state.size, state.page * state.size);
   const owners = [...new Set((rows || []).map((r) => r.owner).filter(Boolean))].sort();
-  const statuses = [...new Set((rows || []).map((r) => r.status).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es'));
+  // «Resultado de la llamada»: the Twilio outcomes (STATUS_LABEL) plus whatever the manual logs carry (free
+  // outcomes), rebuilt from the loaded rows on every render; a chosen value survives a reload of the rows.
+  const statuses = [...new Set([...Object.values(STATUS_LABEL), ...(rows || []).map((r) => r.status).filter(Boolean), ...(state.status ? [state.status] : [])])].sort((a, b) => a.localeCompare(b, 'es'));
   root.innerHTML = `
     <div class="calls">
       <div class="calls__head">
@@ -318,10 +320,10 @@ function render() {
       <div class="calls__toolbar">
         <div class="search search--pill"><span class="ico ico--search" aria-hidden="true"></span><input type="search" id="calls-q" placeholder="Buscar ( / )" value="${esc(state.q)}" aria-label="Buscar llamadas" /></div>
         ${filterChip('direction', 'direction', 'Dirección', Object.entries(DIRECTION_LABEL))}
+        ${filterChip('status', 'status', 'Resultado de la llamada', statuses.map((s) => [s, s]))}
         ${filterChip('owner', 'owner', 'Actividad asignada a', owners.map((o) => [o, o]))}
         ${filterChip('date', 'dateRange', 'Fecha de actividad', [['today', 'Hoy'], ['week', 'Últimos 7 días'], ['month', 'Este mes']])}
         ${filterChip('duration', 'duration', 'Duración de la llamada', [['lt1', 'Menos de 1 minuto'], ['1-5', '1 a 5 minutos'], ['gt5', 'Más de 5 minutos']])}
-        ${filterChip('status', 'status', 'Resultado de la llamada', statuses.map((s) => [s, s]))}
       </div>
       ${rows === null
         ? '<p class="muted calls__empty">Cargando llamadas…</p>'
@@ -456,4 +458,4 @@ function render() {
 applyView(activeView()); // the tab left open last time, with its filters, sort and columns
 load();
 
-export { state, render };
+export { state, render, load };
