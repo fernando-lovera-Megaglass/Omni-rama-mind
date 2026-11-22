@@ -70,6 +70,7 @@ const convToDb = (c) => ({ id: c.id, subject: c.subject, channel: c.channel, sta
 const msgFromDb = (m) => ({ id: m.id, conversationId: m.conversation_id, direction: m.direction, kind: m.kind === 'note' ? 'note' : 'message', body: m.body || '', author: m.author || '', createdAt: m.created_at });
 const msgToDb = (m) => ({ id: m.id, conversation_id: m.conversationId, direction: m.direction, body: m.body, author: m.author, created_at: m.createdAt, ...(m.kind === 'note' ? { kind: 'note' } : {}) });
 const LS_N = 'crm:conversation_notes_local';
+const LS_S = 'crm:conversation_snooze_local'; // snooze deadlines while the `extra` column is missing
 const readLocal = (k) => { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } };
 const saveLocal = () => { localStorage.setItem(LS_C, JSON.stringify(rows)); localStorage.setItem(LS_M, JSON.stringify(msgs)); };
 function loadLocal() {

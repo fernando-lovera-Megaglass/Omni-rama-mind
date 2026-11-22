@@ -159,6 +159,10 @@
     "status": "aplicada",
     "at": "2026-11-20T12:12:48-0600"
   },
+  "conversation-snooze.sql": {
+    "status": "pendiente",
+    "nota": "Solo código local; no aplicada a producción. Añade extra jsonb a conversations para el plazo de «Posponer» (snoozeUntil)."
+  },
   "voicemail-storage.sql": {
     "status": "pendiente",
     "nota": "Solo código local; no aplicada a producción. Ver docs/voicemail-storage.md."

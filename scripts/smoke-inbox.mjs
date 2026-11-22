@@ -98,10 +98,11 @@ log('closed:', Conv.conversationById(wa.id).status, '| still selected in open li
 if (Conv.conversationById(wa.id).status !== 'closed' || text($('inbox-side').querySelector('[data-inbox="toggle-status"]')) !== 'Reabrir') fail('close');
 click($('inbox-side').querySelector('[data-inbox="toggle-status"]'));
 if (Conv.conversationById(wa.id).status !== 'open') fail('reopen');
-click($('inbox-side').querySelector('[data-inbox="snooze"]'));
-log('snoozed:', Conv.conversationById(wa.id).status, '| tag:', text(document.querySelector('.inbox__threadsub .tag')));
-if (Conv.conversationById(wa.id).status !== 'snoozed' || text(document.querySelector('.inbox__threadsub .tag')) !== 'Pospuesto') fail('snooze');
-click($('inbox-side').querySelector('[data-inbox="snooze"]'));
+// «Posponer» is a menu with deadlines (scripts/smoke-inbox-snooze.mjs covers it); «Mañana» here, then back by hand
+click($('inbox-side').querySelector('[data-snooze="tomorrow"]'));
+log('snoozed:', Conv.conversationById(wa.id).status, '| tag:', text(document.querySelector('.inbox__threadsub .tag')), '| until:', Conv.conversationById(wa.id).snoozeUntil);
+if (Conv.conversationById(wa.id).status !== 'snoozed' || text(document.querySelector('.inbox__threadsub .tag')) !== 'Pospuesto' || !Conv.conversationById(wa.id).snoozeUntil) fail('snooze');
+click($('inbox-side').querySelector('[data-inbox="unsnooze"]'));
 // a reply to a closed conversation reopens it
 Conv.setConversationStatus(wa.id, 'closed');
 Conv.sendMessage(wa.id, { body: 'Una cosa más…', direction: 'out' });

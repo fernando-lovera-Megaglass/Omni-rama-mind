@@ -2,13 +2,13 @@ import './filter-chip.js';
 // Bandeja de entrada: the original's conversations inbox in three columns — the list with its filters on the
 // left, the thread (chat bubbles + reply box) in the middle, the contact card and the actions on the right.
 import { boot } from './page.js';
-import { toast, setNavBadge, linkHtml } from './shell.js';
+import { toast, setNavBadge, linkHtml, wireMenus, closeMenus } from './shell.js';
 import { ownerHtml } from './owner.js';
 import { emptyStateHtml } from './empty-state.js';
 import { enhanceOwnerSelects } from './owner-select.js';
 import { mountCreateTicket } from './create-ticket.js';
 import { addActivity, allCompanies, allContacts, relativeTimeFine, formatDate, initials, colorFor } from './data.js';
-import { ready, conversations, conversationById, messagesOf, sendMessage, addInternalNote, isInternalNote, createConversation, markRead, bulkAssignConversations, bulkSetConversationStatus, bulkMarkConversationsRead, bulkDeleteConversations, assignConversation, setConversationStatus, unreadCount, CHANNELS, STATUS_LABELS, ASSIGNEES, ME } from './conversations-data.js';
+import { ready, conversations, conversationById, messagesOf, sendMessage, addInternalNote, isInternalNote, createConversation, markRead, bulkAssignConversations, bulkSetConversationStatus, bulkMarkConversationsRead, bulkDeleteConversations, assignConversation, setConversationStatus, reopenSnoozed, snoozeUntilFor, SNOOZE_OPTIONS, unreadCount, CHANNELS, STATUS_LABELS, ASSIGNEES, ME } from './conversations-data.js';
 import { ready as gmailReady, hasGmail, sendMail } from './gmail.js';
 import { syncInbox, gmailThreadFor } from './gmail-inbox.js';
 
@@ -182,8 +182,9 @@ function applyBulk(action, who) {
     count = bulkDeleteConversations(ids);
     result = 'eliminadas';
   } else if (STATUS_LABELS[action]) {
-    count = bulkSetConversationStatus(ids, action);
-    result = { closed: 'cerradas', open: 'reabiertas', snoozed: 'pospuestas' }[action];
+    // bulk snooze: until tomorrow at 09:00 (the thread's own menu offers the other deadlines)
+    count = bulkSetConversationStatus(ids, action, action === 'snoozed' ? { snoozeUntil: snoozeUntilFor('tomorrow') } : {});
+    result = { closed: 'cerradas', open: 'reabiertas', snoozed: `pospuestas hasta ${timeOf(snoozeUntilFor('tomorrow'))}` }[action];
   } else return;
   renderList();
   if (affectsOpen) {
@@ -397,6 +398,11 @@ root.addEventListener('submit', (e) => {
     if (ta) ta.focus();
     return;
   }
+  if (e.target.matches && e.target.matches('[data-snooze-custom]')) {
+    e.preventDefault();
+    snoozeActive(e.target.elements.until.value); // datetime-local: local time
+    return;
+  }
   if (e.target.id === 'inbox-new') {
     e.preventDefault();
     const d = Object.fromEntries(new FormData(e.target).entries());
@@ -417,5 +423,8 @@ root.addEventListener('submit', (e) => {
 
 renderAll();
 if (state.activeId) markRead(state.activeId), renderAll();
+// snoozed conversations whose time came: once now, then every minute while the inbox is open
+checkSnoozed();
+const snoozeTimer = setInterval(() => checkSnoozed(), 60_000);
 
-export { state, renderAll };
+export { state, renderAll, snoozeTimer };
