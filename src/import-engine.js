@@ -4,7 +4,7 @@
 // de-duplication (e-mail, domain or record ID), the three import modes, associations by company, the error
 // catalogue with its impact, the import states (STARTED → PROCESSING → DONE / FAILED / CANCELED, DEFERRED when
 // three are running), the limits and the downloads.
-import { ALL, deleteRecords, addRecord, setField, OWNERS, TODAY, getViewStore, setViewStore, strip, dealPipelines, stagesFor, ticketPipelines, ticketStatusesFor, TICKET_STATUSES, TASK_STATUSES, DEAL_STAGES, companyDomains } from './data.js';
+import { ALL, deleteRecords, addRecord, setField, OWNERS, TODAY, getViewStore, setViewStore, strip, dealPipelines, stagesFor, ticketPipelines, ticketStatusesFor, TICKET_STATUSES, TASK_STATUSES, DEAL_STAGES, companyDomains, settingsLive, getSetting, setSetting } from './data.js';
 import { propertyList, customProperties, saveCustomProperties } from './properties.js';
 import { addSegment } from './segments-data.js';
 import { currentUser } from './auth.js';
@@ -127,11 +127,28 @@ export async function parseFile(file) {
     try { wb = XLSX.read(await file.arrayBuffer(), { type: 'array', cellDates: true }); } catch { throw importError('INVALID_SPREADSHEET'); }
     if (!wb.SheetNames.length) throw importError('INVALID_SPREADSHEET');
     if (wb.SheetNames.length > 1) throw importError('INVALID_SHEET_COUNT', `El libro tiene ${wb.SheetNames.length} hojas; deja solo una.`);
-    const aoa = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, raw: false, defval: '', blankrows: false });
-    const headers = (aoa.shift() || []).map((h) => String(h ?? '').trim());
-    parsed = { headers, rows: aoa.map((r) => headers.map((_, i) => String(r[i] ?? '').trim())), separator: '' };
+    // Raw cell values, not the text Excel displayed: a date cell arrives as a date (no guessing whether 03/04 is
+    // March or April from the sheet's display format), a number as a number (no thousands separators, currency
+    // symbols or rounding of the display format to undo); text stays text.
+    const aoa = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, raw: true, defval: '', blankrows: false });
+    const headers = (aoa.shift() || []).map((h) => cellText(h).trim());
+    parsed = { headers, rows: aoa.map((r) => headers.map((_, i) => cellText(r[i]).trim())), separator: '' };
   }
   return checkTable({ ...parsed, format, fileName: file.name, size: file.size });
+}
+// A spreadsheet cell as the text the converters read: dates as year-month-day (plus the time when the cell has
+// one), numbers as plain digits with a dot, booleans as true/false.
+export function cellText(v) {
+  if (v instanceof Date) {
+    if (Number.isNaN(v.getTime())) return '';
+    const d = new Date(Math.round(v.getTime() / 60000) * 60000); // whole minutes: Excel serials carry float noise
+    const p = (n) => String(n).padStart(2, '0');
+    const ymd = `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+    return d.getHours() || d.getMinutes() ? `${ymd} ${p(d.getHours())}:${p(d.getMinutes())}` : ymd;
+  }
+  if (typeof v === 'number') return Number.isFinite(v) ? String(Number.isInteger(v) ? v : Math.round(v * 1e8) / 1e8) : '';
+  if (typeof v === 'boolean') return v ? 'true' : 'false';
+  return String(v ?? '');
 }
 export function parsePasted(text) {
   return checkTable({ ...parseDelimited(text), format: 'paste', fileName: 'Datos pegados', size: String(text || '').length });
@@ -155,7 +172,7 @@ export const props = (type = 'contacts') => propertyList(type);
 export const propByKey = (type, key) => props(type).find((p) => p.key === key);
 const COMMON_EN = { hs_object_id: ['record id', 'id'], owner: ['owner'], hs_import_ids: [] };
 const EN_LABELS = {
-  contacts: { ...COMMON_EN, first: ['first name', 'first', 'given name'], last: ['last name', 'last', 'surname', 'family name'], name: ['full name', 'name', 'contact name'], email: ['email', 'email address', 'e-mail'], alt_email: ['alternate email', 'secondary email'], hs_additional_emails: ['additional email addresses', 'additional emails'], phone: ['phone number', 'phone', 'telephone'], mobilephone: ['mobile phone number', 'mobile phone', 'mobile', 'cell phone'], company: ['company name', 'company', 'organization'], jobTitle: ['job title', 'title', 'position'], city: ['city'], state: ['state/region', 'state', 'region', 'province'], country: ['country/region', 'country'], zip: ['postal code', 'zip', 'zip code'], address: ['street address', 'address'], website: ['website url', 'website', 'web'], owner: ['contact owner', 'owner'], lifecycle: ['lifecycle stage', 'lifecycle'], status: ['lead status', 'status'], hs_object_id: ['record id', 'id', 'contact id'], source: ['original source', 'source'], industry: ['industry'], customer_type: ['customer type'], hs_department: ['department'], date_of_birth: ['date of birth', 'birthday'], message: ['message', 'notes'], annualrevenue: ['annual revenue'], hs_marketable_status: ['marketing contact status'], hs_buying_role: ['buying role'], salutation: ['salutation'] },
+  contacts: { ...COMMON_EN, first: ['first name', 'first', 'given name'], last: ['last name', 'last', 'surname', 'family name'], name: ['full name', 'name', 'contact name'], email: ['email', 'email address', 'e-mail'], alt_email: ['alternate email', 'secondary email'], hs_additional_emails: ['additional email addresses', 'additional emails'], phone: ['phone number', 'phone', 'telephone'], mobilephone: ['mobile phone number', 'mobile phone', 'mobile', 'cell phone'], company: ['company name', 'company', 'organization', 'company domain name', 'company domain', 'associated company'], jobTitle: ['job title', 'title', 'position'], city: ['city'], state: ['state/region', 'state', 'region', 'province'], country: ['country/region', 'country'], zip: ['postal code', 'zip', 'zip code'], address: ['street address', 'address'], website: ['website url', 'website', 'web'], owner: ['contact owner', 'owner'], lifecycle: ['lifecycle stage', 'lifecycle'], status: ['lead status', 'status'], hs_object_id: ['record id', 'id', 'contact id'], source: ['original source', 'source'], industry: ['industry'], customer_type: ['customer type'], hs_department: ['department'], date_of_birth: ['date of birth', 'birthday'], message: ['message', 'notes'], annualrevenue: ['annual revenue'], hs_marketable_status: ['marketing contact status'], hs_buying_role: ['buying role'], salutation: ['salutation'] },
   companies: { ...COMMON_EN, name: ['company name', 'name', 'company'], domain: ['company domain name', 'domain', 'company domain', 'website domain'], hs_additional_domains: ['additional domains'], website: ['website url', 'website'], phone: ['phone number', 'phone'], owner: ['company owner', 'owner'], industry: ['industry'], type: ['type', 'company type'], description: ['description', 'about'], address: ['street address', 'address'], city: ['city'], state: ['state/region', 'state', 'region'], zip: ['postal code', 'zip'], country: ['country/region', 'country'], employees: ['number of employees', 'employees'], revenue: ['annual revenue', 'revenue'], lifecycle: ['lifecycle stage'], hs_lead_status: ['lead status'], founded_year: ['year founded'], hs_object_id: ['record id', 'id', 'company id'] },
   deals: { ...COMMON_EN, closedLostReason: ['closed lost reason', 'closed_lost_reason'], closedWonReason: ['closed won reason', 'closed_won_reason'], name: ['deal name', 'name', 'deal'], amount: ['amount', 'deal amount', 'value'], deal_currency_code: ['currency', 'deal currency'], pipeline: ['pipeline', 'deal pipeline'], stage: ['deal stage', 'stage'], closeDate: ['close date', 'closing date'], owner: ['deal owner', 'owner'], type: ['deal type', 'type'], priority: ['priority'], description: ['deal description', 'description'], company: ['associated company', 'company name', 'company', 'company domain name'], hs_next_step: ['next step'], hs_object_id: ['record id', 'id', 'deal id'] },
   tickets: { ...COMMON_EN, name: ['ticket name', 'name', 'subject'], description: ['ticket description', 'description'], pipeline: ['pipeline', 'ticket pipeline'], status: ['ticket status', 'status'], priority: ['priority'], owner: ['ticket owner', 'owner'], source: ['source', 'channel'], hs_ticket_category: ['category'], hs_object_id: ['record id', 'id', 'ticket id'] },
@@ -163,7 +180,7 @@ const EN_LABELS = {
 };
 const COMMON_ES = { 'id de registro': 'hs_object_id', 'id del registro': 'hs_object_id', id: 'hs_object_id', propietario: 'owner' };
 const ES_ALIASES = {
-  contacts: { ...COMMON_ES, nombre: 'first', 'primer nombre': 'first', apellido: 'last', apellidos: 'last', 'nombre completo': 'name', correo: 'email', 'correo electronico': 'email', email: 'email', 'e-mail': 'email', 'direccion de correo': 'email', 'correo alternativo': 'alt_email', 'correos adicionales': 'hs_additional_emails', 'direcciones de correo electronico adicionales': 'hs_additional_emails', telefono: 'phone', 'numero de telefono': 'phone', 'telefono fijo': 'phone', movil: 'mobilephone', celular: 'mobilephone', 'numero de movil': 'mobilephone', 'telefono movil': 'mobilephone', empresa: 'company', 'nombre de la empresa': 'company', 'empresa principal': 'company', cargo: 'jobTitle', puesto: 'jobTitle', ciudad: 'city', estado: 'state', region: 'state', 'estado/region': 'state', 'estado o region': 'state', provincia: 'state', pais: 'country', 'pais/region': 'country', 'codigo postal': 'zip', cp: 'zip', direccion: 'address', 'sitio web': 'website', web: 'website', 'url del sitio web': 'website', 'propietario del contacto': 'owner', 'etapa del ciclo de vida': 'lifecycle', 'ciclo de vida': 'lifecycle', 'estado del lead': 'status', 'fuente original': 'source', fuente: 'source', sector: 'industry', industria: 'industry', 'tipo de cliente': 'customer_type', departamento: 'hs_department', 'fecha de nacimiento': 'date_of_birth', mensaje: 'message', notas: 'message', 'ingresos anuales': 'annualrevenue', 'estado de contacto de marketing': 'hs_marketable_status', 'rol de compra': 'hs_buying_role', salutacion: 'salutation' },
+  contacts: { ...COMMON_ES, nombre: 'first', 'primer nombre': 'first', apellido: 'last', apellidos: 'last', 'nombre completo': 'name', correo: 'email', 'correo electronico': 'email', email: 'email', 'e-mail': 'email', 'direccion de correo': 'email', 'correo alternativo': 'alt_email', 'correos adicionales': 'hs_additional_emails', 'direcciones de correo electronico adicionales': 'hs_additional_emails', telefono: 'phone', 'numero de telefono': 'phone', 'telefono fijo': 'phone', movil: 'mobilephone', celular: 'mobilephone', 'numero de movil': 'mobilephone', 'telefono movil': 'mobilephone', empresa: 'company', 'nombre de la empresa': 'company', 'empresa principal': 'company', 'empresa asociada': 'company', 'nombre de dominio de la empresa': 'company', 'dominio de la empresa': 'company', 'dominio de empresa': 'company', cargo: 'jobTitle', puesto: 'jobTitle', ciudad: 'city', estado: 'state', region: 'state', 'estado/region': 'state', 'estado o region': 'state', provincia: 'state', pais: 'country', 'pais/region': 'country', 'codigo postal': 'zip', cp: 'zip', direccion: 'address', 'sitio web': 'website', web: 'website', 'url del sitio web': 'website', 'propietario del contacto': 'owner', 'etapa del ciclo de vida': 'lifecycle', 'ciclo de vida': 'lifecycle', 'estado del lead': 'status', 'fuente original': 'source', fuente: 'source', sector: 'industry', industria: 'industry', 'tipo de cliente': 'customer_type', departamento: 'hs_department', 'fecha de nacimiento': 'date_of_birth', mensaje: 'message', notas: 'message', 'ingresos anuales': 'annualrevenue', 'estado de contacto de marketing': 'hs_marketable_status', 'rol de compra': 'hs_buying_role', salutacion: 'salutation' },
   companies: { ...COMMON_ES, nombre: 'name', 'nombre de la empresa': 'name', empresa: 'name', dominio: 'domain', 'dominio de la empresa': 'domain', 'nombre de dominio': 'domain', 'nombre de dominio de la empresa': 'domain', 'dominios adicionales': 'hs_additional_domains', 'sitio web': 'website', web: 'website', telefono: 'phone', 'numero de telefono': 'phone', 'propietario de la empresa': 'owner', sector: 'industry', industria: 'industry', tipo: 'type', descripcion: 'description', direccion: 'address', ciudad: 'city', estado: 'state', region: 'state', 'estado/region': 'state', pais: 'country', 'pais/region': 'country', 'codigo postal': 'zip', empleados: 'employees', 'numero de empleados': 'employees', 'ingresos anuales': 'revenue', ingresos: 'revenue', 'etapa del ciclo de vida': 'lifecycle', 'estado del lead': 'hs_lead_status', 'ano de fundacion': 'founded_year' },
   deals: { ...COMMON_ES, nombre: 'name', 'nombre del negocio': 'name', negocio: 'name', importe: 'amount', monto: 'amount', valor: 'amount', moneda: 'deal_currency_code', divisa: 'deal_currency_code', pipeline: 'pipeline', 'pipeline del negocio': 'pipeline', etapa: 'stage', 'etapa del negocio': 'stage', 'fecha de cierre': 'closeDate', cierre: 'closeDate', 'propietario del negocio': 'owner', tipo: 'type', 'tipo de negocio': 'type', prioridad: 'priority', descripcion: 'description', 'descripcion del negocio': 'description', empresa: 'company', 'empresa asociada': 'company', 'nombre de la empresa': 'company', 'nombre de dominio de la empresa': 'company', 'siguiente paso': 'hs_next_step' },
   tickets: { ...COMMON_ES, nombre: 'name', 'nombre del ticket': 'name', asunto: 'name', ticket: 'name', descripcion: 'description', 'descripcion del ticket': 'description', pipeline: 'pipeline', estado: 'status', 'estado del ticket': 'status', prioridad: 'priority', 'propietario del ticket': 'owner', fuente: 'source', canal: 'source', categoria: 'hs_ticket_category' },
@@ -213,6 +230,7 @@ export function parseNumber(raw, numberFormat = 'auto') {
   const hasComma = s.includes(',');
   const hasDot = s.includes('.');
   if (numberFormat === 'es' || (numberFormat === 'auto' && hasComma && (!hasDot || s.lastIndexOf(',') > s.lastIndexOf('.')))) s = s.replace(/\./g, '').replace(',', '.');
+  else if (numberFormat === 'auto' && !hasComma && /^-?\d{1,3}(\.\d{3}){2,}$/.test(s)) s = s.replace(/\./g, ''); // 1.234.567: dots as thousands separators
   else s = s.replace(/,/g, '');
   const n = Number(s);
   return Number.isFinite(n) ? n : NaN;
@@ -552,17 +570,51 @@ export function analyzeDuplicates(table, mapping, options = {}) {
 }
 
 // ---------- history, limits and states ----------
-const read = (k, fb) => { try { return JSON.parse(localStorage.getItem(k)) ?? fb; } catch { return fb; } };
-const write = (k, v) => localStorage.setItem(k, JSON.stringify(v));
-export const importHistory = () => read(IMPORTS_KEY, []);
-export const saveHistory = (list) => write(IMPORTS_KEY, list);
-export const importDetail = (id) => read(DETAIL_KEY(id), null);
-export const saveDetail = (id, d) => write(DETAIL_KEY(id), d);
+// The history (crm:imports) and each import's detail (crm:imports:detail:<id>: timeline, errors, failed rows,
+// created ids for «Deshacer») live in this browser and, when signed in, in the person's settings in Supabase
+// (user_settings, scope user), so the monitor, the review page and «Deshacer» are the same in every browser.
+// This browser's copy is always current (it is written first); the remote copy is written a moment later (one
+// write per key every 250 ms while an import runs, at once on every state change) and read where the local
+// copy is missing. Two copies of the history are merged by id; the entry that got further wins.
+const localRead = (k, fb) => { try { return JSON.parse(localStorage.getItem(k)) ?? fb; } catch { return fb; } };
+const localWrite = (k, v) => localStorage.setItem(k, JSON.stringify(v));
+const remoteRead = (k) => (settingsLive() ? getSetting(k) : null);
+const REMOTE_MAX_BYTES = 900 * 1024; // one settings row keeps a detail of this size; bigger ones travel trimmed
+const remoteTimers = new Map();
+function shrinkForRemote(k, v) {
+  if (!k.startsWith('crm:imports:detail:') || !v || JSON.stringify(v).length <= REMOTE_MAX_BYTES) return v;
+  return { ...v, errors: (v.errors || []).slice(0, 5000), failedRows: (v.failedRows || []).slice(0, 500), truncated: true };
+}
+function remoteWrite(k, v, { now = false } = {}) {
+  if (!settingsLive()) return;
+  clearTimeout(remoteTimers.get(k));
+  const send = () => { remoteTimers.delete(k); setSetting(k, shrinkForRemote(k, v)); };
+  if (now) send(); else remoteTimers.set(k, setTimeout(send, 250));
+}
+// Sends whatever is still waiting (the review page and the undo call it after a terminal state).
+export function flushImportSync() {
+  for (const [k, t] of [...remoteTimers]) { clearTimeout(t); remoteTimers.delete(k); const v = localRead(k, null); if (v !== null) setSetting(k, shrinkForRemote(k, v)); }
+}
+const TERMINAL = new Set(['DONE', 'FAILED', 'CANCELED']);
+const rank = (r) => (r.undone ? 3 : TERMINAL.has(r.state) ? 2 : r.state === 'PROCESSING' ? 1 : 0);
+const newer = (a, b) => (rank(a) !== rank(b) ? (rank(a) > rank(b) ? a : b) : String(b.updatedAt || b.finishedAt || b.when) > String(a.updatedAt || a.finishedAt || a.when) ? b : a);
+export const importHistory = () => {
+  const local = localRead(IMPORTS_KEY, null);
+  const remote = remoteRead(IMPORTS_KEY);
+  if (!Array.isArray(remote)) return Array.isArray(local) ? local : [];
+  if (!Array.isArray(local)) return remote;
+  const byId = new Map();
+  [...remote, ...local].forEach((r) => { if (!r) return; const prev = byId.get(Number(r.id)); byId.set(Number(r.id), prev ? newer(prev, r) : r); });
+  return [...byId.values()].sort((a, b) => new Date(b.when) - new Date(a.when));
+};
+export const saveHistory = (list) => { localWrite(IMPORTS_KEY, list); remoteWrite(IMPORTS_KEY, list); };
+export const importDetail = (id) => localRead(DETAIL_KEY(id), null) ?? remoteRead(DETAIL_KEY(id));
+export const saveDetail = (id, d) => { localWrite(DETAIL_KEY(id), d); remoteWrite(DETAIL_KEY(id), d); };
 export function updateImport(id, patch) {
   const list = importHistory();
   const i = list.findIndex((r) => Number(r.id) === Number(id));
   if (i < 0) return null;
-  list[i] = { ...list[i], ...patch };
+  list[i] = { ...list[i], ...patch, updatedAt: new Date().toISOString() };
   saveHistory(list);
   return list[i];
 }
@@ -571,7 +623,10 @@ export function setState(id, state, note) {
   const d = importDetail(id) || { timeline: [] };
   d.timeline = [...(d.timeline || []), { state, at: now, note: note || '' }];
   saveDetail(id, d);
-  return updateImport(id, { state, ...(state === 'DONE' || state === 'FAILED' || state === 'CANCELED' ? { finishedAt: now } : {}) });
+  const entry = updateImport(id, { state, ...(TERMINAL.has(state) ? { finishedAt: now } : {}) });
+  remoteWrite(DETAIL_KEY(id), d, { now: true });
+  remoteWrite(IMPORTS_KEY, localRead(IMPORTS_KEY, []), { now: true });
+  return entry;
 }
 // Only the persisted creation ledger authorizes undo; import stamps also include updates.
 export function undoInfo(id) {
@@ -589,6 +644,7 @@ export function undoImport(id) {
   saveDetail(id, { ...importDetail(id), undone: true, undoneCount: info.count });
   updateImport(id, { undone: true });
   setState(id, 'CANCELED', `Anulada por el usuario: ${info.count} registros eliminados`);
+  flushImportSync();
   return true;
 }
 export function confirmUndoImport(id) {
@@ -618,12 +674,14 @@ export function canStart(rowCount) {
 export const processingCount = () => importHistory().filter((r) => r.state === 'PROCESSING').length;
 export function registerImport({ name, table, plan, options }) {
   const list = importHistory();
-  const id = Math.max(0, ...list.map((r) => Number(r.id) || 0)) + 1;
+  // The id stamps every record it creates or updates (hs_import_ids, the «Ver segmento» view): unique in time,
+  // so two browsers or two users never share one.
+  const id = Math.max(Date.now(), Math.max(0, ...list.map((r) => Number(r.id) || 0)) + 1);
   const deferred = processingCount() >= LIMITS.concurrent;
   const type = plan.object || options.object || 'contacts';
   const entry = {
     id, name, object: type, system: table.format === 'paste' ? 'paste' : 'file', source: table.format === 'paste' ? 'paste' : table.format, state: deferred ? 'DEFERRED' : 'STARTED',
-    rows: table.rows.length, newRecords: 0, updated: 0, associations: 0, errors: plan.errors.length, by: ME, when: new Date().toISOString(), finishedAt: '', mode: plan.mode, uniqueKey: plan.uniqueKey, options,
+    rows: table.rows.length, newRecords: 0, updated: 0, associations: 0, errors: plan.errors.length, by: ME, when: new Date().toISOString(), updatedAt: new Date().toISOString(), finishedAt: '', mode: plan.mode, uniqueKey: plan.uniqueKey, options,
     duplicates: plan.summary.duplicatesExisting || 0, fileDuplicates: plan.summary.duplicatesInFile || 0, merged: plan.summary.merged || 0, filePolicy: plan.filePolicy || 'first',
   };
   saveHistory([entry, ...list]);
@@ -648,7 +706,11 @@ export async function runImport(id, plan, { onProgress, isCanceled, chunk = 40, 
   const type = plan.object || 'contacts';
   const noOverwrite = new Set(plan.noOverwrite || []);
   const marketing = Boolean(plan.marketing) && type === 'contacts';
-  const result = { created: 0, updated: 0, associations: 0, autoCompanies: 0, failed: plan.records.filter((r) => r.action === 'skip').length, createdIds: [] };
+  const result = { created: 0, updated: 0, associations: 0, autoCompanies: 0, createdCompanies: 0, failed: plan.records.filter((r) => r.action === 'skip').length, createdIds: [] };
+  // Companies that exist before the run: a company the e-mail-domain rule creates during it is part of the
+  // import (it goes to the ledger, so «Deshacer» removes it too).
+  const companiesBefore = type === 'contacts' ? new Set(ALL.companies().map((c) => Number(c.id))) : null;
+  const ledger = (kind, recId) => { const detail = importDetail(id); saveDetail(id, { ...detail, createdIds: { ...detail.createdIds, [kind]: [...(detail.createdIds?.[kind] || []), recId] } }); };
   try {
     if (!plan.batch) setState(id, 'PROCESSING');
     const todo = plan.records.filter((r) => r.action === 'create' || r.action === 'update'); // merged rows travel inside the row they were merged into
@@ -657,8 +719,8 @@ export async function runImport(id, plan, { onProgress, isCanceled, chunk = 40, 
       for (const r of todo.slice(i, i + chunk)) {
         const stamp = { hs_import_ids: String(id) };
         if (marketing) stamp.hs_marketable_status = 'Contacto de marketing';
-        if (r.data.companyId) result.associations += 1;
         if (r.action === 'create') {
+          if (r.data.companyId) result.associations += 1;
           const defaults = newRecordDefaults(type, r.data);
           const data = { ...defaults, ...r.data, ...stamp };
           Object.keys(data).forEach((k) => { if (data[k] === undefined) delete data[k]; });
@@ -666,13 +728,18 @@ export async function runImport(id, plan, { onProgress, isCanceled, chunk = 40, 
           r.importedId = rec.id;
           result.created += 1;
           result.createdIds.push(rec.id);
-          const detail = importDetail(id);
-          saveDetail(id, { ...detail, createdIds: { ...detail.createdIds, [type]: [...(detail.createdIds?.[type] || []), rec.id] } });
+          ledger(type, rec.id);
           // a company found or created from the e-mail domain (companies specification §2) counts as an association
-          if (type === 'contacts' && rec.companyId && !data.companyId) { result.associations += 1; result.autoCompanies += 1; }
+          if (type === 'contacts' && rec.companyId && !data.companyId) {
+            result.associations += 1;
+            result.autoCompanies += 1;
+            if (companiesBefore && !companiesBefore.has(Number(rec.companyId))) { companiesBefore.add(Number(rec.companyId)); result.createdCompanies += 1; ledger('companies', Number(rec.companyId)); }
+          }
         } else {
           r.importedId = r.matchId;
           const current = ALL[type]().find((c) => Number(c.id) === Number(r.matchId));
+          // «Asociaciones nuevas» counts a link the row adds, not one the record already had
+          if (r.data.companyId && Number(current?.companyId) !== Number(r.data.companyId)) result.associations += 1;
           Object.entries(r.data).forEach(([k, v]) => {
             if (v === undefined || v === null || v === '') return;
             if (noOverwrite.has(k) && current && current[k] !== undefined && current[k] !== null && current[k] !== '') return;
@@ -691,9 +758,10 @@ export async function runImport(id, plan, { onProgress, isCanceled, chunk = 40, 
       if (onProgress) onProgress({ done: Math.min(i + chunk, todo.length), total: todo.length, ...result });
       if (i + chunk < todo.length) await wait(pause);
     }
-    if (!plan.batch) setState(id, 'DONE');
     if (!plan.batch) updateImport(id, { newRecords: result.created, updated: result.updated, associations: result.associations, errors: plan.errors.length });
+    if (!plan.batch) setState(id, 'DONE');
     if (plan.createSegment) createSegment(type, id, plan.segmentName);
+    flushImportSync();
     return { ...result, state: 'DONE' };
   } catch (e) {
     setState(id, 'FAILED', e && e.message ? e.message : 'Error inesperado');

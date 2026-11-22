@@ -4,6 +4,8 @@ import { undoInfo, confirmUndoImport } from './import-engine.js';
 import { boot } from './page.js';
 import { wireMenus, closeMenus, toast } from './shell.js';
 import { OWNERS, TODAY, formatDate, tzAbbr, initials, colorFor, strip } from './data.js';
+import { CATALOG, loadApps, connectApp, syncApp } from './app-sync.js';
+import { consumeCallbackParams } from './gmail.js';
 import { emptyStateHtml } from './empty-state.js';
 
 boot({ root: '../', active: 'data', sub: 'Integración de datos', title: 'Integración de datos' });
@@ -12,31 +14,30 @@ const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '
 const load = (k, fb) => { try { return JSON.parse(localStorage.getItem(k)) ?? fb; } catch { return fb; } };
 const save = (k, v) => localStorage.setItem(k, JSON.stringify(v));
 const root = document.getElementById('dint-root');
-const ME = 'Fernando L.';
 const OBJECTS = [['contacts', 'Contactos'], ['companies', 'Empresas'], ['deals', 'Negocios'], ['tickets', 'Tickets'], ['tasks', 'Tareas']];
 const objectLabel = (t) => (OBJECTS.find((o) => o[0] === t) || [t, t])[1];
-const daysAgo = (n, h = 10) => { const d = new Date(TODAY.getTime() - n * 86400000); d.setHours(h, (n * 7) % 60, 0, 0); return d.toISOString(); };
 // Local time with the browser's real zone abbreviation (never a fixed «CST»).
 const fmtWhen = (iso) => { const d = new Date(iso); return `${formatDate(iso)} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')} ${tzAbbr(d)}`.trim(); };
 
 // ---------- stored imports, connected apps and chosen columns ----------
 const IMPORTS_KEY = 'crm:imports';
-const APPS_KEY = 'crm:apps';
 const COLS_KEY = 'crm:imports:columns';
 // Only the account's real imports (the wizard's history, src/import-engine.js): no sample rows, ever.
 const imports = () => { const list = load(IMPORTS_KEY, null); return Array.isArray(list) ? list.filter((r) => r && !r.sample) : []; };
 const saveImports = (list) => save(IMPORTS_KEY, list);
-const SAMPLE_APPS = [
-  { id: 'gmail', name: 'Gmail', kind: 'Correo', object: 'contacts', connected: true, synced: 1284, lastSync: daysAgo(0, 8) },
-  { id: 'gcal', name: 'Google Calendar', kind: 'Calendario', object: 'tasks', connected: true, synced: 212, lastSync: daysAgo(0, 7) },
-  { id: 'whatsapp', name: 'WhatsApp Business', kind: 'Mensajería', object: 'contacts', connected: true, synced: 640, lastSync: daysAgo(1, 18) },
-  { id: 'outlook', name: 'Outlook', kind: 'Correo', object: 'contacts', connected: false, synced: 0, lastSync: '' },
-  { id: 'mailchimp', name: 'Mailchimp', kind: 'Marketing', object: 'contacts', connected: false, synced: 0, lastSync: '' },
-  { id: 'zapier', name: 'Zapier', kind: 'Automatización', object: 'deals', connected: false, synced: 0, lastSync: '' },
-  { id: 'quickbooks', name: 'QuickBooks', kind: 'Facturación', object: 'companies', connected: false, synced: 0, lastSync: '' },
-];
-const apps = () => { const saved = load(APPS_KEY, null); return saved ? SAMPLE_APPS.map((a) => ({ ...a, ...(saved.find((s) => s.id === a.id) || {}) })) : SAMPLE_APPS.map((a) => ({ ...a })); };
-const saveApps = (list) => save(APPS_KEY, list.map(({ id, connected, synced, lastSync }) => ({ id, connected, synced, lastSync })));
+let appRows = [];
+let appLoading = true;
+let appError = '';
+const busy = new Set();
+const apps = () => appRows;
+async function refreshApps() {
+  appLoading = true;
+  try { appRows = await loadApps(); appError = ''; }
+  catch (e) { appRows = []; appError = e.message; }
+  finally { appLoading = false; renderPane(); if ($('dint-modal').classList.contains('is-open') && $('dint-modal-title').textContent === 'Aplicaciones conectadas') openApps(); }
+}
+const syncStatus = a => busy.has(a.key) ? 'Sincronizando…' : a.sync?.last_error || a.accountError || (a.sync?.cursor?.page ? 'Lote guardado; quedan más datos' : a.sync?.last_sync_at ? 'Último lote completado' : 'Sin sincronizaciones');
+const syncButton = a => `<button class="link-btn" type="button" data-sync="${esc(a.key)}" ${busy.has(a.key) ? 'disabled' : ''}>${a.sync?.cursor?.page ? 'Continuar sincronización' : 'Sincronizar ahora'}</button>`;
 
 const COLUMNS = [
   ['name', 'Nombre de la importación', true], ['state', 'Import State', true], ['newRecords', 'New Records', true], ['updated', 'Registros actualizados', true],
@@ -77,7 +78,7 @@ root.innerHTML = `
       <section class="dint__card">
         <div class="dint__art dint__art--sync" aria-hidden="true"><span></span><span></span><span></span></div>
         <h2>Sincronizar desde aplicaciones</h2>
-        <p>Mantén los datos sincronizados entre el CRM y aplicaciones externas.</p>
+        <p>Trae datos de Google al CRM mediante sincronización manual.</p>
         <button class="btn btn--ghost btn--pillx" type="button" data-act="apps">Conectar una aplicación</button>
       </section>
       <section class="dint__card">
@@ -186,10 +187,9 @@ function renderPane() {
     q.addEventListener('input', () => { state.q = q.value.trim(); const pos = q.selectionStart; renderPane(); const nq = $('dint-q'); nq.focus(); nq.setSelectionRange(pos, pos); });
   } else if (state.tab === 'apps') {
     const list = apps().filter((a) => a.connected);
-    pane.innerHTML = list.length
-      ? `<div class="table-wrap dint__tablewrap"><table class="table dint__table"><thead><tr><th>Aplicación</th><th>Tipo</th><th>Objeto sincronizado</th><th>Estado</th><th>Registros sincronizados</th><th>Última sincronización</th><th></th></tr></thead>
-          <tbody>${list.map((a) => `<tr data-app="${a.id}"><td><strong>${esc(a.name)}</strong></td><td>${esc(a.kind)}</td><td>${esc(objectLabel(a.object))}</td><td><span class="dint__state"><span class="dint__dot"></span>Sincronizando</span></td><td>${a.synced.toLocaleString('en-US')}</td><td>${a.lastSync ? esc(fmtWhen(a.lastSync)) : '<span class="muted">--</span>'}</td><td class="num"><button class="link-btn" type="button" data-sync="${a.id}">Sincronizar ahora</button></td></tr>`).join('')}</tbody></table></div>`
-      : '<p class="muted dint__empty">Todavía no hay aplicaciones conectadas. Usa "Conectar una aplicación" para empezar.</p>';
+    pane.innerHTML = appLoading ? '<p role="status">Consultando conexiones…</p>' : appError ? `<p role="alert">${esc(appError)}</p><button class="btn" data-reload-apps>Volver a intentar</button>` : list.length
+      ? `<p class="muted">Resultados del último lote guardado en Supabase. Consultados incluye registros sin cambios; creados y actualizados son escrituras reales en el CRM.</p><div class="table-wrap"><table class="table"><thead><tr><th>Aplicación / cuenta</th><th>Estado</th><th>Consultados</th><th>Creados</th><th>Actualizados</th><th>Último lote guardado</th><th></th></tr></thead><tbody>${list.map(a=>`<tr data-app="${esc(a.id)}"><td><strong>${esc(a.name)}</strong><br>${esc(a.email)}<p>${esc(a.description)}</p></td><td>${esc(syncStatus(a))}</td><td>${a.sync?.fetched ?? '—'}</td><td>${a.sync?.created ?? '—'}</td><td>${a.sync?.updated ?? '—'}</td><td>${a.sync?.last_sync_at ? esc(fmtWhen(a.sync.last_sync_at)) : 'Nunca'}</td><td>${syncButton(a)}</td></tr>`).join('')}</tbody></table></div>`
+      : '<p class="muted dint__empty">No hay aplicaciones con permisos de sincronización. Conecta o autoriza tu cuenta de Google.</p>';
   } else {
     pane.innerHTML = `<div class="dint__studio"><span class="tag tag--beta">Beta</span><h3>Sincronizaciones de Data Studio</h3><p class="muted">Data Studio conecta almacenes de datos externos con el CRM. Todavía no hay sincronizaciones configuradas.</p><button class="btn btn--ghost btn--pillx" type="button" data-act="datahub">Aumentar de nivel a Data Hub 🔒</button></div>`;
   }
@@ -210,26 +210,22 @@ function closeModal() {
 
 // ---------- connected apps ----------
 function openApps() {
-  const list = apps();
-  openModal(
-    'Aplicaciones conectadas',
-    `<p class="muted">Conecta aplicaciones para mantener sus datos sincronizados con el CRM.</p>
-     <table class="mini-table dint__apps"><thead><tr><th>Aplicación</th><th>Tipo</th><th>Objeto</th><th></th></tr></thead><tbody>
-     ${list.map((a) => `<tr><td><strong>${esc(a.name)}</strong>${a.connected ? ' <span class="tag tag--done">Conectada</span>' : ''}</td><td>${esc(a.kind)}</td><td>${esc(objectLabel(a.object))}</td><td class="num"><button class="btn btn--ghost btn--sm" type="button" data-app-toggle="${a.id}">${a.connected ? 'Desconectar' : 'Conectar'}</button></td></tr>`).join('')}
-     </tbody></table>`,
-    '<button class="btn btn--primary" type="button" data-close>Cerrar</button>',
-  );
+ const list = appRows.length ? appRows : CATALOG;
+ openModal('Aplicaciones conectadas',
+  `${appLoading ? '<p role="status">Consultando conexiones…</p>' : appError ? `<p role="alert">${esc(appError)}</p><button class="btn" data-reload-apps>Volver a intentar</button>` : ''}
+  ${list.map(a=>`<section><h3>${esc(a.name)}</h3><p>${esc(a.description || 'Disponible próximamente')}</p>${a.connected ? `<p>${esc(a.email)} · ${esc(syncStatus(a))}</p>${syncButton(a)} <button class="link-btn" data-connect-app="${esc(a.id)}">Autorizar de nuevo con Google</button>` : a.scope ? `<button class="btn" data-connect-app="${esc(a.id)}" ${appLoading || appError ? 'disabled' : ''}>Conectar / autorizar con Google</button>` : ''}</section>`).join('')}`,
+  '<button class="btn btn--primary" type="button" data-close>Cerrar</button>');
 }
-function toggleApp(id) {
-  const list = apps();
-  const a = list.find((x) => x.id === id);
-  if (!a) return;
-  a.connected = !a.connected;
-  if (a.connected) { a.synced = a.synced || 0; a.lastSync = new Date().toISOString(); }
-  saveApps(list);
-  toast(a.connected ? `${a.name} conectada: la sincronización ha empezado` : `${a.name} desconectada`);
-  openApps();
-  renderPane();
+async function runSync(key) {
+ const a=apps().find(a=>a.key===key);
+ if(!a || busy.has(key)) return;
+ busy.add(key); renderPane();
+ if ($('dint-modal').classList.contains('is-open')) openApps();
+ try {
+  const result=await syncApp(a);
+  toast(`Lote guardado: ${result.fetched} consultados, ${result.created} creados, ${result.updated} actualizados.${result.more ? ' Pulsa Continuar sincronización para el siguiente lote.' : ''}`);
+ } catch(e) { toast(`No se completó la sincronización: ${e.message}`); }
+ finally { busy.delete(key); await refreshApps(); }
 }
 
 // ---------- columns ----------
@@ -259,18 +255,10 @@ root.addEventListener('click', (e) => {
   if (f) { state[f.dataset.filter] = f.dataset.value; closeMenus(); renderPane(); return; }
   // (a row's name and its error count link to the real review page ./import/?id=<id>: no static modals)
   const sync = e.target.closest('[data-sync]');
-  if (sync) {
-    const list = apps();
-    const a = list.find((x) => x.id === sync.dataset.sync);
-    a.lastSync = new Date().toISOString();
-    a.synced += 3;
-    saveApps(list);
-    renderPane();
-    toast(`${a.name} sincronizada`);
-    return;
-  }
-  const tog = e.target.closest('[data-app-toggle]');
-  if (tog) { toggleApp(tog.dataset.appToggle); return; }
+  if (sync) { void runSync(sync.dataset.sync); return; }
+  if (e.target.closest('[data-reload-apps]')) { void refreshApps(); return; }
+  const connect = e.target.closest('[data-connect-app]');
+  if (connect) { connect.disabled=true; connectApp(connect.dataset.connectApp).catch(e=>{toast(e.message);connect.disabled=false;}); return; }
   if (e.target.closest('[data-close]') || e.target === $('dint-modal')) { closeModal(); return; }
   const act = e.target.closest('[data-act]');
   if (!act) return;
@@ -281,9 +269,13 @@ root.addEventListener('click', (e) => {
   else if (a === 'columns') openColumns();
   else if (a === 'transfer') location.href = './import/?transfer=1';
   else if (a === 'transfer-info') location.href = './import/?transfer=1';
-  else if (a === 'datahub') toast('Data Hub no está incluido en tu plan. Permite unificar datos de todas las fuentes y activarlos en campañas.');
+  else if (a === 'datahub') toast('Data Hub no está disponible en esta versión.');
 });
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
 
 wireMenus(root);
 renderPane();
+
+const callback = consumeCallbackParams();
+if (callback) toast(callback.status === 'connected' ? 'Cuenta autorizada con Google. Consulta sus permisos y sincroniza cuando quieras.' : `Google no autorizó la conexión: ${callback.reason}`);
+void refreshApps();

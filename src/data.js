@@ -678,6 +678,8 @@ const TABLE_COLS = {
 // anything else (associations, custom fields) is stored in the extra jsonb column.
 // Numeric/date columns reject empty strings in Postgres; store null instead.
 const EMPTY_AS_NULL = new Set(['queue_id', 'parent_id', 'parent_company_id', 'company_id', 'contact_id', 'employees', 'revenue', 'amount', 'created', 'last_activity', 'close_date', 'due']);
+// Integer columns: a decimal (an import that read «1.200» as 1.2, a typed «12,5») would be refused by Postgres.
+const INTEGER_COLS = new Set(['employees']);
 // Where a record field lives in Supabase: a real column, or inside the `extra` jsonb (the filter panel
 // translates its conditions into the query with this). { column, json } — json true when it is extra->>key.
 export function dbColumnFor(type, key) {
@@ -695,7 +697,7 @@ function toDb(type, rec, keepProps = false) {
   for (const [k, v] of Object.entries(rec)) {
     if (v === undefined || k === 'extra') continue;
     const col = (CAMEL_TO_DB[type] && CAMEL_TO_DB[type][k]) || k;
-    if (TABLE_COLS[type].includes(col)) out[col] = v === '' && EMPTY_AS_NULL.has(col) ? null : v;
+    if (TABLE_COLS[type].includes(col)) out[col] = v === '' && EMPTY_AS_NULL.has(col) ? null : INTEGER_COLS.has(col) && v !== null && v !== '' && Number.isFinite(Number(v)) ? Math.round(Number(v)) : v;
     else if (keepProps || !propKeys.has(k)) extra[k] = v;
   }
   out.extra = extra;

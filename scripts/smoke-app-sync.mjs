@@ -1,0 +1,86 @@
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import { PGlite } from '@electric-sql/pglite';
+import { transform } from 'esbuild';
+const db=new PGlite();
+const uid='00000000-0000-0000-0000-000000000001', aid='00000000-0000-0000-0000-000000000002';
+await db.exec(`create role anon; create role authenticated; create role service_role; create schema auth;
+create table auth.users(id uuid primary key); create function auth.uid() returns uuid language sql as 'select null::uuid';
+create table connected_accounts(id uuid primary key,user_id uuid,status text);
+create table tasks(id bigint generated always as identity primary key,name text,type text,status text,due timestamptz,extra jsonb,user_id uuid);
+create table activities(id bigint generated always as identity primary key,type text,record_type text,record_id bigint,text text,who text,occurred_at timestamptz,extra jsonb,user_id uuid);
+insert into auth.users values('${uid}'); insert into connected_accounts values('${aid}','${uid}','active');`);
+const sql=await readFile(new URL('../supabase/app-sync.sql',import.meta.url),'utf8');
+await db.exec(sql); await db.exec(sql);
+const commit=async(app,version,rows,cursor={},fetched=rows.length)=>(await db.query('select commit_app_sync($1,$2,$3,$4,$5,$6,$7) as result',[aid,app,uid,version,JSON.stringify(rows),fetched,JSON.stringify(cursor)])).rows[0].result;
+const event={key:'e1',name:'Meeting',due:'2026-11-22T10:00:00-06:00',cancelled:false,extra:{source:'gcal'}};
+assert.deepEqual(await commit('gcal',0,[event]),{fetched:1,created:1,updated:0,more:false});
+assert.equal((await commit('gcal',1,[event])).created,0);
+assert.equal((await commit('gcal',2,[{...event,name:'Moved',due:'2026-11-23T12:00:00Z'}])).updated,1);
+assert.equal((await db.query('select count(*)::int as n from tasks')).rows[0].n,1);
+assert.equal((await commit('gcal',3,[{...event,cancelled:true}],{page:'next'})).more,true);
+assert.equal((await db.query('select status from tasks')).rows[0].status,'done');
+await assert.rejects(commit('gcal',3,[event]),/Otra sincronización/);
+await assert.rejects(commit('gcal',4,[{...event,key:'valid'}, {...event,key:'invalid',due:'not-a-date'}]),/invalid input/);
+assert.equal((await db.query('select count(*)::int as n from tasks')).rows[0].n,1,'whole batch rolls back');
+assert.equal((await db.query("select version from app_sync_state where app='gcal'")).rows[0].version,4);
+await assert.rejects(db.query('select commit_app_sync($1,$2,$3,0,\'[]\',0,\'{}\')',[aid,'gmail','00000000-0000-0000-0000-000000000099']),/Cuenta/);
+const activity={key:'m1:1',contact_id:1,text:'Body',who:'sender@example.com',at:'2026-11-22T10:00:00Z',extra:{source:'gmail'}};
+assert.equal((await commit('gmail',0,[activity])).created,1);
+assert.equal((await commit('gmail',1,[activity])).created,0);
+assert.equal((await db.query('select count(*)::int as n from activities')).rows[0].n,1);
+assert.equal((await db.query("select has_function_privilege('authenticated','commit_app_sync(uuid,text,uuid,integer,jsonb,integer,jsonb)','execute') as allowed")).rows[0].allowed,false);
+console.log('SQL: repeat migration, idempotency, updates, cancellations, rollback, ownership, concurrency, privileges passed.');
+
+// Execute actual Edge handler against controlled providers and the real SQL RPC.
+await db.exec('truncate app_sync_records,app_sync_state,tasks,activities');
+let handler, googlePages=[], gmailPages=[], messages={}, allow=true, contactQueries=[], apiUrls=[], accountScopes;
+let accountStatus='active', storageFailure=false;
+const apiDB={from(table){let filters={},operation='read',value;
+ const q={select(){return q;},eq(k,v){filters[k]=v;return q;},maybeSingle(){return q;},update(v){operation='update';value=v;return q;},insert(v){operation='insert';value=v;return q;},
+ async then(resolve,reject){try{
+  let data=null;
+  if(operation==='read') data=(await db.query('select * from app_sync_state where account_id=$1 and app=$2',[filters.account_id,filters.app])).rows[0]||null;
+  else if(operation==='update') await db.query('update app_sync_state set last_error=$1 where account_id=$2 and app=$3 and version=$4',[value.last_error,filters.account_id,filters.app,filters.version]);
+  else await db.query('insert into app_sync_state(account_id,app,user_id,last_error) values($1,$2,$3,$4) on conflict do nothing',[value.account_id,value.app,value.user_id,value.last_error]);
+  return resolve({data,error:null});
+ }catch(e){return reject(e);}}};return q;},
+ async rpc(name,p){try{if(storageFailure)throw Error('storage unavailable');return {data:await commit(p.p_app,p.p_version,p.p_rows,p.p_cursor,p.p_fetched),error:null};}catch(error){return {error};}}
+};
+const scoped={rpc:async()=>({data:allow}),from(){let email;
+ const q={select(){return q;},ilike(k,v){email=v;contactQueries.push(v);return q;},is(){return Promise.resolve({data:email==='contact@example.com'?[{id:9,email}]:[],error:null});}};return q;}};
+globalThis.__sync={db:apiDB,scoped,account:()=>({id:aid,email:'me@example.com',status:accountStatus,scopes:accountScopes}),
+ gmail:async(token,path)=>path.startsWith('messages?')?gmailPages.shift():messages[decodeURIComponent(path.split('/')[1].split('?')[0])]};
+globalThis.Deno={serve:fn=>{handler=fn;}};
+globalThis.fetch=async(url)=>{apiUrls.push(url);return googlePages.shift();};
+const fake=`export const userFromRequest=async()=>({id:'${uid}'}), serviceClient=()=>globalThis.__sync.db, accountFor=async()=>globalThis.__sync.account(), withAccount=async(db,a,fn)=>fn('token'),gmail=(...a)=>globalThis.__sync.gmail(...a),requireEnv=()=>'',headerOf=(h,n)=>h.find(x=>x.name===n)?.value||'',extractBodies=()=>({text:'body',html:''}),htmlToText=x=>x,json=x=>Response.json(x),fail=(e,s=400)=>Response.json({error:e},{status:s});export class GmailError extends Error{}; export const handle=fn=>async req=>{try{return await fn(req);}catch(e){return fail(e.message,500);}};`;
+const url=`data:text/javascript;base64,${Buffer.from(fake).toString('base64')}`;
+let code=await readFile(new URL('../supabase/functions/app-sync/index.ts',import.meta.url),'utf8');
+code=code.replaceAll("'../_shared/gmail.ts'",JSON.stringify(url)).replace("import { createClient } from 'npm:@supabase/supabase-js@2';",'const createClient=()=>globalThis.__sync.scoped;');
+await import(`data:text/javascript;base64,${Buffer.from((await transform(code,{loader:'ts',format:'esm'})).code).toString('base64')}`);
+const run=app=>handler(new Request('https://local.invalid',{method:'POST',headers:{Authorization:'Bearer local'},body:JSON.stringify({app,accountId:aid})}));
+accountScopes=['https://www.googleapis.com/auth/calendar.events.readonly','https://www.googleapis.com/auth/gmail.readonly'];
+googlePages=[Response.json({items:[{id:'event',summary:'All day',start:{date:'2026-11-22'}}],nextPageToken:'page2'}),Response.json({items:[],nextSyncToken:'sync1'})];
+assert.equal((await (await run('gcal')).json()).created,1);
+assert.equal((await (await run('gcal')).json()).fetched,0);
+assert.match(apiUrls[1],/pageToken=page2/);
+googlePages=[Response.json({error:{}},{status:410}),Response.json({items:[],nextSyncToken:'renewed'})];
+assert.equal((await run('gcal')).status,200);
+assert.match(apiUrls[2],/syncToken=sync1/); assert.doesNotMatch(apiUrls[3],/syncToken=/);
+gmailPages=[{messages:[{id:'sent'},{id:'received'},{id:'unmatched'}],nextPageToken:'more'}];
+const message=(id,from,to)=>({id,threadId:'thread',internalDate:'1795341600000',labelIds:id==='sent'?['SENT']:['INBOX'],payload:{headers:[{name:'From',value:from},{name:'To',value:to},{name:'Subject',value:'Test'}]}});
+messages={sent:message('sent','me@example.com','Contact <contact@example.com>'),received:message('received','contact@example.com','me@example.com'),unmatched:message('unmatched','stranger@example.com','me@example.com')};
+let result=await (await run('gmail')).json();
+assert.equal(result.fetched,3); assert.equal(result.created,2); assert.equal(result.more,true);
+assert.equal((await db.query('select count(*)::int n from activities')).rows[0].n,2);
+gmailPages=[{messages:[{id:'sent'},{id:'received'}]}];
+result=await (await run('gmail')).json(); assert.equal(result.created,0); assert.equal(result.updated,0);
+const success=(await db.query("select last_sync_at from app_sync_state where app='gmail'")).rows[0].last_sync_at;
+storageFailure=true;gmailPages=[{messages:[]}];assert.equal((await run('gmail')).status,500);
+const failed=(await db.query("select * from app_sync_state where app='gmail'")).rows[0];
+assert.deepEqual(failed.last_sync_at,success);assert.equal(failed.last_error,'storage unavailable');
+storageFailure=false;allow=false;assert.equal((await run('gmail')).status,403);allow=true;
+accountScopes=[];assert.equal((await run('gcal')).status,409);
+accountStatus='disabled';assert.equal((await run('gmail')).status,409);
+await db.close();
+console.log('Edge: Calendar pagination, 410 recovery, Gmail sent/received/contact match, repeated sync, storage failure, membership and scopes passed.');

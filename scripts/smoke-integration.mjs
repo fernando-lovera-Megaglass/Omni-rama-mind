@@ -91,24 +91,22 @@ if (data.allContacts().length !== contactsBefore + 2) fail('the engine import sh
 if (!first.querySelector('td').textContent.includes('nuevos_contactos.csv') || first.querySelector('td[data-key="state"]').textContent.trim() !== 'Listo') fail('the import should appear first with state Listo');
 if (!first.querySelector('a').getAttribute('href').includes(`import/?id=${entry.id}`)) fail('the monitor should link to the review page');
 
-// connected apps and their sync tab
+// No fake local connections or sync counters, even with stale browser data.
+mem['crm:apps'] = JSON.stringify([{id:'gmail',connected:true,synced:1284}]);
+await new Promise(resolve => setTimeout(resolve, 0));
 click(document.querySelector('[data-act="apps"]'));
-log('apps modal rows:', document.querySelectorAll('#dint-modal-body tbody tr').length, '| connected:', document.querySelectorAll('#dint-modal-body .tag--done').length);
-click(document.querySelector('[data-app-toggle="outlook"]'));
-log('after connecting Outlook ->', document.querySelectorAll('#dint-modal-body .tag--done').length, 'connected');
+if (document.querySelector('[data-app-toggle]')) fail('fake connection toggle remains');
+if (!document.querySelector('#dint-modal-body').textContent.includes('Disponible próximamente')) fail('unimplemented apps must be honest');
 click($('dint-modal').querySelector('[data-close]'));
 click(document.querySelector('[data-tab="apps"]'));
-const appRows = [...document.querySelectorAll('#dint-pane tbody tr[data-app]')].map((r) => r.dataset.app);
-log('sync tab apps:', appRows.join(', '));
-if (!appRows.includes('outlook') || appRows.length !== 4) fail('the sync tab should list the connected apps');
-click(document.querySelector('[data-sync="gmail"]'));
-log('after sync now:', document.querySelector('#dint-pane tr[data-app="gmail"] td:nth-child(5)').textContent);
+if (document.querySelector('[data-sync]')) fail('unverified accounts must not offer sync');
+if (document.querySelector('#dint-pane').textContent.includes('1,284')) fail('legacy fake counts must be ignored');
 click(document.querySelector('[data-tab="studio"]'));
 log('studio tab:', document.querySelector('#dint-pane h3')?.textContent, '| beta tag:', Boolean(document.querySelector('#dint-pane .tag--beta')));
 // "Importar" in every list leads here (as in the original) and the import card is pointed out
 for (const type of ['contacts', 'companies', 'deals', 'tickets', 'tasks']) {
   const d3 = new JSDOM('<!doctype html><body class="app"><aside id="sidenav"></aside><header id="topbar"></header><main id="list-root"></main><div id="scrim"></div></body>', { url: `http://localhost/${type}/` });
-  globalThis.window = d3.window; globalThis.document = d3.window.document; globalThis.location = d3.window.location;
+  globalThis.window = d3.window; globalThis.document = d3.window.document; globalThis.location = d3.window.location; globalThis.HTMLElement = d3.window.HTMLElement;
   await import(resolve(here, `../src/${type}.js`) + '?links');
   const importLinks = [...document.querySelectorAll('a.menu__item')].filter((a) => /Importar/.test(a.textContent)).map((a) => a.getAttribute('href'));
   log(`${type} import entries:`, importLinks.join(' | '), '| old drawer gone:', !document.getElementById('import-drawer'));

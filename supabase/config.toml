@@ -66,3 +66,6 @@ verify_jwt = true
 # Scheduled marketing e-mails worker (same service-role check). See docs/marketing-process.md.
 [functions.marketing-process]
 verify_jwt = true
+
+[functions.app-sync]
+verify_jwt = true

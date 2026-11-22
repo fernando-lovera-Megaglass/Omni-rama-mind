@@ -60,10 +60,10 @@ export const gmailAccountById = (id) => { const r = rows.find((x) => x.id === id
 export const hasGmail = () => rows.some((r) => r.status !== 'disabled');
 
 // ---------- connect flow ----------
-export async function startConnect({ returnTo = '', email = '' } = {}) {
+export async function startConnect({ returnTo = '', email = '', app = 'gmail' } = {}) {
   if (!gmailConfigured()) throw new Error(configNotice());
   const target = returnTo || (typeof location !== 'undefined' ? location.href : '');
-  const data = await invoke('gmail-auth-url', { body: { returnTo: target, email } });
+  const data = await invoke('gmail-auth-url', { body: { returnTo: target, email, app } });
   if (!data.url) throw new Error('La función gmail-auth-url no devolvió la URL de Google.');
   navigate(data.url);
   return data.url;

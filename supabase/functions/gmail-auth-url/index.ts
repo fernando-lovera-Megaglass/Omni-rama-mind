@@ -15,7 +15,7 @@ Deno.serve(handle(async (req) => {
     client_id: requireEnv('GOOGLE_CLIENT_ID'),
     redirect_uri: callbackUrl(),
     response_type: 'code',
-    scope: SCOPES.join(' '),
+    scope: [...SCOPES, ...(body.app === 'gcal' ? ['https://www.googleapis.com/auth/calendar.events.readonly'] : [])].join(' '),
     access_type: 'offline',
     prompt: 'consent',
     include_granted_scopes: 'true',
