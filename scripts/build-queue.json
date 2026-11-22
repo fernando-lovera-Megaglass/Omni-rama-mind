@@ -1348,10 +1348,12 @@
     },
     {
       "id": "gap-smoke-currency-registro",
-      "status": "pending",
+      "status": "done",
       "instruction": "smoke-currency falla en «record should show the new currency right away». Criterio: smoke-currency pasa. Ejecuta la(s) prueba(s) con node scripts/<smoke>.mjs hasta que pasen. Verifica si es regresión del código o prueba desactualizada por un cambio intencional; corrige lo que corresponda. No despliegues nada a producción; solo código local.",
       "createdAt": "2026-11-21T16:25:45-06:00",
-      "lane": "codex"
+      "lane": "codex",
+      "completedAt": "2026-11-21T20:35:42-0600",
+      "completedBy": "codex"
     },
     {
       "id": "gap-smoke-company-hierarchy-fila",

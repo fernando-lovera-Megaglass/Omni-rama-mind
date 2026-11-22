@@ -5353,6 +5353,40 @@ td.cell--hl .cell__pen {
   font-weight: 600;
 }
 
+/* Elementos de pedido editables en la ficha del negocio */
+.lineitems--editable th:last-child,
+.lineitems--editable td:last-child {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.lineitems__actions .link-btn + .link-btn {
+  margin-left: var(--sp-8);
+}
+
+.lineitems__actions .btn + .btn {
+  margin-left: var(--sp-4);
+}
+
+.lineitems__editrow input {
+  width: 100%;
+  min-width: 70px;
+  padding: 4px 6px;
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-sm);
+  font: inherit;
+  font-size: var(--fs-sm);
+}
+
+.lineitems__editrow td:first-child input {
+  min-width: 140px;
+}
+
+.card__head .link-btn[data-li="add"] {
+  margin-left: auto;
+  white-space: nowrap;
+}
+
 /* Marketing › Correo: list, template picker, editor, review */
 .mk-tabs {
   display: flex;

@@ -2192,6 +2192,57 @@ export function addLineItems(dealId, items) {
   return recs;
 }
 export const lineItemsTotal = (rows) => rows.reduce((s, r) => s + (Number(r.quantity) || 0) * (Number(r.price) || 0), 0);
+// Edits one line (name, quantity, price) in place: UPDATE on deal_line_items, or the localStorage copy.
+export function updateLineItem(id, patch) {
+  const rows = dbLive ? lineItemRows : read(LINE_ITEMS_KEY, []);
+  const r = rows.find((x) => Number(x.id) === Number(id));
+  if (!r) return null;
+  const next = normLine({ ...r, ...patch, currency: (patch && patch.currency) || r.currency });
+  if (!next.name) return null;
+  Object.assign(r, next);
+  if (dbLive) {
+    if (Number(r.id) > 0) dbWrite(async () => { const { error } = await supabase.from('deal_line_items').update({ name: r.name, quantity: r.quantity, price: r.price, currency: r.currency }).eq('id', r.id); if (error) console.error('[supabase] update deal_line_items', error); });
+  } else write(LINE_ITEMS_KEY, rows);
+  return { ...r };
+}
+// Removes one line: DELETE on deal_line_items, or the localStorage copy. Returns true when it existed.
+export function removeLineItem(id) {
+  if (dbLive) {
+    const i = lineItemRows.findIndex((x) => Number(x.id) === Number(id));
+    if (i < 0) return false;
+    const [r] = lineItemRows.splice(i, 1);
+    if (Number(r.id) > 0) dbWrite(async () => { const { error } = await supabase.from('deal_line_items').delete().eq('id', r.id); if (error) console.error('[supabase] delete deal_line_items', error); });
+    return true;
+  }
+  const all = read(LINE_ITEMS_KEY, []);
+  const next = all.filter((x) => Number(x.id) !== Number(id));
+  if (next.length === all.length) return false;
+  write(LINE_ITEMS_KEY, next);
+  return true;
+}
+// The deal's amount follows its lines, as the original does: the lines' total while there are lines, and the
+// amount the deal had before its first line (amountBeforeLines) once the last one is removed. Every change
+// leaves «Elementos de pedido actualizados: total …» on the deal's timeline.
+export function applyLineItemsToDeal(dealId) {
+  const d = findIn('deals', dealId);
+  if (!d) return null;
+  const rows = lineItemsFor(dealId);
+  const total = lineItemsTotal(rows);
+  const code = (rows[0] && rows[0].currency) || d.deal_currency_code || homeCurrency();
+  const hadBefore = d.amountBeforeLines !== undefined && d.amountBeforeLines !== null && d.amountBeforeLines !== '';
+  let amount;
+  if (rows.length) {
+    if (!hadBefore) setField('deals', dealId, 'amountBeforeLines', Number(d.amount) || 0);
+    amount = total;
+  } else {
+    amount = hadBefore ? Number(d.amountBeforeLines) || 0 : Number(d.amount) || 0;
+    if (hadBefore) setField('deals', dealId, 'amountBeforeLines', null);
+  }
+  const changed = Number(d.amount) !== amount;
+  if (changed) setField('deals', dealId, 'amount', amount);
+  logSystem('deals', dealId, `Elementos de pedido actualizados: total ${formatMoney(total, code)} (${rows.length} ${rows.length === 1 ? 'línea' : 'líneas'})${changed ? ` · importe del negocio ${formatMoney(amount, code)}` : ''}.`, { lineItems: rows.length, lineItemsTotal: total, amount });
+  return { total, amount, count: rows.length, changed };
+}
 
 // Every activity of the account (the reports count calls and emails by date). In localStorage mode the
 // per-record keys are scanned; a storage without key enumeration (tests) simply yields none.

@@ -28,7 +28,7 @@ import {
   STATUSES, LIFECYCLES, SOURCES, OWNERS, TICKET_STATUSES, PRIORITIES, TASK_TYPES, TASK_STATUSES, RECUR_OPTIONS,
   ticketStatusIsClosed, ticketStatusesFor, ticketStatusLabel, firstOpenTicketStatus, ticketPipelines, dealPipelines, stagesFor, allDealStages, dealStageLabel, dealStageProb, isClosedStage, dealStageIsClosed,
   formatDate, formatMoney, initials, colorFor, labelOf, toCsv, download, TODAY, assocLabels, CURRENCY_DEFS, CURRENCY_CODES, relativeTimeFine,
-  activitiesFor, ensureActivitiesFor, addActivity, updateActivity, deleteActivity, restoreActivity, deletedActivitiesFor, activityIdForComment, historyFor, addHistoryEntry, getSetting, setSetting, settingsLive, settingScope, lineItemsFor, fetchLineItems, lineItemsTotal,
+  activitiesFor, ensureActivitiesFor, addActivity, updateActivity, deleteActivity, restoreActivity, deletedActivitiesFor, activityIdForComment, historyFor, addHistoryEntry, getSetting, setSetting, settingsLive, settingScope, lineItemsFor, fetchLineItems, lineItemsTotal, addLineItems, updateLineItem, removeLineItem, applyLineItemsToDeal,
   parentCompanyOf, childCompaniesOf, isCompanyDescendant, dbIsLive,
 } from './data.js';
 import { supabase } from './supabaseClient.js';
@@ -1196,13 +1196,71 @@ function lineItemsCard(label) {
   const rows = lineItemsFor(rec.id);
   const code = rec.deal_currency_code;
   const money = (n) => formatMoney(n, code);
-  return `<div class="card" data-card="lineitems"><div class="card__head"><button class="card__toggle" type="button" data-toggle="lineitems"><span class="chev">⌄</span> ${esc(label)} (${rows.length})</button></div>
-    <div data-pane="lineitems">${rows.length
-      ? `<table class="lineitems"><thead><tr><th>Producto</th><th>Cant.</th><th>Precio</th><th>Importe</th></tr></thead><tbody>${rows
-          .map((r) => `<tr><td>${esc(r.name)}</td><td>${esc(r.quantity)}</td><td>${esc(money(r.price))}</td><td>${esc(money(r.quantity * r.price))}</td></tr>`)
-          .join('')}</tbody><tfoot><tr><td colspan="3">Total</td><td>${esc(money(lineItemsTotal(rows)))}</td></tr></tfoot></table>`
-      : '<p class="muted">Este negocio no tiene elementos de pedido. Se añaden al crear el negocio.</p>'}</div></div>`;
+  const st = liState;
+  const amountOf = (x) => (Number(x.quantity) || 0) * (Number(x.price) || 0);
+  // the editable row (a new line, or an existing one being edited)
+  const inputRow = (x, id) => `<tr class="lineitems__editrow" data-li-row="${esc(id)}">
+      <td><input type="text" data-li-field="name" value="${esc(x.name)}" placeholder="Nombre del producto" aria-label="Producto" /></td>
+      <td><input type="number" min="0" step="1" data-li-field="quantity" value="${esc(x.quantity)}" aria-label="Cantidad" /></td>
+      <td><input type="number" min="0" step="0.01" data-li-field="price" value="${esc(x.price)}" aria-label="Precio" /></td>
+      <td data-li-amount>${esc(money(amountOf(x)))}</td>
+      <td class="lineitems__actions"><button class="btn btn--primary btn--sm" type="button" data-li="save" data-id="${esc(id)}">Guardar</button><button class="btn btn--ghost btn--sm" type="button" data-li="cancel">Cancelar</button></td></tr>`;
+  const body = rows.map((r) => (st.editing === r.id ? inputRow(st.draft, r.id) : `<tr data-li-row="${esc(r.id)}"><td>${esc(r.name)}</td><td>${esc(r.quantity)}</td><td>${esc(money(r.price))}</td><td>${esc(money(r.quantity * r.price))}</td><td class="lineitems__actions"><button class="link-btn" type="button" data-li="edit" data-id="${esc(r.id)}">Editar</button><button class="link-btn" type="button" data-li="remove" data-id="${esc(r.id)}">Quitar</button></td></tr>`)).join('') + (st.adding ? inputRow(st.draft, 'new') : '');
+  return `<div class="card" data-card="lineitems"><div class="card__head"><button class="card__toggle" type="button" data-toggle="lineitems"><span class="chev">⌄</span> ${esc(label)} (${rows.length})</button>${st.adding || st.editing ? '' : '<button class="link-btn" type="button" data-li="add">+ Agregar elemento de pedido</button>'}</div>
+    <div data-pane="lineitems">${rows.length || st.adding
+      ? `<table class="lineitems lineitems--editable"><thead><tr><th>Producto</th><th>Cant.</th><th>Precio</th><th>Importe</th><th></th></tr></thead><tbody>${body}</tbody>${rows.length ? `<tfoot><tr><td colspan="3">Total</td><td data-li-total>${esc(money(lineItemsTotal(rows)))}</td><td></td></tr></tfoot>` : ''}</table>`
+      : '<p class="muted">Este negocio no tiene elementos de pedido. Agrega el primero con «+ Agregar elemento de pedido».</p>'}</div></div>`;
 }
+// Editing state of the line items card: a new line being typed, or an existing line being edited.
+let liState = { adding: false, editing: null, draft: {} };
+function lineItemDraftFrom(row) {
+  const get = (k) => { const i = row.querySelector(`[data-li-field="${k}"]`); return i ? i.value : ''; };
+  return { name: String(get('name') || '').trim(), quantity: Number(get('quantity')), price: Number(get('price')) };
+}
+// After any change of the lines: the deal's amount follows the total, the header and the timeline refresh.
+function lineItemsChanged(message) {
+  const res = applyLineItemsToDeal(rec.id);
+  const fresh = findRecord(type, rec.id);
+  if (fresh) { rec.amount = fresh.amount; rec.amountBeforeLines = fresh.amountBeforeLines; }
+  liState = { adding: false, editing: null, draft: {} };
+  renderAll();
+  toast(res ? `${message} · importe del negocio ${formatMoney(res.amount, rec.deal_currency_code)}` : message);
+}
+mount.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-li]');
+  if (!b || type !== 'deals') return;
+  e.preventDefault();
+  const a = b.dataset.li;
+  if (a === 'add') { liState = { adding: true, editing: null, draft: { name: '', quantity: 1, price: '' } }; renderRight(); const i = mount.querySelector('[data-li-row="new"] [data-li-field="name"]'); if (i) i.focus(); return; }
+  if (a === 'edit') { const r = lineItemsFor(rec.id).find((x) => String(x.id) === String(b.dataset.id)); if (!r) return; liState = { adding: false, editing: r.id, draft: { ...r } }; renderRight(); return; }
+  if (a === 'cancel') { liState = { adding: false, editing: null, draft: {} }; renderRight(); return; }
+  if (a === 'save') {
+    const row = b.closest('[data-li-row]');
+    const d = lineItemDraftFrom(row);
+    if (!d.name) { toast('Escribe el nombre del producto'); return; }
+    if (!(d.quantity > 0)) { toast('La cantidad debe ser mayor que cero'); return; }
+    if (!(d.price >= 0)) { toast('Escribe un precio válido'); return; }
+    if (b.dataset.id === 'new') { addLineItems(rec.id, [{ ...d, currency: rec.deal_currency_code }]); lineItemsChanged('Elemento de pedido agregado'); }
+    else { if (!updateLineItem(b.dataset.id, d)) { toast('No se pudo guardar el elemento'); return; } lineItemsChanged('Elemento de pedido actualizado'); }
+    return;
+  }
+  if (a === 'remove') {
+    const r = lineItemsFor(rec.id).find((x) => String(x.id) === String(b.dataset.id));
+    if (!r || !window.confirm(`¿Quitar «${r.name}» de los elementos de pedido?`)) return;
+    removeLineItem(r.id);
+    lineItemsChanged('Elemento de pedido quitado');
+  }
+});
+// the amount of the row being typed follows quantity × price
+mount.addEventListener('input', (e) => {
+  const f = e.target.closest && e.target.closest('[data-li-field]');
+  if (!f) return;
+  const row = f.closest('[data-li-row]');
+  const d = lineItemDraftFrom(row);
+  liState.draft = { ...liState.draft, ...d };
+  const cell = row.querySelector('[data-li-amount]');
+  if (cell) cell.textContent = formatMoney((Number(d.quantity) || 0) * (Number(d.price) || 0), rec.deal_currency_code);
+});
 function renderAssoc() {
   renderRight();
 }
