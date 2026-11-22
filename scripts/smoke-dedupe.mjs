@@ -120,7 +120,8 @@ const skip = panel.querySelector('input[name="mode"][value="create"]');
 skip.checked = true;
 change(skip);
 log('after "saltar":', document.querySelector('.imp__plan').textContent.trim(), '| action cell:', $('imp-dups').querySelector('.imp__duptable tbody tr td:last-child').textContent.trim());
-if (W.state.options.mode !== 'create' || !document.querySelector('.imp__plan').textContent.includes('1 contactos nuevos · 0 actualizaciones') || $('imp-dups').querySelector('.imp__duptable tbody tr td:last-child').textContent.trim() !== 'Se salta') fail('skip duplicates choice');
+// the plan counts «registros nuevos» (it also serves multi-object batches since the multi-file import)
+if (W.state.options.mode !== 'create' || !document.querySelector('.imp__plan').textContent.includes('1 registros nuevos · 0 actualizaciones') || $('imp-dups').querySelector('.imp__duptable tbody tr td:last-child').textContent.trim() !== 'Se salta') fail('skip duplicates choice');
 const merge = $('imp-dups').querySelector('input[name="filedups"][value="merge"]');
 merge.checked = true;
 change(merge);

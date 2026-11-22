@@ -1,5 +1,11 @@
 # Progreso — Omni CRM
 
+## 2026-11-22 (sesión 6) · smoke-dedupe: la vista previa del plan cuenta «registros nuevos»
+
+- Diagnóstico: no es regresión. La desduplicación funciona como antes (corrida con política de combinación: 2 creados, 2 actualizados, 1 fallido, 420 → 422 contactos; el existente no se duplica; «Se salta» al elegir saltar). El commit 2853737 (importación multiarchivo con asociaciones) cambió a propósito el texto de «Vista previa del resultado» de `${objeto} nuevos` a «registros nuevos», porque el plan ahora puede abarcar varios objetos; la prueba seguía buscando «1 contactos nuevos · 0 actualizaciones».
+- `scripts/smoke-dedupe.mjs`: la comprobación «skip duplicates choice» busca «1 registros nuevos · 0 actualizaciones». Pasa completa (saltar, combinar, revisión final, contacto creado).
+- Solo código local; nada desplegado.
+
 ## 2026-11-22 (sesión 6) · smoke-company-hierarchy: forma de `options` en custom_properties
 
 - Diagnóstico: no es regresión. Desde 373188c (editor de propiedades parte B) `customPropToDb` guarda en la columna `options` de `custom_properties` un JSON `{ values: [...], rules: { required, unique, sensitive, readOnly, maxLength } }` y `customPropFromDb` lo lee de vuelta (admitiendo todavía el array antiguo); `smoke-custom-props` ya comprobaba `row.options.values`, pero `smoke-company-hierarchy` seguía esperando un array (`row.options.length`).
