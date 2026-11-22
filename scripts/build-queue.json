@@ -1944,10 +1944,12 @@
     },
     {
       "id": "gap-ui-cardprops-marketing-no-quitables",
-      "status": "pending",
+      "status": "done",
       "createdAt": "2026-11-22T06:32:15-06:00",
       "lane": "codex",
-      "instruction": "Contactos: la tarjeta «Acerca de este contacto» no respeta la personalización para las propiedades de marketing. En src/record.js, defaultCardKeys() (línea ~521) y currentFields() (línea ~522-526) anteponen SIEMPRE a la fuerza marketingOptOut, marketingOptOutAt y marketingOptOutReason: currentFields() hace [...new Set([...esas 3, ...keys])] aunque el usuario las haya desmarcado en «Personalizar la tarjeta de propiedades» (engranaje de la tarjeta) y guardado. Resultado: esas 3 propiedades no se pueden quitar nunca y además se cuelan al principio de la tarjeta rompiendo el orden guardado. En HubSpot cualquier propiedad de la tarjeta «Acerca de» se puede quitar desde Personalizar la tarjeta. Fix: las 3 props de marketing deben formar parte SOLO del default inicial (defaultCardKeys), nunca reinsertarse en currentFields; si el usuario las quita, la tarjeta no las muestra ni al recargar. Criterio de aceptación: en la ficha de un contacto, abrir Personalizar la tarjeta, desmarcar «Exclusión de marketing», «Fecha de exclusión de marketing» y «Motivo de exclusión», guardar: desaparecen de la tarjeta y no vuelven tras recargar; el orden de las demás propiedades elegidas se respeta tal cual se guardó. No despliegues nada a producción; solo código local."
+      "instruction": "Contactos: la tarjeta «Acerca de este contacto» no respeta la personalización para las propiedades de marketing. En src/record.js, defaultCardKeys() (línea ~521) y currentFields() (línea ~522-526) anteponen SIEMPRE a la fuerza marketingOptOut, marketingOptOutAt y marketingOptOutReason: currentFields() hace [...new Set([...esas 3, ...keys])] aunque el usuario las haya desmarcado en «Personalizar la tarjeta de propiedades» (engranaje de la tarjeta) y guardado. Resultado: esas 3 propiedades no se pueden quitar nunca y además se cuelan al principio de la tarjeta rompiendo el orden guardado. En HubSpot cualquier propiedad de la tarjeta «Acerca de» se puede quitar desde Personalizar la tarjeta. Fix: las 3 props de marketing deben formar parte SOLO del default inicial (defaultCardKeys), nunca reinsertarse en currentFields; si el usuario las quita, la tarjeta no las muestra ni al recargar. Criterio de aceptación: en la ficha de un contacto, abrir Personalizar la tarjeta, desmarcar «Exclusión de marketing», «Fecha de exclusión de marketing» y «Motivo de exclusión», guardar: desaparecen de la tarjeta y no vuelven tras recargar; el orden de las demás propiedades elegidas se respeta tal cual se guardó. No despliegues nada a producción; solo código local.",
+      "completedAt": "2026-11-22T06:41:26-0600",
+      "completedBy": "codex"
     },
     {
       "id": "gap-ui-acard-controles-muertos",

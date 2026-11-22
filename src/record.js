@@ -522,7 +522,7 @@ const defaultCardKeys = () => [...(type === 'contacts' ? ['marketingOptOut', 'ma
 function currentFields() {
   const saved = loadCard();
   const keys = saved && Array.isArray(saved.keys) && saved.keys.length ? saved.keys : defaultCardKeys();
-  return [...new Set([...(type === 'contacts' ? ['marketingOptOut', 'marketingOptOutAt', 'marketingOptOutReason'] : []), ...keys])].map(fieldFor).filter(Boolean);
+  return [...new Set(keys)].map(fieldFor).filter(Boolean);
 }
 function cardTitle() {
   const saved = loadCard();
