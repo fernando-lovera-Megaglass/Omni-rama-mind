@@ -88,11 +88,7 @@ const ticketPanel = mountCreateTicket({
     const draft = $('inbox-reply')?.elements.body.value;
     renderAll();
     if (draft !== undefined && $('inbox-reply')) $('inbox-reply').elements.body.value = draft;
-    toast('Ticket creado');
-    const link = document.createElement('a');
-    link.href = href;
-    link.textContent = 'Ver ticket';
-    $('toast').append(' · ', link);
+    toast('Ticket creado', { actionLabel: 'Ver ticket', href });
   },
 });
 // Only turn internal ticket record paths into links; message content remains escaped.
@@ -380,7 +376,7 @@ root.addEventListener('submit', (e) => {
     $('inbox-status').value = c.status;
     state.channel = '';
     $('inbox-channel').value = '';
-    toast('Conversación creada');
+    toast('Conversación creada', { actionLabel: 'Ver conversación', href: `?id=${encodeURIComponent(c.id)}` });
     select(c.id);
   }
 });

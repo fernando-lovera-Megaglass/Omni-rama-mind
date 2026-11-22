@@ -1,3 +1,4 @@
+import { toast, recordToastAction } from './shell.js';
 import { addRecord, findRecord, subtasksOf } from './data.js';
 import { completeTask } from './task-queue.js';
 
@@ -26,7 +27,8 @@ export function mountSubtasks(container, parentId, onChange = () => {}) {
     const name = input.value.trim();
     if (!name) { input.focus(); return; }
     const current = findRecord('tasks', parentId);
-    addRecord('tasks', { name, parentId: current.id, status: 'todo', type: 'Tarea', priority: current.priority, owner: current.owner, due: current.due, contactId: current.contactId, contact: current.contact });
+    const made = addRecord('tasks', { name, parentId: current.id, status: 'todo', type: 'Tarea', priority: current.priority, owner: current.owner, due: current.due, contactId: current.contactId, contact: current.contact });
+    toast('Tarea creada', recordToastAction('tasks', made.id));
     render();
     container.querySelector('[name="subtask"]').focus();
   };

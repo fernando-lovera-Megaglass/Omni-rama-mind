@@ -162,7 +162,8 @@ const co1Now = data.allCompanies().find((c) => Number(c.id) === Number(co1.id));
 log('mirrored:', JSON.stringify(c1Now.assoc_deals), JSON.stringify(co1Now.assoc_deals));
 if (!(c1Now.assoc_deals || []).includes(Number(made.id)) || !(co1Now.assoc_deals || []).includes(Number(made.id))) fail('the other records should list the deal');
 log('toast:', $('toast')?.textContent, '| total:', total(), '(was', before + ')', '| panel open:', panel().classList.contains('is-open'), '| cleared:', f.name.value === '' && rows('contacts').length === 0 && rows('companies').length === 0 && !document.querySelector('#cd-items tbody') && f.pipeline.value === 'FUERZA DE VENTAS' && f.created.value === '2026-11-07');
-if ($('toast')?.textContent !== 'Negocio creado' || total() !== before + 1 || !panel().classList.contains('is-open') || f.name.value !== '' || rows('contacts').length || rows('companies').length || document.querySelector('#cd-items tbody') || !$('cd-create').disabled) fail('create and add another');
+if ($('toast')?.firstChild?.textContent !== 'Negocio creado' || total() !== before + 1 || !panel().classList.contains('is-open') || f.name.value !== '' || rows('contacts').length || rows('companies').length || document.querySelector('#cd-items tbody') || !$('cd-create').disabled) fail('create and add another');
+if ($('toast').querySelector('a')?.getAttribute('href') !== `../deals/record/?id=${made.id}`) fail('creation action must open the saved record');
 
 // 8) "Crear" closes; the board shows the new card in its column
 type('name', 'Segundo negocio del panel');

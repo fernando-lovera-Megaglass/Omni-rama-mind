@@ -1566,6 +1566,16 @@ h1 {
   transform: translate(-50%, 0);
 }
 
+.toast.is-visible .toast__action {
+  pointer-events: auto;
+}
+
+.toast__action {
+  color: inherit;
+  text-decoration: underline;
+  font-weight: 600;
+}
+
 /* ---------- Drawer (create contact) ---------- */
 .drawer {
   position: fixed;

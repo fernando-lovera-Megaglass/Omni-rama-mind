@@ -79,7 +79,8 @@ click($('cc-create-another'));
 await wait(20);
 const made = data.allContacts().find((c) => c.email === 'prueba.panel@ejemplo.com');
 log('after "Crear y agregar otro": record', made && `${made.name} · ${made.owner} · ${made.hs_buying_role} · ${made.source}`, '| panel open?', panel().classList.contains('is-open'), '| first cleared?', $('cc-form').elements.first.value === '', '| toast:', $('toast')?.textContent, '| total:', total(), '(was', before + ')');
-if (!made || made.name !== 'Prueba Panel' || made.owner !== 'Fernando L.' || made.hs_buying_role !== 'Influenciador' || !panel().classList.contains('is-open') || $('cc-form').elements.first.value !== '' || !$('cc-create').disabled || $('toast')?.textContent !== 'Contacto creado' || total() !== before + 1) fail('create and add another');
+if (!made || made.name !== 'Prueba Panel' || made.owner !== 'Fernando L.' || made.hs_buying_role !== 'Influenciador' || !panel().classList.contains('is-open') || $('cc-form').elements.first.value !== '' || !$('cc-create').disabled || $('toast')?.firstChild?.textContent !== 'Contacto creado' || total() !== before + 1) fail('create and add another');
+if ($('toast').querySelector('a')?.getAttribute('href') !== `../contacts/record/?id=${made.id}`) fail('creation action must open the saved record');
 // 6) exact e-mail duplicate on save: warning with a link to the existing contact, nothing saved
 type('first', 'Otra');
 type('last', 'Persona');

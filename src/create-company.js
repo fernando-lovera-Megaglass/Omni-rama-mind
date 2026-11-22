@@ -6,7 +6,7 @@ import { validatePropertyValues } from './data.js';
 // company, and the insert through data.js (the companies table).
 import { addRecord, allCompanies, OWNERS, TODAY, strip, siteDomain, companyDomains, companiesByDomain, additionalDomainsOf, normalizeAdditionalDomains } from './data.js';
 import { supabase } from './supabaseClient.js';
-import { toast } from './shell.js';
+import { toast, recordToastAction } from './shell.js';
 import { authEnabled, currentUser } from './auth.js';
 import { customFieldsHtml, COUNTRIES, ownerForUser } from './create-contact.js';
 import { enhanceOwnerSelects, refreshOwnerSelects } from './owner-select.js';
@@ -184,7 +184,7 @@ export function mountCreateCompany({ root = document.getElementById('list-root')
       }
       await validatePropertyValues('companies', d, { client: searchClient });
       const rec = await addRecord('companies', normalizeCompany(d), { waitForSave: true });
-      toast('Empresa creada');
+      toast('Empresa creada', recordToastAction('companies', rec.id));
       if (list && typeof list.render === 'function') list.render();
       if (onCreated) onCreated(rec);
       if (another) { reset(); setTimeout(() => form.elements.domain.focus(), 0); } else close();

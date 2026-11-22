@@ -17,7 +17,7 @@ import { mountActivityComments } from './activity-comments.js';
 // lead stage, associations).
 import { mountSubtasks } from './subtasks.js';
 import { boot } from './page.js';
-import { toast, wireMenus, closeMenus, linkHtml, wireLinkTooltips } from './shell.js';
+import { toast, wireMenus, closeMenus, linkHtml, wireLinkTooltips, recordToastAction } from './shell.js';
 import {
   findRecord, setField, deleteRecords, addRecord, allContacts, allCompanies, allDeals, allTickets, allTasks, ALL,
   STATUSES, LIFECYCLES, SOURCES, OWNERS, TICKET_STATUSES, PRIORITIES, TASK_TYPES, TASK_STATUSES, RECUR_OPTIONS,
@@ -2061,6 +2061,7 @@ $('rec-modal').addEventListener('click', async (e) => {
       saveAssociatedActivity({ type: kind, when, who: 'Tú', text, extra }, { type, id, name }, targets, addActivity);
       renderTimeline();
     }
+    let followupTask;
     if ($('log-followup')?.checked && $('log-followup-date').value) {
       const contact = type === 'contacts' ? rec : byId(allContacts(), rec.contactId);
       const task = addRecord('tasks', {
@@ -2074,11 +2075,12 @@ $('rec-modal').addEventListener('click', async (e) => {
         due: new Date(`${$('log-followup-date').value}T09:00`).toISOString(),
         lastActivity: TODAY.toISOString(),
       });
+      followupTask = task;
       addEvent({ type: 'task', when: Date.now(), who: 'Tú', text: `Tarea de seguimiento creada: "${task.name}", vence el ${formatDate(task.due)}.` });
       renderAssoc();
     }
     closeModal();
-    toast(editingActivity ? 'Actividad actualizada' : schedule ? 'Reunión programada' : 'Actividad registrada');
+    toast(editingActivity ? 'Actividad actualizada' : schedule ? 'Reunión programada' : 'Actividad registrada', followupTask ? recordToastAction('tasks', followupTask.id) : {});
     editingActivity = null;
   } else if (what === 'workflow') {
     b.disabled = true;
@@ -2333,7 +2335,9 @@ if (!rec) {
         document.querySelector('#note-form textarea').focus();
       } else if (a === 'task') {
         addEvent({ type: 'task', when: Date.now(), who: 'Tú', text: `Tarea creada: seguimiento con ${cfg.title(rec)} para ${formatDate(new Date(TODAY.getTime() + 3 * 86400000))}.` });
-        toast('Tarea creada');
+        const task = addRecord('tasks', { name: `Seguimiento con ${cfg.title(rec)}`, type: 'Tarea', status: 'todo', priority: 'medium', owner: rec.owner, due: new Date(TODAY.getTime() + 3 * 86400000).toISOString(), contactId: type === 'contacts' ? rec.id : rec.contactId || '', companyId: type === 'companies' ? rec.id : rec.companyId || '' });
+        renderAssoc();
+        toast('Tarea creada', recordToastAction('tasks', task.id));
       } else if (a === 'call') {
         // El menú de llamada del original: números del registro, agregar número, «Llamada desde»,
         // dispositivo y opciones. Sin Twilio ofrece el registro manual.
@@ -2669,6 +2673,7 @@ if (rec) {
     closeAssocDrawer();
     ad = { kind };
     saveAssociations([made.id], { [made.id]: label });
+    toast(`${KIND_META[kind].s} creado`, recordToastAction(kind, made.id));
     ad = null;
   });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && ad) closeAssocDrawer(); });

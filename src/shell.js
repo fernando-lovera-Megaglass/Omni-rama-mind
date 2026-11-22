@@ -520,7 +520,12 @@ export function wireLinkTooltips() {
   });
 }
 
-export function toast(text) {
+export function recordToastAction(kind, id) {
+  const label = { contacts: 'contacto', companies: 'empresa', deals: 'negocio', tickets: 'ticket', tasks: 'tarea' }[kind];
+  return label ? { actionLabel: `Ver ${label}`, href: `${document.body.dataset.root || '../'}${kind}/record/?id=${encodeURIComponent(id)}` } : {};
+}
+
+export function toast(text, opts = {}) {
   let el = document.getElementById('toast');
   if (!el) {
     el = document.createElement('div');
@@ -529,7 +534,15 @@ export function toast(text) {
     document.body.appendChild(el);
   }
   el.textContent = text;
+  const hasAction = Boolean(opts.actionLabel && opts.href);
+  if (hasAction) {
+    const link = document.createElement('a');
+    link.className = 'toast__action';
+    link.textContent = opts.actionLabel;
+    link.href = opts.href;
+    el.append(' · ', link);
+  }
   el.classList.add('is-visible');
   clearTimeout(el._t);
-  el._t = setTimeout(() => el.classList.remove('is-visible'), 2500);
+  el._t = setTimeout(() => el.classList.remove('is-visible'), hasAction ? 6000 : 2500);
 }

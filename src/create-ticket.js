@@ -6,7 +6,7 @@
 // open one by default (the same rule as the list's normalize). The insert goes through data.js (addRecord), which
 // also associates the contact's primary company (autoAssociateTicketCompany) unless a company was chosen here.
 import { addRecord, addActivity, allContacts, allCompanies, findRecord, OWNERS, PRIORITIES, TODAY, ticketPipelines, ticketStatusesFor, firstOpenTicketStatus, assocLabels, initials, validatePropertyValues } from './data.js';
-import { toast } from './shell.js';
+import { toast, recordToastAction } from './shell.js';
 import { authEnabled, currentUser } from './auth.js';
 import { customFieldsHtml, ownerForUser } from './create-contact.js';
 import { findAssociable } from './create-deal.js';
@@ -218,7 +218,7 @@ export function mountCreateTicket({ root = document.getElementById('list-root') 
       // The company data.js attached automatically (the contact's primary one) gets its entry too, once.
       const saved = findRecord('tickets', made.id) || made;
       if (saved.companyId && !state.companies.some((c) => Number(c.id) === Number(saved.companyId))) logOn('companies', saved.companyId, ' (empresa principal del contacto)');
-      if (!fromConversation) toast('Ticket creado');
+      if (!fromConversation) toast('Ticket creado', recordToastAction('tickets', made.id));
       if (list && typeof list.render === 'function') list.render();
       if (onCreated) await onCreated(saved, context);
       busy(false);

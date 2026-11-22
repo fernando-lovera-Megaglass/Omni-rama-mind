@@ -6,7 +6,7 @@ import { validatePropertyValues } from './data.js';
 import { addRecord, allContacts, OWNERS, TODAY, strip } from './data.js';
 import { formCustomProperties } from './properties.js';
 import { supabase } from './supabaseClient.js';
-import { toast } from './shell.js';
+import { toast, recordToastAction } from './shell.js';
 import { authEnabled, currentUser } from './auth.js';
 import { enhanceOwnerSelects, refreshOwnerSelects } from './owner-select.js';
 import { enhancePhoneInputs, refreshPhoneInputs } from './phone.js';
@@ -199,7 +199,7 @@ export function mountCreateContact({ root = document.getElementById('list-root')
       }
       await validatePropertyValues('contacts', d);
       const rec = await addRecord('contacts', normalizeContact(d), { waitForSave: true });
-      toast('Contacto creado');
+      toast('Contacto creado', recordToastAction('contacts', rec.id));
       if (list && typeof list.render === 'function') list.render();
       if (onCreated) onCreated(rec);
       if (another) { reset(); setTimeout(() => form.elements.email.focus(), 0); } else close();

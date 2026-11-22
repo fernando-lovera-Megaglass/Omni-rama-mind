@@ -7,7 +7,7 @@ import { validatePropertyValues } from './data.js';
 // data.js: the deals table (associations in the deal's columns and extra, mirrored on the other records)
 // and deal_line_items for the lines.
 import { addRecord, setField, addActivity, addLineItems, allContacts, allCompanies, OWNERS, TODAY, strip, dealPipelines, stagesFor, assocLabels, CURRENCY_DEFS, CURRENCY_CODES, homeCurrency, formatMoney, initials } from './data.js';
-import { toast } from './shell.js';
+import { toast, recordToastAction } from './shell.js';
 import { authEnabled, currentUser } from './auth.js';
 import { customFieldsHtml, ownerForUser } from './create-contact.js';
 import { enhanceOwnerSelects, refreshOwnerSelects } from './owner-select.js';
@@ -272,7 +272,7 @@ export function mountCreateDeal({ root = document.getElementById('list-root') ||
       };
       state.contacts.forEach((c) => mirror('contacts', c));
       state.companies.forEach((c) => mirror('companies', c));
-      toast('Negocio creado');
+      toast('Negocio creado', recordToastAction('deals', made.id));
       if (list && typeof list.render === 'function') list.render();
       if (onCreated) onCreated(made, { lines });
       if (another) { reset(); setTimeout(() => form.elements.name.focus(), 0); } else close();

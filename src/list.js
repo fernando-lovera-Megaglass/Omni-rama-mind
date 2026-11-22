@@ -5,7 +5,7 @@ import { validatePropertyValues } from './data.js';
 import { sensitiveValue } from './property-privacy.js';
 // Generic object list: views, filter menus, search, sort, paging, selection,
 // column editor (full property catalog), advanced filters, CSV export/import, create drawer.
-import { wireMenus, closeMenus, toast, linkHtml, wireLinkTooltips } from './shell.js';
+import { wireMenus, closeMenus, toast, linkHtml, wireLinkTooltips, recordToastAction } from './shell.js';
 import { ACT_ICONS, FIELD_ICONS } from './action-icons.js';
 import { ownerHtml } from './owner.js';
 import { emptyStateHtml } from './empty-state.js';
@@ -2721,7 +2721,7 @@ export function mountList(cfg) {
     e.target.reset();
     closeDrawer('create-drawer');
     activateView(stdId(cfg.views[0].key));
-    toast(`${cfg.singular} creado`);
+    toast(`${cfg.singular} creado`, recordToastAction(cfg.type, rec.id));
     if (cfg.afterCreate) cfg.afterCreate(rec);
   });
 
