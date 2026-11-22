@@ -40,20 +40,22 @@ assert.deepEqual((await db.query('SELECT record_id::int FROM workflow_enrollment
 assert.equal((await db.query('SELECT count(*)::int n FROM contact_companies')).rows[0].n, 1);
 assert.equal((await db.query('SELECT is_primary FROM contact_companies')).rows[0].is_primary, true);
 await db.exec(`BEGIN; ${repair} COMMIT;`);
-// Richer high ID wins, fills missing properties, preserves both physical rows.
+// Lowest ID wins even when the copy is richer; fill blanks and preserve both rows.
 await db.exec(`INSERT INTO contacts(id,email,phone,city,extra) VALUES
  (50,'rich@example.com','555','','{"custom":"retained"}'),
  (350,'rich@example.com','','Madrid','{"a":"1","b":"2","c":"3"}');
- INSERT INTO deals(contact_id) VALUES (50);
- INSERT INTO tickets(contact_id) VALUES (50);`);
+ INSERT INTO deals(contact_id) VALUES (350);
+ INSERT INTO tickets(contact_id) VALUES (350);`);
 await db.exec(`BEGIN; ${repair} COMMIT;`);
-const rich = (await db.query('SELECT * FROM contacts WHERE id=350')).rows[0];
+const rich = (await db.query('SELECT * FROM contacts WHERE id=50')).rows[0];
 assert.equal(rich.deleted_at, null);
 assert.equal(rich.phone, '555');
+assert.equal(rich.city, 'Madrid');
+assert.equal(rich.extra.a, '1');
 assert.equal(rich.extra.custom, 'retained');
-assert.ok((await db.query('SELECT deleted_at FROM contacts WHERE id=50')).rows[0].deleted_at);
-assert.equal((await db.query('SELECT count(*)::int n FROM deals WHERE contact_id=50')).rows[0].n, 0);
-assert.equal((await db.query('SELECT count(*)::int n FROM tickets WHERE contact_id=350')).rows[0].n, 1);
+assert.ok((await db.query('SELECT deleted_at FROM contacts WHERE id=350')).rows[0].deleted_at);
+assert.equal((await db.query('SELECT count(*)::int n FROM deals WHERE contact_id=350')).rows[0].n, 0);
+assert.equal((await db.query('SELECT count(*)::int n FROM tickets WHERE contact_id=50')).rows[0].n, 1);
 // An existing orphan must fail acceptance and roll back the entire repair.
 await db.exec('INSERT INTO deals(contact_id) VALUES (99999)');
 await assert.rejects(db.exec(`BEGIN; ${repair} COMMIT;`), /Orphans/);

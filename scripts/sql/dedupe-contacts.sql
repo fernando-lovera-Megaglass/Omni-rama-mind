@@ -31,7 +31,7 @@ DO $$ BEGIN
 END $$;
 CREATE TEMP TABLE contact_merge ON COMMIT DROP AS
 SELECT id AS duplicate_id, canonical_id FROM (
-  SELECT id, first_value(id) OVER (PARTITION BY email ORDER BY filled_fields DESC, id) AS canonical_id
+  SELECT id, first_value(id) OVER (PARTITION BY email ORDER BY id) AS canonical_id
   FROM contact_inventory
 ) c WHERE id <> canonical_id;
 SELECT i.*, min(i.id) OVER (PARTITION BY i.email) AS lower_id,
