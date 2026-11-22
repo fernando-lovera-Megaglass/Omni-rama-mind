@@ -121,7 +121,13 @@ type($('cp-phone'), '611222333');
 type($('cp-ext'), '4');
 if ($('cp-value').value !== `${text(q('#cellpop .phonebox__dial'))} 611 222 333, ext. 4` || $('cellpop-save').disabled) fail(`cell editor value: ${$('cp-value').value}`);
 click($('cellpop-save'));
+// Property validation is asynchronous; wait for the editor to finish saving before reading the record.
+const saveDeadline = Date.now() + 2000;
+while (!$('cellpop').hidden && Date.now() < saveDeadline) await wait(10);
+if (!$('cellpop').hidden) fail('cell save did not finish: editor remains open');
 const after = data.findRecord('contacts', td.dataset.id).phone;
 if (!/^\+\d+ 611 222 333, ext\. 4$/.test(after)) fail(`cell save: ${after}`);
+const savedLink = q(`#table tbody td[data-key="phone"][data-id="${td.dataset.id}"] a`);
+if (text(savedLink) !== P.displayPhone(after) || savedLink?.getAttribute('href') !== P.phoneHref(after)) fail('cell display after save');
 log(`list: cells show the formatted phone with tel: link; inline editor saved ${after}`);
 log('OK');

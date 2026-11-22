@@ -1404,10 +1404,12 @@
     },
     {
       "id": "gap-smoke-phone-guardado-celda",
-      "status": "pending",
+      "status": "done",
       "instruction": "smoke-phone falla en «cell save: +57 1 321 4008». Criterio: la prueba pasa. Ejecuta la(s) prueba(s) con node scripts/<smoke>.mjs hasta que pasen. Verifica si es regresión del código o prueba desactualizada por un cambio intencional; corrige lo que corresponda. No despliegues nada a producción; solo código local.",
       "createdAt": "2026-11-21T16:25:45-06:00",
-      "lane": "codex"
+      "lane": "codex",
+      "completedAt": "2026-11-21T21:30:55-0600",
+      "completedBy": "codex"
     },
     {
       "id": "gap-smoke-task-queue-barra",
