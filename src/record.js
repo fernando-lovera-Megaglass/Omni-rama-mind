@@ -11,6 +11,8 @@ import './filter-chip.js';
 import { validatePropertyValues, companyDomainPrefill, companyDomains, mergeRecords, mergeConflicts, mergeFillable } from './data.js';
 import { suggestedKeep } from './duplicates.js';
 import { cancelScheduled, rescheduleEmail, scheduledById, datetimeInput as scheduledInput, whenText as scheduledWhen, timeZoneName as scheduledTz } from './scheduled-emails.js';
+import { attachMentionAutocomplete, mentionsIn } from './mention-autocomplete.js';
+import { notifyMentions, recordHref } from './notifications.js';
 import { sensitiveValue } from './property-privacy.js';
 import { mountActivityComments } from './activity-comments.js';
 // Generic record page for contacts, companies, deals, tickets and tasks.
@@ -2359,7 +2361,8 @@ if (!rec) {
   });
 
   // "#atajo" in the note box inserts a snippet with this record's data in place of its tokens.
-  const wireNoteBox = (ta) => attachSnippetAutocomplete(ta, { context: () => contextFromRecord(type, rec) });
+  // "#atajo" inserts a snippet; "@usuario" mentions a colleague (notified when the note is saved).
+  const wireNoteBox = (ta) => { attachSnippetAutocomplete(ta, { context: () => contextFromRecord(type, rec) }); attachMentionAutocomplete(ta); };
   mount.addEventListener('focusin', (e) => { if (e.target.matches && e.target.matches('#note-form textarea')) wireNoteBox(e.target); });
   const noteBox = mount.querySelector('#note-form textarea');
   if (noteBox) wireNoteBox(noteBox);
@@ -2386,9 +2389,11 @@ if (!rec) {
       if (!text) return;
       saveAssociatedActivity({ type: 'note', when: Date.now(), who: 'Tú', text },
         { type, id, name: cfg.title(rec) }, selectedActivityAssociations(e.target), addActivity);
+      // «@usuario» in the note → a bell notification for each colleague named, linking to this record
+      const mentioned = notifyMentions({ names: mentionsIn(text).map((u) => u.name), type, id, recordName: cfg.title(rec), excerpt: text, href: recordHref(type, id) });
       renderTimeline();
       ta.value = '';
-      toast('Nota guardada');
+      toast(mentioned.length ? `Nota guardada · ${mentioned.length === 1 ? `${mentioned[0].to} recibirá una notificación` : `${mentioned.length} personas recibirán una notificación`}` : 'Nota guardada');
       return;
     }
     if (e.target.id === 'desc-form') {

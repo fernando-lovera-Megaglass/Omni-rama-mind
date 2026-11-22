@@ -8,6 +8,7 @@ import { REAL_DEAL_PIPELINES, LEGACY_STAGE_MAP, DEFAULT_PIPELINE_NAME, REAL_TICK
 import { supabase, DB_MODE, createAnonProbe } from './supabaseClient.js';
 import { requireSession, signOut, siteRoot } from './auth.js';
 import { reportDbError } from './db-report.js';
+import { notifyAssigned } from './notifications.js';
 
 const FIRST = ['Ana', 'Luis', 'Marta', 'Pedro', 'Lucía', 'Javier', 'Carmen', 'Diego', 'Elena', 'Raúl', 'Sara', 'Hugo', 'Paula', 'Álvaro', 'Nuria', 'Iván', 'Laura', 'Sergio', 'Irene', 'Mario', 'Clara', 'Andrés', 'Beatriz', 'Tomás', 'Rocío', 'Daniel', 'Eva', 'Jorge', 'Alicia', 'Pablo', 'Silvia', 'Rubén', 'María José', 'Juan Carlos', 'Guadalupe', 'Ximena', 'Rodrigo', 'Valentina', 'Mateo', 'Camila', 'Santiago', 'Renata', 'Emilio', 'Fernanda', 'Joaquín', 'Patricia', 'Óscar', 'Verónica', 'Ignacio', 'Lorena'];
 const LAST = ['Torres', 'Martín', 'Gómez', 'Ruiz', 'Fernández', 'López', 'Díaz', 'Sánchez', 'Navarro', 'Moreno', 'Jiménez', 'Romero', 'Ortega', 'Castro', 'Serrano', 'Molina', 'Garrido', 'Pascual', 'Blanco', 'Herrera', 'Vidal', 'Peña', 'Cano', 'Ibáñez', 'Reyes', 'Prieto', 'Campos', 'Vargas', 'Lozano', 'Méndez', 'Gil', 'Santos', 'Zurita Rico', 'Cubas Vicencio', 'Hernández Zuviri', 'Zúñiga Verde', 'Garduño', 'De la Fuente', 'Ochoa', 'Salazar', 'Quintero', 'Villanueva', 'Esparza', 'Beltrán'];
@@ -742,7 +743,7 @@ export function setField(type, id, field, value, opts = {}) {
     const enriched = companyDomainEnrichment({ ...findIn(type, id), domain: value });
     for (const [key, next] of Object.entries(enriched)) setField(type, id, key, next, opts);
   }
-  const previousValue = (type === 'tickets' && field === 'status') || ((type === 'contacts' || type === 'companies') && field === 'lifecycle') || (type === 'tasks' && field === 'status') || (type === 'deals' && field === 'stage') ? findIn(type, id)?.[field] : undefined;
+  const previousValue = (type === 'tickets' && field === 'status') || ((type === 'contacts' || type === 'companies') && field === 'lifecycle') || (type === 'tasks' && field === 'status') || (type === 'deals' && field === 'stage') || field === 'owner' ? findIn(type, id)?.[field] : undefined;
   // The lifecycle rules of Ajustes (only forward, no skipping, owner required past Lead) stop a manual change
   // with the reason; automations check their own rules before writing (opts.lifecycleAuto).
   if ((type === 'contacts' || type === 'companies') && field === 'lifecycle' && !opts.lifecycleAuto) {
@@ -1240,6 +1241,9 @@ function afterAdd(type, rec, opts = {}) {
   if (type === 'contacts' && !opts.skipAutoCompany) { try { autoAssociateCompany(rec); } catch (e) { console.error('[empresas automáticas]', e); } }
   if (type === 'contacts' && (rec.companyId || (rec.assoc_companies || []).length)) { try { syncContactCompanies(rec.id); } catch (e) { console.error('[contact_companies]', e); } }
   if (type === 'tickets') { try { autoAssociateTicketCompany(rec); } catch (e) { console.error('[tickets: empresa del contacto]', e); } }
+  // A record created for another owner (a task for a colleague, a deal assigned on creation) notifies them too;
+  // imports and restores do not (origin other than a manual creation).
+  if (rec.owner && (type === 'tasks' || !opts.origin || opts.origin === 'Creación manual')) { try { notifyAssigned({ type, id: rec.id, name: rec.name || `${rec.first || ''} ${rec.last || ''}`.trim(), owner: rec.owner, previousOwner: '' }); } catch (e) { console.error('[notificaciones] asignación', e); } }
   return rec;
 }
 function afterSet(type, id, field, value, opts = {}, previousValue) {
@@ -1252,6 +1256,9 @@ function afterSet(type, id, field, value, opts = {}, previousValue) {
       setField(type, id, `hs_lifecyclestage_${stageId}_date`, new Date().toISOString());
     }
   }
+  // A new owner (contact, company, deal, ticket or task) gets «Se te ha asignado…» in the bell, unless it is the
+  // person making the change, «Sin asignar» or the same owner saved again (Ajustes › Notificaciones › Registro asignado).
+  if (field === 'owner' && previousValue !== value) { try { const r = findIn(type, id); if (r) notifyAssigned({ type, id, name: r.name || `${r.first || ''} ${r.last || ''}`.trim(), owner: value, previousOwner: previousValue }); } catch (e) { console.error('[notificaciones] asignación', e); } }
   // «Sincronizar la etapa entre contactos y empresa»: one hop from the record that changed (never back).
   if ((type === 'contacts' || type === 'companies') && field === 'lifecycle' && previousValue !== value && !opts.lifecycleSync) { try { lifecycleSyncCompany(type, id); } catch (e) { console.error('[ciclo de vida] sincronización', e); } }
   if (!opts.skipAutoCompany && type === 'contacts' && (field === 'email' || field === 'website') && value) { try { autoAssociateCompany(id); } catch (e) { console.error('[empresas automáticas]', e); } }

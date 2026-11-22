@@ -278,6 +278,7 @@ function renderThread() {
   if (ed) {
     ed.addEventListener('input', syncMirror);
     attachSnippetAutocomplete(ed, { context: tokenContext }); // "#atajo" inserts a snippet with this contact's data
+    attachMentionAutocomplete(ed); // "@usuario" in a comment notifies that colleague
     trackCaret(ed); // templates, snippets, documents and links land where the caret was
     ed.addEventListener('paste', (e) => { // pasted content arrives as plain text (no foreign markup)
       if (!e.clipboardData) return;
