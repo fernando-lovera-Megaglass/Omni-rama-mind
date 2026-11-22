@@ -10,7 +10,7 @@ import { requireSession, signOut, siteRoot } from './auth.js';
 import { reportDbError } from './db-report.js';
 import { notifyAssigned, notifyFollowers, ACTOR } from './notifications.js';
 import { followersOf, bindFollowSettings } from './follows.js';
-import { bindLayoutSettings } from './layout-defaults.js';
+import { bindLayoutSettings, bindLayoutTeam, TEAMS } from './layout-defaults.js';
 
 const FIRST = ['Ana', 'Luis', 'Marta', 'Pedro', 'Lucía', 'Javier', 'Carmen', 'Diego', 'Elena', 'Raúl', 'Sara', 'Hugo', 'Paula', 'Álvaro', 'Nuria', 'Iván', 'Laura', 'Sergio', 'Irene', 'Mario', 'Clara', 'Andrés', 'Beatriz', 'Tomás', 'Rocío', 'Daniel', 'Eva', 'Jorge', 'Alicia', 'Pablo', 'Silvia', 'Rubén', 'María José', 'Juan Carlos', 'Guadalupe', 'Ximena', 'Rodrigo', 'Valentina', 'Mateo', 'Camila', 'Santiago', 'Renata', 'Emilio', 'Fernanda', 'Joaquín', 'Patricia', 'Óscar', 'Verónica', 'Ignacio', 'Lorena'];
 const LAST = ['Torres', 'Martín', 'Gómez', 'Ruiz', 'Fernández', 'López', 'Díaz', 'Sánchez', 'Navarro', 'Moreno', 'Jiménez', 'Romero', 'Ortega', 'Castro', 'Serrano', 'Molina', 'Garrido', 'Pascual', 'Blanco', 'Herrera', 'Vidal', 'Peña', 'Cano', 'Ibáñez', 'Reyes', 'Prieto', 'Campos', 'Vargas', 'Lozano', 'Méndez', 'Gil', 'Santos', 'Zurita Rico', 'Cubas Vicencio', 'Hernández Zuviri', 'Zúñiga Verde', 'Garduño', 'De la Fuente', 'Ochoa', 'Salazar', 'Quintero', 'Villanueva', 'Esparza', 'Beltrán'];
@@ -761,8 +761,29 @@ export function setPrefs(type, prefs) {
 // in localStorage as before.
 let viewRows = null; // the rows of crm_views once read (null: localStorage)
 let myTeam = '';
+let teamReady = Promise.resolve('');
 export const viewsLive = () => viewRows !== null;
 export const currentTeam = () => myTeam;
+// The person's team: team_members.team when the account sets it (read at start-up with the rest).
+async function fetchMyTeam() {
+  try { const { data: me } = await supabase.from('team_members').select('team').eq('user_id', settingsUserId).maybeSingle(); myTeam = String((me && me.team) || '').trim(); } catch { myTeam = ''; }
+  return myTeam;
+}
+// The team the record pages and preview panels resolve their team view with (layout-defaults.resolveLayout):
+// team_members.team when set, else the team given in Configuración › Usuarios y equipos (the directory kept in
+// this browser, crm:users: by e-mail of the session, then by the app's user name; the demo directory assigns the
+// first teams in turn, as that screen shows).
+let settingsUserEmail = '';
+export function userTeam() {
+  if (myTeam) return myTeam;
+  const stored = read('crm:users', null);
+  const users = Array.isArray(stored) ? stored : OWNERS.filter((o) => o !== 'Sin asignar').map((o, i) => ({ name: o, email: '', team: TEAMS[i % 3] }));
+  const email = String(settingsUserEmail || '').toLowerCase();
+  const me = (email && users.find((u) => u && String(u.email || '').toLowerCase() === email)) || users.find((u) => u && u.name === ACTOR);
+  return String((me && me.team) || '').trim();
+}
+export const refreshUserTeam = () => (dbLive ? fetchMyTeam() : Promise.resolve(userTeam()));
+bindLayoutTeam(userTeam);
 const VIEWS_MIGRATED_KEY = 'crm:views:migrated';
 export const viewFromRow = (r, userId = settingsUserId) => ({ ...(r.payload || {}), id: r.id, name: r.name, share: r.share || 'private', owner: r.owner_name || '', ownerId: r.owner_id, teams: Array.isArray(r.teams) ? r.teams : [], updated: r.updated_at ? new Date(r.updated_at).getTime() : Date.now(), mine: r.owner_id === userId });
 export function viewToRow(type, v, { userId = settingsUserId, team = myTeam } = {}) {
@@ -776,7 +797,7 @@ export const viewVisibleTo = (v, { userId, team } = {}) => Boolean(v) && (v.owne
 async function fetchViews() {
   const { data, error } = await supabase.from('crm_views').select('*').order('updated_at');
   if (error) throw error;
-  try { const { data: me } = await supabase.from('team_members').select('team').eq('user_id', settingsUserId).maybeSingle(); myTeam = (me && me.team) || ''; } catch { myTeam = ''; }
+  await teamReady; // the migration below records the member's team on «Mi equipo» views
   viewRows = data || [];
   // One-time: the views this browser kept in localStorage go to the table, owned by the signed-in user.
   if (localStorage.getItem(VIEWS_MIGRATED_KEY) !== '1') {
@@ -2989,7 +3010,10 @@ async function initFromSupabase() {
     // feature. A failure in a main table still rejects Promise.all and flips
     // the app to demo mode, exactly as the sequential version did.
     settingsUserId = (session && session.user && session.user.id) || GLOBAL_USER;
+    settingsUserEmail = (session && session.user && session.user.email) || '';
+    teamReady = fetchMyTeam();
     await Promise.all([
+      teamReady,
       initCustomProperties().catch((e) => {
         // supabase/custom-properties.sql not applied yet: custom properties stay in localStorage.
         console.error('[supabase] tabla custom_properties no disponible; propiedades personalizadas en localStorage.', e);

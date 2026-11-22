@@ -21,7 +21,7 @@ try {
   const payload=JSON.stringify(buildDemoSeedPayload());
   await a.query('BEGIN');
   assert.equal((await a.query('SELECT bootstrap_demo_v1($1) seeded',[payload])).rows[0].seeded,true);
-  // Second backend must wait on the first transaction's table lock.
+  // Second backend must wait on the first transaction's advisory lock.
   const pending=b.query('SELECT bootstrap_demo_v1($1) seeded',[payload]);
   let waiting=false;
   for (let i=0;i<100 && !waiting;i++) {
@@ -31,7 +31,15 @@ try {
   assert.ok(waiting, 'second connection must be blocked until commit');
   await a.query('COMMIT');
   assert.equal((await pending).rows[0].seeded,false);
-  assert.equal((await admin.query('SELECT count(*)::int n FROM contacts')).rows[0].n,420);
+  for (const [table, rows] of Object.entries(JSON.parse(payload))) {
+    assert.equal((await admin.query(`SELECT count(*)::int n FROM public.${table}`)).rows[0].n,
+      rows.length, `one seed only in ${table}`);
+  }
+  assert.equal((await admin.query(`SELECT count(*)::int n FROM (
+    SELECT lower(btrim(email)) FROM contacts
+    WHERE deleted_at IS NULL AND btrim(email) <> ''
+    GROUP BY 1 HAVING count(*) > 1
+  ) duplicates`)).rows[0].n, 0);
   console.log('PASS: two PostgreSQL sessions, observed lock contention, exactly 420 contacts');
 } finally {
   await Promise.all(clients.map(c=>c.end()));

@@ -222,4 +222,33 @@ export function resetLayout(type) {
 }
 
 export const TEAMS = ['Acristala', 'Gerentes', 'JFC cargo destino', 'Mercadotecnia', 'Proyectos', 'SACA', 'Sistemas', 'Ventas en el Extranjero'];
+
+// ---------- which view a member sees ----------
+// As in the original: each person sees the record page (and the lists' preview panel) of the team view assigned
+// to their team in Configuración › Objetos; without a team, or without a view for it, the default view. data.js
+// binds the person's team (bindLayoutTeam); the stored lists decide (the demo seeds of Configuración never do).
+let teamSource = null; // () => the current person's team
+export function bindLayoutTeam(fn) { teamSource = fn; }
+export const currentLayoutTeam = () => { try { return String((teamSource && teamSource()) || '').trim(); } catch { return ''; } };
+const sameTeam = (a, b) => String(a || '').trim().toLowerCase() === String(b || '').trim().toLowerCase();
+// The first team view of the stored list ('record' | 'preview') that names `team`.
+export function teamViewFor(type, kind, team = currentLayoutTeam()) {
+  if (!team) return null;
+  return loadViewsList(type, kind, []).find((v) => v && v.name && Array.isArray(v.teams) && v.teams.some((t) => sameTeam(t, team))) || null;
+}
+// The record page layout: the team view (when it has a saved layout), else the default view (loadLayout).
+export function resolveLayout(type, team = currentLayoutTeam()) {
+  const view = teamViewFor(type, 'record', team);
+  if (view) {
+    const saved = readStored(VIEW_KEY(type, view.name));
+    if (validLayout(saved)) return { ...saved, right: saved.right.filter((id) => !id.startsWith('x-')), left: Array.isArray(saved.left) ? saved.left : ['about'], teamView: view.name };
+  }
+  return loadLayout(type);
+}
+// The lists' preview panel: the team preview view, else the saved default (null when never customised).
+export function resolvePreview(type, team = currentLayoutTeam()) {
+  const view = teamViewFor(type, 'preview', team);
+  if (view) { const saved = loadSavedPreview(type, view.name); if (saved) return { ...saved, teamView: view.name }; }
+  return loadSavedPreview(type);
+}
 export { TYPE_META };

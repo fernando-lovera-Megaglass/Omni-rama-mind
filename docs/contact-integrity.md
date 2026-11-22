@@ -1,5 +1,13 @@
 # Integridad de contactos
 
+## Resultado de la revisión actual (22 de noviembre)
+
+La reparación real sigue **pendiente**, no completada. No se invocó `mgmt-sql.mjs`: esta solicitud limita los cambios a código local. Además, `dedupe-contacts.mjs` rechaza deliberadamente hosts remotos. No se desplegó ni se aplicaron migraciones remotas. Los 423 contactos y 77 grupos son evidencia aportada por el usuario, no una medición de esta revisión.
+
+Se volvió a ejecutar `test-contact-integrity.mjs` satisfactoriamente (77 pares sintéticos, menor ID, soft delete y relaciones trasladadas). Se amplió y ejecutó `test-bootstrap-concurrency.mjs` con dos conexiones PostgreSQL: espera por bloqueo, una llamada devuelve `true`, la otra `false`, exactamente una siembra en las cinco tablas y cero grupos de emails activos duplicados. PostgreSQL temporal necesitó ejecución fuera del sandbox por su uso de memoria compartida. Ambas pruebas emitieron un aviso de `localStorage` desde la purga del módulo de datos al importarlo en Node, pero terminaron con código 0.
+
+Se corrigieron los estados `done` reaparecidos en la cola y el resumen de Codex: los cuatro ítems de duplicación quedan `pending`, sin metadatos de finalización. `bootstrap-demo.sql` y `contact-integrity.sql` continúan pendientes de aplicación. Las pruebas locales no autorizan cerrar la aceptación real.
+
 La política vigente conserva siempre el **menor ID activo** por `lower(btrim(email))` no vacío, conforme a la solicitud. La puntuación de campos solo informa el inventario. Se completan campos vacíos de la canónica y se conservan sus valores ante conflictos de nombres; las copias mantienen sus datos originales y reciben `deleted_at`.
 
 El bootstrap utiliza un RPC transaccional con bloqueo advisory y de tablas; no recurre a inserts desde el cliente si falta la migración. El índice parcial aplica la misma normalización que la deduplicación, incluidos espacios exteriores.

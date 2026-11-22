@@ -1,5 +1,15 @@
 # Progreso — Omni CRM
 
+## 2026-11-22 (sesión 6) · Las vistas de equipo se usan de verdad (ficha y panel de vista previa de los 4 módulos)
+
+- Antes: Configuración › Objetos creaba vistas de equipo y las asignaba a equipos, pero la ficha siempre pintaba `loadLayout(type)` y el panel de vista previa `loadSavedPreview(type)`: asignar una vista a un equipo no cambiaba nada.
+- `src/layout-defaults.js`: `resolveLayout(type)` y `resolvePreview(type)` devuelven la vista de equipo asignada al equipo del usuario actual (primera de la lista guardada de Configuración que nombra su equipo, sin distinguir mayúsculas, y que tiene diseño guardado); si no hay equipo o vista, la predeterminada. `teamViewFor`, `bindLayoutTeam`, `currentLayoutTeam`. Las vistas de muestra de Configuración (semillas) nunca aplican.
+- `src/data.js`: `userTeam()` es la fuente del equipo: `team_members.team` cuando la cuenta lo fija (se lee al arrancar con el resto, ya no depende de `crm_views`), si no el equipo del directorio de Configuración › Usuarios y equipos (`crm:users`, por correo de la sesión o por nombre del usuario de la app; el directorio de demo asigna los primeros equipos por turno como muestra esa pantalla). `refreshUserTeam()` vuelve a leerlo.
+- `src/record.js`: la ficha renderiza `resolveLayout(type)`; «Personalizar» abre el editor de la vista de equipo cuando es la que se ve. `src/list.js`: el panel de vista previa usa `resolvePreview(type)`. `src/settings.js`: en la tabla de vistas, el chip del equipo del usuario se marca («Tu equipo: esta es la vista que ves»).
+- Pruebas: `scripts/smoke-team-views.mjs` en local (vista de equipo creada en el editor con una tarjeta movida y asignada a SACA → la ficha de un contacto la muestra para un miembro de SACA; otro equipo o sin equipo ven la predeterminada; vista sin equipos o sin diseño guardado no aplica; vista previa de equipo con 3 propiedades → el panel de la lista la usa para SACA y vuelve a la predeterminada sin equipo) y con `SMOKE_LIVE=1` (equipo en `team_members` por SQL, vista en `account_settings`, arranque nuevo → ficha con la vista; sin equipo → predeterminada; todo restaurado). Documentado en `docs/smoke-live.md`.
+- Caveat conocido (sin cambios): escribir vistas de equipo en `account_settings` exige `app_metadata.role = 'admin'`; el usuario de la persona no lo tiene, así que sus vistas de equipo siguen quedando en este navegador (localStorage) hasta que se le dé ese rol.
+- Solo código local; nada desplegado.
+
 ## 2026-11-22 (sesión 6) · Purga real de 90 días: la papelera, las actividades eliminadas y las propiedades archivadas se borran de verdad
 
 - Opción (a): `purgeExpiredTrash` en `src/data.js` (constante `TRASH_DAYS = 90`) borra físicamente los contactos, empresas, negocios y tickets con `deleted_at` de más de 90 días (y lo que cuelga de ellos: actividades de su cronología, vínculos `contact_companies`, `deal_line_items`), las actividades en papelera (`extra.deletedAt`) igual de viejas y las propiedades personalizadas archivadas igual de viejas; las recientes no se tocan. Devuelve el conteo por tabla, lo pendiente y los errores.

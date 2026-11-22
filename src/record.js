@@ -49,7 +49,7 @@ import { enhanceOwnerSelects } from './owner-select.js';
 import { enhancePhoneInputs, focusPhoneInput, displayPhone, phoneHref } from './phone.js';
 import { sendSms, hasTwilio } from './twilio.js';
 import { openCallMenu, playRecording, openCallReview, attachInlinePlayer } from './call.js';
-import { loadLayout, saveLayout, cardCatalog } from './layout-defaults.js';
+import { resolveLayout, saveLayout, cardCatalog } from './layout-defaults.js';
 import { mountQueueBar, dueText, dueClass, completeTaskWithLog } from './task-queue.js';
 import { datetimeInput, reminderText, REMINDER_OPTIONS, defaultReminderOption, reminderFromDue } from './task-reminders.js';
 import { taskQueues, loadTaskQueues } from './task-queues.js';
@@ -1025,7 +1025,8 @@ function assocRows() {
   });
 }
 // ---------- page layout (columns, sections, tabs) from the layout editor ----------
-const layoutOf = () => loadLayout(type);
+// The team view assigned to the person's team (Configuración › Objetos), else the default view.
+const layoutOf = () => resolveLayout(type);
 const CATALOG = cardCatalog(type);
 let activeTabId = 'overview';
 function renderTabs() {
@@ -2113,9 +2114,12 @@ function runAction(act, data = {}) {
       }
       break;
     }
-    case 'customize':
-      location.href = `${root}layout/?type=${type}&id=${rec.id}`;
+    case 'customize': {
+      // Edit what is on screen: the team view when one applies to the person's team, else the default view.
+      const tv = layoutOf().teamView;
+      location.href = tv ? `${root}layout/?type=${type}&view=${encodeURIComponent(tv)}` : `${root}layout/?type=${type}&id=${rec.id}`;
       break;
+    }
     case 'customize-props':
       openCardEditor();
       break;

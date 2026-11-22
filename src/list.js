@@ -6,7 +6,7 @@ import { sensitiveValue } from './property-privacy.js';
 import { propertyEditor } from './property-editor.js';
 import { focusPhoneInput } from './phone.js';
 import { logTaskAssociations, taskAssociationFields } from './task-associations.js';
-import { loadSavedPreview } from './layout-defaults.js';
+import { resolvePreview } from './layout-defaults.js';
 import { isFollowing, toggleFollow } from './follows.js';
 // Generic object list: views, filter menus, search, sort, paging, selection,
 // column editor (full property catalog), advanced filters, CSV export/import, create drawer.
@@ -2108,9 +2108,9 @@ export function mountList(cfg) {
     $('pv-type').textContent = cfg.singular[0].toUpperCase() + cfg.singular.slice(1);
     // «Seguir» / «Dejar de seguir» from the real per-user follow store (src/follows.js), the same the record uses.
     if ($('pv-follow-item')) $('pv-follow-item').textContent = isFollowing(cfg.type, r.id) ? 'Dejar de seguir' : 'Seguir';
-    // The preview panel layout comes from Configuración › Objetos › Previsualizar personalización when saved there.
-    let pvLayout = null;
-    pvLayout = loadSavedPreview(cfg.type); // per user in Supabase when signed in, localStorage otherwise
+    // The preview panel layout comes from Configuración › Objetos › Previsualizar personalización when saved there:
+    // the team preview view assigned to the person's team, else the saved default (per user when signed in).
+    const pvLayout = resolvePreview(cfg.type);
     const fields = pvLayout ? pvLayout.props : cfg.previewFields || state.columns.slice(0, 10);
     $('pv-props').closest('.preview__about').hidden = Boolean(pvLayout) && !pvLayout.right.includes('about');
     $('pv-extra').innerHTML = pvLayout

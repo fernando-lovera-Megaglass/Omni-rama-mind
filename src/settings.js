@@ -20,7 +20,7 @@ import { listInvitations, invite, revoke, invitationsEnabled } from './invitatio
 import { currentUser, signInWithOtp, authMessage, authEnabled } from './auth.js';
 import { TEAMS, loadLayout, cardCatalog, loadViewsList, saveViewsList, resetLayout, resetPreview, layoutUpdatedAt, deleteViewLayout, savePreview } from './layout-defaults.js';
 import { STD_VIEWS, defaultTabs } from './std-views.js';
-import { getViewStore, TRASH_DAYS } from './data.js';
+import { getViewStore, TRASH_DAYS, userTeam } from './data.js';
 import { getSignature, setSignature, emailTemplates } from './compose.js';
 import { paneHtml as connectedEmailsPane, mountConnectedEmails } from './connected-emails-ui.js';
 import { paneChannels as paneIbChannels, paneInboxes as paneIbInboxes, paneAvailability as paneIbAvailability, paneSpam as paneIbSpam, mountInboxSettings } from './inbox-settings-ui.js';
@@ -1157,6 +1157,9 @@ function objectRecordHtml(type) {
   const layout = isPreview ? { name: 'Vista predeterminada' } : loadLayout(type);
   const editorHref = (view) => `../layout/?type=${type}${isPreview ? '&preview=1' : ''}${view ? `&view=${encodeURIComponent(view)}` : ''}`;
   const stored = recordViews(type);
+  // The person's team (team_members or Usuarios y equipos): the view assigned to it is the one they see.
+  const myTeam = String(userTeam() || '').trim().toLowerCase();
+  const mineTeam = (t) => Boolean(myTeam) && String(t || '').trim().toLowerCase() === myTeam;
   const q = state.rvQuery.trim().toLowerCase();
   const all = [{ name: layout.name || 'Vista predeterminada', teams: [], updated: layoutUpdatedAt(type, isPreview ? 'preview' : 'record') || (isPreview ? new Date(2024, 11, 9, 16, 28).toISOString() : RV_DEFAULT_UPDATED), by: '', isDefault: true, i: -1 }, ...stored.map((v, i) => ({ ...v, i }))];
   const { key, dir } = state.rvSort;
@@ -1174,7 +1177,7 @@ function objectRecordHtml(type) {
     <table class="mini-table stable proptable rvtable"><thead><tr><th class="pcheck"><input type="checkbox" aria-label="Seleccionar todo" data-rv-check-all ${rows.filter((v) => !v.isDefault).length && rows.filter((v) => !v.isDefault).every((v) => state.rvSel.has(v.name)) ? 'checked' : ''} /></th>${th('name', 'Ver nombre')}${th('teams', 'Asignado a')}${th('updated', 'Última actualización')}<th class="num">Acciones</th></tr></thead><tbody>
       ${pageRows.map((v) => `<tr><td class="pcheck">${v.isDefault ? '<input type="checkbox" disabled aria-label="Vista predeterminada" />' : `<input type="checkbox" data-rv-check="${esc(v.name)}" ${state.rvSel.has(v.name) ? 'checked' : ''} aria-label="Seleccionar ${esc(v.name)}" />`}</td>
         <td>${v.isDefault ? '<span class="rvpin" aria-hidden="true">📌</span> ' : ''}<a class="olink" href="${editorHref(v.isDefault ? '' : v.name)}">${esc(v.name)}</a></td>
-        <td>${v.isDefault ? 'Todos los equipos y usuarios sin asignar' : v.teams.length ? v.teams.map((t) => `<span class="rvchip">${esc(t)}</span>`).join(' ') : '<span class="muted">Sin asignar</span>'}</td>
+        <td>${v.isDefault ? 'Todos los equipos y usuarios sin asignar' : v.teams.length ? v.teams.map((t) => `<span class="rvchip${mineTeam(t) ? ' rvchip--mine' : ''}"${mineTeam(t) ? ' title="Tu equipo: esta es la vista que ves"' : ''}>${esc(t)}</span>`).join(' ') : '<span class="muted">Sin asignar</span>'}</td>
         <td><div>${rvDate(v.updated)}</div>${v.by ? `<div class="muted">${esc(v.by)}</div>` : ''}</td>
         <td class="num"><div class="menu"><button class="icon-btn icon-btn--round" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Acciones">⋯</button><div class="menu__panel menu__panel--right">
           <a class="menu__item" href="${editorHref(v.isDefault ? '' : v.name)}">Editar vista</a>
