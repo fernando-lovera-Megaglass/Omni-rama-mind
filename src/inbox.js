@@ -201,7 +201,7 @@ function renderThread() {
   const msgs = messagesOf(c.id);
   el.innerHTML = `
     <header class="inbox__threadhead">
-      <div class="inbox__threadtitle"><h2>${esc(c.subject)}</h2><div class="muted inbox__threadsub">${c.contact ? `<a href="../contacts/record/?id=${c.contact.id}">${esc(c.contact.name)}</a>` : 'Sin contacto'} · <span class="inbox__chan" style="--chan:${ch.color}">${esc(ch.label)}</span> <span class="tag ${STATUS_CLASS[c.status] || 'tag--none'}">${esc(STATUS_LABELS[c.status] || c.status)}</span> · ${c.assignedTo ? `asignada a ${ownerHtml(c.assignedTo)}` : ownerHtml('')}</div></div>
+      <div class="inbox__threadtitle"><h2>${esc(c.subject)}</h2><div class="muted inbox__threadsub">${c.contact ? `<a href="../contacts/record/?id=${c.contact.id}">${esc(c.contact.name)}</a>` : 'Sin contacto'} · <span class="inbox__chan" style="--chan:${ch.color}">${esc(ch.label)}</span> <span class="tag ${STATUS_CLASS[c.status] || 'tag--none'}">${esc(STATUS_LABELS[c.status] || c.status)}</span>${c.status === 'snoozed' ? ` · <span class="inbox__snoozed" data-snoozed-until="${esc(c.snoozeUntil || '')}">${c.snoozeUntil ? `Pospuesta hasta ${esc(timeOf(c.snoozeUntil))}` : 'Pospuesta sin plazo'}</span>` : ''} · ${c.assignedTo ? `asignada a ${ownerHtml(c.assignedTo)}` : ownerHtml('')}</div></div>
     </header>
     <div class="inbox__messages" id="inbox-messages">
       ${msgs.map((m) => (isInternalNote(m)
@@ -244,10 +244,42 @@ function renderSide() {
         <button class="btn btn--ghost btn--sm" type="button" data-inbox="create-ticket" ${contact ? '' : 'disabled aria-describedby="inbox-ticket-hint" title="Asocia un contacto a la conversación para crear un ticket"'}>Crear ticket</button>
         ${contact ? '' : '<small id="inbox-ticket-hint" class="muted">Asocia un contacto a la conversación para crear un ticket.</small>'}
         <button class="btn btn--ghost btn--sm" type="button" data-inbox="toggle-status">${c.status === 'closed' ? 'Reabrir' : 'Marcar como cerrado'}</button>
-        <button class="btn btn--ghost btn--sm" type="button" data-inbox="snooze">${c.status === 'snoozed' ? 'Quitar posposición' : 'Posponer'}</button>
+        ${c.status === 'snoozed'
+    ? '<button class="btn btn--ghost btn--sm" type="button" data-inbox="unsnooze">Quitar posposición</button>'
+    : `<div class="menu inbox__snooze">
+          <button class="btn btn--ghost btn--sm" type="button" aria-haspopup="true" aria-expanded="false" data-inbox-snooze-menu>Posponer <span class="caret"></span></button>
+          <div class="menu__panel">
+            ${SNOOZE_OPTIONS.filter(([k]) => k !== 'custom').map(([k, l]) => `<button class="menu__item" type="button" data-snooze="${k}">${l} <span class="muted">${esc(timeOf(snoozeUntilFor(k)))}</span></button>`).join('')}
+            <div class="menu__sep"></div>
+            <form class="inbox__snoozecustom" data-snooze-custom>
+              <label class="field"><span>Fecha y hora personalizadas</span><input type="datetime-local" name="until" required min="${esc(localInput(new Date()))}"></label>
+              <button class="btn btn--primary btn--sm" type="submit">Posponer</button>
+            </form>
+          </div>
+        </div>`}
       </div>
     </div>`;
   enhanceOwnerSelects(el);
+  wireMenus(el);
+}
+// A snoozed conversation comes back on its own when its deadline passes; the inbox checks every minute while
+// it stays open (and once when it loads). Returns how many came back.
+export function checkSnoozed(now = Date.now()) {
+  const n = reopenSnoozed(now);
+  if (n) { toast(`${n} ${n === 1 ? 'conversación pospuesta reabierta' : 'conversaciones pospuestas reabiertas'}`); renderAll(); }
+  return n;
+}
+const localInput = (d) => { const p = (n) => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`; };
+function snoozeActive(until) {
+  const c = state.activeId ? conversationById(state.activeId) : null;
+  if (!c) return;
+  const t = until ? new Date(until) : null;
+  if (!t || Number.isNaN(t.getTime())) { toast('Elige una fecha y hora válidas'); return; }
+  if (t.getTime() <= Date.now()) { toast('La fecha debe ser posterior a ahora'); return; }
+  closeMenus();
+  setConversationStatus(c.id, 'snoozed', { snoozeUntil: t.toISOString() });
+  toast(`Conversación pospuesta hasta ${timeOf(t.toISOString())}`);
+  renderAll();
 }
 function renderAll() { renderList(); renderThread(); renderSide(); refreshBadge(); }
 function select(id) {
@@ -295,14 +327,16 @@ root.addEventListener('click', (e) => {
       const next = c.status === 'closed' ? 'open' : 'closed';
       setConversationStatus(c.id, next);
       toast(next === 'closed' ? 'Conversación cerrada' : 'Conversación reabierta');
-    } else if (a === 'snooze') {
-      const next = c.status === 'snoozed' ? 'open' : 'snoozed';
-      setConversationStatus(c.id, next);
-      toast(next === 'snoozed' ? 'Conversación pospuesta' : 'Conversación de nuevo abierta');
+    } else if (a === 'unsnooze') {
+      setConversationStatus(c.id, 'open');
+      toast('Conversación de nuevo abierta');
     }
     renderAll();
     return;
   }
+  const snooze = e.target.closest('[data-snooze]');
+  if (snooze) { e.preventDefault(); snoozeActive(snoozeUntilFor(snooze.dataset.snooze)); return; }
+  if (e.target.closest('[data-snooze-custom]')) e.stopPropagation(); // typing inside the menu must not close it
   if (e.target.closest('[data-bm="close"]')) { e.preventDefault(); closeNew(); }
 });
 root.addEventListener('change', (e) => {

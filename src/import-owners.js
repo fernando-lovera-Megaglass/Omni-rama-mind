@@ -17,7 +17,9 @@ export function buildOwnerIndex(owners, { users = [], user = null, invitations =
     if (!person || typeof person !== 'object') return;
     const email = emailKey(person.email);
     if (!email) return;
-    const name = person.name || person.full_name || '';
+    const label = person.name || person.full_name || '';
+    // Settings uses the email as a placeholder name for invitation-only users.
+    const name = emailKey(label) === email ? '' : label;
     // A known directory identity wins over guessing a name from the email.
     if (!name && [...records.values()].some((record) => record.email === email)) return;
     const matches = candidates(name || (inferFromEmail ? email.split('@')[0] : ''));
@@ -30,6 +32,7 @@ export function buildOwnerIndex(owners, { users = [], user = null, invitations =
   (Array.isArray(users) ? users : []).forEach((person) => add(person));
   if (user) add({ email: user.email, name: user.user_metadata?.name || user.user_metadata?.full_name }, true);
   (Array.isArray(invitations) ? invitations : []).forEach((person) => {
+    if (!person || typeof person !== 'object') return;
     // An invitation repeats an existing identity; it must not create ambiguity.
     if (![...records.values()].some((record) => record.email === emailKey(person.email))) add(person, true);
   });

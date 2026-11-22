@@ -61,8 +61,9 @@ let rows = [];
 let msgs = [];
 let queue = Promise.resolve();
 const enqueue = (fn) => { queue = queue.then(fn).catch((e) => reportDbError('conversaciones', e)); return queue; };
-const convFromDb = (r) => ({ id: r.id, subject: r.subject || '', channel: r.channel || 'email', status: r.status || 'open', assignedTo: r.assigned_to || '', contactId: r.contact_id ? Number(r.contact_id) : null, lastMessageAt: r.last_message_at, readAt: r.read_at || null, createdAt: r.created_at });
-const convToDb = (c) => ({ id: c.id, subject: c.subject, channel: c.channel, status: c.status, assigned_to: c.assignedTo || '', contact_id: c.contactId || null, last_message_at: c.lastMessageAt, read_at: c.readAt || null, created_at: c.createdAt });
+// extra (jsonb, supabase/conversation-snooze.sql): { snoozeUntil } while the conversation is snoozed with a deadline.
+const convFromDb = (r) => ({ id: r.id, subject: r.subject || '', channel: r.channel || 'email', status: r.status || 'open', assignedTo: r.assigned_to || '', contactId: r.contact_id ? Number(r.contact_id) : null, lastMessageAt: r.last_message_at, readAt: r.read_at || null, createdAt: r.created_at, extra: r.extra && typeof r.extra === 'object' ? r.extra : {} });
+const convToDb = (c) => ({ id: c.id, subject: c.subject, channel: c.channel, status: c.status, assigned_to: c.assignedTo || '', contact_id: c.contactId || null, last_message_at: c.lastMessageAt, read_at: c.readAt || null, created_at: c.createdAt, extra: c.extra || {} });
 // kind: 'message' (sent or received) or 'note' (an internal comment of the team: never sent, yellow in the thread).
 // Notes travel in the `kind` column (supabase/conversation-notes.sql); an older table without it keeps them in
 // this browser (LS_N) so the thread still shows them.
@@ -90,6 +91,9 @@ async function loadLive() {
   // Internal comments kept locally while the `kind` column is missing on the database.
   const localNotes = readLocal(LS_N);
   if (Array.isArray(localNotes)) localNotes.forEach((n) => { if (!msgs.some((x) => x.id === n.id)) msgs.push(n); });
+  // Snooze deadlines kept locally while the `extra` column is missing (supabase/conversation-snooze.sql pending).
+  const localSnooze = readLocal(LS_S);
+  if (localSnooze && typeof localSnooze === 'object') rows.forEach((r) => { if (r.status === 'snoozed' && !r.extra.snoozeUntil && localSnooze[r.id]) r.extra = { ...r.extra, snoozeUntil: localSnooze[r.id] }; });
   if (!rows.length) {
     // The table exists but is empty: the same test conversations as the SQL seed.
     const seed = seedConversations();
@@ -112,7 +116,7 @@ const contactOf = (id) => (id ? allContacts().find((c) => Number(c.id) === Numbe
 const lastOf = (id) => msgs.filter((m) => m.conversationId === id && m.kind !== 'note').sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0] || null;
 export const isInternalNote = (m) => Boolean(m && m.kind === 'note');
 const isUnread = (c, last) => c.status !== 'closed' && Boolean(last) && (!c.readAt || (last.direction === 'in' && new Date(c.lastMessageAt) > new Date(c.readAt)));
-const decorate = (c) => { const last = lastOf(c.id); return { ...c, contact: contactOf(c.contactId), lastMessage: last, unread: isUnread(c, last) }; };
+const decorate = (c) => { const last = lastOf(c.id); return { ...c, contact: contactOf(c.contactId), lastMessage: last, unread: isUnread(c, last), snoozeUntil: c.status === 'snoozed' ? (c.extra && c.extra.snoozeUntil) || null : null }; };
 export function conversations() {
   return rows.map(decorate).sort((a, b) => new Date(b.lastMessageAt) - new Date(a.lastMessageAt));
 }
@@ -126,7 +130,26 @@ export function messagesOf(id) {
 export const unreadCount = () => conversations().filter((c) => c.unread).length;
 
 // ---------- writes ----------
-const persistConv = (c) => { if (live) enqueue(async () => { const { error } = await supabase.from('conversations').upsert(convToDb(c), { onConflict: 'id' }); if (error) throw error; }); else saveLocal(); };
+// The snooze deadline travels in the `extra` column; an older table without it (migration pending) keeps the
+// deadlines in this browser (LS_S) so the inbox still reopens them on time here.
+let extraColumn = true;
+const saveLocalSnooze = () => localStorage.setItem(LS_S, JSON.stringify(Object.fromEntries(rows.filter((r) => r.status === 'snoozed' && r.extra && r.extra.snoozeUntil).map((r) => [r.id, r.extra.snoozeUntil]))));
+const persistConv = (c) => {
+  if (!live) { saveLocal(); return; }
+  enqueue(async () => {
+    const row = convToDb(c);
+    if (!extraColumn) delete row.extra;
+    let { error } = await supabase.from('conversations').upsert(row, { onConflict: 'id' });
+    if (error && extraColumn && /extra/.test(error.message || '')) {
+      extraColumn = false;
+      console.warn('[bandeja] falta la columna extra en conversations (supabase/conversation-snooze.sql pendiente): el plazo de la posposición queda solo en este navegador.');
+      delete row.extra;
+      ({ error } = await supabase.from('conversations').upsert(row, { onConflict: 'id' }));
+    }
+    if (error) throw error;
+    if (!extraColumn) saveLocalSnooze();
+  });
+};
 const excerpt = (s, n = 90) => { const t = String(s || '').replace(/\s+/g, ' ').trim(); return t.length > n ? `${t.slice(0, n - 1)}…` : t; };
 // The message on the contact's timeline, typed by channel (e-mail or message).
 function logOnContact(c, m) {
@@ -144,6 +167,7 @@ export function sendMessage(id, { body, direction = 'out', author = ME, when } =
   msgs.push(m);
   c.lastMessageAt = now;
   if (direction === 'out') { c.readAt = now; if (c.status === 'closed') c.status = 'open'; } // a reply reopens a closed thread
+  if (direction === 'in' && c.status === 'snoozed') { c.status = 'open'; clearSnooze(c); } // a new incoming message wakes a snoozed thread right away
   if (live) enqueue(async () => { const { error } = await supabase.from('conversation_messages').insert(msgToDb(m)); if (error) throw error; });
   persistConv(c);
   logOnContact(c, m);
@@ -219,11 +243,44 @@ export function assignConversation(id, who) {
   c.assignedTo = who && who !== 'Sin asignar' ? who : '';
   persistConv(c);
 }
-export function setConversationStatus(id, status) {
+const clearSnooze = (c) => { if (c.extra && c.extra.snoozeUntil !== undefined) { const { snoozeUntil, ...rest } = c.extra; c.extra = rest; } };
+// Snoozing takes a deadline (ISO): the conversation leaves the open view until then and reopenSnoozed() brings
+// it back (the inbox checks every minute); without a deadline it stays snoozed until someone reopens it.
+export function setConversationStatus(id, status, { snoozeUntil = null } = {}) {
   const c = rows.find((x) => x.id === id);
   if (!c || !STATUS_LABELS[status]) return;
   c.status = status;
+  clearSnooze(c);
+  if (status === 'snoozed' && snoozeUntil) {
+    const until = new Date(snoozeUntil);
+    if (!Number.isNaN(until.getTime())) c.extra = { ...(c.extra || {}), snoozeUntil: until.toISOString() };
+  }
   persistConv(c);
+}
+// Reopens every snoozed conversation whose deadline has passed; returns how many came back.
+export function reopenSnoozed(now = Date.now()) {
+  const t = typeof now === 'number' ? now : new Date(now).getTime();
+  let n = 0;
+  rows.forEach((c) => {
+    if (c.status !== 'snoozed' || !c.extra || !c.extra.snoozeUntil) return;
+    if (new Date(c.extra.snoozeUntil).getTime() > t) return;
+    c.status = 'open';
+    clearSnooze(c);
+    persistConv(c);
+    n += 1;
+  });
+  return n;
+}
+// The snooze deadlines of the original: tomorrow, in 3 days and next Monday at 09:00 (local), or a custom one.
+export const SNOOZE_OPTIONS = [['tomorrow', 'Mañana'], ['in3days', 'En 3 días'], ['nextweek', 'La próxima semana'], ['custom', 'Fecha y hora personalizadas']];
+export function snoozeUntilFor(key, now = new Date()) {
+  const d = new Date(now);
+  d.setHours(9, 0, 0, 0);
+  if (key === 'tomorrow') d.setDate(d.getDate() + 1);
+  else if (key === 'in3days') d.setDate(d.getDate() + 3);
+  else if (key === 'nextweek') d.setDate(d.getDate() + ((8 - d.getDay()) % 7 || 7));
+  else return null;
+  return d.toISOString();
 }
 
 export function markUnread(id) {
@@ -250,6 +307,6 @@ function forConversations(ids, operation) {
   return existing.length;
 }
 export const bulkAssignConversations = (ids, who) => forConversations(ids, (id) => assignConversation(id, who));
-export const bulkSetConversationStatus = (ids, status) => STATUS_LABELS[status] ? forConversations(ids, (id) => setConversationStatus(id, status)) : 0;
+export const bulkSetConversationStatus = (ids, status, opts = {}) => STATUS_LABELS[status] ? forConversations(ids, (id) => setConversationStatus(id, status, opts)) : 0;
 export const bulkMarkConversationsRead = (ids, read = true) => forConversations(ids, read ? markRead : markUnread);
 export const bulkDeleteConversations = (ids) => forConversations(ids, deleteConversation);

@@ -39,6 +39,19 @@ const sharedIdentity = buildOwnerIndex(data.OWNERS, {
 });
 assert.deepEqual(resolveIndexedOwner(sharedIdentity, 'fernando.lovera@real.example'), { value: 'Sofía R.' });
 assert.equal(resolveIndexedOwner(sharedIdentity, 'sofia.r@omni.crm').error, 'OWNER_NOT_FOUND');
+const placeholderIdentity = buildOwnerIndex(data.OWNERS, {
+  users: [{ name: 'laura.martinez@real.example', email: 'laura.martinez@real.example', invitationOnly: true }],
+  user: { email: 'fernando.lovera@real.example', user_metadata: { name: 'fernando.lovera@real.example' } },
+  invitations: [null, { name: 'laura.martinez@real.example', email: 'laura.martinez@real.example' }],
+});
+assert.deepEqual(resolveIndexedOwner(placeholderIdentity, 'laura.martinez@real.example'), { value: 'Laura M.' });
+assert.deepEqual(resolveIndexedOwner(placeholderIdentity, 'fernando.lovera@real.example'), { value: 'Fernando L.' });
+assert.equal(resolveIndexedOwner(placeholderIdentity, 'missing@real.example').error, 'OWNER_NOT_FOUND');
+const conflictingIdentity = buildOwnerIndex(data.OWNERS, { users: [
+  { name: 'Laura M.', email: 'shared@real.example' },
+  { name: 'Sofía R.', email: 'shared@real.example' },
+] });
+assert.equal(resolveIndexedOwner(conflictingIdentity, 'shared@real.example').error, 'MULTIPLE_OWNERS_FOUND');
 const auth = await import('../src/auth.js');
 auth.setAuthClient({ auth: { getSession: async () => ({ data: { session: { user: {
   email: 'fernando@real.example', user_metadata: { full_name: 'Fernando Lovera Colin' },
