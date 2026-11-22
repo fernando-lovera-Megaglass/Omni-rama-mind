@@ -10,7 +10,7 @@ import { mountCreateTicket } from './create-ticket.js';
 import { changeDealStage } from './deal-close.js';
 import { saveAssociatedActivity } from './activity-associations.js';
 import './filter-chip.js';
-import { validatePropertyValues, companyDomainPrefill, companyDomains, mergeRecords, mergeConflicts, mergeFillable } from './data.js';
+import { validatePropertyValues, companyDomainPrefill, companyDomains, mergeRecords, mergeConflicts, mergeFillable, TRASH_DAYS } from './data.js';
 import { suggestedKeep } from './duplicates.js';
 import { cancelScheduled, rescheduleEmail, scheduledById, datetimeInput as scheduledInput, whenText as scheduledWhen, timeZoneName as scheduledTz } from './scheduled-emails.js';
 import { attachMentionAutocomplete, mentionsIn } from './mention-autocomplete.js';
@@ -1696,7 +1696,7 @@ function renderTimeline() {
         else { addActivity({ ...ev, recordType: type, recordId: id }); ev.id = activitiesFor(type, id).find((a) => a.extra?.callSid === ev.extra?.callSid)?.id; }
       }
       if (button.dataset.activityAction === 'edit') openLogModal(ev.type, { activity: ev, channel: ev.extra?.channel || '' });
-      else openModal('Eliminar actividad', '<p>La actividad se podrá restaurar durante 90 días.</p>', `<button class="btn btn--danger" data-confirm="activity-delete" data-id="${esc(ev.id)}">Eliminar</button><button class="btn btn--ghost" data-close>Cancelar</button>`);
+      else openModal('Eliminar actividad', `<p>La actividad se podrá restaurar durante ${TRASH_DAYS} días.</p>`, `<button class="btn btn--danger" data-confirm="activity-delete" data-id="${esc(ev.id)}">Eliminar</button><button class="btn btn--ghost" data-close>Cancelar</button>`);
     } catch (error) { toast(error.message); }
     finally { button.disabled = false; }
   }));
@@ -2146,7 +2146,7 @@ function runAction(act, data = {}) {
 
 function openActivityTrash() {
   const rows = deletedActivitiesFor(type, id);
-  openModal('Restaurar actividades eliminadas', '<p>Actividades eliminadas en los últimos 90 días.</p>' + (rows.length ? `<table class="mini-table"><tbody>${rows.map((a) => `<tr><td>${esc(KIND_TITLE[a.type])}</td><td>${esc(a.text)}</td><td><button class="btn btn--ghost" data-confirm="activity-restore" data-id="${esc(a.id)}">Restaurar</button></td></tr>`).join('')}</tbody></table>` : '<p class="muted">No hay actividades eliminadas.</p>'));
+  openModal('Restaurar actividades eliminadas', `<p>Actividades eliminadas en los últimos ${TRASH_DAYS} días.</p>` + (rows.length ? `<table class="mini-table"><tbody>${rows.map((a) => `<tr><td>${esc(KIND_TITLE[a.type])}</td><td>${esc(a.text)}</td><td><button class="btn btn--ghost" data-confirm="activity-restore" data-id="${esc(a.id)}">Restaurar</button></td></tr>`).join('')}</tbody></table>` : '<p class="muted">No hay actividades eliminadas.</p>'));
 }
 
 $('rec-modal').addEventListener('click', async (e) => {

@@ -20,7 +20,7 @@ import { listInvitations, invite, revoke, invitationsEnabled } from './invitatio
 import { currentUser, signInWithOtp, authMessage, authEnabled } from './auth.js';
 import { TEAMS, loadLayout, cardCatalog, loadViewsList, saveViewsList, resetLayout, resetPreview, layoutUpdatedAt, deleteViewLayout, savePreview } from './layout-defaults.js';
 import { STD_VIEWS, defaultTabs } from './std-views.js';
-import { getViewStore } from './data.js';
+import { getViewStore, TRASH_DAYS } from './data.js';
 import { getSignature, setSignature, emailTemplates } from './compose.js';
 import { paneHtml as connectedEmailsPane, mountConnectedEmails } from './connected-emails-ui.js';
 import { paneChannels as paneIbChannels, paneInboxes as paneIbInboxes, paneAvailability as paneIbAvailability, paneSpam as paneIbSpam, mountInboxSettings } from './inbox-settings-ui.js';
@@ -629,7 +629,7 @@ function paneProperties() {
     body = `<div class="shead"><div><h3>Grupos de propiedades</h3><p class="muted">Los grupos ordenan las propiedades en las fichas y en el editor de columnas.</p></div><button class="btn btn--primary" type="button" data-act="new-propgroup">Crear grupo</button></div>
       ${simpleTable(['Nombre del grupo', 'Propiedades', 'Creado por', ''], groups.map((g) => [`<strong>${esc(g)}</strong>`, String(counts[g] || 0), propGroupsStore(type).includes(g) ? 'Fernando Lovera Colin' : 'Omni', propGroupsStore(type).includes(g) ? `<button class="link-btn" type="button" data-propgroup-rm="${esc(g)}" ${counts[g] ? 'disabled title="Tiene propiedades"' : ''}>Eliminar</button> <button class="link-btn" type="button" data-props-set="group" data-value="${esc(g)}" data-goto-list>Ver propiedades</button>` : `<button class="link-btn" type="button" data-props-set="group" data-value="${esc(g)}" data-goto-list>Ver propiedades</button>`]))}`;
   } else {
-    body = `<h3>Propiedades archivadas</h3><p class="muted">Las propiedades archivadas dejan de verse en las fichas y listas. Se eliminan definitivamente a los 90 días.</p>
+    body = `<h3>Propiedades archivadas</h3><p class="muted">Las propiedades archivadas dejan de verse en las fichas y listas. Se eliminan definitivamente a los ${TRASH_DAYS} días.</p>
       ${archived.length ? simpleTable(['Nombre', 'Tipo', 'Grupo', ''], archived.map((p) => [`<strong>${esc(p.label)}</strong>`, esc(KINDS[p.kind] || p.kind), esc(p.group), `<button class="link-btn" type="button" data-prop-restore="${esc(p.key)}">Restaurar</button> <button class="link-btn" type="button" data-prop-rm="${esc(p.key)}">Eliminar</button>`])) : '<p class="pempty">No hay propiedades archivadas.</p>'}`;
   }
   return `<div class="shead"><h2>Propiedades</h2><div class="phead__actions">${unavailableButton('✦ Agente de datos', 'link-btn')}${'<a class="link-btn" href="#data-quality">Calidad de los datos</a>'}<button class="btn btn--ghost" type="button" data-act="props-export">Exportar propiedades</button></div></div>
@@ -1067,7 +1067,7 @@ function objectConfigHtml(type) {
   const excluded = load(EXCLUDED_DOMAINS_KEY, DEFAULT_EXCLUDED_DOMAINS);
   const automation = type === 'companies' ? `<h3>Automatización</h3>
     ${objCheck('companies', 'autoCreate', 'Crea y asocia Empresas con Contactos', `Asocia Contactos actuales y agregados recientemente con Empresas basándote en la dirección de correo de un Contacto y el dominio de una Empresa. Si no existe una Empresa con ese dominio, se crea (una por dominio; los subdominios cuentan aparte). Los correos gratuitos (${FREE_EMAIL_DOMAINS.slice(0, 3).join(', ')}…) nunca crean Empresas: con ellos se usa la URL del sitio web del Contacto solo para asociarlo a una Empresa que ya exista. Las asociaciones que ya existen no se tocan.<br /><button class="olink olink--sm" type="button" data-act="excluded-domains">Excluye un dominio de la asociación automática</button> <span class="muted">(${excluded.length} de ${EXCLUDED_DOMAINS_MAX.toLocaleString('es-ES')} excluidos)</span>${s.autoCreate !== false ? ` · <button class="olink olink--sm" type="button" data-act="company-auto-apply">Aplicar ahora a los contactos existentes</button>` : ''}`, s.autoCreate !== false)}` : '';
-  const danger = `<h3>Eliminación</h3><p class="muted">Los ${lower} eliminados se guardan 90 días en la papelera y después se borran definitivamente.</p><p><a class="link-btn" href="../${type}/">Ver ${lower} eliminados en la lista ↗</a></p>`;
+  const danger = `<h3>Eliminación</h3><p class="muted">Los ${lower} eliminados se guardan ${TRASH_DAYS} días en la papelera y después se borran definitivamente.</p><p><a class="link-btn" href="../${type}/">Ver ${lower} eliminados en la lista ↗</a></p>`;
   return `<p class="odesc">${m.desc}</p><hr class="cd-sep" />${props}${assoc}${creating}${automation}${collab}${['contacts', 'companies', 'deals', 'tickets', 'tasks'].includes(type) ? danger : ''}`;
 }
 // "Etapa del ciclo de vida" tab for contacts and companies.

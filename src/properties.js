@@ -716,10 +716,10 @@ export const customPropertiesLive = () => remote !== null;
 // `visible` is the table's in_form (asked for in the create form).
 export function customPropFromDb(r) {
   const options = Array.isArray(r.options) && r.options.length ? r.options : r.options && Array.isArray(r.options.values) ? r.options.values : undefined;
-  return { ...(r.options?.rules || {}), key: r.name, label: r.label || r.name, kind: r.type || 'text', options, group: r.group_name || DEFAULT_GROUP, desc: r.description || '', visible: Boolean(r.in_form ?? r.visible), archived: Boolean(r.archived), custom: true };
+  return { ...(r.options?.rules || {}), key: r.name, label: r.label || r.name, kind: r.type || 'text', options, group: r.group_name || DEFAULT_GROUP, desc: r.description || '', visible: Boolean(r.in_form ?? r.visible), archived: Boolean(r.archived), archivedAt: r.archived ? r.archived_at || r.archivedAt || null : null, custom: true };
 }
 export function customPropToDb(type, p) {
-  return { objeto: CUSTOM_OBJECT_NAME[type], name: p.key, label: p.label || p.key, type: p.kind || 'text', options: { values: Array.isArray(p.options) ? p.options : [], rules: { required: Boolean(p.required), unique: Boolean(p.unique), sensitive: Boolean(p.sensitive), readOnly: Boolean(p.readOnly), maxLength: p.maxLength || null } }, group_name: p.group || DEFAULT_GROUP, description: p.desc || '', in_form: Boolean(p.visible), archived: Boolean(p.archived) };
+  return { objeto: CUSTOM_OBJECT_NAME[type], name: p.key, label: p.label || p.key, type: p.kind || 'text', options: { values: Array.isArray(p.options) ? p.options : [], rules: { required: Boolean(p.required), unique: Boolean(p.unique), sensitive: Boolean(p.sensitive), readOnly: Boolean(p.readOnly), maxLength: p.maxLength || null } }, group_name: p.group || DEFAULT_GROUP, description: p.desc || '', in_form: Boolean(p.visible), archived: Boolean(p.archived), archived_at: p.archived ? p.archivedAt || new Date().toISOString() : null };
 }
 export function loadCustomProperties(rows) {
   remote = Object.fromEntries(Object.keys(CUSTOM_OBJECT_NAME).map((t) => [t, []]));
@@ -741,7 +741,10 @@ export function customProperties(type) {
   if (remote && CUSTOM_OBJECT_NAME[type]) return (remote[type] || []).map((p) => ({ ...p }));
   return withSeed(type, localCustomProperties(type).filter((p) => p && p.key));
 }
-export function saveCustomProperties(type, list) {
+// Archiving stamps archivedAt (the 90-day purge counts from it); restoring clears it.
+const stampArchived = (p) => (p && p.archived ? { ...p, archivedAt: p.archivedAt || new Date().toISOString() } : p && p.archivedAt ? { ...p, archivedAt: null } : p);
+export function saveCustomProperties(type, listIn) {
+  const list = Array.isArray(listIn) ? listIn.map(stampArchived) : listIn;
   if (remote && CUSTOM_OBJECT_NAME[type]) {
     const next = list.map((p) => ({ ...p }));
     if (writer) return Promise.resolve(writer(type, next)).then(() => { remote[type] = next; });
@@ -749,6 +752,20 @@ export function saveCustomProperties(type, list) {
     return;
   }
   localStorage.setItem(CUSTOM_KEY(type), JSON.stringify(list));
+}
+// Archived properties older than `cutoff` (ISO) leave for good, as Configuración promises: the lists kept in
+// localStorage (every object without the table; tasks always). The table's rows are purged by data.js.
+export function purgeArchivedLocalProperties(cutoff) {
+  let n = 0;
+  for (const type of [...Object.keys(CUSTOM_OBJECT_NAME), 'tasks']) {
+    if (remote && CUSTOM_OBJECT_NAME[type]) continue;
+    const list = localCustomProperties(type);
+    const keep = list.filter((p) => !(p && p.archived && p.archivedAt && String(p.archivedAt) < cutoff));
+    if (keep.length === list.length) continue;
+    n += list.length - keep.length;
+    localStorage.setItem(CUSTOM_KEY(type), JSON.stringify(keep));
+  }
+  return n;
 }
 // Custom properties flagged for the create form (Crear contacto…), not archived.
 export const formCustomProperties = (type) => customProperties(type).filter((p) => (p.visible || p.required) && !p.archived);

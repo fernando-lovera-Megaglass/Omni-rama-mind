@@ -3,7 +3,7 @@ import { matchesSearch } from './search-match.js';
 // When VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are set, records live in
 // Supabase and all edits go to the database. Without them, edits, additions
 // and deletions are kept in localStorage so the demo remembers them.
-import { customProperties, propertyList, loadCustomProperties, setCustomPropertyWriter, localCustomProperties, clearLocalCustomProperties, customPropToDb, CUSTOM_OBJECT_NAME, SEED_BY_TYPE } from './properties.js';
+import { customProperties, propertyList, loadCustomProperties, setCustomPropertyWriter, localCustomProperties, clearLocalCustomProperties, customPropToDb, purgeArchivedLocalProperties, CUSTOM_OBJECT_NAME, SEED_BY_TYPE } from './properties.js';
 import { REAL_DEAL_PIPELINES, LEGACY_STAGE_MAP, DEFAULT_PIPELINE_NAME, REAL_TICKET_PIPELINES, LEGACY_TICKET_MAP } from './pipelines-seed.js';
 import { supabase, DB_MODE, createAnonProbe } from './supabaseClient.js';
 import { requireSession, signOut, siteRoot } from './auth.js';
@@ -1003,6 +1003,112 @@ export function restoreRecords(type, ids) {
   return n;
 }
 
+// ---------- purga de la papelera: lo que Configuración y las fichas prometen («90 días») ----------
+// Once a day at start-up (schedulePurge, end of this file) what expired leaves for good: records whose deleted_at
+// is older than TRASH_DAYS (with their activities, company links and line items), activities in the trash that
+// old, and archived custom properties that old (archived_at: supabase/custom-properties-archived-at.sql; while
+// that column is pending the properties step is skipped and listed in `pending`). Local mode sweeps localStorage
+// the same way; seeded demo records that were purged stay out through K(type, 'purged').
+export const TRASH_DAYS = 90;
+const PURGED_AT_KEY = 'crm:trash:purged-at';
+const PURGED_KEY = (type) => K(type, 'purged');
+const purgeReport = () => ({ records: Object.fromEntries([...SOFT_DELETE].map((t) => [t, 0])), activities: 0, properties: 0, pending: [], errors: [] });
+const purgeCutoff = ({ now = Date.now(), days = TRASH_DAYS } = {}) => { const ms = now - days * 86400000; return { ms, iso: new Date(ms).toISOString() }; };
+function purgeLocalTrash(opts) {
+  const { ms: cutoffMs, iso: cutoff } = purgeCutoff(opts);
+  const out = purgeReport();
+  let changed = false;
+  for (const type of SOFT_DELETE) {
+    const when = read(DELETED_AT_KEY(type), {});
+    const expired = Object.keys(when).filter((id) => when[id] && String(when[id]) < cutoff).map(Number);
+    if (!expired.length) continue;
+    const gone = new Set(expired);
+    const extra = read(K(type, 'extra'), []);
+    const added = new Set(extra.map((r) => Number(r.id)));
+    write(K(type, 'extra'), extra.filter((r) => !gone.has(Number(r.id))));
+    const overrides = read(K(type, 'overrides'), {});
+    expired.forEach((id) => { delete overrides[id]; delete when[id]; localStorage.removeItem(ACT_NOTES_KEY(type, id)); localStorage.removeItem(ACT_TRASH_KEY(type, id)); });
+    write(K(type, 'overrides'), overrides);
+    write(DELETED_AT_KEY(type), when);
+    write(K(type, 'deleted'), read(K(type, 'deleted'), []).filter((id) => !gone.has(Number(id))));
+    const purged = new Set(read(PURGED_KEY(type), []).map(Number));
+    expired.forEach((id) => { if (!added.has(id)) purged.add(id); });
+    write(PURGED_KEY(type), [...purged]);
+    if (type === 'deals') write(LINE_ITEMS_KEY, read(LINE_ITEMS_KEY, []).filter((l) => !gone.has(Number(l.dealId))));
+    delete baseCache[type];
+    out.records[type] = expired.length;
+    changed = true;
+  }
+  // activities in the trash (crm:<type>:activity-trash:<id>, extra.deletedAt in ms)
+  for (let i = localStorage.length - 1; i >= 0; i -= 1) {
+    const key = localStorage.key(i);
+    if (!key || !/^crm:[^:]+:activity-trash:.+$/.test(key)) continue;
+    const rows = read(key, []);
+    const keep = rows.filter((a) => !(a && a.extra && a.extra.deletedAt && Number(a.extra.deletedAt) < cutoffMs));
+    if (keep.length === rows.length) continue;
+    out.activities += rows.length - keep.length;
+    if (keep.length) write(key, keep); else localStorage.removeItem(key);
+    changed = true;
+  }
+  out.properties = purgeArchivedLocalProperties(cutoff);
+  if (changed || out.properties) bump();
+  return out;
+}
+async function purgeRemoteTrash(opts) {
+  const { ms: cutoffMs, iso: cutoff } = purgeCutoff(opts);
+  const out = purgeReport();
+  const fail = (what, error) => { console.error('[papelera] purga', what, error); out.errors.push(`${what}: ${(error && error.message) || error}`); };
+  for (const type of SOFT_DELETE) {
+    const { data, error } = await supabase.from(type).select('id').lt('deleted_at', cutoff).limit(1000);
+    if (error) { fail(type, error); continue; }
+    const ids = (data || []).map((r) => Number(r.id));
+    if (!ids.length) continue;
+    // what hangs from the records (no cascades in the schema): timeline, company links, line items
+    const steps = [supabase.from('activities').delete().eq('record_type', type).in('record_id', ids)];
+    if (type === 'contacts') steps.push(supabase.from('contact_companies').delete().in('contact_id', ids));
+    if (type === 'companies') steps.push(supabase.from('contact_companies').delete().in('company_id', ids));
+    if (type === 'deals') steps.push(supabase.from('deal_line_items').delete().in('deal_id', ids));
+    for (const step of steps) { const { error: e } = await step; if (e && e.code !== '42P01') fail(`${type} (dependencias)`, e); }
+    const { error: delErr } = await supabase.from(type).delete().in('id', ids).lt('deleted_at', cutoff);
+    if (delErr) { fail(type, delErr); continue; }
+    const gone = new Set(ids);
+    trashRows[type] = (trashRows[type] || []).filter((r) => !gone.has(Number(r.id)));
+    activityRows = activityRows.filter((a) => !(a.recordType === type && gone.has(Number(a.recordId))));
+    if (type === 'deals') lineItemRows = lineItemRows.filter((l) => !gone.has(Number(l.dealId)));
+    out.records[type] = ids.length;
+  }
+  // activities in the trash (extra.deletedAt in ms) older than the cutoff
+  const { data: acts, error: actErr } = await supabase.from('activities').select('id, extra').not('extra->>deletedAt', 'is', null).limit(1000);
+  if (actErr) fail('actividades', actErr);
+  else {
+    const ids = (acts || []).filter((a) => a.extra && Number(a.extra.deletedAt) < cutoffMs).map((a) => a.id);
+    if (ids.length) {
+      const { error: e } = await supabase.from('activities').delete().in('id', ids);
+      if (e) fail('actividades', e);
+      else { const gone = new Set(ids.map(String)); activityRows = activityRows.filter((a) => !gone.has(String(a.id))); out.activities = ids.length; }
+    }
+  }
+  // archived custom properties older than the cutoff (needs custom_properties.archived_at)
+  if (archivedAtColumn === false) out.pending.push('custom-properties-archived-at.sql');
+  else {
+    const { data: props, error: propErr } = await supabase.from('custom_properties').select('objeto, name').eq('archived', true).lt('archived_at', cutoff);
+    if (propErr) { if (missingColumn(propErr, 'archived_at')) { archivedAtColumn = false; out.pending.push('custom-properties-archived-at.sql'); } else fail('propiedades', propErr); }
+    else if (props && props.length) {
+      const { error: e } = await supabase.from('custom_properties').delete().eq('archived', true).lt('archived_at', cutoff);
+      if (e) fail('propiedades', e);
+      else { out.properties = props.length; loadCustomProperties(await fetchCustomProperties()); }
+    }
+  }
+  out.properties += purgeArchivedLocalProperties(cutoff); // tasks keep their custom properties in localStorage
+  if (Object.values(out.records).some(Boolean) || out.activities || out.properties) bump();
+  return out;
+}
+// The sweep, on demand: { records: { contacts: n, … }, activities, properties, pending, errors }.
+export async function purgeExpiredTrash(opts = {}) {
+  return dbLive ? purgeRemoteTrash(opts) : purgeLocalTrash(opts);
+}
+export const trashPurgedAt = () => Number(localStorage.getItem(PURGED_AT_KEY) || 0) || null;
+
 // "Gestionar duplicados": merges `otherIds` into `keepId`. Empty fields of the kept record are filled from
 // the others, everything associated to the others now points to it, and the others go to the trash.
 // Properties the merge never copies between records (identity, dates the app maintains, associations handled below).
@@ -1886,9 +1992,10 @@ if (typeof window !== 'undefined') window.addEventListener('storage', (event) =>
 });
 function baseRecords(type) {
   if (!baseCache[type]) {
+    const purged = dbLive ? null : new Set(read(PURGED_KEY(type), []).map(Number)); // demo records purged for good
     baseCache[type] = dbLive
       ? dbRows[type] || []
-      : Array.from({ length: COUNTS[type] }, (_, i) => augment(type, BUILDERS[type](i)));
+      : Array.from({ length: COUNTS[type] }, (_, i) => augment(type, BUILDERS[type](i))).filter((r) => !purged.has(Number(r.id)));
   }
   return baseCache[type];
 }
@@ -2145,14 +2252,14 @@ export function activitiesFor(recordType, recordId) {
 export function deletedActivitiesFor(recordType, recordId, includeExpired = false) {
   const rows = activitiesLive ? activityRows.filter((a) => a.recordType === recordType && a.recordId === Number(recordId))
     : localActivities(ACT_TRASH_KEY(recordType, recordId), recordType, recordId);
-  return rows.filter((a) => a.extra?.deletedAt && (includeExpired || Date.now() - a.extra.deletedAt < 90 * 86400000))
+  return rows.filter((a) => a.extra?.deletedAt && (includeExpired || Date.now() - a.extra.deletedAt < TRASH_DAYS * 86400000))
     .sort((a, b) => b.extra.deletedAt - a.extra.deletedAt);
 }
 async function mutateActivity(id, changes, action = 'update') {
   const mutate = (a) => {
     if (!editableActivity(a)) throw new Error('Esta actividad del sistema no se puede modificar.');
     if (action === 'update' && a.extra?.deletedAt) throw new Error('Restaura la actividad antes de editarla.');
-    if (action === 'restore' && Date.now() - a.extra?.deletedAt >= 90 * 86400000) throw new Error('El plazo de restauración ha vencido.');
+    if (action === 'restore' && Date.now() - a.extra?.deletedAt >= TRASH_DAYS * 86400000) throw new Error('El plazo de restauración ha vencido.');
     // Only delete/restore may change trash membership. Repeated deletion must
     // preserve the original restoration deadline.
     const { deletedAt: ignoredDeletedAt, ...extraChanges } = changes.extra || {};
@@ -2589,7 +2696,23 @@ const CUSTOM_MIGRATED_KEY = 'crm:customprops:migrated';
 async function fetchCustomProperties() {
   const { data, error } = await supabase.from('custom_properties').select('*').order('created_at');
   if (error) throw error;
+  if (data && data.length) archivedAtColumn = 'archived_at' in data[0];
   return data || [];
+}
+// custom_properties.archived_at (supabase/custom-properties-archived-at.sql) may still be pending on the database:
+// the rows are then written without it (the archive date stays in the app's memory only) and the purge of archived
+// properties is skipped, instead of every save failing with «column archived_at does not exist».
+let archivedAtColumn = null; // null = not seen yet, true / false once known
+const missingColumn = (e, col) => Boolean(e) && (e.code === '42703' || e.code === 'PGRST204') && String(e.message || '').includes(col);
+const stripArchivedAt = (rows) => rows.map(({ archived_at, ...r }) => r);
+async function withArchivedAt(rows, run) {
+  let res = await run(archivedAtColumn === false ? stripArchivedAt(rows) : rows);
+  if (res.error && archivedAtColumn !== false && missingColumn(res.error, 'archived_at')) {
+    archivedAtColumn = false;
+    console.warn('[supabase] custom_properties.archived_at no existe (migración custom-properties-archived-at.sql pendiente); las propiedades se guardan sin fecha de archivado.');
+    res = await run(stripArchivedAt(rows));
+  }
+  return res;
 }
 // Saves one object's whole list: upserts what is there and removes what was deleted in Configuración.
 async function writeCustomProperties(type, list) {
@@ -2597,7 +2720,7 @@ async function writeCustomProperties(type, list) {
   if (!objeto) return;
   const rows = list.map((p) => customPropToDb(type, p));
   if (rows.length) {
-    const { error } = await supabase.from('custom_properties').upsert(rows, { onConflict: 'objeto,name' });
+    const { error } = await withArchivedAt(rows, (payload) => supabase.from('custom_properties').upsert(payload, { onConflict: 'objeto,name' }));
     if (error) throw error;
   }
   let q = supabase.from('custom_properties').delete().eq('objeto', objeto);
@@ -2618,7 +2741,7 @@ async function migrateLocalCustomProperties(existing) {
     local.forEach((p) => { const row = customPropToDb(type, p); if (p.key && !have.has(`${row.objeto}:${row.name}`)) rows.push(row); });
   }
   if (rows.length) {
-    const { error } = await supabase.from('custom_properties').insert(rows);
+    const { error } = await withArchivedAt(rows, (payload) => supabase.from('custom_properties').insert(payload));
     if (error) { console.error('[supabase] migración de propiedades personalizadas', error); return 0; }
     console.info(`[supabase] ${rows.length} propiedades personalizadas migradas desde localStorage.`);
   }
@@ -2632,7 +2755,7 @@ async function ensureSeedProperties(rows) {
   const have = new Set(rows.map((r) => `${r.objeto}:${r.name}`));
   const missing = Object.entries(SEED_BY_TYPE).flatMap(([type, seeds]) => seeds.filter((s) => !have.has(`${CUSTOM_OBJECT_NAME[type]}:${s.key}`)).map((s) => customPropToDb(type, s)));
   if (!missing.length) return 0;
-  const { error } = await supabase.from('custom_properties').upsert(missing, { onConflict: 'objeto,name', ignoreDuplicates: true });
+  const { error } = await withArchivedAt(missing, (payload) => supabase.from('custom_properties').upsert(payload, { onConflict: 'objeto,name', ignoreDuplicates: true }));
   if (error) { console.error('[supabase] siembra de propiedades personalizadas', error); return 0; }
   return missing.length;
 }
@@ -2953,6 +3076,22 @@ async function initFromSupabase() {
 if (dbLive) {
   await initFromSupabase();
 }
+
+// The promise of the interface (TRASH_DAYS days in the trash, then gone for good) is kept here: once a day, at
+// start-up. Local mode sweeps right away; live mode joins the write queue (dbIdle() waits for it) and tries again
+// next start if something failed.
+function schedulePurge() {
+  try {
+    const last = Number(localStorage.getItem(PURGED_AT_KEY) || 0);
+    if (last && Date.now() - last < 86400000) return;
+    localStorage.setItem(PURGED_AT_KEY, String(Date.now()));
+    if (dbLive) dbWrite(() => purgeRemoteTrash().then((r) => { if (r.errors.length) localStorage.removeItem(PURGED_AT_KEY); }));
+    else purgeLocalTrash();
+  } catch (e) {
+    console.error('[papelera] purga', e);
+  }
+}
+schedulePurge();
 
 // Queue assignments are confirmed by the database before updating the visible cache.
 export async function assignTaskQueue(ids, queueId) {

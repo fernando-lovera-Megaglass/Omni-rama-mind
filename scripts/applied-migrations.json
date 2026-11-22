@@ -211,6 +211,10 @@
     "status": "pendiente",
     "nota": "Solo código local; no aplicada a producción. Tabla ticket_tags (misma forma que deal_tags) para las Etiquetas de Ticket; mientras tanto la app usa localStorage crm:ticket_tags."
   },
+  "custom-properties-archived-at.sql": {
+    "status": "pendiente",
+    "nota": "Solo código local; no aplicada a producción. Añade custom_properties.archived_at (fecha de archivado) para que la purga de 90 días (purgeExpiredTrash, src/data.js) borre las propiedades archivadas; mientras falte, la app escribe sin la columna y omite esa parte de la purga."
+  },
   "crm_views.sql": {
     "status": "aplicada",
     "at": "2026-11-22T06:30:00Z",
