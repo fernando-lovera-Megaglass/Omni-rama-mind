@@ -88,7 +88,7 @@ log('assoc cards:', cards.join(' | '));
 if (!cards.some((c) => c.startsWith('contacts:Contactos (')) || !cards.some((c) => c.startsWith(`deals:Negocios (${deals.length})`)) || !cards.some((c) => c.startsWith('tickets:Tickets ('))) fail('association cards with counts');
 const dealsCard = document.querySelector('.card--assoc[data-kind="deals"]');
 log('deals card: + Agregar', Boolean(dealsCard.querySelector('[data-act="add-assoc"]')), '| search', Boolean(dealsCard.querySelector('[data-acard="search"]')), '| stage selects:', dealsCard.querySelectorAll('[data-deal-stage]').length, '| Ver todos →', dealsCard.querySelector('.assoc-more')?.getAttribute('href'));
-if (!dealsCard.querySelector('[data-act="add-assoc"]') || !dealsCard.querySelector('[data-deal-stage]') || dealsCard.querySelector('.assoc-more')?.getAttribute('href') !== '../../deals/?company=1') fail('deals card tools');
+if (!dealsCard.querySelector('[data-act="add-assoc"]') || !dealsCard.querySelector('[data-deal-stage]') || dealsCard.querySelector('.assoc-more')?.getAttribute('href') !== '../../deals/?assoc=companies:1') fail('deals card tools');
 const sel = dealsCard.querySelector('[data-deal-stage]');
 const dealId = Number(sel.dataset.dealStage);
 // an open stage (a closed one would ask for the reason in a dialog); the change goes through the shared

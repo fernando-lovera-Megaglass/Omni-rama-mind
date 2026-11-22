@@ -3364,6 +3364,14 @@ export function mountList(cfg) {
   const [assocType, assocId] = String(assocParam).split(':');
   if (assocType && assocId && ALL[assocType] && assocType !== cfg.type && Number(assocId) > 0) {
     state.assocFilter = { type: assocType, id: Number(assocId) };
+    // every linked record, whoever owns it and whatever its pipeline: the broadest standard view, no other filter
+    const broad = cfg.views.find((v) => v.key === 'all') || cfg.views[0];
+    state.viewId = stdId(broad.key);
+    if (!store.open.includes(state.viewId)) store.open.unshift(state.viewId);
+    state.base = broad.key;
+    state.filters = {};
+    state.advanced = [];
+    state.pipeline = '';
     state.showFilters = true;
     state.page = 1;
     ensureFull();

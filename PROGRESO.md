@@ -1,5 +1,12 @@
 # Progreso — Omni CRM
 
+## 2026-11-22 (sesión 6) · «Ver todos los elementos asociados» abre la lista filtrada por el registro de origen (4 módulos × 4 destinos)
+
+- Antes: el enlace al pie de cada tarjeta de asociación solo añadía `?company=` o `?contact=` desde empresas y contactos; desde negocios y tickets llevaba a la lista completa del objeto asociado, y la lista solo filtraba por la clave escalar (`contactId` / `companyId`), sin las asociaciones múltiples y sin chip visible.
+- `src/record.js`: el enlace lleva siempre `?assoc=<objeto>:<id>` del registro de origen. `src/list.js`: al cargar con ese parámetro (los antiguos `?company=` / `?contact=` se traducen) la lista aplica el filtro de asociación en memoria en ambos sentidos (claves `contactId`/`companyId`/`parentCompanyId` y arrays `assoc_<kind>` de cualquiera de los dos lados), muestra el chip «Asociados a <Objeto>: <nombre>» con su «×» en la barra de filtros (la barra se abre sola), lo cuenta en «Filtro (n)» y en «Borrar todo»; quitar el chip vuelve a la lista completa y limpia la URL. Con paginación del servidor, el filtro desactiva el modo servidor y carga las dos tablas (`ensureFull` + `ensureAll` del origen).
+- Pruebas: `scripts/smoke-assoc-link.mjs` (negocio con dos contactos asociados → la lista de contactos muestra exactamente los asociados, incluido uno vinculado desde su propio lado, con chip y «Filtro (1)»; quitar el chip → lista completa y URL sin parámetro; ticket → empresas, contacto → negocios, empresa → tickets; los enlaces antiguos `?company=` siguen funcionando). `scripts/smoke-company-record.mjs` espera el enlace nuevo. Smokes de listas, vistas, fichas y filtros en verde.
+- Solo código local; nada desplegado.
+
 ## 2026-11-22 (sesión 6) · «Reordenar botones de actividad» persiste por objeto y por usuario (4 módulos)
 
 - Antes: el orden de Nota/Correo/Llamar/Tarea/Reunión se guardaba con la clave única `crm:quickorder` solo en localStorage: igual para los cuatro objetos y perdido al cambiar de navegador.

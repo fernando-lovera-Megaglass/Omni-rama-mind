@@ -34,7 +34,8 @@ let n = 0;
 const openRecord = async (type, id) => { useDom(RECORD(type), `http://localhost/${type}/record/?id=${id}`); await import(resolve(here, `../src/record.js?al=${n++}`)); await wait(60); };
 const openList = async (type, query = '') => { useDom(LIST, `http://localhost/${type}/${query}`); await import(resolve(here, `../src/${type}.js?al=${n++}`)); await wait(80); };
 const rowIds = () => qa('#table tbody tr[data-id]').map((tr) => Number(tr.dataset.id)).sort((a, b) => a - b);
-const moreHref = (kind) => q(`.card--assoc[data-kind="${kind}"] .assoc-more`)?.getAttribute('href');
+// the record pages live at /<type>/record/, so their links climb two levels; only the target and the query matter
+const moreHref = (kind) => (q(`.card--assoc[data-kind="${kind}"] .assoc-more`)?.getAttribute('href') || '').replace(/^(\.\.\/)+/, '../');
 const chip = () => q('[data-assoc-chip]');
 
 await import(resolve(here, '../src/data.js'));
@@ -44,15 +45,16 @@ const sorted = (arr) => arr.map(Number).sort((a, b) => a - b);
 // a deal with exactly two associated contacts (primary + one more), a ticket with two companies
 const [c1, c2, c3] = data.allContacts();
 const [co1, co2] = data.allCompanies();
-const deal = data.addRecord('deals', { name: 'Negocio con dos contactos', amount: 10, stage: 'appointment', pipeline: 'Pipeline de ventas', closeDate: '2026-12-31T12:00:00.000Z', owner: 'Fernando L.', contactId: c1.id, companyId: '', company: '', assoc_contacts: [c1.id, c2.id], assoc_labels_contacts: { [c1.id]: 'Principal' } });
+const deal = data.addRecord('deals', { name: 'Negocio con dos contactos', amount: 10, stage: 'appointment', pipeline: 'Pipeline de ventas', closeDate: '2026-12-31T12:00:00.000Z', owner: 'Fernando L.', contactId: c1.id, companyId: co1.id, company: co1.name, assoc_contacts: [c1.id, c2.id], assoc_labels_contacts: { [c1.id]: 'Principal' } });
 const pipe = data.ticketPipelines()[0];
 const ticket = data.addRecord('tickets', { name: 'Ticket con dos empresas', pipeline: pipe, status: data.firstOpenTicketStatus(pipe), priority: 'medium', owner: 'Fernando L.', source: 'Correo', contactId: '', companyId: co1.id, company: co1.name, assoc_companies: [co1.id, co2.id] });
 data.setField('contacts', c3.id, 'assoc_deals', [Number(deal.id)]); // the contact side of the link (create-deal mirror)
+data.setField('deals', deal.id, 'assoc_tickets', [Number(ticket.id)]); // so the deal's tickets card has a row (and its link)
 
 // 1) from a deal: the link carries the origin; the contacts list shows exactly its two contacts, with the chip
 await openRecord('deals', deal.id);
 if (moreHref('contacts') !== `../contacts/?assoc=deals:${deal.id}`) fail(`deal → contacts link (${moreHref('contacts')})`);
-if (moreHref('companies') !== `../companies/?assoc=deals:${deal.id}` || moreHref('tickets') !== `../tickets/?assoc=deals:${deal.id}`) fail('every card of the deal links with the origin');
+if (moreHref('companies') !== `../companies/?assoc=deals:${deal.id}` || moreHref('tickets') !== `../tickets/?assoc=deals:${deal.id}`) fail(`every card of the deal links with the origin (${moreHref('companies')} / ${moreHref('tickets')})`);
 await openList('contacts', `?assoc=deals:${deal.id}`);
 const expectedContacts = sorted([c1.id, c2.id, c3.id]); // c3 is linked from its own side (assoc_deals)
 if (rowIds().join() !== expectedContacts.join()) fail(`contacts list shows exactly the deal's contacts (${rowIds().join()} vs ${expectedContacts.join()})`);
@@ -84,7 +86,8 @@ if (!rowIds().includes(Number(ticket.id)) || !chip() || !/Asociados a Empresa/.t
 // the old links keep working
 await openList('contacts', `?company=${co1.id}`);
 const ofCompany = sorted(data.allContacts().filter((c) => Number(c.companyId) === Number(co1.id) || (c.assoc_companies || []).map(Number).includes(Number(co1.id))).map((c) => c.id));
-if (rowIds().join() !== ofCompany.join() || !chip()) fail(`?company= still filters (${rowIds().join()} vs ${ofCompany.join()})`);
+// the first page of the filtered list (page size 25) and the total pill, against the company's contacts
+if (!chip() || text(q('#total-pill')).replace(/\D/g, '') !== String(ofCompany.length) || !rowIds().every((id) => ofCompany.includes(id))) fail(`?company= still filters (${text(q('#total-pill'))} vs ${ofCompany.length}; ${rowIds().join()})`);
 log('ticket → empresas, contacto → negocios, empresa → tickets: cada lista llega filtrada por el registro de origen con su chip; los enlaces antiguos ?company= siguen funcionando');
 console.log(`[${TAG}] OK`);
 process.exit(0);
