@@ -51,7 +51,7 @@ import { enhanceOwnerSelects } from './owner-select.js';
 import { enhancePhoneInputs, focusPhoneInput, displayPhone, phoneHref } from './phone.js';
 import { sendSms, hasTwilio } from './twilio.js';
 import { openCallMenu, playRecording, openCallReview, attachInlinePlayer } from './call.js';
-import { resolveLayout, saveLayout, cardCatalog } from './layout-defaults.js';
+import { resolveLayout, saveLayout, saveViewLayout, cardCatalog } from './layout-defaults.js';
 import { mountQueueBar, dueText, dueClass, completeTaskWithLog } from './task-queue.js';
 import { datetimeInput, reminderText } from './task-reminders.js';
 
@@ -1219,7 +1219,10 @@ mount.addEventListener('drop', (e) => {
     to.cards.splice(j < 0 ? to.cards.length : before ? j : j + 1, 0, dragCard.id);
   }
   dragCard = null;
-  saveLayout(type, L);
+  // teamView identifies the visible view; it is resolution metadata, not layout data.
+  const { teamView, ...layout } = L;
+  if (teamView) saveViewLayout(type, teamView, layout);
+  else saveLayout(type, layout);
   renderMiddle();
   renderRight();
   toast('Tarjeta movida · diseño guardado');
