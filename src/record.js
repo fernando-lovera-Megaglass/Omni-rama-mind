@@ -1,3 +1,4 @@
+import { associationIds, hasAssociation, associationPatch, isMultiAssociation } from './crm-associations.js';
 import { createTaskForm } from './task-form.js';
 import { recordAccessHtml } from './record-access.js';
 import { openLogModal as showLogModal, selectedActivityAssociations, readLogActivity, logAssociationsHtml as sharedLogAssociationsHtml, attendeeTargets } from './log-modal.js';
@@ -82,9 +83,9 @@ const CONFIG = {
     ],
     highlights: (r) => [['Fecha de creación', formatDate(r.created)], ['Etapa del ciclo de vida', r.lifecycle], ['Última actividad', formatDate(r.lastActivity)], ['Próxima actividad', r.notes_next_activity_date ? formatDate(r.notes_next_activity_date) : '--'], ['Estado del lead', labelOf(Object.entries(STATUSES).map(([k, [l]]) => [k, l]), r.status)]],
     assoc: (r) => [
-      ['Empresas', r.companyId ? [byId(allCompanies(), r.companyId)].filter(Boolean) : [], 'companies'],
-      ['Negocios', allDeals().filter((d) => Number(d.contactId) === Number(r.id)), 'deals'],
-      ['Tickets', allTickets().filter((t) => Number(t.contactId) === Number(r.id)), 'tickets'],
+      ['Empresas', associationIds(r, 'companies').map(id => byId(allCompanies(), id)).filter(Boolean), 'companies'],
+      ['Negocios', allDeals().filter((d) => hasAssociation(d, 'contacts', r.id)), 'deals'],
+      ['Tickets', allTickets().filter((t) => hasAssociation(t, 'contacts', r.id)), 'tickets'],
       ['Tareas', allTasks().filter((t) => taskLinksTo(t, 'contacts', r.id)), 'tasks'],
     ],
     leadStage: true,
@@ -98,7 +99,7 @@ const CONFIG = {
       ['lifecycle', 'Etapa del ciclo de vida', 'select', opt(LIFECYCLES)], ['hs_lead_status', 'Estado del lead', 'select', opt(['Nuevo', 'Abierto', 'En progreso', 'Abierto para negocio', 'No calificado', 'Intento de contacto', 'Conectado', 'Mal momento'])],
       ['industry', 'Sector', 'select', opt(['Construcción', 'Arquitectura', 'Reformas', 'Inmobiliaria', 'Decoración', 'Fabricación de vidrio'])], ['customer_type', 'Tipo de Cliente', 'select', opt(['Instalador', 'Distribuidor', 'Arquitecto', 'Constructor', 'Particular'])],
       ['notes_last_contacted', 'Último contacto', 'date'], ['target_account', 'Cuenta objetivo', 'select', opt(['Sí', 'No'])], ['products_of_interest', 'Productos de interés'],
-      ['assoc_deals_count', 'Negocios asociados', 'calc', (r) => String(allDeals().filter((d) => Number(d.companyId) === Number(r.id)).length)],
+      ['assoc_deals_count', 'Negocios asociados', 'calc', (r) => String(allDeals().filter((d) => hasAssociation(d, 'companies', r.id)).length)],
       ['domain', 'Dominio'], ['hs_additional_domains', 'Dominios adicionales'], ['phone', 'Número de teléfono', 'tel'], ['employees', 'Empleados', 'number'], ['revenue', 'Ingresos anuales', 'number'], ['created', 'Fecha de creación', 'date-ro'],
       ['notes_next_activity_date', 'Fecha de la próxima actividad', 'date-ro'],
     ],
@@ -106,8 +107,8 @@ const CONFIG = {
     assoc: (r) => [
       // Contacts whose primary company this is, plus the ones associated to it as a secondary company.
       ['Contactos', allContacts().filter((c) => Number(c.companyId) === Number(r.id) || (Array.isArray(c.assoc_companies) && c.assoc_companies.map(Number).includes(Number(r.id)))), 'contacts'],
-      ['Negocios', allDeals().filter((d) => Number(d.companyId) === Number(r.id)), 'deals'],
-      ['Tickets', allTickets().filter((t) => Number(t.companyId) === Number(r.id) || allContacts().some((c) => Number(c.id) === Number(t.contactId) && Number(c.companyId) === Number(r.id))), 'tickets'],
+      ['Negocios', allDeals().filter((d) => hasAssociation(d, 'companies', r.id)), 'deals'],
+      ['Tickets', allTickets().filter((t) => hasAssociation(t, 'companies', r.id) || allContacts().some((c) => Number(c.id) === Number(t.contactId) && Number(c.companyId) === Number(r.id))), 'tickets'],
       // Tasks tied to the company (companyId or assoc_companies: bulk «Crear tareas», the task form).
       ['Tareas', allTasks().filter((t) => taskLinksTo(t, 'companies', r.id)), 'tasks'],
     ],
@@ -125,8 +126,8 @@ const CONFIG = {
     highlights: (r) => [['Importe', formatMoney(r.amount, r.deal_currency_code)], ['Fecha de cierre', formatDate(r.closeDate)], ['Probabilidad', `${dealStageProb(r.pipeline, r.stage)} %`], ['Última actividad', formatDate(r.lastActivity)], ['Próxima actividad', r.notes_next_activity_date ? formatDate(r.notes_next_activity_date) : '--']],
     stages: true,
     assoc: (r) => [
-      ['Contactos', r.contactId ? [byId(allContacts(), r.contactId)].filter(Boolean) : [], 'contacts'],
-      ['Empresas', r.companyId ? [byId(allCompanies(), r.companyId)].filter(Boolean) : [], 'companies'],
+      ['Contactos', associationIds(r, 'contacts').map(id => byId(allContacts(), id)).filter(Boolean), 'contacts'],
+      ['Empresas', associationIds(r, 'companies').map(id => byId(allCompanies(), id)).filter(Boolean), 'companies'],
       // Tickets linked to the deal from either side (ticket.assoc_deals or deal.assoc_tickets).
       ['Tickets', allTickets().filter((t) => crossLinked(r, 'deals', t, 'tickets')), 'tickets'],
       ['Tareas', allTasks().filter((t) => taskLinksTo(t, 'deals', r.id)), 'tasks'],
@@ -147,8 +148,8 @@ const CONFIG = {
     stages: true,
     // Contacts and companies (a ticket gets the primary company of its contact automatically).
     assoc: (r) => [
-      ['Contactos', r.contactId ? [byId(allContacts(), r.contactId)].filter(Boolean) : [], 'contacts'],
-      ['Empresas', r.companyId ? [byId(allCompanies(), r.companyId)].filter(Boolean) : [], 'companies'],
+      ['Contactos', associationIds(r, 'contacts').map(id => byId(allContacts(), id)).filter(Boolean), 'contacts'],
+      ['Empresas', associationIds(r, 'companies').map(id => byId(allCompanies(), id)).filter(Boolean), 'companies'],
       // Deals linked to the ticket from either side (ticket.assoc_deals or deal.assoc_tickets).
       ['Negocios', allDeals().filter((d) => crossLinked(r, 'tickets', d, 'deals')), 'deals'],
       ['Tareas', allTasks().filter((t) => taskLinksTo(t, 'tickets', r.id)), 'tasks'],
@@ -973,7 +974,7 @@ function assocRows() {
     const seen = new Set(rows.map((r) => Number(r.id)));
     const merged = [...rows, ...extra.filter((r) => !seen.has(Number(r.id)))];
     const labels = rec[`assoc_labels_${kind}`] || {};
-    return [t, merged.map((r) => ({ ...r, assocLabel: labels[r.id] })), kind];
+    return [t, merged.map((r) => ({ ...r, assocLabel: isMultiAssociation(kind, type) ? r[`assoc_labels_${type}`]?.[rec.id] || labels[r.id] : labels[r.id] })), kind];
   });
 }
 // ---------- page layout (columns, sections, tabs) from the layout editor ----------
@@ -1398,6 +1399,24 @@ function renderAssocDrawer() {
     </div>`;
   wireMenus(el);
 }
+function saveMultiAssociation(kind, other, label, remove = false) {
+  const forward = isMultiAssociation(type, kind);
+  if (!forward && !isMultiAssociation(kind, type)) return false;
+  const ownerType = forward ? type : kind;
+  const owner = findRecord(ownerType, forward ? rec.id : other.id);
+  const targetKind = forward ? kind : type;
+  const target = forward ? other : rec;
+  const patch = associationPatch(owner, targetKind, target, label, remove);
+  for (const [key, value] of Object.entries(patch)) setField(ownerType, owner.id, key, value);
+  if (targetKind === 'companies') setField(ownerType, owner.id, 'company', byId(allCompanies(), patch.companyId)?.name || '');
+  // Clear legacy reverse copies too, so removal cannot resurrect a link.
+  if (remove) {
+    setField(targetKind, target.id, `assoc_${ownerType}`, (target[`assoc_${ownerType}`] || []).filter(id => Number(id) !== Number(owner.id)));
+    const labels = { ...target[`assoc_labels_${ownerType}`] }; delete labels[owner.id];
+    setField(targetKind, target.id, `assoc_labels_${ownerType}`, labels);
+  }
+  return true;
+}
 function saveAssociations(ids, labels) {
   const kind = ad.kind;
   const existing = new Set((rec[`assoc_${kind}`] || []).map(Number));
@@ -1418,6 +1437,7 @@ function saveAssociations(ids, labels) {
   ids.forEach((id2) => {
     const other = byId(ALL[kind](), id2);
     if (!other) return;
+    if (saveMultiAssociation(kind, other, labels[id2] || 'Sin etiqueta')) return;
     if (type === 'contacts' && kind === 'companies' && (labels[id2] === 'Principal' || !rec.companyId)) {
       setField('contacts', rec.id, 'companyId', other.id);
       setField('contacts', rec.id, 'company', other.name);
@@ -1475,6 +1495,13 @@ function unlinkAssociation(kind, otherId) {
   const other = byId(ALL[kind](), otherId);
   if (!other) return;
   if (!window.confirm(`¿Desasociar «${other.name}» de ${cfg.title(rec)}?`)) return;
+  if (saveMultiAssociation(kind, other, '', true)) {
+    rec = findRecord(type, id);
+    logAssociation(kind, other, 'remove');
+    renderAll();
+    toast('Asociación eliminada');
+    return;
+  }
   const oid = Number(other.id);
   const lab = { ...(rec[`assoc_labels_${kind}`] || {}) };
   const label = lab[oid] || lab[String(oid)] || other.assocLabel || 'Sin etiqueta';

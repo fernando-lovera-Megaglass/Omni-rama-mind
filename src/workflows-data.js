@@ -1,3 +1,4 @@
+import { associationIds, hasAssociation } from './crm-associations.js';
 import { ACT_ICONS } from './action-icons.js';
 // Workflows (Automatización › Workflows): the workflows / workflow_actions / workflow_enrollments tables with
 // Supabase (localStorage otherwise), the trigger condition engine (OR between groups, AND inside), the action
@@ -66,12 +67,12 @@ export const propertyDef = (type, key) => conditionProperties(type).find((p) => 
 export function valueOf(type, r, key) {
   if (!r) return undefined;
   if (key === 'assoc_contacts') {
-    if (type === 'deals' || type === 'tickets') return (r.contactId ? 1 : 0) + (Array.isArray(r.assoc_contacts) ? r.assoc_contacts.length : 0);
+    if (type === 'deals' || type === 'tickets') return associationIds(r, 'contacts').length;
     if (type === 'companies') return allContacts().filter((c) => Number(c.companyId) === Number(r.id)).length;
   }
   if (key === 'assoc_deals') {
-    if (type === 'contacts') return allDeals().filter((d) => Number(d.contactId) === Number(r.id)).length;
-    if (type === 'companies') return allDeals().filter((d) => Number(d.companyId) === Number(r.id)).length;
+    if (type === 'contacts') return allDeals().filter((d) => hasAssociation(d, 'contacts', r.id)).length;
+    if (type === 'companies') return allDeals().filter((d) => hasAssociation(d, 'companies', r.id)).length;
   }
   return r[key];
 }
@@ -341,8 +342,8 @@ const link = (type, id) => `${type}/record/?id=${id}`;
 function associated(type, r, toObject) {
   if (toObject === 'contacts') { if (type === 'contacts') return r; if (r.contactId) return allContacts().find((c) => Number(c.id) === Number(r.contactId)) || null; if (type === 'companies') return allContacts().find((c) => Number(c.companyId) === Number(r.id)) || null; return null; }
   if (toObject === 'companies') { if (type === 'companies') return r; if (r.companyId) return allCompanies().find((c) => Number(c.id) === Number(r.companyId)) || null; const c = r.contactId ? allContacts().find((x) => Number(x.id) === Number(r.contactId)) : null; return c && c.companyId ? allCompanies().find((x) => Number(x.id) === Number(c.companyId)) || null : null; }
-  if (toObject === 'deals') { if (type === 'deals') return r; return allDeals().find((d) => (type === 'contacts' && Number(d.contactId) === Number(r.id)) || (type === 'companies' && Number(d.companyId) === Number(r.id))) || null; }
-  if (toObject === 'tickets') { if (type === 'tickets') return r; return allTickets().find((d) => type === 'contacts' && Number(d.contactId) === Number(r.id)) || null; }
+  if (toObject === 'deals') { if (type === 'deals') return r; return allDeals().find((d) => (type === 'contacts' && hasAssociation(d, 'contacts', r.id)) || (type === 'companies' && hasAssociation(d, 'companies', r.id))) || null; }
+  if (toObject === 'tickets') { if (type === 'tickets') return r; return allTickets().find((d) => type === 'contacts' && hasAssociation(d, 'contacts', r.id)) || null; }
   return null;
 }
 // One action on one record. apply=false only describes what would happen («Prueba»); apply=true changes
