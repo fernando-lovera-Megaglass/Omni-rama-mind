@@ -142,7 +142,7 @@ function renderDesign(tab) {
               <button type="button" aria-haspopup="true" data-lc="tab" data-tab="${t.id}">${esc(t.label)} ${t.id === activeTab ? '<span class="caret"></span>' : ''}</button>
               <div class="menu__panel">
                 <button class="menu__item" type="button" data-lc="rename-tab" data-tab="${t.id}">Cambiar nombre</button>
-                ${t.fixed ? '' : `<button class="menu__item menu__item--danger" type="button" data-lc="remove-tab" data-tab="${t.id}">Eliminar pestaña</button>`}
+                ${t.fixed || t.id === 'overview' ? '' : `<button class="menu__item menu__item--danger" type="button" data-lc="remove-tab" data-tab="${t.id}">Eliminar pestaña</button>`}
               </div>
             </div>`).join('')}
           <button class="ltabs__btn" type="button" data-lc="add-tab" aria-label="Agregar pestaña">+</button>
@@ -387,7 +387,10 @@ root.addEventListener('click', (e) => {
     case 'tab': activeTab = b.dataset.tab; if (!b.closest('.ltab.is-active')) { closeMenus(); render(); } break;
     case 'rename-view': promptModal('Cambiar nombre de la vista', 'Nombre', layout.name, (v) => commit((l) => { l.name = v; })); break;
     case 'rename-tab': { const t = layout.tabs.find((x) => x.id === b.dataset.tab); promptModal('Cambiar nombre de la pestaña', 'Nombre', t.label, (v) => commit((l) => { l.tabs.find((x) => x.id === t.id).label = v; })); break; }
-    case 'remove-tab': commit((l) => { l.tabs = l.tabs.filter((x) => x.id !== b.dataset.tab); }); activeTab = 'overview'; render(); break;
+    case 'remove-tab':
+      // Protect the main tab even in older layouts where it has no fixed flag.
+      if (b.dataset.tab === 'overview' || layout.tabs.find((t) => t.id === b.dataset.tab)?.fixed) break;
+      commit((l) => { l.tabs = l.tabs.filter((x) => x.id !== b.dataset.tab); }); activeTab = 'overview'; render(); break;
     case 'add-tab': promptModal('Agregar pestaña', 'Nombre de la pestaña', 'Nueva pestaña', (v) => { const nid = `tab${Date.now()}`; commit((l) => { l.tabs.push({ id: nid, label: v, sections: [{ title: 'Nueva sección', cards: [] }] }); }); activeTab = nid; render(); }); break;
     case 'reorder-tabs':
       openModal('Reordenar pestañas', `<ul class="col-list" id="l-tabs">${layout.tabs.map((t) => `<li class="col-item" data-tab="${t.id}"><label>${esc(t.label)}</label><span class="col-item__moves"><button type="button" data-move="-1" aria-label="Subir">▲</button><button type="button" data-move="1" aria-label="Bajar">▼</button></span></li>`).join('')}</ul>`, `<button class="btn btn--primary" type="button" id="l-tabs-ok">Guardar</button><button class="btn btn--ghost" type="button" data-close>Cancelar</button>`);

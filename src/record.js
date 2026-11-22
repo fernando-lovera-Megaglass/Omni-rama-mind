@@ -985,6 +985,7 @@ const CATALOG = cardCatalog(type);
 let activeTabId = 'overview';
 function renderTabs() {
   const L = layoutOf();
+  if (!L.tabs.some((t) => t.id === activeTabId)) activeTabId = (L.tabs.find((t) => t.id === 'overview') || L.tabs[0])?.id;
   $('rec-tabs').innerHTML =
     L.tabs.map((t) => `<button class="rtabs__tab${t.id === activeTabId ? ' is-active' : ''}" role="tab" type="button" data-tab="${t.id}">${esc(t.label)}</button>`).join('') +
     `<button class="rtabs__custom" type="button" data-act="customize">⚙ Personalizar</button>`;
@@ -1002,6 +1003,7 @@ function renderMiddle() {
     .filter((t) => !t.fixed && t.id !== 'overview')
     .map((t) => `<div class="tabpane" id="pane-${t.id}" hidden>${sectionsHtml(t.sections || [], t.id)}</div>`)
     .join('');
+  $('record-root').querySelectorAll('.tabpane').forEach((p) => { p.hidden = p.id !== `pane-${activeTabId}`; });
   addGrips($('record-root').querySelector('.record__middle'));
   const aboutCard = $('rec-props').closest('.card');
   aboutCard.hidden = !L.left.includes('about');
