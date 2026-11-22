@@ -1223,10 +1223,11 @@
     },
     {
       "id": "gap-ui-importacion-ver-segmento-roto",
-      "status": "pending",
+      "status": "done",
       "createdAt": "2026-11-21T09:17:21-06:00",
       "lane": "claude",
-      "instruction": "UX (fin del flujo de importación). En HubSpot, al terminar una importación con «crear lista», el botón lleva a la lista/vista con EXACTAMENTE los registros de esa corrida. Omni HOY: src/import-wizard.js renderReview (~línea 317) pinta «Ver segmento» con `href=\"../../${type}/\"`, el mismo destino genérico que «Ver contactos»: la vista guardada que createSegment creó (src/import-engine.js ~línea 665, id `imp<id>`, la añade a store.custom y store.open) nunca se abre, y src/list.js solo lee los parámetros company/contact de la URL (~línea 3015), no un `view`. Pasos: (1) que la lista de cada objeto (src/list.js, arranque) honore `?view=<id>`: si la vista existe en el store, la abre como pestaña activa (y si no, ignora el parámetro sin romper); (2) en renderReview, «Ver segmento» apunta a `../../${type}/?view=imp${id}` y «Ver <objeto>» sigue al índice general; (3) si la importación no creó segmento, no mostrar el botón. Criterio de aceptación: importar contactos marcando «Crear un segmento», pulsar «Ver segmento» → se abre el índice de contactos con la pestaña «Importación: <nombre>» activa, el filtro hs_import_ids aplicado y solo los registros de la corrida visibles; recargar esa URL mantiene la vista. No despliegues nada a producción; solo código local."
+      "instruction": "UX (fin del flujo de importación). En HubSpot, al terminar una importación con «crear lista», el botón lleva a la lista/vista con EXACTAMENTE los registros de esa corrida. Omni HOY: src/import-wizard.js renderReview (~línea 317) pinta «Ver segmento» con `href=\"../../${type}/\"`, el mismo destino genérico que «Ver contactos»: la vista guardada que createSegment creó (src/import-engine.js ~línea 665, id `imp<id>`, la añade a store.custom y store.open) nunca se abre, y src/list.js solo lee los parámetros company/contact de la URL (~línea 3015), no un `view`. Pasos: (1) que la lista de cada objeto (src/list.js, arranque) honore `?view=<id>`: si la vista existe en el store, la abre como pestaña activa (y si no, ignora el parámetro sin romper); (2) en renderReview, «Ver segmento» apunta a `../../${type}/?view=imp${id}` y «Ver <objeto>» sigue al índice general; (3) si la importación no creó segmento, no mostrar el botón. Criterio de aceptación: importar contactos marcando «Crear un segmento», pulsar «Ver segmento» → se abre el índice de contactos con la pestaña «Importación: <nombre>» activa, el filtro hs_import_ids aplicado y solo los registros de la corrida visibles; recargar esa URL mantiene la vista. No despliegues nada a producción; solo código local.",
+      "completedAt": "2026-11-21T20:40:56-0600"
     },
     {
       "id": "gap-ui-importacion-propietario-email-real",
@@ -1349,12 +1350,10 @@
     },
     {
       "id": "gap-smoke-currency-registro",
-      "status": "done",
+      "status": "pending",
       "instruction": "smoke-currency falla en «record should show the new currency right away». Criterio: smoke-currency pasa. Ejecuta la(s) prueba(s) con node scripts/<smoke>.mjs hasta que pasen. Verifica si es regresión del código o prueba desactualizada por un cambio intencional; corrige lo que corresponda. No despliegues nada a producción; solo código local.",
       "createdAt": "2026-11-21T16:25:45-06:00",
-      "lane": "codex",
-      "completedAt": "2026-11-21T20:40:41-0600",
-      "completedBy": "codex"
+      "lane": "codex"
     },
     {
       "id": "gap-smoke-company-hierarchy-fila",
