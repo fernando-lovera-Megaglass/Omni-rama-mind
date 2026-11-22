@@ -2151,10 +2151,12 @@
     },
     {
       "id": "gap-smoke-rls-ticket-tags",
-      "status": "pending",
+      "status": "done",
       "instruction": "smoke-rls-team: «tables with open policies not covered: ticket_tags» — la tabla ticket_tags tiene políticas abiertas o sin cobertura de equipo. Es un tema REAL de seguridad RLS, revisa supabase/*.sql y agrega políticas de equipo como en las demás tablas. OBLIGATORIO: ejecuta node scripts/<smoke>.mjs DESPUÉS de tu cambio e itera hasta que termine con código 0; no des por terminado sin verificarlo. Si el fallo es una limitación del harness jsdom (API de navegador inexistente), agrega el shim en la prueba, no cambies la app para complacer al harness. No despliegues nada a producción; solo código local.",
       "createdAt": "2026-11-22T08:22:54-06:00",
-      "lane": "claude"
+      "lane": "claude",
+      "completedAt": "2026-11-22T09:19:36-0600",
+      "completedBy": "claude"
     },
     {
       "id": "gap-smoke-sequence-backfill-conteo",
