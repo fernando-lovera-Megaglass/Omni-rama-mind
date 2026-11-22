@@ -1,8 +1,8 @@
 # Sincronización de configuración
 
-El registro local indica que `supabase/user_settings.sql` se aplicó el 22-nov-2026. La nueva migración `supabase/account-settings-authenticated.sql` está **pendiente**, preparada solo localmente; no se ejecutó SQL remoto en este cambio.
+El registro local indica que `supabase/user_settings.sql` se aplicó el 22-nov-2026. La nueva migración `supabase/account-settings-team.sql` está **pendiente**, preparada solo localmente; no se ejecutó SQL remoto en este cambio.
 
-El modelo actual es una cuenta CRM por proyecto Supabase. Decisión del 22-nov-2026: opción (b), todos los usuarios autenticados pueden leer y escribir los ajustes de cuenta tras aplicar la nueva migración. Esto incluye reemplazar y borrar ajustes compartidos. No requiere asignar roles admin ni renovar JWT; los usuarios anónimos siguen sin acceso. Los roles de `crm:users` y `user_metadata` no conceden permisos. Para múltiples organizaciones será necesario incorporar membresías e identificador de cuenta.
+El modelo actual es una cuenta CRM por proyecto Supabase. Decisión del 22-nov-2026: opción (b), todos los usuarios autenticados pueden leer los ajustes de cuenta y solo los miembros activos (`is_team_member()`) pueden escribirlos tras aplicar la nueva migración. Esto incluye reemplazar y borrar ajustes compartidos. No requiere asignar roles admin ni renovar JWT; los usuarios anónimos siguen sin acceso. Los roles de `crm:users` y `user_metadata` no conceden permisos. Para múltiples organizaciones será necesario incorporar membresías e identificador de cuenta.
 
 `crm:profile`, `crm:notif`, `crm:settings:general-*` y el estado del menú son personales. `crm:account`, `crm:integrations` y los demás toggles `crm:settings:*` son de cuenta. Las conexiones Gmail/Twilio conservan su persistencia OAuth existente; un toggle no crea una conexión.
 
@@ -17,11 +17,11 @@ Validación local:
 
 ## Aplicación y aceptación pendientes
 
-La evidencia aportada indica que el usuario real no tiene `app_metadata.role` y la política anterior rechaza sus escrituras. Se retiran también los bloqueos admin del almacén del frontend; las escrituras siguen sujetas a RLS. Esta decisión asume que todos los usuarios autenticados del proyecto pertenecen a la única cuenta CRM. No proporciona aislamiento entre organizaciones.
+La evidencia aportada indica que el usuario real no tiene `app_metadata.role` y la política anterior rechaza sus escrituras. Se retiran también los bloqueos admin del almacén del frontend; las escrituras siguen sujetas a RLS. La escritura exige pertenencia activa a la única cuenta CRM mediante `team_members`. No proporciona aislamiento entre organizaciones.
 
 Aplicar la nueva migración **después** de `user_settings.sql` y `rls_team.sql`. Reaplicar esas migraciones históricas puede restablecer restricciones anteriores; en ese caso volver a aplicar esta migración. La migración nueva es repetible y no modifica datos ni permisos de `user_settings`.
 
-Cuando se autorice un entorno de destino, comprobar primero el proyecto configurado en `scripts/mgmt-sql.mjs`; ejecutar `node scripts/apply-migration.mjs supabase/account-settings-authenticated.sql`. Ese comando modifica el servidor y registra el éxito en `scripts/applied-migrations.json`; deliberadamente no se ejecutó en esta tarea.
+Cuando se autorice un entorno de destino, comprobar primero el proyecto configurado en `scripts/mgmt-sql.mjs`; ejecutar `node scripts/apply-migration.mjs supabase/account-settings-team.sql`. Ese comando modifica el servidor y registra el éxito en `scripts/applied-migrations.json`; deliberadamente no se ejecutó en esta tarea.
 
 Aceptación en ese entorno (pendiente, no sustituida por los tests locales):
 
@@ -42,7 +42,7 @@ personales de la lista conservan precedencia sobre las predeterminadas de cuenta
 Restablecer guarda los valores predeterminados de columnas/filtros y una lista vacía
 para tarjetas, evitando que resurja una personalización local antigua.
 
-Requiere la política de `account-settings-authenticated.sql` descrita arriba para
+Requiere la política de `account-settings-team.sql` descrita arriba para
 usuarios sin rol admin. Este cambio no aplica migraciones ni despliega código.
 Los smoke de sincronización y RLS cubren estas claves con almacenes independientes
 y PostgreSQL local. La aceptación en Supabase real sigue pendiente: guardar columnas

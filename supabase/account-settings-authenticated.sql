@@ -1,3 +1,4 @@
+-- SUPERSEDED: use account-settings-team.sql. This older alternative permits non-members to write.
 -- Option (b): one CRM account per Supabase project; all authenticated users
 -- may manage shared settings. Apply AFTER user_settings.sql and rls_team.sql.
 -- This does not grant access to anonymous clients or change personal settings.
