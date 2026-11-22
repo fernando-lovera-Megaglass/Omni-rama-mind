@@ -1,5 +1,11 @@
 # Progreso — Omni CRM
 
+## 2026-11-22 (sesión 6) · smoke-activity-actions vuelve a pasar: la prueba se puso al día con cómo se fija una actividad
+
+- Diagnóstico: la acción de fijar sigue existiendo en `src/record.js` (menú ⋮ de cada actividad: «Fijar en la parte superior» / «Desfijar», título «📌 Fijada ·» bajo la sección «Fijado»), pero desde los commits del otro carril sobre editar/eliminar actividades (c053d4e y anteriores) el fijado se guarda por registro en `crm:<objeto>:<id>:pinned` y una clave vacía anula la marca antigua `extra.pinned`. La prueba pulsaba «el primer botón de fijar» dos veces: fijaba la llamada y la volvía a desfijar, y luego buscaba «Fijada». También suponía que «Registro creado» no tenía ninguna acción, cuando ahora toda actividad puede fijarse (solo nota, llamada, correo, reunión y mensaje se editan o eliminan).
+- `scripts/smoke-activity-actions.mjs`: refresca la cronología con una acción real (el buscador), comprueba que la nota con `extra.pinned` aparece fijada, la desfija desde su propio ⋮ (clave vacía, sin «Fijada»), la vuelve a fijar (clave `<id>:1:note`, «Fijada» arriba) y acepta el botón de fijar en «Registro creado» exigiendo que no tenga editar ni eliminar. Sin cambios en la app; termina con código 0.
+- Smokes de cronología (record-pin, activity-associations, activity-comments, activity-outcomes, activity-rules) en verde. Solo código local; nada desplegado.
+
 ## 2026-11-22 (sesión 6) · Vistas de equipo: los nombres sugeridos concuerdan («Nueva página de registro…», «Nueva vista previa de registro…»)
 
 - `src/layout.js`: al crear una vista de equipo nueva (página de registro o panel de vista previa) el nombre sugerido pasa de «Nuevo página de registro X - (fecha)» / «Nuevo vista previa de registro X - (fecha)» a «Nueva página…» / «Nueva vista previa…»; se ve así en el editor y, al guardar, en Configuración › Objetos. Las vistas ya creadas con el nombre anterior no se tocan.

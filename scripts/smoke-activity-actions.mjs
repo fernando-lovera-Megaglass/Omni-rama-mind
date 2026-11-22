@@ -44,13 +44,19 @@ const notePin = () => document.querySelector(`#rec-timeline [data-activity-actio
 // the note was added through the data layer: refresh the timeline through a UI action (the search box)
 document.getElementById('act-search').dispatchEvent(new dom.window.Event('input', { bubbles: true })); await tick();
 assert.ok(notePin(), 'the note offers «Fijar»');
-notePin().click(); await tick();
+// the legacy extra.pinned flag still pins the note while the person has not pinned or unpinned anything
 assert.match(document.querySelector('#rec-timeline .timeline__title').textContent, /Fijada/);
 assert.ok(document.querySelector('#rec-timeline .timeline__item--pinned').dataset.ev.startsWith(`${note.id}:`), 'the pinned item is the note');
-assert.equal(localStorage.getItem('crm:contacts:1:pinned'), `${note.id}:1:note`);
+// its ⋮ › «Desfijar» unpins it (an empty key overrides the legacy flag) …
 notePin().click(); await tick();
 assert.doesNotMatch(document.querySelector('#rec-timeline .timeline__title').textContent, /Fijada/);
-assert.equal(document.querySelector('#rec-timeline .timeline__item--pinned'), null, 'pinning again unpins');
+assert.equal(document.querySelector('#rec-timeline .timeline__item--pinned'), null, 'unpinned');
+assert.equal(localStorage.getItem('crm:contacts:1:pinned'), '');
+// … and «Fijar en la parte superior» pins it again, now by key
+notePin().click(); await tick();
+assert.match(document.querySelector('#rec-timeline .timeline__title').textContent, /Fijada/);
+assert.ok(document.querySelector('#rec-timeline .timeline__item--pinned').dataset.ev.startsWith(`${note.id}:`), 'pinned again');
+assert.equal(localStorage.getItem('crm:contacts:1:pinned'), `${note.id}:1:note`);
 assert.equal(fresh.activitiesFor('contacts', 1)[0].id, note.id);
 const created = [...document.querySelectorAll('#rec-timeline .timeline__item')].find(el => el.textContent.includes('Registro creado'));
 assert.ok(created);
