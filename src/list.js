@@ -2705,13 +2705,19 @@ export function mountList(cfg) {
   }
 
   // ---------- create ----------
+  let creating = false;
   $('create-form').addEventListener('submit', async (e) => {
     e.preventDefault();
+    if (creating) return;
+    creating = true;
     const data = Object.fromEntries(new FormData(e.target).entries());
     if (pendingCreate) Object.entries(pendingCreate).forEach(([k, v]) => { if (!data[k]) data[k] = v; });
     pendingCreate = null;
-    try { await validatePropertyValues(cfg.type, data); } catch (error) { toast(error.message); return; }
-    const rec = addRecord(cfg.type, cfg.normalize ? cfg.normalize(data) : data);
+    try { await validatePropertyValues(cfg.type, data); } catch (error) { creating = false; toast(error.message); return; }
+    let rec;
+    try { rec = await addRecord(cfg.type, cfg.normalize ? cfg.normalize(data) : data, { waitForSave: !!cfg.waitForCreateSave }); }
+    catch (error) { toast(`No se pudo crear: ${error.message || error}`); return; }
+    finally { creating = false; }
     e.target.reset();
     closeDrawer('create-drawer');
     activateView(stdId(cfg.views[0].key));

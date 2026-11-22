@@ -14,7 +14,7 @@ const ASSOC_KINDS = {
   companies: ['contacts', 'deals', 'tickets'],
   deals: ['contacts', 'companies'],
   tickets: ['contacts', 'companies'],
-  tasks: ['contacts'],
+  tasks: ['contacts', 'companies', 'deals', 'tickets'],
 };
 
 export function cardCatalog(type) {

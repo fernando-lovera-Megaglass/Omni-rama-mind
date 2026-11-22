@@ -1,10 +1,11 @@
+import { mountTaskAssociations, logTaskAssociations } from './task-associations.js';
 import './filter-chip.js';
 import { taskQueues, loadTaskQueues, saveTaskQueue, deleteTaskQueue } from './task-queues.js';
 import { assignTaskQueue } from './data.js';
 import { boot } from './page.js';
 import { mountList, tag, link, ownerHtml } from './list.js';
 import { toast } from './shell.js';
-import { allTasks, allContacts, TASK_STATUSES, TASK_TYPES, PRIORITIES, OWNERS, formatDate, labelOf, classOf, TODAY, RECUR_OPTIONS, recurLabel, normalizeRecur } from './data.js';
+import { allTasks, TASK_STATUSES, TASK_TYPES, PRIORITIES, OWNERS, formatDate, labelOf, classOf, TODAY, RECUR_OPTIONS, recurLabel, normalizeRecur } from './data.js';
 import { startQueue, activeQueue, endQueue, queueTask, queueFinished, queueSummary, targetFor, goTo, dueMatches, dueText, dueClass, DUE_OPTIONS, dayDiff, completeTask } from './task-queue.js';
 import { REMINDER_OPTIONS, defaultReminderOption, reminderFromDue, reminderText } from './task-reminders.js';
 // «Recordatorio» of the create drawer: the default from Ajustes first, the other presets, or a custom date-time.
@@ -20,7 +21,10 @@ let queuesError = '';
 try { await loadTaskQueues(); } catch (e) { queuesError = 'No se pudieron cargar las colas. Comprueba la migración task_queues y tus permisos.'; }
 let queueable = []; // pending tasks of the current view, in its order: what "Iniciar N tareas" works through
 
+let associationPicker;
 const list = mountList({
+  waitForCreateSave: true,
+  afterCreate: logTaskAssociations,
   type: 'tasks',
   title: 'Tareas',
   singular: 'Tarea',
@@ -103,7 +107,6 @@ const list = mountList({
     { name: 'reminder', label: 'Recordatorio', type: 'select', options: reminderChoices() },
     { name: 'reminderAt', label: 'Recordatorio personalizado (fecha y hora)', type: 'datetime-local' },
     { name: 'priority', label: 'Prioridad', type: 'select', options: PRIORITIES.map(([k, l]) => [k, l]) },
-    { name: 'contactId', label: 'Contacto asociado', type: 'select', options: [['', 'Ninguno'], ...allContacts().slice(0, 30).map((c) => [c.id, c.name])] },
     { name: 'owner', label: 'Asignada a', type: 'select', options: OWNERS.map((o) => [o, o]) },
   ],
   normalize: ({ reminder, reminderAt, ...d }) => {
@@ -112,7 +115,7 @@ const list = mountList({
       ...d,
       recur: normalizeRecur(d.recur),
       status: 'todo',
-      contact: (allContacts().find((c) => String(c.id) === String(d.contactId)) || {}).name || '',
+      ...associationPicker.build(),
       due,
       // The reminder's date-time is stored on the task: a preset relative to the due date, or the custom pick.
       reminderAt: reminder === 'custom' ? (reminderAt ? new Date(reminderAt).toISOString() : '') : reminderFromDue(due, reminder || defaultReminderOption()),
@@ -146,6 +149,8 @@ const list = mountList({
     }
   },
 });
+
+associationPicker = mountTaskAssociations($('create-form'));
 
 // A queue already in progress is offered again here (as the original keeps it until you leave it).
 $('views-bar').insertAdjacentHTML('afterend', '<div class="tq-banner" id="tq-banner" hidden></div>');

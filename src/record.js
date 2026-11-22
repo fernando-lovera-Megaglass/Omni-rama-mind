@@ -1,3 +1,4 @@
+import { TASK_ASSOCIATIONS, taskAssociationLinks } from './task-associations.js';
 import { ready as sequencesReady, scheduled, sequenceById, pauseEnrollment, resumeEnrollment, unenroll, enrollmentsOfContact, unenrollReasonOf, STATUS_LABELS as SEQ_STATUS } from './sequences-data.js';
 import { propertyEditor } from './property-editor.js';
 import { mountCreateDeal } from './create-deal.js';
@@ -138,7 +139,7 @@ const CONFIG = {
       ['priority', 'Prioridad', 'select', opt(PRIORITIES.map(([k, l]) => [k, l]))], ['owner', 'Asignada a', 'select', ownerOpts], ['recur', 'Repetir', 'select', opt(RECUR_OPTIONS)], ['created', 'Fecha de creación', 'date-ro'],
     ],
     highlights: (r) => [['Vence', formatDate(r.due)], ['Estado', labelOf(TASK_STATUSES, r.status)], ['Prioridad', labelOf(PRIORITIES, r.priority)], ['Recordatorio', r.reminderAt ? `${reminderText(r.reminderAt)}${r.reminderFiredAt ? ' · avisado' : ''}` : '--']],
-    assoc: (r) => [['Contactos', r.contactId ? [byId(allContacts(), r.contactId)].filter(Boolean) : [], 'contacts']],
+    assoc: (r) => Object.entries(TASK_ASSOCIATIONS).map(([kind, label]) => [label, kind === 'contacts' && r.contactId ? [byId(allContacts(), r.contactId)].filter(Boolean) : [], kind]),
   },
 };
 
@@ -648,6 +649,7 @@ function renderProps() {
       </div>`;
     })
     .join('');
+  if (type === 'tasks') $('rec-props').insertAdjacentHTML('beforeend', Object.entries(TASK_ASSOCIATIONS).map(([kind, label]) => `<div class="props__row"><dt>${label}</dt><dd>${taskAssociationLinks(rec, kind, root)}</dd></div>`).join(''));
 }
 
 // "Ver todas las propiedades": a slide-over with every property of the catalog (custom ones included), its
