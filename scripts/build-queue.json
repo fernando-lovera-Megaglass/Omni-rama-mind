@@ -1240,10 +1240,11 @@
     },
     {
       "id": "gap-ui-importacion-historial-muestra-falso",
-      "status": "pending",
+      "status": "done",
       "createdAt": "2026-11-21T09:17:21-06:00",
       "lane": "claude",
-      "instruction": "UX/LÓGICA (Gestión de datos › Integración de datos). En HubSpot el historial de importaciones muestra únicamente las importaciones reales de la cuenta y cada fila abre el detalle real (estado, conteos, errores descargables). Omni HOY: src/integration.js inyecta SAMPLE_IMPORTS (~líneas 23-44) cuando localStorage `crm:imports` está vacío: 16 importaciones ficticias (contactos_agosto_24.xlsx, MAYO_25.xlsx…) mezcladas con las reales, cuyo nombre abre un modal estático de mentira (data-import, ~línea 274) y cuyos «errores» abren un texto genérico (data-errors, ~línea 281) — callejones sin salida que fingen datos que la cuenta no tiene. Pasos: (1) dejar de mezclar: en cuanto exista al menos una importación real, el historial lista solo las reales; si no hay ninguna, la tabla muestra el estado vacío útil («Aún no has importado datos: empieza con Importar datos», como el patrón de gap-ui-estados-vacios-sin-ilustracion) en lugar de filas inventadas; (2) eliminar los modales estáticos de muestra; cada fila real enlaza a ./import/?id=<id> tanto en nombre como en contador de errores; (3) conservar los filtros, búsqueda y editor de columnas funcionando sobre las reales. Criterio de aceptación: cuenta sin importaciones → historial vacío con mensaje y CTA; tras una importación real → solo esa fila, nombre y errores abren la revisión real; ninguna fila ficticia vuelve a aparecer. No despliegues nada a producción; solo código local."
+      "instruction": "UX/LÓGICA (Gestión de datos › Integración de datos). En HubSpot el historial de importaciones muestra únicamente las importaciones reales de la cuenta y cada fila abre el detalle real (estado, conteos, errores descargables). Omni HOY: src/integration.js inyecta SAMPLE_IMPORTS (~líneas 23-44) cuando localStorage `crm:imports` está vacío: 16 importaciones ficticias (contactos_agosto_24.xlsx, MAYO_25.xlsx…) mezcladas con las reales, cuyo nombre abre un modal estático de mentira (data-import, ~línea 274) y cuyos «errores» abren un texto genérico (data-errors, ~línea 281) — callejones sin salida que fingen datos que la cuenta no tiene. Pasos: (1) dejar de mezclar: en cuanto exista al menos una importación real, el historial lista solo las reales; si no hay ninguna, la tabla muestra el estado vacío útil («Aún no has importado datos: empieza con Importar datos», como el patrón de gap-ui-estados-vacios-sin-ilustracion) en lugar de filas inventadas; (2) eliminar los modales estáticos de muestra; cada fila real enlaza a ./import/?id=<id> tanto en nombre como en contador de errores; (3) conservar los filtros, búsqueda y editor de columnas funcionando sobre las reales. Criterio de aceptación: cuenta sin importaciones → historial vacío con mensaje y CTA; tras una importación real → solo esa fila, nombre y errores abren la revisión real; ninguna fila ficticia vuelve a aparecer. No despliegues nada a producción; solo código local.",
+      "completedAt": "2026-11-21T20:46:39-0600"
     },
     {
       "id": "gap-ui-llamadas-panel-detalle",
@@ -1350,12 +1351,10 @@
     },
     {
       "id": "gap-smoke-currency-registro",
-      "status": "done",
+      "status": "pending",
       "instruction": "smoke-currency falla en «record should show the new currency right away». Criterio: smoke-currency pasa. Ejecuta la(s) prueba(s) con node scripts/<smoke>.mjs hasta que pasen. Verifica si es regresión del código o prueba desactualizada por un cambio intencional; corrige lo que corresponda. No despliegues nada a producción; solo código local.",
       "createdAt": "2026-11-21T16:25:45-06:00",
-      "lane": "codex",
-      "completedAt": "2026-11-21T20:45:33-0600",
-      "completedBy": "codex"
+      "lane": "codex"
     },
     {
       "id": "gap-smoke-company-hierarchy-fila",
