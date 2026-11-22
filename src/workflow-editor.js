@@ -1,9 +1,10 @@
-import { ACT_ICONS } from './action-icons.js';
-// Workflow editor (automation/editor/?id=): dark top bar (name, ACTIVADA/BORRADOR badge, Comenzar/Guardar,
-// Publicar/Desactivar switch), the Archivo/Editar/Configuración/Visualización/Ayuda menus, Prueba and
-// Historial del rendimiento, the canvas controls (undo/redo, zoom, minimap), the trigger card with its OR
-// groups of AND conditions, connectors with "+" that open the action catalogue, action cards (numbered,
-// token chips, recipient in green, footer tools), if/then branches, the Fin node and the right-hand config panel.
+import { ACT_ICONS, ico } from './action-icons.js';
+// Workflow editor (automation/editor/?id=): one dark top bar as the original's («‹ Volver a workflows», the
+// Archivo/Editar/Configuración/Visualización/Ayuda menus, the editable name with its ACTIVADA/BORRADOR badge,
+// the autosave indicator, Prueba, Historial del rendimiento and the Publicar/Desactivar switch), the canvas
+// controls (undo/redo, zoom, fit, minimap), the trigger card with its OR groups of AND conditions, connectors
+// with "+" that open the action catalogue in the side panel, action cards (numbered, icon per type, token
+// chips, recipient in green, a toolbar on hover), if/then branches, the Fin node and the right-hand config panel.
 import { toast, wireMenus, closeMenus } from './shell.js';
 import { OWNERS, relativeTimeFine, formatDate } from './data.js';
 import { ready, workflowById, saveWorkflow, cloneWorkflow, deleteWorkflows, unpublish, performance, simulate, matchingRecords, recordsOf, recordName, conditionProperties, propertyDef, conditionText, OPERATORS, OBJECT_TYPES, OBJECT_LABEL, OBJECT_PLURAL, ACTION_CATALOG, ACTION_DEFS, childrenOf, newAction, insertAction, removeAction, moveAction, describeAction, problemsOf, ENROLL_CAP, ME } from './workflows-data.js';
@@ -27,14 +28,31 @@ const plural = (n, s, p) => `${n} ${n === 1 ? s : p}`;
 const snapshot = () => JSON.stringify(state.wf);
 
 // ---------- persistence / history ----------
+// Every change is saved on its own a moment later (the bar says «Guardando…» and then «Todos los cambios
+// guardados», as the original's autosave indicator).
 let saveTimer = null;
+const SAVE_TEXT = { idle: 'Sin cambios', saving: 'Guardando…', saved: 'Todos los cambios guardados' };
+function setSaveState(s) { state.saveState = s; const el = $('wfe-saved'); if (el) el.textContent = SAVE_TEXT[s]; }
 function commit({ history = true } = {}) {
   if (history) { state.undo.push(state.lastSnapshot || snapshot()); if (state.undo.length > 50) state.undo.shift(); state.redo = []; }
   state.lastSnapshot = snapshot();
+  setSaveState('saving');
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => { saveWorkflow(state.wf.id, state.wf); }, 300);
+  saveTimer = setTimeout(() => { saveWorkflow(state.wf.id, state.wf); setSaveState('saved'); }, 300);
 }
-function flush() { clearTimeout(saveTimer); saveWorkflow(state.wf.id, state.wf); }
+function flush() { clearTimeout(saveTimer); saveWorkflow(state.wf.id, state.wf); setSaveState('saved'); }
+// Icons of the card toolbars (same line style as the action icons).
+const UI = {
+  dup: ico('<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M15 9V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h4"/>'),
+  up: ico('<path d="M12 19V5M5 12l7-7 7 7"/>'),
+  down: ico('<path d="M12 5v14M5 12l7 7 7-7"/>'),
+  copy: ACT_ICONS.copy,
+  trash: ico('<path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14M10 10v6M14 10v6"/>'),
+  undo: ico('<path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/>'),
+  redo: ico('<path d="m15 14 5-5-5-5"/><path d="M20 9H9a5 5 0 0 0 0 10h3"/>'),
+  fit: ico('<path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/>'),
+  map: ico('<path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z"/><path d="M9 4v14M15 6v14"/>'),
+};
 function undo() { if (!state.undo.length) return; state.redo.push(snapshot()); state.wf = JSON.parse(state.undo.pop()); state.lastSnapshot = snapshot(); state.selected = null; state.panel = null; flush(); render(); }
 function redo() { if (!state.redo.length) return; state.undo.push(snapshot()); state.wf = JSON.parse(state.redo.pop()); state.lastSnapshot = snapshot(); flush(); render(); }
 
@@ -55,7 +73,7 @@ function cardHtml(a, numbers) {
     <article class="wfn wfn--action wfn--${GROUP_CLASS[def.group] || 'crm'}${selected ? ' is-selected' : ''}" data-node="${esc(a.id)}">
       <div class="wfn__head"><span class="wfn__ico" aria-hidden="true">${def.icon}</span><div class="wfn__text"><strong>${numbers.map[a.id]}. ${esc(def.label)}</strong><div class="wfn__desc">${markersToChips(esc(d.text), { short: true })}${d.to ? ` <span class="wfn__to">${esc(d.to)}</span>` : ''}</div></div></div>
       <div class="wfn__foot">
-        <button type="button" data-act-dup="${esc(a.id)}" title="Duplicar" aria-label="Duplicar">⧉</button><button type="button" data-act-up="${esc(a.id)}" title="Mover arriba" aria-label="Mover arriba">↑</button><button type="button" data-act-down="${esc(a.id)}" title="Mover abajo" aria-label="Mover abajo">↓</button><button type="button" data-act-copy="${esc(a.id)}" title="Copiar" aria-label="Copiar">⎘</button><button type="button" data-act-del="${esc(a.id)}" title="Eliminar" aria-label="Eliminar">🗑</button>
+        <button type="button" data-act-dup="${esc(a.id)}" title="Duplicar" aria-label="Duplicar">${UI.dup}</button><button type="button" data-act-up="${esc(a.id)}" title="Mover arriba" aria-label="Mover arriba">${UI.up}</button><button type="button" data-act-down="${esc(a.id)}" title="Mover abajo" aria-label="Mover abajo">${UI.down}</button><button type="button" data-act-copy="${esc(a.id)}" title="Copiar" aria-label="Copiar">${UI.copy}</button><button type="button" data-act-del="${esc(a.id)}" title="Eliminar" aria-label="Eliminar">${UI.trash}</button>
         <button class="link-btn wfn__details" type="button" data-select-action="${esc(a.id)}">Detalles</button>
       </div>
     </article>
@@ -73,35 +91,36 @@ function triggerHtml() {
     <article class="wfn wfn--trigger${selected ? ' is-selected' : ''}" data-node="trigger">
       <div class="wfn__head"><span class="wfn__ico" aria-hidden="true">${ACT_ICONS.lightning}</span><div class="wfn__text"><strong>Activar la inscripción para ${esc(OBJECT_PLURAL[w.objectType])}</strong><small class="muted">Solo inscribir ${esc(OBJECT_PLURAL[w.objectType])} que cumplan estas condiciones</small></div></div>
       <div class="wfn__body">${groups.length ? groups.map((g, i) => `${i ? '<div class="wfn__or">o</div>' : ''}<div class="wfn__group"><div class="wfn__grouph">Grupo ${i + 1}</div>${(g.conditions || []).length ? (g.conditions || []).map((c, j) => `${j ? '<div class="wfn__and">y</div>' : ''}<div class="wfn__cond">${esc(conditionText(w.objectType, c))}</div>`).join('') : '<div class="muted">Sin condiciones</div>'}</div>`).join('') : '<div class="muted">Añade condiciones para decidir qué registros se inscriben.</div>'}</div>
-      <div class="wfn__foot"><button type="button" data-we="trigger-clear" title="Vaciar condiciones" aria-label="Vaciar condiciones">🗑</button><button class="wfn__reenroll" type="button" data-we="reenroll" title="Reinscribir cuando vuelva a cumplir las condiciones">${w.trigger && w.trigger.reenroll ? 'Reinscripción activada' : 'Reinscripción desactivada'}</button><button class="link-btn wfn__details" type="button" data-we="select-trigger">Detalles</button></div>
+      <div class="wfn__foot"><button type="button" data-we="trigger-clear" title="Vaciar condiciones" aria-label="Vaciar condiciones">${UI.trash}</button><button class="wfn__reenroll" type="button" data-we="reenroll" title="Reinscribir cuando vuelva a cumplir las condiciones">${w.trigger && w.trigger.reenroll ? 'Reinscripción activada' : 'Reinscripción desactivada'}</button><button class="link-btn wfn__details" type="button" data-we="select-trigger">Detalles</button></div>
     </article>`;
 }
 function render() {
   const w = state.wf;
   const numbers = numbering();
   const published = w.status === 'published';
-  const started = w.actions.length > 0 || ((w.trigger.groups || []).some((g) => (g.conditions || []).length));
+  const active = activeRunsOf(w.id).length;
   document.title = `${w.name} | Omni`;
   root.innerHTML = `
     <div class="wfe">
       <header class="wfe__bar">
-        <a class="seqed__back" href="../">‹ Volver</a>
+        <a class="wfe__back" href="../"><span aria-hidden="true">‹</span> Volver a workflows</a>
+        <nav class="wfe__menus" aria-label="Menú del editor">
+          <div class="menu"><button type="button" aria-haspopup="true">Archivo</button><div class="menu__panel"><button class="menu__item" type="button" data-we="save">Guardar</button><button class="menu__item" type="button" data-we="clone">Clonar</button><button class="menu__item" type="button" data-we="details">Detalles del workflow</button><div class="menu__sep"></div><button class="menu__item menu__item--danger" type="button" data-we="delete">Eliminar</button></div></div>
+          <div class="menu"><button type="button" aria-haspopup="true">Editar</button><div class="menu__panel"><button class="menu__item" type="button" data-we="undo" ${state.undo.length ? '' : 'disabled'}>Deshacer</button><button class="menu__item" type="button" data-we="redo" ${state.redo.length ? '' : 'disabled'}>Rehacer</button><div class="menu__sep"></div><button class="menu__item" type="button" data-we="delete-selected" ${state.selected && state.selected.kind === 'action' ? '' : 'disabled'}>Eliminar acción seleccionada</button></div></div>
+          <div class="menu"><button type="button" aria-haspopup="true">Configuración</button><div class="menu__panel"><button class="menu__item" type="button" data-we="details">Detalles del workflow</button><button class="menu__item" type="button" data-we="reenroll">${w.trigger.reenroll ? 'Desactivar la reinscripción' : 'Activar la reinscripción'}</button><button class="menu__item" type="button" data-we="select-trigger">Tipo de objeto y desencadenante</button></div></div>
+          <div class="menu"><button type="button" aria-haspopup="true">Visualización</button><div class="menu__panel"><button class="menu__item" type="button" data-we="zoom-in">Acercar</button><button class="menu__item" type="button" data-we="zoom-out">Alejar</button><button class="menu__item" type="button" data-we="zoom-reset">Ajustar a la ventana</button><button class="menu__item" type="button" data-we="minimap">${state.minimap ? 'Ocultar panel de minimapa' : 'Mostrar panel de minimapa'}</button></div></div>
+          <div class="menu"><button type="button" aria-haspopup="true">Ayuda</button><div class="menu__panel"><button class="menu__item" type="button" data-we="help">Cómo funcionan los workflows</button><button class="menu__item" type="button" data-we="shortcuts">Atajos de teclado</button></div></div>
+        </nav>
         <div class="wfe__name">${state.editingName ? `<input id="wfe-name" class="wfe__nameinput" value="${esc(w.name)}" aria-label="Nombre del workflow" />` : `<h1 id="wfe-title">${esc(w.name)}</h1><button class="wfe__pencil" type="button" data-we="rename" aria-label="Cambiar nombre" title="Cambiar nombre">✎</button>`}<span class="wfe__badge wfe__badge--${esc(w.status)}">${BADGE[w.status] || w.status}</span></div>
-        <div class="wfe__barright"><button class="btn btn--secondary btn--sm" type="button" data-we="save">${started ? 'Guardar' : 'Comenzar'}</button><label class="wfe__publish switchwrap"><span>${published ? 'Desactivar' : 'Publicar'}</span><input type="checkbox" class="switch" id="wfe-publish" ${published ? 'checked' : ''} /></label></div>
+        <div class="wfe__barright">
+          <span class="wfe__saved" id="wfe-saved" role="status">${SAVE_TEXT[state.saveState || 'idle']}</span>
+          <button class="btn btn--bar btn--sm" type="button" data-we="test">Prueba</button>
+          <button class="btn btn--bar btn--sm" type="button" data-we="history">Historial del rendimiento${active ? ` <span class="wfe__count">${active}</span>` : ''}</button>
+          <label class="wfe__publish switchwrap"><span>${published ? 'Desactivar' : 'Publicar'}</span><input type="checkbox" class="switch" id="wfe-publish" ${published ? 'checked' : ''} /></label>
+        </div>
       </header>
-      <nav class="wfe__menus">
-        <div class="menu"><button type="button" aria-haspopup="true">Archivo</button><div class="menu__panel"><button class="menu__item" type="button" data-we="save">Guardar</button><button class="menu__item" type="button" data-we="clone">Clonar</button><div class="menu__sep"></div><button class="menu__item menu__item--danger" type="button" data-we="delete">Eliminar</button></div></div>
-        <div class="menu"><button type="button" aria-haspopup="true">Editar</button><div class="menu__panel"><button class="menu__item" type="button" data-we="undo" ${state.undo.length ? '' : 'disabled'}>Deshacer</button><button class="menu__item" type="button" data-we="redo" ${state.redo.length ? '' : 'disabled'}>Rehacer</button><div class="menu__sep"></div><button class="menu__item" type="button" data-we="delete-selected" ${state.selected && state.selected.kind === 'action' ? '' : 'disabled'}>Eliminar acción seleccionada</button></div></div>
-        <div class="menu"><button type="button" aria-haspopup="true">Configuración</button><div class="menu__panel"><button class="menu__item" type="button" data-we="details">Detalles del workflow</button><button class="menu__item" type="button" data-we="reenroll">${w.trigger.reenroll ? 'Desactivar la reinscripción' : 'Activar la reinscripción'}</button><button class="menu__item" type="button" data-we="select-trigger">Tipo de objeto y desencadenante</button></div></div>
-        <div class="menu"><button type="button" aria-haspopup="true">Visualización</button><div class="menu__panel"><button class="menu__item" type="button" data-we="zoom-in">Acercar</button><button class="menu__item" type="button" data-we="zoom-out">Alejar</button><button class="menu__item" type="button" data-we="zoom-reset">Tamaño real</button><button class="menu__item" type="button" data-we="minimap">${state.minimap ? 'Ocultar panel de minimapa' : 'Mostrar panel de minimapa'}</button></div></div>
-        <div class="menu"><button type="button" aria-haspopup="true">Ayuda</button><div class="menu__panel"><button class="menu__item" type="button" data-we="help">Cómo funcionan los workflows</button><button class="menu__item" type="button" data-we="shortcuts">Atajos de teclado</button></div></div>
-        <span class="wfe__spacer"></span>
-        <button class="btn btn--secondary btn--sm" type="button" data-we="test">Prueba</button>
-        <button class="btn btn--secondary btn--sm" type="button" data-we="runs">Inscritos activos${activeRunsOf(w.id).length ? ` (${activeRunsOf(w.id).length})` : ''}</button>
-        <button class="btn btn--secondary btn--sm" type="button" data-we="history">Historial del rendimiento</button>
-      </nav>
       <div class="wfe__work">
-        <div class="wfe__controls"><button type="button" data-we="undo" ${state.undo.length ? '' : 'disabled'} aria-label="Deshacer" title="Deshacer">↶</button><button type="button" data-we="redo" ${state.redo.length ? '' : 'disabled'} aria-label="Rehacer" title="Rehacer">↷</button><span class="wfe__sep"></span><button type="button" data-we="zoom-out" aria-label="Alejar">−</button><span class="wfe__zoom" id="wfe-zoom">${state.zoom} %</span><button type="button" data-we="zoom-in" aria-label="Acercar">+</button><span class="wfe__sep"></span><button type="button" data-we="minimap" aria-pressed="${state.minimap}">Mostrar panel de minimapa</button></div>
+        <div class="wfe__controls"><button type="button" data-we="undo" ${state.undo.length ? '' : 'disabled'} aria-label="Deshacer" title="Deshacer">${UI.undo}</button><button type="button" data-we="redo" ${state.redo.length ? '' : 'disabled'} aria-label="Rehacer" title="Rehacer">${UI.redo}</button><span class="wfe__sep"></span><button type="button" data-we="zoom-out" aria-label="Alejar" title="Alejar">−</button><span class="wfe__zoom" id="wfe-zoom">${state.zoom} %</span><button type="button" data-we="zoom-in" aria-label="Acercar" title="Acercar">+</button><button type="button" data-we="zoom-reset" aria-label="Ajustar a la ventana" title="Ajustar a la ventana">${UI.fit}</button><span class="wfe__sep"></span><button type="button" data-we="minimap" aria-pressed="${state.minimap}" title="${state.minimap ? 'Ocultar panel de minimapa' : 'Mostrar panel de minimapa'}">${UI.map}<span>Minimapa</span></button></div>
         <div class="wfe__canvaswrap"><div class="wfe__canvas" id="wfe-canvas" style="transform: scale(${state.zoom / 100})">${triggerHtml()}${flowHtml(null, '', numbers)}<div class="wfn wfn--end" id="wfe-end">${numbers.total + 1}. Fin</div></div>${state.minimap ? `<div class="wfe__minimap" id="wfe-minimap"><strong>Minimapa</strong>${minimapRows(numbers)}</div>` : ''}</div>
         <aside class="wfe__panel" id="wfe-panel" ${state.panel ? '' : 'hidden'}>${panelHtml()}</aside>
       </div>
@@ -230,7 +249,7 @@ function historyHtml() {
     <div class="table-wrap wfr__wrap"><table class="table tpls__table wfl__table" id="wfe-hist"><thead><tr><th>Registro</th><th>Estado</th><th>Acciones</th><th>Inscrito</th></tr></thead><tbody>${p.rows.length ? p.rows.slice(0, 50).map((e) => `<tr><td>${recordLink(e.objectType, e.recordId, e.recordName)}<div class="muted wfe__log">${(e.log || []).map((x) => `${x.ok ? '✓' : '✗'} ${esc(x.result)}`).join(' · ')}</div></td><td>${enrollmentTag(e)}</td><td>${e.actionsRun}</td><td title="${esc(formatDate(new Date(e.enrolledAt)))}">${esc(relativeTimeFine(e.enrolledAt))}</td></tr>`).join('') : '<tr><td colspan="4"><div class="tpls__empty">Todavía no se ha inscrito ningún registro. Publica el workflow o inscribe registros desde su ficha.</div></td></tr>'}</tbody></table></div>`;
 }
 function openHistory() { modal('Inscritos e historial del workflow', historyHtml(), cancelBtn, { size: 'xl' }); }
-function refreshHistory() { const body = $('wfe-modal-body'); const m = $('wfe-modal'); if (body && m && m.classList.contains('is-open') && $('wfe-runs')) body.innerHTML = historyHtml(); const b = root.querySelector('[data-we="runs"]'); if (b) b.textContent = `Inscritos activos${activeRunsOf(state.wf.id).length ? ` (${activeRunsOf(state.wf.id).length})` : ''}`; }
+function refreshHistory() { const body = $('wfe-modal-body'); const m = $('wfe-modal'); if (body && m && m.classList.contains('is-open') && $('wfe-runs')) body.innerHTML = historyHtml(); const b = root.querySelector('[data-we="history"]'); const n = activeRunsOf(state.wf.id).length; if (b) b.innerHTML = `Historial del rendimiento${n ? ` <span class="wfe__count">${n}</span>` : ''}`; }
 document.addEventListener('crm:workflow', (e) => { if (state.wf && e.detail && e.detail.workflowId === state.wf.id) refreshHistory(); });
 function openPublish() {
   const w = state.wf;
@@ -303,8 +322,13 @@ root.addEventListener('click', (e) => {
   else if (a === 'history' || a === 'runs') openHistory();
   else if (a === 'details') openDetails();
   else if (a === 'clone') { flush(); const c = cloneWorkflow(state.wf.id); if (c) { toast(`Workflow clonado como «${c.name}»`); location.href = `?id=${c.id}`; } } else if (a === 'delete') modal('Eliminar workflow', `<p>¿Seguro que quieres eliminar «${esc(state.wf.name)}»? Podrás restaurarlo desde la vista «Eliminado».</p>`, `<button class="btn btn--primary tpls__danger" type="button" data-wm="confirm-delete">Eliminar</button>${cancelBtn}`, { size: '' });
-  else if (a === 'help') toast('Un workflow inscribe los registros que cumplen el desencadenante y ejecuta sus acciones en orden; las ramas if/then separan el recorrido según condiciones.');
-  else if (a === 'shortcuts') toast('Ctrl/Cmd+Z deshacer · Ctrl/Cmd+Shift+Z rehacer · Supr elimina la acción seleccionada');
+  else if (a === 'help') modal('Cómo funcionan los workflows', `<div class="wfe__help">
+      <section><h4>${ACT_ICONS.lightning} Desencadenante de inscripción</h4><p>Decide qué ${esc(OBJECT_PLURAL[state.wf.objectType])} entran en el workflow: grupos de condiciones unidos por «o», con condiciones unidas por «y» dentro de cada grupo. Con la reinscripción activada, un registro vuelve a entrar cada vez que cumple las condiciones.</p></section>
+      <section><h4>${ACT_ICONS.task} Acciones</h4><p>Se ejecutan en orden sobre cada registro inscrito: comunicaciones (correos, notificaciones), cambios en el CRM (crear o editar registros, asignar propietario, copiar propiedades), control del flujo (retrasos, ramas if/then, ir a otra acción) y tareas. Pulsa «+» en un conector para añadir una.</p></section>
+      <section><h4>${ACT_ICONS.workflow} Ramas y retrasos</h4><p>Una rama if/then separa el recorrido en «Sí» y «No» según condiciones; un retraso espera el tiempo indicado antes de la siguiente acción (el verificador reanuda las esperas vencidas aunque la app esté cerrada).</p></section>
+      <section><h4>${ACT_ICONS.preview} Prueba, publicación e historial</h4><p>«Prueba» simula el workflow sobre un registro real sin cambiar nada. Al publicar se inscriben los registros que cumplen el desencadenante y las acciones se ejecutan de verdad. «Historial del rendimiento» muestra los inscritos activos, cada acción ejecutada y las inscripciones.</p></section>
+    </div>`, cancelBtn, { size: '' });
+  else if (a === 'shortcuts') modal('Atajos de teclado', `<table class="table wfe__keys"><tbody>${[['Ctrl / Cmd + Z', 'Deshacer'], ['Ctrl / Cmd + Mayús + Z', 'Rehacer'], ['Intro', 'Confirmar el nombre al renombrar'], ['Esc', 'Cancelar el nombre, cerrar un diálogo o un menú'], ['Clic en una tarjeta', 'Abrir su panel de configuración'], ['Clic en «+»', 'Elegir una acción para ese punto del flujo']].map(([k, l]) => `<tr><td><kbd>${esc(k)}</kbd></td><td>${esc(l)}</td></tr>`).join('')}</tbody></table>`, cancelBtn, { size: '' });
 });
 root.addEventListener('input', (e) => {
   const t = e.target;
@@ -334,7 +358,7 @@ root.addEventListener('focusout', (e) => { if (e.target.id === 'wfe-name' && sta
 // ---------- boot ----------
 const initial = workflowById(params.get('id'));
 if (!initial) {
-  root.innerHTML = '<div class="wfe"><header class="wfe__bar"><a class="seqed__back" href="../">‹ Volver</a><div class="wfe__name"><h1>Workflow no encontrado</h1></div></header><p class="tpls__empty">Ese workflow ya no existe. Vuelve a la lista para crear uno nuevo.</p></div>';
+  root.innerHTML = '<div class="wfe"><header class="wfe__bar"><a class="wfe__back" href="../"><span aria-hidden="true">‹</span> Volver a workflows</a><div class="wfe__name"><h1>Workflow no encontrado</h1></div></header><p class="tpls__empty">Ese workflow ya no existe. Vuelve a la lista para crear uno nuevo.</p></div>';
 } else {
   state.wf = initial;
   state.lastSnapshot = snapshot();

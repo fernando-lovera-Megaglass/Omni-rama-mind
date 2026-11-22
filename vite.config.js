@@ -31,6 +31,7 @@ const pages = {
   'sequences-create': 'sequences/create/index.html',
   automation: 'automation/index.html',
   'automation-editor': 'automation/editor/index.html',
+  'automation-create': 'automation/create/index.html',
 };
 
 export default defineConfig({

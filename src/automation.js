@@ -8,7 +8,7 @@ import { boot } from './page.js';
 import { toast, wireMenus, closeMenus } from './shell.js';
 import { emptyStateHtml } from './empty-state.js';
 import { relativeTimeFine, formatDate } from './data.js';
-import { ready, workflows, deletedWorkflows, workflowById, creators, folders, createFolder, views, saveView, deleteView, issues, needsReview, problemsOf, createWorkflow, cloneWorkflow, deleteWorkflows, restoreWorkflows, moveWorkflows, unpublish, matchingRecords, analytics, health, performance, enrollmentsOf, TEMPLATES, draftFromPrompt, OBJECT_TYPES, OBJECT_LABEL, STATUS_LABELS, ACTION_DEFS, ACTION_CATALOG, ENROLL_CAP } from './workflows-data.js';
+import { ready, workflows, deletedWorkflows, workflowById, creators, folders, createFolder, views, saveView, deleteView, issues, needsReview, problemsOf, cloneWorkflow, deleteWorkflows, restoreWorkflows, moveWorkflows, unpublish, matchingRecords, analytics, health, performance, enrollmentsOf, OBJECT_TYPES, OBJECT_LABEL, STATUS_LABELS, ACTION_DEFS, ACTION_CATALOG, ENROLL_CAP } from './workflows-data.js';
 import { ready as engineReady, publishWorkflow, ESTADO_LABELS } from './workflow-engine.js';
 
 boot({ root: '../', active: 'automation', sub: 'Workflows', title: 'Workflows' });
@@ -27,13 +27,61 @@ const plural = (n, s, p) => `${n} ${n === 1 ? s : p}`;
 const pct = (x) => `${Math.round(x * 100)} %`;
 const statusHtml = (w) => `<span class="wfl__status wfl__status--${esc(w.status)}"><span class="cem__dot" aria-hidden="true"></span>${esc(STATUS_LABELS[w.status] || w.status)}</span>`;
 
+// Page frame as the original's Workflows index: the title with its two actions on the right («Revisar problemas
+// de automatización» with the count badge, «Crear workflow» with Desde cero / Desde plantilla / Con IA —
+// each opens the create page), the four tabs under it, then the tab's content.
 root.innerHTML = `
   <div class="tpls wfl">
-    <header class="tpls__head"><h1 class="page-title">Automatización</h1></header>
+    <header class="tpls__head wfl__head"><div><h1 class="page-title">Workflows</h1></div><div class="wfl__actions" id="wf-actions"></div></header>
     <nav class="seqs__tabs" role="tablist" aria-label="Secciones">${TABS.map(([k, l]) => `<button class="seqs__tab${state.tab === k ? ' is-active' : ''}" type="button" role="tab" data-tab="${k}" aria-selected="${state.tab === k}">${l}</button>`).join('')}</nav>
     <div id="wf-tab"></div>
+    <div class="slideover" id="wf-adv" aria-hidden="true"></div>
   </div>`;
 const page = root.querySelector('.wfl');
+function renderActions() {
+  const issueCount = issues().length;
+  $('wf-actions').innerHTML = `
+    <button class="btn btn--secondary" type="button" data-wa="issues">Revisar problemas de automatización <span class="wfl__badge${issueCount ? '' : ' is-zero'}">${issueCount}</span></button>
+    <div class="menu"><button class="btn btn--primary" type="button" aria-haspopup="true" aria-expanded="false">Crear workflow <span class="caret"></span></button><div class="menu__panel menu__panel--right">
+      <a class="menu__item" href="create/?mode=blank">Desde cero</a>
+      <a class="menu__item" href="create/?mode=template">Desde plantilla</a>
+      <a class="menu__item" href="create/?mode=ai">Con IA</a>
+    </div></div>`;
+  wireMenus($('wf-actions'));
+}
+// «Filtros avanzados»: the same six filters as a form in a side panel (the original's «Todos los filtros»),
+// applied together; the chips reflect what the panel applied and the other way round.
+function renderAdvanced(open) {
+  const f = state.filters;
+  const sel = (id, label, options) => `<label class="field"><span>${label}</span><select id="${id}">${options}</select></label>`;
+  const opt = (list, current) => list.map(([k, l]) => `<option value="${esc(k)}" ${current === k ? 'selected' : ''}>${esc(l)}</option>`).join('');
+  const active = Object.values(f).filter(Boolean).length;
+  $('wf-adv').innerHTML = `
+    <div class="slideover__scrim" data-adv="close"></div>
+    <aside class="slideover__panel" role="dialog" aria-modal="true" aria-labelledby="wf-adv-title">
+      <header class="slideover__head"><h2 id="wf-adv-title">Filtros avanzados</h2><button class="slideover__close" type="button" data-adv="close" aria-label="Cerrar">×</button></header>
+      <div class="slideover__body wfl__adv">
+        <p class="muted">${active ? `${active} ${active === 1 ? 'filtro aplicado' : 'filtros aplicados'}` : 'Sin filtros aplicados'}. Los workflows deben cumplir todos los filtros elegidos.</p>
+        ${sel('wf-adv-status', 'Activado o Desactivado', opt([['', 'Cualquiera'], ['published', 'Activado'], ['off', 'Desactivado'], ['draft', 'Borrador']], f.status))}
+        ${sel('wf-adv-object', 'Tipo de objeto', opt([['', 'Cualquiera'], ...OBJECT_TYPES], f.object))}
+        ${sel('wf-adv-creator', 'Creado por', opt([['', 'Cualquiera'], ...creators().map((c) => [c, c])], f.creator))}
+        ${sel('wf-adv-folder', 'Carpeta', opt([['', 'Cualquiera'], ...folders().map((x) => [x, x])], f.folder))}
+        ${sel('wf-adv-created', 'Creado en', opt([['', 'Cualquiera'], ['7', 'Últimos 7 días'], ['30', 'Últimos 30 días'], ['90', 'Últimos 90 días'], ['365', 'Último año']], f.created))}
+        <label class="field"><span>Tipo de acción</span><select id="wf-adv-action"><option value="">Cualquiera</option>${ACTION_CATALOG.map(([g, items]) => `<optgroup label="${esc(g)}">${items.map(([t, l]) => `<option value="${t}" ${f.action === t ? 'selected' : ''}>${esc(l)}</option>`).join('')}</optgroup>`).join('')}</select></label>
+      </div>
+      <footer class="slideover__foot"><button class="btn btn--primary" type="button" data-adv="apply">Aplicar filtros</button><button class="btn btn--secondary" type="button" data-adv="clear">Borrar filtros</button><button class="link-btn" type="button" data-adv="close">Cancelar</button></footer>
+    </aside>`;
+  $('wf-adv').classList.toggle('is-open', Boolean(open));
+  $('wf-adv').setAttribute('aria-hidden', String(!open));
+}
+$('wf-adv').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-adv]');
+  if (!b) return;
+  if (b.dataset.adv === 'apply') { state.filters = { status: $('wf-adv-status').value, object: $('wf-adv-object').value, creator: $('wf-adv-creator').value, folder: $('wf-adv-folder').value, created: $('wf-adv-created').value, action: $('wf-adv-action').value }; state.page = 1; renderAdvanced(false); renderWorkflows(); return; }
+  if (b.dataset.adv === 'clear') { state.filters = { ...EMPTY_FILTERS }; state.page = 1; renderAdvanced(false); renderWorkflows(); return; }
+  renderAdvanced(false);
+});
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && $('wf-adv').classList.contains('is-open')) renderAdvanced(false); });
 
 // ---------- Workflows tab ----------
 function baseList() {
@@ -59,7 +107,7 @@ function renderWorkflows() {
   const rows = list.slice((state.page - 1) * state.size, state.page * state.size);
   const f = state.filters;
   const n = state.selected.size;
-  const issueCount = issues().length;
+  const activeFilters = Object.values(effectiveFilters()).filter(Boolean).length;
   const chip = (id, label, extra = '') => `<button class="chip wfl__view${state.view === id ? ' is-active' : ''}" type="button" data-view="${esc(id)}">${label}${extra}</button>`;
   const folderCount = (name) => all.filter((w) => (w.folder || '') === name).length;
   $('wf-tab').innerHTML = `
@@ -69,17 +117,8 @@ function renderWorkflows() {
         ${views().map((v) => chip(v.id, esc(v.name), ` <span class="wfl__viewdel" data-view-del="${esc(v.id)}" title="Quitar vista">×</span>`)).join('')}
         <button class="link-btn wfl__addview" type="button" data-wa="add-view">+ Agregar vista</button>
         <div class="menu"><button class="link-btn" type="button" aria-haspopup="true">Todas las vistas <span class="caret"></span></button><div class="menu__panel">${[['all', 'Todos los workflows'], ['deleted', 'Eliminado'], ['review', 'Revisión necesaria'], ...views().map((v) => [v.id, v.name])].map(([id, l]) => `<button class="menu__item" type="button" data-view="${esc(id)}">${esc(l)}</button>`).join('')}</div></div>
-        <button class="btn btn--secondary btn--sm${state.foldersOpen ? ' is-on' : ''}" type="button" data-wa="folders" aria-expanded="${state.foldersOpen}">Carpetas</button>
       </div>
-      <div class="wfl__actions">
-        <button class="btn btn--secondary" type="button" data-wa="issues">Revisar problemas de automatización <span class="wfl__badge${issueCount ? '' : ' is-zero'}">${issueCount}</span></button>
-        <div class="menu"><button class="btn btn--primary" type="button" aria-haspopup="true">Crear workflow <span class="caret"></span></button><div class="menu__panel menu__panel--right">
-          <button class="menu__item" type="button" data-wa="new-blank">Desde cero</button>
-          <button class="menu__item" type="button" data-wa="new-template">Desde plantilla</button>
-          <button class="menu__item" type="button" data-wa="new-ai">Con IA</button>
-          <button class="menu__item" type="button" data-wa="new-builder">Con el nuevo creador</button>
-        </div></div>
-      </div>
+      <button class="btn btn--secondary btn--sm wfl__folderbtn${state.foldersOpen ? ' is-on' : ''}" type="button" data-wa="folders" aria-expanded="${state.foldersOpen}"><span class="ico ico--folder" aria-hidden="true"></span>Carpetas</button>
     </div>
     ${state.foldersOpen ? `<div class="wfl__folders" id="wf-folders"><strong>Carpetas</strong>${[['', 'Sin carpeta'], ...folders().map((x) => [x, x])].map(([val, l]) => `<button class="tpls__folder${f.folder === val && (val || state.filters.folder === '') && state.filters.folder === val && (val !== '' || state.foldersPicked === '') ? ' is-active' : ''}" type="button" data-folder="${esc(val)}"><span>${esc(l)}</span><span class="muted">${folderCount(val)}</span></button>`).join('')}<button class="link-btn" type="button" data-wa="new-folder">+ Nueva carpeta</button></div>` : ''}
     <div class="wfl__filters">
@@ -89,7 +128,7 @@ function renderWorkflows() {
       <filter-chip id="wf-folder" aria-label="Carpeta"><template><option value="">Cualquiera</option>${folders().map((x) => `<option value="${esc(x)}" ${f.folder === x ? 'selected' : ''}>${esc(x)}</option>`).join('')}</template></filter-chip>
       <filter-chip id="wf-created" aria-label="Creado en"><template><option value="">Cualquiera</option>${[['7', 'Últimos 7 días'], ['30', 'Últimos 30 días'], ['90', 'Últimos 90 días'], ['365', 'Último año']].map(([k, l]) => `<option value="${k}" ${f.created === k ? 'selected' : ''}>${l}</option>`).join('')}</template></filter-chip>
       <filter-chip id="wf-action" aria-label="Tipo de acción"><template><option value="">Cualquiera</option>${ACTION_CATALOG.map(([g, items]) => `<optgroup label="${esc(g)}">${items.map(([t, l]) => `<option value="${t}" ${f.action === t ? 'selected' : ''}>${esc(l)}</option>`).join('')}</optgroup>`).join('')}</template></filter-chip>
-      <button class="link-btn" type="button" data-wa="advanced">Filtros avanzados</button>
+      <button class="link-btn" type="button" data-wa="advanced">Filtros avanzados${activeFilters ? ` (${activeFilters})` : ''}</button>
       <div class="search search--sm wfl__search"><span class="ico ico--search" aria-hidden="true"></span><input type="search" id="wf-q" placeholder="Buscar workflows" aria-label="Buscar workflows" value="${esc(state.q)}" /></div>
       <div class="tpls__bulk">${n ? `<span>${plural(n, 'seleccionado', 'seleccionados')}</span><button class="btn btn--secondary btn--sm" type="button" data-wa="bulk-move">Mover a carpeta</button><button class="btn btn--secondary btn--sm" type="button" data-wa="bulk-delete">Eliminar</button>` : ''}</div>
     </div>
@@ -108,7 +147,7 @@ function renderWorkflows() {
                 <div class="menu__sep"></div>
                 <button class="menu__item menu__item--danger" type="button" data-act="delete" data-id="${esc(w.id)}">Eliminar</button>`}</div></div></div></td>
             <td>${statusHtml(w)}</td><td>${esc(w.folder || '--')}</td><td class="wfl__desc" title="${esc(w.description)}">${esc(w.description || '--')}</td><td>${esc(OBJECT_LABEL[w.objectType] || w.objectType)}</td>
-          </tr>`).join('') : `<tr><td colspan="6"><div class="tpls__empty">${emptyStateHtml({ art: 'workflows', title: state.view === 'deleted' ? 'No hay workflows eliminados' : all.length ? 'Ningún workflow coincide con los filtros' : 'Todavía no hay workflows', text: state.view === 'deleted' ? 'Los workflows que elimines se guardan aquí para poder restaurarlos.' : all.length ? 'Prueba con otra búsqueda o quita los filtros para ver todos los workflows.' : 'Un workflow inscribe los registros que cumplen un desencadenante y ejecuta acciones por ti. Crea el primero y aparecerá aquí.', action: state.view === 'deleted' ? { label: 'Ver todos los workflows', attrs: 'data-view="all"' } : { label: 'Crear workflow', attrs: 'data-wa="new-blank"' } })}</div></td></tr>`}</tbody>
+          </tr>`).join('') : `<tr><td colspan="6"><div class="tpls__empty">${emptyStateHtml({ art: 'workflows', title: state.view === 'deleted' ? 'No hay workflows eliminados' : all.length ? 'Ningún workflow coincide con los filtros' : 'Todavía no hay workflows', text: state.view === 'deleted' ? 'Los workflows que elimines se guardan aquí para poder restaurarlos.' : all.length ? 'Prueba con otra búsqueda o quita los filtros para ver todos los workflows.' : 'Un workflow inscribe los registros que cumplen un desencadenante y ejecuta acciones por ti. Crea el primero y aparecerá aquí.', action: state.view === 'deleted' ? { label: 'Ver todos los workflows', attrs: 'data-view="all"' } : { label: 'Crear workflow', attrs: 'data-wa="create"' } })}</div></td></tr>`}</tbody>
       </table></div>
       ${pagination({ page: state.page, pages, size: state.size })}
     </section>`;
@@ -146,6 +185,7 @@ function renderHealth() {
 }
 function render() {
   page.querySelectorAll('[data-tab]').forEach((b) => { const on = b.dataset.tab === state.tab; b.classList.toggle('is-active', on); b.setAttribute('aria-selected', String(on)); });
+  renderActions();
   if (state.tab === 'overview') renderOverview(); else if (state.tab === 'analyze') renderAnalyze(); else if (state.tab === 'health') renderHealth(); else renderWorkflows();
 }
 
@@ -169,9 +209,7 @@ function modal(title, body, foot, { size = '' } = {}) {
 }
 function closeModal() { const m = $('wf-modal'); if (m) { m.classList.remove('is-open'); m.setAttribute('aria-hidden', 'true'); } }
 const cancelBtn = '<button class="btn btn--secondary" type="button" data-bm="close">Cancelar</button>';
-const objectSelect = (id, value = 'contacts') => `<select id="${id}">${OBJECT_TYPES.map(([k, l]) => `<option value="${k}" ${value === k ? 'selected' : ''}>${l}</option>`).join('')}</select>`;
 const folderOptions = (value) => `<option value="">Sin carpeta</option>${folders().map((x) => `<option value="${esc(x)}" ${x === value ? 'selected' : ''}>${esc(x)}</option>`).join('')}`;
-const goEditor = (w) => { location.href = `editor/?id=${w.id}`; };
 function openPublishDialog(id) {
   const w = workflowById(id);
   if (!w) return;
@@ -184,7 +222,7 @@ function onModalClick(e) {
   const b = e.target.closest('[data-wm]');
   if (!b) return;
   const a = b.dataset.wm;
-  if (a === 'create-blank') { const name = $('wfm-name').value.trim(); if (!name) { toast('Escribe el nombre del workflow.'); return; } const w = createWorkflow({ name, objectType: $('wfm-object').value, folder: $('wfm-folder').value }); closeModal(); render(); toast(`Workflow «${w.name}» creado`); goEditor(w); } else if (a === 'use-template') { const t = TEMPLATES.find((x) => x.key === b.dataset.key); if (!t) return; const w = createWorkflow({ name: t.name, objectType: t.objectType, description: t.description, trigger: t.trigger, actions: t.actions() }); closeModal(); render(); toast(`Workflow «${w.name}» creado desde la plantilla`); goEditor(w); } else if (a === 'create-ai') { const prompt = $('wfm-prompt').value.trim(); if (!prompt) { toast('Describe el workflow que quieres crear.'); return; } const d = draftFromPrompt(prompt); const w = createWorkflow(d); closeModal(); render(); toast(`Borrador «${w.name}» generado con IA`); goEditor(w); } else if (a === 'save-view') { const name = $('wfm-view').value.trim(); if (!name) { toast('Escribe el nombre de la vista.'); return; } const v = saveView(name, state.filters); state.view = v.id; closeModal(); render(); toast(`Vista «${v.name}» guardada`); } else if (a === 'create-folder') { const f = createFolder($('wfm-folder-name').value); if (!f) { toast('Escribe el nombre de la carpeta.'); return; } closeModal(); render(); toast(`Carpeta «${f}» creada`); } else if (a === 'confirm-move') { const ids = b.dataset.ids.split(',').filter(Boolean); const n = moveWorkflows(ids, $('wfm-move').value); state.selected.clear(); closeModal(); render(); toast(`${plural(n, 'workflow movido', 'workflows movidos')}`); } else if (a === 'confirm-delete') { const ids = b.dataset.ids.split(',').filter(Boolean); const n = deleteWorkflows(ids); ids.forEach((id) => state.selected.delete(id)); closeModal(); render(); toast(`${plural(n, 'workflow eliminado', 'workflows eliminados')}`); } else if (a === 'confirm-publish') { b.disabled = true; b.textContent = 'Publicando…'; publishWorkflow(b.dataset.id).then((r) => { closeModal(); render(); toast(r ? `Workflow publicado · ${plural(r.enrolled, 'registro inscrito', 'registros inscritos')}${r.capped ? ` de ${r.matched}` : ''}` : 'No se pudo publicar'); }).catch((err) => { b.disabled = false; b.textContent = 'Publicar'; toast(`No se pudo publicar: ${err.message}`); }); }
+  if (a === 'save-view') { const name = $('wfm-view').value.trim(); if (!name) { toast('Escribe el nombre de la vista.'); return; } const v = saveView(name, state.filters); state.view = v.id; closeModal(); render(); toast(`Vista «${v.name}» guardada`); } else if (a === 'create-folder') { const f = createFolder($('wfm-folder-name').value); if (!f) { toast('Escribe el nombre de la carpeta.'); return; } closeModal(); render(); toast(`Carpeta «${f}» creada`); } else if (a === 'confirm-move') { const ids = b.dataset.ids.split(',').filter(Boolean); const n = moveWorkflows(ids, $('wfm-move').value); state.selected.clear(); closeModal(); render(); toast(`${plural(n, 'workflow movido', 'workflows movidos')}`); } else if (a === 'confirm-delete') { const ids = b.dataset.ids.split(',').filter(Boolean); const n = deleteWorkflows(ids); ids.forEach((id) => state.selected.delete(id)); closeModal(); render(); toast(`${plural(n, 'workflow eliminado', 'workflows eliminados')}`); } else if (a === 'confirm-publish') { b.disabled = true; b.textContent = 'Publicando…'; publishWorkflow(b.dataset.id).then((r) => { closeModal(); render(); toast(r ? `Workflow publicado · ${plural(r.enrolled, 'registro inscrito', 'registros inscritos')}${r.capped ? ` de ${r.matched}` : ''}` : 'No se pudo publicar'); }).catch((err) => { b.disabled = false; b.textContent = 'Publicar'; toast(`No se pudo publicar: ${err.message}`); }); }
 }
 
 // ---------- events ----------
@@ -213,11 +251,9 @@ page.addEventListener('click', (e) => {
   closeMenus();
   const a = wa.dataset.wa;
   if (a === 'folders') { state.foldersOpen = !state.foldersOpen; renderWorkflows(); } else if (a === 'new-folder') modal('Nueva carpeta', '<label class="field"><span>Nombre de la carpeta</span><input id="wfm-folder-name" placeholder="P. ej. Ventas" /></label>', `<button class="btn btn--primary" type="button" data-wm="create-folder">Crear</button>${cancelBtn}`);
-  else if (a === 'issues') { const list = issues(); modal('Revisar problemas de automatización', list.length ? `<p class="muted">${plural(list.length, 'workflow necesita', 'workflows necesitan')} revisión.</p><div class="tpls__lib">${list.map((x) => `<div class="tpls__libitem"><div><strong>${esc(x.workflow.name)}</strong><p>${esc(x.problems.join(' · '))}</p></div><a class="btn btn--secondary btn--sm" href="editor/?id=${esc(x.workflow.id)}">Revisar</a></div>`).join('')}</div>` : '<p class="muted">No hay problemas de automatización. Todos los workflows publicados están en orden.</p>', '<button class="btn btn--secondary" type="button" data-bm="close">Cerrar</button>', { size: 'wide' }); } else if (a === 'new-blank' || a === 'new-builder') modal(a === 'new-builder' ? 'Crear workflow con el nuevo creador' : 'Crear workflow desde cero', `${a === 'new-builder' ? '<p class="muted">El nuevo creador muestra el flujo en un lienzo con minimapa y paneles laterales; es el editor que abrirás a continuación.</p>' : ''}<label class="field"><span>Nombre del workflow</span><input id="wfm-name" placeholder="P. ej. Negocios sin contacto" /></label><label class="field"><span>Tipo de objeto</span>${objectSelect('wfm-object', 'contacts')}</label><label class="field"><span>Carpeta</span><select id="wfm-folder">${folderOptions('')}</select></label>`, `<button class="btn btn--primary" type="button" data-wm="create-blank">Crear workflow</button>${cancelBtn}`);
-  else if (a === 'new-template') modal('Crear workflow desde plantilla', `<div class="tpls__lib">${TEMPLATES.map((t) => `<div class="tpls__libitem"><div><strong>${esc(t.name)}</strong><p>${esc(OBJECT_LABEL[t.objectType])} · ${esc(t.description)}</p></div><button class="btn btn--secondary btn--sm" type="button" data-wm="use-template" data-key="${t.key}">Usar</button></div>`).join('')}</div>`, cancelBtn, { size: 'wide' });
-  else if (a === 'new-ai') modal('Crear workflow con IA', '<p class="muted">Describe qué quieres automatizar y generaremos un borrador con el objeto, el desencadenante y las acciones.</p><label class="field"><span>Descripción</span><textarea id="wfm-prompt" rows="4" placeholder="P. ej. Cuando un ticket sea urgente, crear una tarea y avisar por correo a soporte"></textarea></label>', `<button class="btn btn--primary" type="button" data-wm="create-ai">Generar borrador</button>${cancelBtn}`);
+  else if (a === 'issues') { const list = issues(); modal('Revisar problemas de automatización', list.length ? `<p class="muted">${plural(list.length, 'workflow necesita', 'workflows necesitan')} revisión.</p><div class="tpls__lib">${list.map((x) => `<div class="tpls__libitem"><div><strong>${esc(x.workflow.name)}</strong><p>${esc(x.problems.join(' · '))}</p></div><a class="btn btn--secondary btn--sm" href="editor/?id=${esc(x.workflow.id)}">Revisar</a></div>`).join('')}</div>` : '<p class="muted">No hay problemas de automatización. Todos los workflows publicados están en orden.</p>', '<button class="btn btn--secondary" type="button" data-bm="close">Cerrar</button>', { size: 'wide' }); } else if (a === 'create') { location.href = 'create/?mode=blank'; }
   else if (a === 'add-view') modal('Agregar vista', '<p class="muted">La vista guarda los filtros actuales para volver a ellos con un clic.</p><label class="field"><span>Nombre de la vista</span><input id="wfm-view" placeholder="P. ej. Mis workflows de ventas" /></label>', `<button class="btn btn--primary" type="button" data-wm="save-view">Guardar vista</button>${cancelBtn}`);
-  else if (a === 'advanced') toast('Los filtros avanzados por propiedades del workflow estarán disponibles en la próxima versión.');
+  else if (a === 'advanced') renderAdvanced(true);
   else if (a === 'bulk-move') modal('Mover a carpeta', `<p class="muted">Mover ${plural(state.selected.size, 'workflow', 'workflows')} a:</p><label class="field"><span>Carpeta</span><select id="wfm-move">${folderOptions('')}</select></label>`, `<button class="btn btn--primary" type="button" data-wm="confirm-move" data-ids="${esc([...state.selected].join(','))}">Mover</button>${cancelBtn}`);
   else if (a === 'bulk-delete') modal('Eliminar workflows', `<p>¿Seguro que quieres eliminar ${plural(state.selected.size, 'workflow', 'workflows')}? Podrás restaurarlos desde la vista «Eliminado».</p>`, `<button class="btn btn--primary tpls__danger" type="button" data-wm="confirm-delete" data-ids="${esc([...state.selected].join(','))}">Eliminar</button>${cancelBtn}`);
 });

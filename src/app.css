@@ -18190,6 +18190,516 @@ body.has-slideover {
   display: none;
 }
 
+/* ---------- Workflows: pase de fidelidad visual (lista, editor y «Crear workflow») ---------- */
+/* Lista: título con sus dos acciones a la derecha, pestañas, vistas como chips, «Carpetas» al final de la fila. */
+.ico--folder { -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M3 5h7l2 2h9v12H3z'/%3E%3C/svg%3E"); mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M3 5h7l2 2h9v12H3z'/%3E%3C/svg%3E"); width: 16px; height: 16px; }
+
+.wfl__head {
+  align-items: center;
+  margin-bottom: var(--sp-12);
+}
+
+.wfl__head .page-title {
+  font-size: 24px;
+  line-height: 32px;
+}
+
+.wfl__bar {
+  margin-bottom: var(--sp-10);
+}
+
+.wfl__view {
+  height: 30px;
+  padding: 0 12px;
+  font-weight: 500;
+  color: var(--c-text);
+}
+
+.wfl__view:hover {
+  background: var(--c-head);
+}
+
+.wfl__view.is-active {
+  background: #e5f5f8;
+  border-color: #7fd1de;
+  color: #0091ae;
+  font-weight: 600;
+}
+
+.wfl__viewdel:hover {
+  opacity: 1;
+}
+
+.wfl__folderbtn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-8);
+}
+
+.wfl__folderbtn.is-on {
+  background: #e5f5f8;
+  border-color: #7fd1de;
+  color: #0091ae;
+}
+
+.wfl__filters {
+  padding: var(--sp-8) 0;
+  border-top: 1px solid var(--c-border);
+}
+
+.wfl__table thead th {
+  font-size: var(--fs-xs);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--c-muted);
+}
+
+.wfl__table .tpls__rowmenu {
+  visibility: hidden;
+}
+
+.wfl__table tr:hover .tpls__rowmenu,
+.wfl__table tr:focus-within .tpls__rowmenu,
+.wfl__table .menu.is-open {
+  visibility: visible;
+}
+
+.wfl__adv {
+  display: grid;
+  gap: var(--sp-10);
+}
+
+.wfl__adv select {
+  width: 100%;
+  height: 36px;
+  padding: 0 var(--sp-10);
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-sm);
+  background: var(--c-white);
+  font: inherit;
+}
+
+/* Editor: una sola barra oscura con el volver, los menús, el nombre, el estado de guardado, Prueba, Historial y el interruptor. */
+.wfe__bar {
+  gap: var(--sp-12);
+  padding: 0 var(--sp-16);
+}
+
+.wfe__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #cfe3f1;
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  white-space: nowrap;
+  text-decoration: none;
+}
+
+.wfe__back:hover {
+  color: var(--c-white);
+}
+
+.wfe__bar .wfe__menus {
+  height: auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  gap: 2px;
+}
+
+.wfe__bar .wfe__menus > .menu > button {
+  height: 32px;
+  padding: 0 var(--sp-8);
+  color: #cfe3f1;
+  font-size: var(--fs-sm);
+}
+
+.wfe__bar .wfe__menus > .menu > button:hover,
+.wfe__bar .wfe__menus > .menu.is-open > button {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--c-white);
+}
+
+.wfe__bar .wfe__menus .menu__panel {
+  color: var(--c-text);
+}
+
+.wfe__name h1 {
+  font-size: var(--fs-md);
+}
+
+.wfe__saved {
+  color: #9fb3c4;
+  font-size: var(--fs-xs);
+  white-space: nowrap;
+}
+
+.btn--bar {
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  background: transparent;
+  color: var(--c-white);
+}
+
+.btn--bar:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: var(--c-white);
+  color: var(--c-white);
+}
+
+.wfe__count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: var(--r-pill);
+  background: #00bda5;
+  color: var(--c-white);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.wfe__work {
+  min-height: calc(100vh - 60px);
+}
+
+.wfe__panel {
+  top: 60px;
+  max-height: calc(100vh - 60px);
+}
+
+.wfe__controls button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.wfe__controls svg {
+  width: 16px;
+  height: 16px;
+}
+
+.wfe__canvaswrap {
+  background: #f5f8fa radial-gradient(circle, #cbd6e2 1px, transparent 1px) 0 0 / 18px 18px;
+}
+
+/* Tarjetas: icono en cuadrado redondeado, herramientas solo al pasar el cursor o con la tarjeta seleccionada. */
+.wfn {
+  border-color: #cbd6e2;
+  box-shadow: 0 1px 5px rgba(45, 62, 80, 0.1);
+}
+
+.wfn:hover {
+  box-shadow: 0 2px 10px rgba(45, 62, 80, 0.16);
+}
+
+.wfn__ico {
+  border-radius: 6px;
+}
+
+.wfn__ico svg {
+  width: 18px;
+  height: 18px;
+}
+
+.wfn--action .wfn__foot {
+  display: none;
+}
+
+.wfn--action:hover .wfn__foot,
+.wfn--action.is-selected .wfn__foot,
+.wfn--action:focus-within .wfn__foot {
+  display: flex;
+}
+
+.wfn__foot > button:not(.link-btn) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.wfn__foot svg {
+  width: 16px;
+  height: 16px;
+}
+
+.wfn--end {
+  border: 1px solid #cbd6e2;
+  background: var(--c-white);
+  color: var(--c-muted);
+  font-weight: 600;
+}
+
+.wfe__help section + section {
+  margin-top: var(--sp-12);
+}
+
+.wfe__help h4 {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  margin: 0 0 var(--sp-4);
+}
+
+.wfe__help h4 svg {
+  width: 18px;
+  height: 18px;
+  color: #0091ae;
+}
+
+.wfe__help p {
+  margin: 0;
+}
+
+.wfe__keys kbd {
+  padding: 2px 6px;
+  border: 1px solid var(--c-border);
+  border-bottom-width: 2px;
+  border-radius: var(--r-sm);
+  background: var(--c-head);
+  font: inherit;
+  font-size: var(--fs-xs);
+}
+
+/* «Crear workflow»: pestañas bajo la barra, columna de opciones a la izquierda y vista previa del flujo a la derecha. */
+.wfc__tabs {
+  margin: 0;
+  padding: 0 var(--sp-24);
+  background: var(--c-white);
+}
+
+.wfc__body {
+  display: grid;
+  grid-template-columns: minmax(360px, 560px) minmax(0, 1fr);
+  gap: var(--sp-24);
+  padding: var(--sp-24);
+  min-height: calc(100vh - 108px);
+  background: #f5f8fa;
+}
+
+.wfc__left {
+  padding: var(--sp-20) var(--sp-24);
+  border: 1px solid #cbd6e2;
+  border-radius: var(--r-md);
+  background: var(--c-white);
+}
+
+.wfc__left h2 {
+  margin: 0 0 var(--sp-4);
+  font-size: var(--fs-lg);
+}
+
+.wfc__left > p.muted {
+  margin: 0 0 var(--sp-16);
+}
+
+.wfc__opts {
+  display: grid;
+  gap: var(--sp-8);
+  margin-bottom: var(--sp-16);
+}
+
+.wfc__opt {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px var(--sp-16);
+  border: 1px solid #cbd6e2;
+  border-radius: var(--r-md);
+  cursor: pointer;
+}
+
+.wfc__opt:hover {
+  border-color: #7fd1de;
+}
+
+.wfc__opt.is-on {
+  border-color: #0091ae;
+  box-shadow: 0 0 0 2px #e5f5f8;
+}
+
+.wfc__opticon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 6px;
+  background: #e5f5f8;
+  color: #0091ae;
+  flex: none;
+}
+
+.wfc__opticon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.wfc__opttext {
+  display: grid;
+  gap: 2px;
+}
+
+.wfc__opttext small {
+  color: var(--c-muted);
+}
+
+.wfc__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-8);
+  margin-bottom: var(--sp-16);
+}
+
+.wfc__chips .chip {
+  height: 30px;
+  font-weight: 500;
+  color: var(--c-text);
+}
+
+.wfc__chips .chip.is-active {
+  background: #e5f5f8;
+  border-color: #7fd1de;
+  color: #0091ae;
+  font-weight: 600;
+}
+
+.wfc__gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+  margin-bottom: var(--sp-16);
+}
+
+.wfc__card {
+  display: grid;
+  gap: var(--sp-8);
+  padding: var(--sp-16);
+  border: 1px solid #cbd6e2;
+  border-radius: var(--r-md);
+  background: var(--c-white);
+  color: var(--c-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.wfc__card:hover {
+  border-color: #7fd1de;
+  box-shadow: 0 2px 10px rgba(45, 62, 80, 0.12);
+}
+
+.wfc__card.is-on {
+  border-color: #0091ae;
+  box-shadow: 0 0 0 2px #e5f5f8;
+}
+
+.wfc__card p {
+  margin: 0;
+  color: var(--c-muted);
+  font-size: var(--fs-sm);
+}
+
+.wfc__cardicon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 6px;
+  background: #fde3c4;
+  color: #b5551c;
+}
+
+.wfc__cardicon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.wfc__cardmeta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-8);
+  font-size: var(--fs-xs);
+}
+
+.wfc__row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: var(--sp-16);
+}
+
+.wfc__preview {
+  padding: var(--sp-20) var(--sp-24) var(--sp-32);
+  border: 1px solid #cbd6e2;
+  border-radius: var(--r-md);
+  background: var(--c-white) radial-gradient(circle, #cbd6e2 1px, transparent 1px) 0 0 / 18px 18px;
+}
+
+.wfc__previewhead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-8);
+  margin-bottom: var(--sp-16);
+}
+
+.wfc__flow {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.wfc__node {
+  width: 380px;
+}
+
+.wfc__line {
+  width: 2px;
+  height: 28px;
+  background: #99acc2;
+}
+
+.wfc__or,
+.wfc__and {
+  padding: 0 4px;
+  border-radius: 3px;
+  background: var(--c-head);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--c-muted);
+}
+
+.wfc__previewempty {
+  display: grid;
+  justify-items: center;
+  gap: var(--sp-8);
+  padding: var(--sp-32) 0;
+  color: var(--c-muted);
+  text-align: center;
+}
+
+.wfc__previewempty svg {
+  width: 40px;
+  height: 40px;
+  color: #99acc2;
+}
+
+@media (max-width: 1023px) {
+  .wfc__body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .wfe__bar .wfe__menus {
+    display: none;
+  }
+}
+
 /* ---------- "En construcción": diálogo con ilustración para secciones aún no incluidas ---------- */
 .soon {
   position: fixed;

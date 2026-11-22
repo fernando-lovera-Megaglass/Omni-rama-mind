@@ -18,7 +18,8 @@ export const OBJECT_LABEL = Object.fromEntries(OBJECT_TYPES);
 export const OBJECT_PLURAL = { contacts: 'contactos', companies: 'empresas', deals: 'negocios', tickets: 'tickets' };
 export const TOKEN_OBJECT = { contacts: 'contacto', companies: 'empresa', deals: 'negocio', tickets: 'ticket' };
 export const OPERATORS = [['is_any_of', 'es cualquiera de'], ['eq', 'es igual a'], ['neq', 'no es igual a'], ['lt', 'es menos que'], ['gt', 'es más que'], ['contains', 'contiene'], ['known', 'se conoce'], ['unknown', 'no se conoce']];
-export const STATUS_LABELS = { published: 'Publicado', off: 'Retirado', draft: 'Borrador' };
+// The list's «Estado del workflow publicado» column reads as the original: Activado / Desactivado / Borrador.
+export const STATUS_LABELS = { published: 'Activado', off: 'Desactivado', draft: 'Borrador' };
 export const ENROLL_CAP = 25;
 export const ACTION_CATALOG = [
   ['Comunicación', [['send_email', 'Enviar correo', ACT_ICONS.email], ['notify_email', 'Enviar notificación interna por correo', ACT_ICONS.email], ['notify_app', 'Enviar notificación en la app', ACT_ICONS.bell], ['marketing_email', 'Enviar correo de marketing', ACT_ICONS.megaphone]]],
