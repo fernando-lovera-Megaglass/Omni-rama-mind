@@ -35,6 +35,7 @@ export function cardCatalog(type) {
     playbooks: { label: 'Guías prácticas', desc: 'Guías prácticas (valor predeterminado)', zone: 'right' },
   };
   if (type === 'contacts') cards.lead = { label: 'Seguimiento de etapa de lead', desc: 'Seguimiento de etapa de lead (valor predeterminado)', zone: 'right' };
+  if (type === 'contacts') cards.sequences = { label: 'Secuencias', desc: 'Inscripciones activas y terminadas del contacto', zone: 'right' };
   if (type === 'companies') {
     cards.parent = { label: 'Empresa matriz', desc: 'Empresa matriz (valor predeterminado)', zone: 'right' };
     cards.subsidiaries = { label: 'Empresas secundarias', desc: 'Empresas secundarias (valor predeterminado)', zone: 'right' };
@@ -181,6 +182,7 @@ export function defaultLayout(type) {
   (ASSOC_KINDS[type] || []).forEach((k) => right.push(`assoc-${k}`));
   if (type === 'deals') right.push('lineitems');
   right.push('attachments', 'playbooks');
+  if (type === 'contacts') right.push('sequences');
   return {
     name: 'Vista predeterminada',
     teams: [],

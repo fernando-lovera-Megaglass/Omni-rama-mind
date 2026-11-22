@@ -1980,10 +1980,12 @@
     },
     {
       "id": "gap-ui-secuencias-fuera-layout",
-      "status": "pending",
+      "status": "done",
       "createdAt": "2026-11-22T06:32:19-06:00",
       "lane": "codex",
-      "instruction": "Contactos: la tarjeta «Secuencias» de la ficha vive fuera del layout y no se puede gestionar. En src/record.js renderRight() (líneas ~1170-1185) la tarjeta se crea con $('rec-right').appendChild(card) siempre al final de la columna derecha: no lleva data-lcard, así que addGrips no le pone grip de arrastre, no aparece en el catálogo del editor «⚙ Personalizar» (src/layout.js / cardCatalog en src/layout-defaults.js), no se puede ocultar ni reordenar, las vistas de equipo no la controlan, y se pinta incluso cuando el contacto no tiene ninguna inscripción (queda una tarjeta con solo el título «Secuencias»). En HubSpot la tarjeta de secuencias es una tarjeta más: movible, ocultable y vacía solo cuando hay contenido. Fix: registrar 'sequences' en el catálogo de tarjetas de contacts (src/layout-defaults.js), renderizarla desde rightCardHtml como las demás (con data-lcard), no pintarla cuando no haya inscripciones activas ni terminadas, y eliminar el appendChild especial. Criterio de aceptación: la tarjeta Secuencias aparece en el editor Personalizar, se puede arrastrar y ocultar como cualquier otra, su posición se guarda en el layout al recargar, y un contacto sin secuencias no muestra la tarjeta vacía. No despliegues nada a producción; solo código local."
+      "instruction": "Contactos: la tarjeta «Secuencias» de la ficha vive fuera del layout y no se puede gestionar. En src/record.js renderRight() (líneas ~1170-1185) la tarjeta se crea con $('rec-right').appendChild(card) siempre al final de la columna derecha: no lleva data-lcard, así que addGrips no le pone grip de arrastre, no aparece en el catálogo del editor «⚙ Personalizar» (src/layout.js / cardCatalog en src/layout-defaults.js), no se puede ocultar ni reordenar, las vistas de equipo no la controlan, y se pinta incluso cuando el contacto no tiene ninguna inscripción (queda una tarjeta con solo el título «Secuencias»). En HubSpot la tarjeta de secuencias es una tarjeta más: movible, ocultable y vacía solo cuando hay contenido. Fix: registrar 'sequences' en el catálogo de tarjetas de contacts (src/layout-defaults.js), renderizarla desde rightCardHtml como las demás (con data-lcard), no pintarla cuando no haya inscripciones activas ni terminadas, y eliminar el appendChild especial. Criterio de aceptación: la tarjeta Secuencias aparece en el editor Personalizar, se puede arrastrar y ocultar como cualquier otra, su posición se guarda en el layout al recargar, y un contacto sin secuencias no muestra la tarjeta vacía. No despliegues nada a producción; solo código local.",
+      "completedAt": "2026-11-22T06:51:25-0600",
+      "completedBy": "codex"
     },
     {
       "id": "gap-ui-assoc-vertodos-sin-filtro",

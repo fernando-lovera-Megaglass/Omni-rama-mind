@@ -5,7 +5,7 @@ import { openLogModal as showLogModal, selectedActivityAssociations, readLogActi
 import { formatAttachmentSize } from './mail-attachments.js';
 import { TASK_ASSOCIATIONS, taskAssociationLinks, taskLinksTo } from './task-associations.js';
 import { isFollowing as followStoreHas, toggleFollow, followersOf } from './follows.js';
-import { ready as sequencesReady, scheduled, sequenceById, pauseEnrollment, resumeEnrollment, unenroll, enrollmentsOfContact, unenrollReasonOf, STATUS_LABELS as SEQ_STATUS } from './sequences-data.js';
+import { ready as sequencesReady, scheduled, sequenceById, pauseEnrollment, resumeEnrollment, unenroll, enrollmentsOfContact, STATUS_LABELS as SEQ_STATUS } from './sequences-data.js';
 import { propertyEditor } from './property-editor.js';
 import { mountCreateDeal } from './create-deal.js';
 import { mountCreateTicket } from './create-ticket.js';
@@ -880,7 +880,7 @@ function assocCard(title, rows, kind) {
             ${s.quick ? `<span class="tag ${r.assocLabel === 'Principal' ? 'tag--done' : 'tag--none'} assoc-card__label">${esc(r.assocLabel === 'Principal' ? `${(KIND_META[kind] || { s: kind }).s} con ${cfg.singular} principal` : r.assocLabel)}</span>` : ''}
           </div>`,
             )
-            .join('') + `<a class="link-btn assoc-more" href="${root}${kind}/${type === 'companies' ? `?company=${rec.id}` : type === 'contacts' ? `?contact=${rec.id}` : ''}">Ver todos los elementos asociados del tipo ${esc(s.title)} ↗</a>`
+            .join('') + `<a class="link-btn assoc-more" href="${root}${kind}/?assoc=${type}:${rec.id}">Ver todos los elementos asociados del tipo ${esc(s.title)} ↗</a>`
         : rows.length
           ? '<p class="muted">Ningún registro coincide con la búsqueda o el filtro.</p>'
           : `<div class="assoc-empty"><span class="assoc-empty__art" aria-hidden="true"></span><p class="muted">${esc(emptyText(kind))}</p></div>`}
@@ -1171,6 +1171,14 @@ function rightCardHtml(cardId) {
   // Older saved views may still reference unsupported association cards.
   if (cardId.startsWith('x-')) return '';
   const label = (CATALOG[cardId] || { label: cardId }).label;
+  if (cardId === 'sequences' && type === 'contacts') {
+    const active = scheduled().filter((e) => String(e.contactId) === String(id));
+    // Keep the latest ended enrolments, including completed and manually cancelled ones.
+    const ended = enrollmentsOfContact(id).filter((e) => e.status !== 'active' && e.status !== 'paused').sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)).slice(0, 3);
+    if (!active.length && !ended.length) return '';
+    return `<div class="card"><h3>${esc(label)}</h3>` + active.map(e => `<div><strong>${esc(e.sequenceName)}</strong><p>Paso ${e.currentStep} de ${sequenceById(e.sequenceId)?.steps.length || 0} · ${esc(e.stepLabel)}</p><p>${e.status === 'paused' ? 'En pausa' : e.nextStepAt ? esc(new Date(e.nextStepAt).toLocaleString()) : 'Esperando la tarea'}</p><button data-seq-action="${e.status === 'paused' ? 'resume' : 'pause'}" data-id="${esc(e.id)}">${e.status === 'paused' ? 'Reanudar' : 'Pausar'}</button><button data-seq-action="cancel" data-id="${esc(e.id)}">Cancelar inscripción</button></div>`).join('')
+      + ended.map((e) => `<p class="muted" data-seq-ended="${esc(e.id)}"><strong>${esc(sequenceById(e.sequenceId)?.name || 'Secuencia')}</strong> · ${esc(SEQ_STATUS[e.status] || e.status)}${e.extra && e.extra.reason ? `: ${esc(e.extra.reason)}` : ''} · ${esc(formatDate(e.updatedAt))}</p>`).join('') + '</div>';
+  }
   if (cardId === 'summary') {
     return `<div class="card"><button class="card__toggle" type="button" data-toggle="aisum"><span class="chev">⌄</span> ${esc(label)}</button><span class="ai-badge ai-badge--corner">Datos del registro</span><div class="ai-box" id="ai-right"></div></div>`;
   }
@@ -1208,21 +1216,14 @@ function renderRight() {
       return html ? html.replace('<div class="card', `<div data-lcard="${esc(cid)}" class="card`) : '';
     })
     .join('');
-  if (type === 'contacts') {
-    const card = document.createElement('section');
-    card.className = 'card';
-    // Enrolments ended by an exclusion criterion (reply, meeting, new deal, unsubscribe) stay visible with their
-    // reason, newest first, under the running ones.
-    const ended = enrollmentsOfContact(id).filter((e) => unenrollReasonOf(e)).sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)).slice(0, 3);
-    card.innerHTML = '<h3>Secuencias</h3>' + scheduled().filter(e => String(e.contactId) === String(id)).map(e => `<div><strong>${esc(e.sequenceName)}</strong><p>Paso ${e.currentStep} de ${sequenceById(e.sequenceId)?.steps.length || 0} · ${esc(e.stepLabel)}</p><p>${e.status === 'paused' ? 'En pausa' : e.nextStepAt ? esc(new Date(e.nextStepAt).toLocaleString()) : 'Esperando la tarea'}</p><button data-seq-action="${e.status === 'paused' ? 'resume' : 'pause'}" data-id="${esc(e.id)}">${e.status === 'paused' ? 'Reanudar' : 'Pausar'}</button><button data-seq-action="cancel" data-id="${esc(e.id)}">Cancelar inscripción</button></div>`).join('')
-      + ended.map((e) => `<p class="muted" data-seq-ended="${esc(e.id)}"><strong>${esc(sequenceById(e.sequenceId)?.name || 'Secuencia')}</strong> · ${esc(SEQ_STATUS[e.status] || e.status)}${e.extra && e.extra.reason ? `: ${esc(e.extra.reason)}` : ''} · ${esc(formatDate(e.updatedAt))}</p>`).join('');
-    card.addEventListener('click', event => {
+  const sequencesCard = $('rec-right').querySelector('[data-lcard="sequences"]');
+  if (sequencesCard) {
+    sequencesCard.addEventListener('click', event => {
       const b = event.target.closest('[data-seq-action]');
       if (!b) return;
       ({ pause: pauseEnrollment, resume: resumeEnrollment, cancel: unenroll })[b.dataset.seqAction](b.dataset.id);
       renderRight(); renderTimeline();
     });
-    $('rec-right').appendChild(card);
   }
   addGrips($('rec-right'));
   renderLead();

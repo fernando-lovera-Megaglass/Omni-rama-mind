@@ -122,6 +122,7 @@ export function mountList(cfg) {
     boardCollapsed: new Set(prefs.boardCollapsed || []),
     boardOrder: prefs.boardOrder || null,
     boardShown: {}, // cards loaded per stage column beyond the first page («Cargar más» / scroll)
+    assocFilter: null, // «Ver todos los elementos asociados» from a record page: { type, id } of that record
     pipeline: cfg.pipeline ? prefs.pipeline || '' : '',
   };
   let pipelineQuery = '';
@@ -135,7 +136,32 @@ export function mountList(cfg) {
   // once (ensureFull) and the list goes on in memory as before.
   const remote = { sig: '', total: 0, seq: 0, timer: null, lastQ: '' };
   let fullLoading = null;
-  const serverMode = () => serverListEnabled(cfg.type) && state.mode !== 'board' && !(state.nested && cfg.hierarchy);
+  const serverMode = () => serverListEnabled(cfg.type) && state.mode !== 'board' && !(state.nested && cfg.hierarchy) && !state.assocFilter;
+  // «Ver todos los elementos asociados» from a record page (?assoc=<type>:<id>): only the records linked to that
+  // record, in either direction (its keys and arrays, or the record's own), with a removable chip on the filter bar.
+  const originRecord = () => (state.assocFilter && ALL[state.assocFilter.type] ? ALL[state.assocFilter.type]().find((x) => Number(x.id) === Number(state.assocFilter.id)) : null) || null;
+  const linkIds = (v) => (Array.isArray(v) ? v.map(Number) : []);
+  function linkedToOrigin(r) {
+    const o = state.assocFilter;
+    if (!o) return true;
+    const oid = Number(o.id);
+    const rid = Number(r.id);
+    if (linkIds(r[`assoc_${o.type}`]).includes(oid)) return true;
+    if (o.type === 'contacts' && Number(r.contactId) === oid) return true;
+    if (o.type === 'companies' && (Number(r.companyId) === oid || Number(r.parentCompanyId) === oid)) return true;
+    const origin = originRecord();
+    if (!origin) return false;
+    if (linkIds(origin[`assoc_${cfg.type}`]).includes(rid)) return true;
+    if (cfg.type === 'contacts' && Number(origin.contactId) === rid) return true;
+    if (cfg.type === 'companies' && (Number(origin.companyId) === rid || Number(origin.parentCompanyId) === rid)) return true;
+    return false;
+  }
+  function clearAssocFilter() {
+    state.assocFilter = null;
+    state.page = 1;
+    try { const u = new URL(location.href); ['assoc', 'company', 'contact'].forEach((k) => u.searchParams.delete(k)); history.replaceState(null, '', `${u.pathname}${u.search}${u.hash}`); } catch { /* ignore */ }
+    render();
+  }
   function remoteSpec() {
     const sortCol = col(state.sort.key);
     return {
@@ -449,6 +475,7 @@ export function mountList(cfg) {
 
       <div class="quickbar" id="quickbar">
         <div class="quickbar__left" id="filter-bar">
+          <span id="assoc-chip"></span>
           ${cfg.filters
             .map(
               (f) => `
@@ -797,6 +824,7 @@ export function mountList(cfg) {
     let list = cfg.rows();
     const view = cfg.views.find((v) => v.key === state.base);
     if (view && view.filter) list = list.filter(view.filter);
+    if (state.assocFilter) list = list.filter(linkedToOrigin);
     if (cfg.pipeline && state.pipeline) list = list.filter((r) => String(r[cfg.pipeline.key]) === state.pipeline);
     cfg.filters.forEach((f) => {
       const v = state.filters[f.key];
@@ -1305,7 +1333,14 @@ export function mountList(cfg) {
     });
     wireMenus($('list-pagination'));
 
-    const activeFilters = Object.values(state.filters).filter(Boolean).length + state.advanced.filter((c) => c.key).length;
+    const activeFilters = Object.values(state.filters).filter(Boolean).length + state.advanced.filter((c) => c.key).length + (state.assocFilter ? 1 : 0);
+    if ($('assoc-chip')) {
+      const o = state.assocFilter;
+      const origin = o && originRecord();
+      $('assoc-chip').innerHTML = o
+        ? `<span class="qchip is-set qchip--assoc" data-assoc-chip="${esc(o.type)}:${esc(String(o.id))}">Asociados a ${esc(SINGULAR[o.type] || o.type)}: <strong>${esc((origin && origin.name) || `#${o.id}`)}</strong></span><button class="qchip__x" type="button" data-action="assoc-clear" aria-label="Quitar filtro de asociación">×</button>`
+        : '';
+    }
     $('filter-pill').innerHTML = `<span class="ico ico--filter"></span> Filtro${activeFilters ? ` (${activeFilters})` : ''}`;
     $('filter-pill').classList.toggle('is-set', activeFilters > 0);
     $('quickbar').hidden = !state.showFilters;
@@ -1356,7 +1391,7 @@ export function mountList(cfg) {
     const adv = state.advanced.filter((c) => c.key).length;
     $('adv-pill').hidden = adv === 0;
     $('adv-count').textContent = String(adv);
-    if ($('filters-clear-all')) $('filters-clear-all').hidden = !(adv || Object.values(state.filters).some(Boolean));
+    if ($('filters-clear-all')) $('filters-clear-all').hidden = !(adv || state.assocFilter || Object.values(state.filters).some(Boolean));
     renderPreview();
     renderPipeline();
     renderKpis(list);
@@ -3279,8 +3314,9 @@ export function mountList(cfg) {
       state.advanced = [];
       state.filters = {};
       state.page = 1;
-      render();
-    } else if (a === 'undo-layout') undoLayout();
+      if (state.assocFilter) clearAssocFilter(); else render();
+    } else if (a === 'assoc-clear') clearAssocFilter();
+    else if (a === 'undo-layout') undoLayout();
     else if (a === 'mode-board') setMode('board');
     else if (a === 'mode-table') setMode('table');
     else if (a === 'refresh') {
@@ -3322,9 +3358,16 @@ export function mountList(cfg) {
     state.pipeline = '';
     state.page = 1;
   }
-  const linked = [['company', 'companyId', 'companies'], ['contact', 'contactId', 'contacts']].find(([p]) => urlParams.get(p));
-  if (linked && cfg.type !== linked[2] && !state.advanced.some((c) => c.key)) {
-    state.advanced = [{ ...newCondition(0), key: linked[1], op: 'in', value: [urlParams.get(linked[0])] }];
+  // «Ver todos los elementos asociados»: ?assoc=<type>:<id> from any record page (the old ?company= / ?contact=
+  // links still work). The link is checked in memory on both sides, so both tables must be loaded.
+  const assocParam = urlParams.get('assoc') || (urlParams.get('company') ? `companies:${urlParams.get('company')}` : urlParams.get('contact') ? `contacts:${urlParams.get('contact')}` : '');
+  const [assocType, assocId] = String(assocParam).split(':');
+  if (assocType && assocId && ALL[assocType] && assocType !== cfg.type && Number(assocId) > 0) {
+    state.assocFilter = { type: assocType, id: Number(assocId) };
+    state.showFilters = true;
+    state.page = 1;
+    ensureFull();
+    if (isLazy(assocType)) ensureAll(assocType).then(() => render()).catch((e) => console.error('[lista] registro de origen', e));
   }
   // «?view=<id>» (the segment of an import, a link to a saved view): that view becomes the active tab, with its
   // filters, sort and columns; an id the store does not know is ignored.
