@@ -1941,6 +1941,64 @@
       "instruction": "La tabla public.attachments NO EXISTE en la base (information_schema.tables: 0 filas; proyecto xysgvxnieigpaxtmxiui). La tarjeta «Archivos adjuntos» de las fichas (src/attachments.js, presente en los 4 objetos vía layout-defaults) falla al cargar y los adjuntos se quedan solo en localStorage del navegador — se pierden al cambiar de máquina o limpiar el sitio. Evidencia directa de hoy (22-nov): las corridas live de smoke-ticket-deal-assoc.mjs y smoke-list-prefs.mjs registraron «[adjuntos] tabla attachments no disponible (migración supabase/attachments.sql pendiente): Could not find the table 'public.attachments' in the schema cache». Cómo corregirlo: aplicar la migración supabase/attachments.sql con scripts/apply-migration.mjs (o crear la tabla si el archivo no existe: id, record_type, record_id, name, url/path, size, content_type, uploaded_by, created_at, con RLS is_team_member() como las demás tablas) y registrarla en scripts/applied-migrations.json; luego correr scripts/smoke-attachments.mjs y, si soporta SMOKE_LIVE=1, verificar con SQL que un adjunto subido desde la ficha persiste en la tabla. Criterio de aceptación: la tabla existe, el aviso «[adjuntos] tabla attachments no disponible» desaparece de la consola, y un adjunto agregado a un contacto sigue ahí tras recargar (fila en public.attachments). No despliegues nada a producción; solo código local.",
       "completedAt": "2026-11-22T05:50:10-0600",
       "completedBy": "claude"
+    },
+    {
+      "id": "gap-ui-cardprops-marketing-no-quitables",
+      "status": "pending",
+      "createdAt": "2026-11-22T06:32:15-06:00",
+      "lane": "codex",
+      "instruction": "Contactos: la tarjeta «Acerca de este contacto» no respeta la personalización para las propiedades de marketing. En src/record.js, defaultCardKeys() (línea ~521) y currentFields() (línea ~522-526) anteponen SIEMPRE a la fuerza marketingOptOut, marketingOptOutAt y marketingOptOutReason: currentFields() hace [...new Set([...esas 3, ...keys])] aunque el usuario las haya desmarcado en «Personalizar la tarjeta de propiedades» (engranaje de la tarjeta) y guardado. Resultado: esas 3 propiedades no se pueden quitar nunca y además se cuelan al principio de la tarjeta rompiendo el orden guardado. En HubSpot cualquier propiedad de la tarjeta «Acerca de» se puede quitar desde Personalizar la tarjeta. Fix: las 3 props de marketing deben formar parte SOLO del default inicial (defaultCardKeys), nunca reinsertarse en currentFields; si el usuario las quita, la tarjeta no las muestra ni al recargar. Criterio de aceptación: en la ficha de un contacto, abrir Personalizar la tarjeta, desmarcar «Exclusión de marketing», «Fecha de exclusión de marketing» y «Motivo de exclusión», guardar: desaparecen de la tarjeta y no vuelven tras recargar; el orden de las demás propiedades elegidas se respeta tal cual se guardó. No despliegues nada a producción; solo código local."
+    },
+    {
+      "id": "gap-ui-acard-controles-muertos",
+      "status": "done",
+      "createdAt": "2026-11-22T06:32:16-06:00",
+      "lane": "claude",
+      "instruction": "Los 4 módulos (contactos, empresas, negocios, tickets): el drawer «Editar tarjeta predeterminada» de las tarjetas de asociación (engranaje de cada tarjeta de la columna derecha de la ficha, src/record.js renderAcardEditor ~línea 884) pinta tres controles que no hacen nada real: (a) «Eliminar tarjeta» (opción roja del menú ⋯ junto al título, data-cd=\"remove\", manejador ~línea 2786) solo lanza el toast «Las tarjetas predeterminadas no se pueden eliminar…» — en HubSpot esa opción no se ofrece activa en rojo si nunca se puede usar; (b) «⚟ Gestionar filtros» (data-cd=\"filters\", ~línea 2787) solo lanza un toast diciendo que «en esta versión» no hay filtros — en HubSpot ese botón abre el editor de filtros de la tarjeta (filtrar qué registros asociados se muestran según sus propiedades); (c) el lápiz «Editar nombre interno» (data-cd=\"rename-internal\", ~línea 2788) solo lanza un toast. Fix: implementar los filtros de la tarjeta de asociación (elegir propiedades del objeto asociado y valores; persistir en el mismo setting crm:<type>:assoccard:<kind> y aplicarlos al listar en assocCard), hacer editable de verdad el nombre interno, y ocultar o deshabilitar «Eliminar tarjeta» en las tarjetas predeterminadas. Criterio de aceptación: en cualquier ficha, abrir el engranaje de una tarjeta de asociación: «Gestionar filtros» abre un editor funcional cuyo filtro se aplica a la tarjeta al guardar, el lápiz permite renombrar el nombre interno, y ningún botón visible se limita a lanzar un toast explicativo. No despliegues nada a producción; solo código local.",
+      "completedAt": "2026-11-22T06:38:28-0600",
+      "completedBy": "claude"
+    },
+    {
+      "id": "gap-ui-editor-vistas-autor-fijo",
+      "status": "pending",
+      "createdAt": "2026-11-22T06:32:17-06:00",
+      "lane": "codex",
+      "instruction": "Personalización / vistas de equipo: al guardar una vista de equipo desde el editor, el autor queda fijo. En src/layout.js (líneas ~338 y ~356, los dos puntos donde se guarda una vista — página de registro y vista previa de registro) el campo by se escribe siempre como 'Fernando Lovera Colin', sea quien sea el usuario que edita. En Configuración › Objetos (src/manage-views.js) la columna «Última actualización por» miente para cualquier otro usuario. En HubSpot esa columna muestra el usuario que modificó la vista por última vez. Fix: resolver el nombre del usuario actual de la sesión (src/auth.js currentUser(), con el perfil de team_members si aplica; no usar la constante fija ACTOR de src/notifications.js) y escribirlo en by en ambos guardados. Criterio de aceptación: con un usuario distinto de Fernando conectado, editar y guardar una vista de equipo de página de registro y otra de vista previa; en Configuración › Objetos la columna «Última actualización por» muestra ese usuario en ambas. No despliegues nada a producción; solo código local."
+    },
+    {
+      "id": "gap-ui-quickorder-solo-local",
+      "status": "pending",
+      "createdAt": "2026-11-22T06:32:18-06:00",
+      "lane": "claude",
+      "instruction": "Los 4 módulos: «Reordenar botones de actividad» no persiste como el resto de la personalización. En src/record.js (líneas ~374-379), el orden de los botones rápidos Nota/Correo/Llamada/Tarea/Reunión se guarda con la clave única crm:quickorder solo en localStorage: es global para todos los objetos, no distingue contactos/empresas/negocios/tickets, no persiste en Supabase (user_settings) y se pierde al cambiar de navegador. En HubSpot el orden elegido de los botones de actividad persiste por usuario en la cuenta. Fix: persistir el orden con setSetting (scope user, como hace CARD_KEY en el mismo archivo) usando una clave por tipo de objeto, p. ej. crm:<type>:quickorder, manteniendo localStorage solo como respaldo offline; quickOrder() debe leer primero el setting remoto cuando settingsLive(). Criterio de aceptación: reordenar los botones en la ficha de un contacto, recargar la página y ver el orden elegido; con sesión Supabase activa el orden se recupera también en otra sesión; el orden elegido en contactos no altera el de tickets. No despliegues nada a producción; solo código local."
+    },
+    {
+      "id": "gap-ui-secuencias-fuera-layout",
+      "status": "pending",
+      "createdAt": "2026-11-22T06:32:19-06:00",
+      "lane": "codex",
+      "instruction": "Contactos: la tarjeta «Secuencias» de la ficha vive fuera del layout y no se puede gestionar. En src/record.js renderRight() (líneas ~1170-1185) la tarjeta se crea con $('rec-right').appendChild(card) siempre al final de la columna derecha: no lleva data-lcard, así que addGrips no le pone grip de arrastre, no aparece en el catálogo del editor «⚙ Personalizar» (src/layout.js / cardCatalog en src/layout-defaults.js), no se puede ocultar ni reordenar, las vistas de equipo no la controlan, y se pinta incluso cuando el contacto no tiene ninguna inscripción (queda una tarjeta con solo el título «Secuencias»). En HubSpot la tarjeta de secuencias es una tarjeta más: movible, ocultable y vacía solo cuando hay contenido. Fix: registrar 'sequences' en el catálogo de tarjetas de contacts (src/layout-defaults.js), renderizarla desde rightCardHtml como las demás (con data-lcard), no pintarla cuando no haya inscripciones activas ni terminadas, y eliminar el appendChild especial. Criterio de aceptación: la tarjeta Secuencias aparece en el editor Personalizar, se puede arrastrar y ocultar como cualquier otra, su posición se guarda en el layout al recargar, y un contacto sin secuencias no muestra la tarjeta vacía. No despliegues nada a producción; solo código local."
+    },
+    {
+      "id": "gap-ui-assoc-vertodos-sin-filtro",
+      "status": "pending",
+      "createdAt": "2026-11-22T06:32:20-06:00",
+      "lane": "claude",
+      "instruction": "Los 4 módulos: el enlace «Ver todos los elementos asociados del tipo X» al pie de cada tarjeta de asociación (src/record.js línea ~854, dentro de assocCard) solo añade filtro cuando la ficha es de empresa (?company=<id>) o de contacto (?contact=<id>); desde una ficha de negocio o de ticket el enlace lleva a la lista COMPLETA del objeto asociado sin filtrar (p. ej. desde un negocio, «Ver todos los elementos asociados del tipo Contactos» abre la lista de todos los contactos de la cuenta). Además hay que verificar que las listas (src/list.js y las páginas contacts/companies/deals/tickets) realmente aplican los parámetros ?company=/?contact= al cargar; si no, también hay que implementarlos. En HubSpot «Ver todos los asociados» abre la lista del objeto asociado filtrada por el registro de origen (con el filtro visible y removable). Fix: generar el enlace con un filtro de asociación para los 4 módulos origen y los 4 destinos (p. ej. ?assoc=<type>:<id> o parámetros por par origen-destino) y hacer que las listas lo apliquen mostrando un chip de filtro removable. Criterio de aceptación: desde la ficha de un negocio con 2 contactos asociados, el enlace abre la lista de contactos mostrando exactamente esos 2 con un chip de filtro visible; quitar el chip muestra la lista completa. No despliegues nada a producción; solo código local."
+    },
+    {
+      "id": "gap-ui-assoc-nuevo-owner-fijo",
+      "status": "pending",
+      "createdAt": "2026-11-22T06:32:21-06:00",
+      "lane": "codex",
+      "instruction": "Los 4 módulos: al crear un registro nuevo desde el drawer «+ Agregar» de asociaciones de una ficha, el propietario puede quedar fijo en una persona inventada. En src/record.js (línea ~2915, manejador submit de #ad-new-form): data.owner = rec.owner && rec.owner !== 'Sin asignar' ? rec.owner : 'Fernando L.' — si la ficha actual no tiene propietario, el registro nuevo (contacto, empresa, negocio, ticket o tarea) se crea asignado a «Fernando L.» fijo, sea cual sea el usuario conectado. En HubSpot el propietario por defecto es el usuario actual o queda sin asignar, nunca una persona fija. Fix: usar como propietario por defecto el usuario actual de la sesión (src/auth.js currentUser() mapeado al nombre del equipo, como hacen otros formularios de creación, p. ej. src/create-contact.js) y, si no hay sesión, dejar 'Sin asignar'. Criterio de aceptación: con otro usuario conectado, crear un negocio asociado desde una ficha sin propietario: el negocio queda asignado a ese usuario o sin asignar, nunca a «Fernando L.»; si la ficha sí tiene propietario, se hereda como ahora. No despliegues nada a producción; solo código local."
+    },
+    {
+      "id": "gap-ui-nombres-vistas-gramatica",
+      "status": "pending",
+      "createdAt": "2026-11-22T06:32:22-06:00",
+      "lane": "claude",
+      "instruction": "Personalización / vistas de equipo: los nombres auto-generados tienen la concordancia gramatical rota. En src/layout.js (líneas ~28-29) al crear/duplicar vistas de equipo desde el editor se sugieren nombres como «Nuevo vista previa de registro…» y «Nuevo página de registro…»; lo correcto es «Nueva vista previa de registro…» y «Nueva página de registro…» (femenino). El texto roto se ve en el editor y después en Configuración › Objetos (src/manage-views.js). Criterio de aceptación: al crear una vista de equipo nueva de página de registro o de vista previa, el nombre sugerido por defecto usa «Nueva…» con la concordancia correcta; no hace falta migrar las vistas ya creadas con el nombre roto. No despliegues nada a producción; solo código local."
     }
   ]
 }
