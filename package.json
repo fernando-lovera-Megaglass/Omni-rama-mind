@@ -18,7 +18,9 @@
     "test:import-multifile": "node scripts/smoke-import-multifile.mjs",
     "test:import-undo": "node scripts/smoke-import-undo.mjs",
     "test:import-e2e": "node scripts/smoke-import-e2e.mjs",
-    "test:marketing-subscriptions": "node scripts/smoke-marketing-subscriptions.mjs"
+    "test:marketing-subscriptions": "node scripts/smoke-marketing-subscriptions.mjs",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.17",

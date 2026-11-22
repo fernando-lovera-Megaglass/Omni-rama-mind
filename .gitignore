@@ -7,3 +7,7 @@ dist/
 
 # Private contact repair audit snapshots
 .dedupe-audit-*.json
+
+# Playwright
+test-results/
+playwright-report/

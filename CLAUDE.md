@@ -30,5 +30,8 @@ Clon de HubSpot para Megaglass. App Vite + Supabase en `app/`.
 cd app
 npm run dev        # desarrollo local
 npm run build      # build de producción (debe pasar siempre)
-npx playwright test  # pruebas visuales y funcionales
+npm run test:e2e   # pruebas visuales y funcionales (Playwright)
 ```
+
+El MCP de Playwright está declarado en `.mcp.json` para que Claude Code pueda
+abrir Omni y ver lo que construye.
