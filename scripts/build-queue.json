@@ -2,6 +2,13 @@
   "project": "/Users/fernandolovera/Documents/Craft Anything/app-hubspot-com",
   "queue": [
     {
+      "id": "gap-ui-preview-boton-cierra-panel",
+      "status": "pending",
+      "lane": "claude",
+      "createdAt": "2026-11-22T08:49:30-06:00",
+      "instruction": "REPORTE DIRECTO DEL USUARIO (22-nov, 8:35 am): en Contactos, Empresas, Negocios y Tickets, al presionar el botón «Vista previa» de una fila (el ▭ con tooltip «Vista previa» en la primera celda, src/list.js ~1302), el panel lateral SE OCULTA o se cierra en vez de abrirse/quedarse abierto. El usuario lo comparó con HubSpot real (captura): ahí el botón abre el panel lateral y permanece.\n\nInvestiga y corrige:\n1. Reproduce en los 4 módulos, tabla Y kanban: panel cerrado → clic en Vista previa → ¿abre y permanece?; panel abierto con otro registro → clic en Vista previa de otra fila → ¿cambia de registro o se cierra?; clic repetido en el mismo botón → ¿qué pasa?\n2. Sospechas principales: (a) openPreview pone previewId pero renderPreview no encuentra el registro con recordById y marca open=false (revisa coerción Number/String y datos con paginación de servidor), (b) un render posterior (ensureActivitiesFor / cambios de estado) dispara renderPreview con previewId que no resuelve, (c) algún handler de clic global cierra el panel, (d) regresión de los cambios de anoche en el panel (preview-seguir-falso, preview-props-sin-reordenar, personalización de fichas).\n3. El comportamiento correcto (HubSpot): el botón SIEMPRE abre el panel con ese registro y el panel permanece hasta que el usuario lo cierra con la X, con Escape o con «Ver registro».\n4. Agrega una prueba smoke scripts/smoke-preview-panel.mjs que cubra: abrir, cambiar de registro con el panel abierto, y persistencia tras recargar actividades.\nNo despliegues nada a producción; solo código local."
+    },
+    {
       "id": "gap-personalizacion-fichas-no-funciona",
       "status": "done",
       "lane": "claude",
