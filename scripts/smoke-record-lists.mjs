@@ -37,7 +37,7 @@ await import(resolve(here, '../src/record.js'));
 await wait(40);
 
 // ---- open «Agregar a lista»: the real segments of contacts, memberships marked, no fake names ----
-const trigger = q('[data-act="list"]');
+const trigger = q('[data-more="list"]');
 if (!trigger || !/Agregar a lista/.test(text(trigger))) fail('«Agregar a lista» action on the record');
 click(trigger);
 await wait(10);
@@ -78,7 +78,7 @@ log('CRM › Segmentos: «Instaladores VIP» con tamaño 1 y el contacto entre s
 useDom('<!doctype html><body class="app" data-type="contacts"><aside id="sidenav"></aside><header id="topbar"></header><main id="record-root"></main><div id="scrim"></div></body>', 'http://localhost/contacts/record/?id=3');
 await import(resolve(here, `../src/record.js?again=${Date.now()}`));
 await wait(40);
-click(q('[data-act="list"]'));
+click(q('[data-more="list"]'));
 await wait(10);
 if (!q(`[data-seg-toggle="${vip.id}"]`).checked) fail('membership persisted');
 toggle(q(`[data-seg-toggle="${vip.id}"]`));
