@@ -29,7 +29,10 @@
   },
   "user_settings.sql": {
     "status": "aplicada",
-    "at": "2026-11-14T02:49:24.706Z"
+    "at": "2026-11-22T05:43:51.582Z",
+    "nota": "Re-aplicada la versión actual (scope + account_settings): la aplicación del 2026-11-14 dejó la tabla sin scope y sin account_settings, y fetchUserSettings fallaba con 42703 (toda la personalización caía a localStorage).",
+    "verificada": "2026-11-22T05:46:00Z",
+    "verificacion": "SQL: user_settings = id,user_id,key,value,updated_at,scope; account_settings = scope,key,value,updated_at; políticas personal_settings (user_id = auth.uid() and scope = 'user'), account_settings_read, account_settings_admin (app_metadata.role = 'admin'); anon sin privilegios; triggers settings_timestamp. Upsert de crm:contacts:cardprops como el usuario con sesión (rol authenticated + request.jwt.claims, transacción revertida) → fila propia con scope user; account_settings rechaza sin rol admin (42501) y acepta con él."
   },
   "company_hierarchy.sql": {
     "status": "aplicada",

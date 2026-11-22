@@ -2223,7 +2223,8 @@ export function setSetting(key, value, { scope } = {}) {
   const row = { ...(useGlobal ? {} : { user_id: settingsUserId }), scope: useGlobal ? 'account' : 'user', key, value, updated_at: new Date().toISOString() };
   dbWrite(async () => {
     const { error } = await supabase.from(useGlobal ? 'account_settings' : 'user_settings').upsert(row, { onConflict: useGlobal ? 'key' : 'user_id,key' });
-    if (error) console.error('[supabase] user_settings upsert', error);
+    // A refused write («Aplicar a todos» needs the admin role; a missing policy) must not look like success.
+    if (error) reportDbError(useGlobal ? 'ajustes de la cuenta (requiere rol de administrador)' : 'ajustes de la interfaz', error);
   });
   return true;
 }
