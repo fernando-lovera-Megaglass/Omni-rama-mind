@@ -30,7 +30,8 @@ const click = (el) => { if (!el) fail('missing element to click'); el.dispatchEv
 const check = (cb, on = true) => { cb.checked = on; cb.dispatchEvent(new dom.window.Event('change', { bubbles: true })); };
 // every tick re-renders the table, so rows are looked up again before each click
 const checkRows = (idxs) => idxs.forEach((i) => check(rows()[i].querySelector('.row-check')));
-const submitBulk = () => $('bulk-form').dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true }));
+// The bulk dialog's submit handler is asynchronous (it awaits onOk before closing), so each submit waits a tick.
+const submitBulk = async () => { $('bulk-form').dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true })); await new Promise((r) => setTimeout(r, 0)); };
 const total = () => Number($('total-pill').textContent.split(' ')[0]);
 const rows = () => [...document.querySelectorAll('#rows tr[data-id]')];
 const modalOpen = () => $('bulk-modal')?.classList.contains('is-open');
@@ -46,7 +47,8 @@ if (!$('bulk').hidden) fail('bar hidden with nothing selected');
 checkRows([0, 1]);
 log('after 2 rows: bar hidden?', $('bulk').hidden, '| count:', $('bulk-count').textContent, '| highlighted rows:', document.querySelectorAll('#rows tr.is-selected').length, '| actions:', [...document.querySelectorAll('.bulk__btn')].map((b) => b.textContent.trim()).join(' | '));
 if ($('bulk').hidden || $('bulk-count').textContent !== '2 contactos seleccionados' || document.querySelectorAll('#rows tr.is-selected').length !== 2) fail('bar and highlight');
-if ([...document.querySelectorAll('.bulk__btn')].map((b) => b.textContent.trim()).join('|') !== '→ Asignar|✎ Editar|🗑 Eliminar|+ Crear tareas|≡ Agregar a segmento|↧ Exportar') fail('contact actions');
+// contacts also offer «Inscribir en secuencia» (src/sequence-enroll.js, covered by smoke-bulk-enroll.mjs)
+if ([...document.querySelectorAll('.bulk__btn')].map((b) => b.textContent.trim()).join('|') !== '→ Asignar|✎ Editar|🗑 Eliminar|+ Crear tareas|⇢ Inscribir en secuencia|≡ Agregar a segmento|↧ Exportar') fail('contact actions');
 click(document.querySelector('[data-action="bulk-clear"]'));
 if (!$('bulk').hidden || list.state.selected.size) fail('clear');
 // page checkbox → offer the whole view
@@ -67,7 +69,7 @@ click(document.querySelector('[data-action="bulk-assign"]'));
 log('assign dialog:', modalOpen(), '|', $('bulk-modal-title').textContent, '| owners:', $('bulk-form').elements.owner.options.length);
 if (!modalOpen() || $('bulk-modal-title').textContent !== 'Asignar 3 contactos') fail('assign dialog');
 $('bulk-form').elements.owner.value = 'Laura M.';
-submitBulk();
+await submitBulk();
 log('after assign: owners', ids.map((id) => data.findRecord('contacts', id).owner).join(','), '| toast:', $('toast').textContent, '| bar hidden:', $('bulk').hidden, '| modal closed:', !modalOpen());
 if (ids.some((id) => data.findRecord('contacts', id).owner !== 'Laura M.') || !$('bulk').hidden || modalOpen()) fail('assign');
 
@@ -83,7 +85,7 @@ $('bulk-form').elements.key.dispatchEvent(new dom.window.Event('change', { bubbl
 log('value field for lifecycle:', $('bulk-form').elements.value.tagName, [...$('bulk-form').elements.value.options || []].length, 'options');
 if ($('bulk-form').elements.value.tagName !== 'SELECT') fail('enum property should offer a select');
 $('bulk-form').elements.value.value = 'Cliente';
-submitBulk();
+await submitBulk();
 if (ids2.some((id) => data.findRecord('contacts', id).lifecycle !== 'Cliente')) fail('bulk edit enum');
 checkRows([0, 1]);
 click(document.querySelector('[data-action="bulk-edit"]'));
@@ -91,7 +93,7 @@ $('bulk-form').elements.key.value = 'city';
 $('bulk-form').elements.key.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
 if ($('bulk-form').elements.value.tagName !== 'INPUT') fail('text property should offer an input');
 $('bulk-form').elements.value.value = 'Toledo';
-submitBulk();
+await submitBulk();
 log('after edit: lifecycle/city', ids2.map((id) => `${data.findRecord('contacts', id).lifecycle}/${data.findRecord('contacts', id).city}`).join(', '));
 if (ids2.some((id) => data.findRecord('contacts', id).city !== 'Toledo')) fail('bulk edit text');
 
@@ -102,7 +104,7 @@ click(document.querySelector('[data-action="bulk-tasks"]'));
 log('tasks dialog:', $('bulk-modal-title').textContent, '| fields:', [...$('bulk-form').elements].filter((e) => e.name).map((e) => e.name).join(','));
 $('bulk-form').elements.title.value = 'Llamar';
 $('bulk-form').elements.type.value = 'Llamada';
-submitBulk();
+await submitBulk();
 const made = data.allTasks().slice(0, 2);
 log('tasks created:', data.allTasks().length - tasksBefore, '|', made.map((t) => `${t.name} → contacto ${t.contactId} (${t.type}, ${t.status})`).join(' | '));
 if (data.allTasks().length !== tasksBefore + 2 || !made.every((t) => ids2.includes(Number(t.contactId)) && t.type === 'Llamada' && /^Llamar: /.test(t.name))) fail('create tasks');
@@ -114,10 +116,10 @@ log('segment dialog:', $('bulk-modal-title').textContent, '| static options:', $
 $('bulk-form').elements.segment.value = '__new';
 $('bulk-form').elements.segment.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
 if ($('bulk-seg-name').hidden) fail('name field should show for a new segment');
-submitBulk();
+await submitBulk();
 if (!modalOpen()) fail('empty name must keep the dialog open');
 $('bulk-form').elements.name.value = 'Lista masiva de prueba';
-submitBulk();
+await submitBulk();
 const seg = S.segments().find((s) => s.name === 'Lista masiva de prueba');
 log('new segment:', seg && `${seg.type} · ${seg.object} · miembros ${seg.memberIds.join(',')}`, '| toast:', $('toast').textContent);
 if (!seg || seg.type !== 'static' || seg.memberIds.length !== 2 || !ids2.every((id) => seg.memberIds.includes(id))) fail('new static segment');
@@ -125,7 +127,7 @@ checkRows([2, 3]);
 const ids3 = rows().slice(2, 4).map((r) => Number(r.dataset.id));
 click(document.querySelector('[data-action="bulk-segment"]'));
 $('bulk-form').elements.segment.value = String(seg.id);
-submitBulk();
+await submitBulk();
 const seg2 = S.segmentById(seg.id);
 log('after adding to existing:', seg2.memberIds.length, 'members');
 if (seg2.memberIds.length !== 4 || !ids3.every((id) => seg2.memberIds.includes(id))) fail('add to existing segment');
@@ -137,7 +139,7 @@ const doomed = rows().slice(0, 2).map((r) => Number(r.dataset.id));
 click(document.querySelector('.bulk__actions [data-action="delete"]'));
 log('delete dialog:', $('bulk-modal-title').textContent, '| ok:', $('bulk-ok').textContent, '| danger:', $('bulk-ok').classList.contains('btn--danger'));
 if ($('bulk-modal-title').textContent !== 'Eliminar 2 contactos' || $('bulk-ok').textContent !== 'Eliminar 2 contactos') fail('delete dialog');
-submitBulk();
+await submitBulk();
 log('after delete: total', before, '→', total(), '| still present:', doomed.filter((id) => data.findRecord('contacts', id)).length);
 if (total() !== before - 2 || doomed.some((id) => data.findRecord('contacts', id))) fail('delete');
 // Escape closes a dialog without applying
@@ -159,12 +161,12 @@ for (const [page, noun] of [['companies', 'empresas'], ['deals', 'negocios']]) {
   const id = Number(first.dataset.id);
   click(document.querySelector('[data-action="bulk-assign"]'));
   $('bulk-form').elements.owner.value = 'Sofía R.';
-  submitBulk();
+  await submitBulk();
   if (data.findRecord(page, id).owner !== 'Sofía R.') fail(`${page} assign`);
   check(rows()[0].querySelector('.row-check'));
   const n0 = total();
   click(document.querySelector('.bulk__actions [data-action="delete"]'));
-  submitBulk();
+  await submitBulk();
   log(`${page}: assigned ok | delete ${n0} → ${total()}`);
   if (total() !== n0 - 1) fail(`${page} delete`);
   void P;

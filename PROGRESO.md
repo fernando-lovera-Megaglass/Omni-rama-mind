@@ -1,5 +1,11 @@
 # Progreso — Omni CRM
 
+## 2026-11-22 (sesión 6) · smoke-bulk: barra con «Inscribir en secuencia» y envío asíncrono del diálogo
+
+- Diagnóstico: no es regresión; la asignación masiva funciona (los tres contactos quedan con «Laura M.», toast y barra oculta). Dos cambios intencionales dejaron la prueba desactualizada: f4dd2de añadió «⇢ Inscribir en secuencia» a la barra de selección de contactos (`cfg.bulk.actions` con `enroll`, cubierto por `smoke-bulk-enroll.mjs`), y 373188c hizo asíncrono el `submit` del diálogo masivo (`await bulkOnOk(d)` antes de cerrarlo), así que justo después del `submit` el modal seguía abierto.
+- `scripts/smoke-bulk.mjs`: la lista esperada de acciones incluye «⇢ Inscribir en secuencia»; `submitBulk` es asíncrono (despacha el `submit` y espera un tick) y se `await` en las diez llamadas (contactos, empresas y negocios). Pasa.
+- Solo código local; nada desplegado.
+
 ## 2026-11-22 (sesión 6) · Pruebas del paginador: selectores del paginador compartido
 
 - Diagnóstico: no es regresión. El commit 6fbcb5f («paginadores inconsistentes») sustituyó a propósito el paginador propio de las listas (`#pager-nums`, `#prev`/`#next`, `data-page`, `data-size`, `#page-size-btn`) por el componente compartido `src/pagination.js` (`#list-pagination`, `.pager__num[data-pagination-page]`, botones «‹ Anterior» / «Siguiente ›», `[data-pagination-size]`). `smoke-templates` ya estaba al día y pasa; `smoke-server-pagination` y `smoke-views` seguían buscando los selectores antiguos.
