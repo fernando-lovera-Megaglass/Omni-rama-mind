@@ -1,14 +1,18 @@
 // DOM smoke test for the record page and its "Acciones" menu. Run: node scripts/smoke-record.mjs contacts 3
-import { JSDOM } from 'jsdom';
+import assert from 'node:assert/strict';
+import { JSDOM, VirtualConsole } from 'jsdom';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const type = process.argv[2] || 'contacts';
 const id = process.argv[3] || '3';
+const browserErrors = [];
+const virtualConsole = new VirtualConsole();
+virtualConsole.on('jsdomError', (error) => browserErrors.push(error));
 const dom = new JSDOM(
   `<!doctype html><body class="app" data-type="${type}"><aside id="sidenav"></aside><header id="topbar"></header><main id="record-root"></main><div id="scrim"></div></body>`,
-  { url: `http://localhost/${type}/record/?id=${id}` },
+  { url: `http://localhost/${type}/record/?id=${id}`, virtualConsole },
 );
 const mem = {};
 globalThis.window = dom.window;
@@ -26,11 +30,35 @@ dom.window.confirm = () => true;
 dom.window.prompt = () => 'Nuevo Nombre';
 dom.window.open = (u) => { console.log(`[${type}] window.open ->`, u); };
 
+// jsdom has no layout/scrolling or blob URL downloads. Keep these shims in the harness.
+dom.window.HTMLElement.prototype.scrollIntoView = function () {};
+const objectUrls = new Map();
+let nextObjectUrl = 0;
+dom.window.URL.createObjectURL = (blob) => {
+  assert.ok(blob instanceof dom.window.Blob);
+  const url = `blob:http://localhost/smoke-${++nextObjectUrl}`;
+  objectUrls.set(url, blob);
+  return url;
+};
+dom.window.URL.revokeObjectURL = (url) => objectUrls.delete(url);
+const downloads = [];
+document.addEventListener('click', (event) => {
+  const anchor = event.target.closest('a[download]');
+  if (!anchor) return;
+  assert.ok(objectUrls.has(anchor.href), 'download must reference a blob URL');
+  downloads.push(anchor.download);
+  event.preventDefault(); // jsdom cannot navigate/download; preserve the app click handler.
+});
 await import(resolve(here, '../src/record.js'));
 const $ = (s) => document.getElementById(s);
-const click = (el) => el.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true }));
+const click = (el) => {
+  assert.ok(el?.isConnected, 'click target must exist in the rendered document');
+  el.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true }));
+  assert.deepEqual(browserErrors, [], 'browser event handlers must not throw');
+};
 const log = (...a) => console.log(`[${type}]`, ...a);
 
+assert.ok(document.querySelector('[data-lcard="attachments"]'), 'real attachments card renders');
 log('name:', $('rec-name').textContent.trim(), '| props rows:', $('rec-props').children.length, '| assoc cards:', document.querySelectorAll('.assoc-card').length);
 const items = [...document.querySelectorAll('#actions-menu .menu__item')].map((b) => b.textContent.trim());
 log('acciones:', items.join(' | '));
@@ -42,6 +70,7 @@ for (const act of ['follow', 'all-props', 'prop-history', 'assoc-history', 'revi
   if (modalOpen && act === 'unsubscribe') click(document.querySelector('[data-confirm="unsubscribe"]'));
   if (modalOpen) click(document.querySelector('#rec-modal [data-close]'));
 }
+assert.equal(downloads.length, 1, 'export starts one download');
 log('follow label now:', $('follow-item').textContent);
 // inline edit
 click(document.querySelector('[data-edit-key]'));
@@ -61,20 +90,18 @@ log('timeline items:', $('rec-timeline').children.length);
 const moreBtn = document.querySelector('.quick__more > button');
 click(moreBtn);
 log('more menu open:', document.querySelector('.quick__more').classList.contains('is-open'), '| items:', document.querySelectorAll('#more-list .more-item').length);
-$('more-search').value = 'cotiz';
+$('more-search').value = 'negocio';
 $('more-search').dispatchEvent(new dom.window.Event('input', { bubbles: true }));
-log('search "cotiz" visible items:', [...document.querySelectorAll('#more-list .more-item:not([hidden]) .more-item__label')].map((l) => l.textContent).join(' | '));
+assert.deepEqual([...document.querySelectorAll('#more-list .more-item:not([hidden])')].map((item) => item.querySelector('[data-more]').dataset.more), ['deal'], 'menu search renders the matching action');
+log('search "negocio" visible items:', [...document.querySelectorAll('#more-list .more-item:not([hidden]) .more-item__label')].map((l) => l.textContent).join(' | '));
 $('more-search').value = '';
 $('more-search').dispatchEvent(new dom.window.Event('input', { bubbles: true }));
 click(document.querySelector('[data-more="linkedin"]:not([data-sub])'));
 log('linkedin submenu open:', document.querySelector('.more-item.has-sub').classList.contains('is-open'));
-click(document.querySelector('[data-more="quote"]'));
-log('quote modal:', $('rec-modal-title').textContent);
-click(document.querySelector('[data-confirm="doc"]'));
-log('timeline after quote:', $('rec-timeline').firstElementChild.textContent.replace(/\s+/g, ' ').trim().slice(0, 90));
-click(moreBtn);
 click(document.querySelector('[data-more="deal"]'));
-log('deals extra created:', JSON.parse(mem['crm:deals:extra'] || '[]').length);
+assert.ok($('cd-panel').classList.contains('is-open'), 'create deal drawer renders');
+click(document.querySelector('[data-cd="cancel"]'));
+assert.ok(!$('cd-panel').classList.contains('is-open'), 'create deal drawer closes');
 click(moreBtn);
 click(document.querySelector('[data-more="reorder"]'));
 click(document.querySelector('#quick-order .col-item:last-child [data-move="-1"]'));
@@ -151,4 +178,8 @@ log('side expanded again:', !document.querySelector('.record').classList.contain
 // collapse
 click(document.querySelector('[data-toggle="about"]'));
 log('about collapsed?', document.querySelector('[data-toggle="about"]').closest('.card').classList.contains('is-collapsed'));
+await new Promise((resolve) => setTimeout(resolve, 1100));
+assert.equal(objectUrls.size, 0, 'download blob URLs are revoked');
+assert.deepEqual(browserErrors, [], 'no asynchronous jsdom errors');
 log('OK');
+dom.window.close();

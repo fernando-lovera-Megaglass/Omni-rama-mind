@@ -2095,10 +2095,12 @@
     },
     {
       "id": "gap-smoke-record-jsdom",
-      "status": "pending",
+      "status": "done",
       "instruction": "smoke-record falla con errores de harness jsdom: scrollIntoView is not a function, URL.createObjectURL is not a function, dispatchEvent sobre null — llegaron con los adjuntos reales (d835d5c). Agrega los shims en la prueba/harness y verifica que no falte además algún render real. OBLIGATORIO: ejecuta node scripts/<smoke>.mjs DESPUÉS de tu cambio e itera hasta que termine con código 0; no des por terminado sin verificarlo. Si el fallo es una limitación del harness jsdom (API de navegador inexistente), agrega el shim en la prueba, no cambies la app para complacer al harness. No despliegues nada a producción; solo código local.",
       "createdAt": "2026-11-22T08:22:54-06:00",
-      "lane": "codex"
+      "lane": "codex",
+      "completedAt": "2026-11-22T08:46:10-0600",
+      "completedBy": "codex"
     },
     {
       "id": "gap-smoke-record-inline-pinned",
