@@ -138,8 +138,8 @@
     "nota": "Solo código local; no aplicada a producción. Ver docs/contact-search-indexes.md."
   },
   "sequence-process.sql": {
-    "status": "pendiente",
-    "nota": "Solo código local; no aplicada a producción. Ver docs/sequence-process.md."
+    "appliedAt": "2026-11-21T18:29:00-06:00",
+    "note": "reaplicada: faltaba sequence_step_runs"
   },
   "marketing-process.sql": {
     "status": "aplicada",
@@ -182,5 +182,8 @@
   "bootstrap-demo.sql": {
     "status": "pendiente",
     "nota": "Bootstrap atómico con advisory lock, independiente del índice de email. Solo código local; no aplicada en remoto."
+  },
+  "message-template-usage.sql": {
+    "appliedAt": "2026-11-21T18:29:00-06:00"
   }
 }
