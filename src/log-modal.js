@@ -1,9 +1,9 @@
+import { callOutcomes } from './activity-outcomes.js';
 // Shared activity form, usable without booting a record page.
 import { TODAY, getSetting, dbIsLive, allContacts, allCompanies, allDeals, allTickets, ticketStatusIsClosed } from './data.js';
 import { ACTIVITY_COMPANY_SETTING, ACTIVITY_RULES_SETTING, activityAssociations } from './activity-associations.js';
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const CONFIG = Object.fromEntries(Object.entries({ contacts: 'contacto', companies: 'empresa', deals: 'negocio', tickets: 'ticket', tasks: 'tarea' }).map(([type, singular]) => [type, { singular, title: r => r.name }]));
-const CALL_OUTCOMES = ['Conectado', 'Ocupado', 'Dejó mensaje en directo', 'Dejó mensaje de voz', 'No contesta', 'Número equivocado'];
 const MEETING_LOCS = ['Llamada telefónica', 'Videoconferencia', 'Dirección'];
 const LOG_DURATIONS = [5, 10, 15, 30, 45, 60];
 const LOG_KINDS = { note: 'nota', call: 'llamada', meeting: 'reunión', email: 'correo', message: 'mensaje' };
@@ -45,7 +45,7 @@ export function openLogModal(kind, { type, rec, openModal, $, schedule = false, 
   const name = cfg.title(rec);
   const base = activity ? new Date(activity.when) : schedule ? new Date(TODAY.getTime() + 2 * 86400000) : new Date();
   const whenRow = `<div class="adv-row adv-row--two"><label class="field"><span>Fecha</span><input id="log-date" type="date" value="${localDateStr(base)}" /></label><label class="field"><span>Hora</span><input id="log-time" type="time" value="${schedule ? '10:00' : localTimeStr(base)}" /></label></div>`;
-  const outcomeRow = `<label class="field"><span>Resultado</span><select id="log-outcome">${CALL_OUTCOMES.map((o) => `<option>${o}</option>`).join('')}</select></label>`;
+  const outcomeRow = `<label class="field"><span>Resultado</span><select id="log-outcome">${callOutcomes().map((o) => `<option>${esc(o)}</option>`).join('')}</select></label>`;
   const dirRow = `<label class="field"><span>Dirección</span><select id="log-direction"><option>Saliente</option><option>Entrante</option></select></label>`;
   const durSelect = (def) => `<select id="log-duration">${LOG_DURATIONS.map((m) => `<option value="${m}" ${m === def ? 'selected' : ''}>${m} minutos</option>`).join('')}</select>`;
   const followRow = `<label class="log-follow"><input type="checkbox" id="log-followup" /> Crear una tarea de seguimiento</label>
@@ -62,7 +62,7 @@ export function openLogModal(kind, { type, rec, openModal, $, schedule = false, 
   } else if (kind === 'meeting') {
     body = `<label class="field"><span>Título</span><input id="log-title" type="text" value="Reunión con ${esc(name)}" /></label>
       ${whenRow}
-      <div class="adv-row adv-row--two"><label class="field"><span>Duración</span>${durSelect(30)}</label><label class="field"><span>Ubicación</span><select id="log-location">${MEETING_LOCS.map((o) => `<option>${o}</option>`).join('')}</select></label></div>
+      <div class="adv-row adv-row--two"><label class="field"><span>Duración</span>${durSelect(30)}</label><label class="field"><span>Ubicación</span><select id="log-location">${MEETING_LOCS.map((o) => `<option>${esc(o)}</option>`).join('')}</select></label></div>
       ${schedule ? '' : outcomeRow}
       <label class="field"><span>Descripción</span><textarea id="log-notes" rows="3" placeholder="Orden del día, acuerdos..."></textarea></label>`;
   } else if (kind === 'email') {

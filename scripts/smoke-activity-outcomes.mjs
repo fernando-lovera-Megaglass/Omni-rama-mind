@@ -1,0 +1,42 @@
+import assert from 'node:assert/strict';
+import { JSDOM } from 'jsdom';
+const dom = new JSDOM('<body class="app"><aside id="sidenav"></aside><header id="topbar"></header><main id="settings-root"></main><div id="scrim"></div></body>', { url: 'http://localhost/settings/#prefs-general' });
+for (const key of ['window', 'document', 'localStorage', 'location', 'HTMLElement', 'FormData', 'Option', 'MutationObserver']) globalThis[key] = key === 'window' ? dom.window : dom.window[key];
+Object.defineProperty(globalThis, 'navigator', { value: dom.window.navigator, configurable: true });
+const data = await import('../src/data.js');
+await import('../src/settings.js');
+document.querySelector('[data-general-tab="llamadas"]').click();
+const { callOutcomes, OUTCOMES_KEY } = await import('../src/activity-outcomes.js');
+const filters = await import('../src/event-filters.js');
+const { openLogModal } = await import('../src/log-modal.js');
+const submit = form => form.dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true }));
+assert.equal(callOutcomes().length, 6);
+let form = document.querySelector('[data-outcome-add]');
+form.elements.name.value = 'Buzón lleno'; submit(form);
+assert.ok(JSON.parse(localStorage.getItem(OUTCOMES_KEY)).some(r => r.name === 'Buzón lleno'));
+const contact = data.addRecord('contacts', { name: 'Outcomes smoke' });
+const old = { type: 'call', when: Date.now(), text: 'Old call', extra: { outcome: 'Ocupado' } };
+data.addActivity({ ...old, recordType: 'contacts', recordId: contact.id });
+data.addActivity({ ...old, type: 'meeting', recordType: 'contacts', recordId: contact.id });
+const modal = document.createElement('div'); document.body.append(modal);
+const open = (kind, activity) => openLogModal(kind, { type: 'contacts', rec: contact, activity, openModal: (_title, body) => { modal.innerHTML = body; }, $: id => document.getElementById(id) });
+const options = () => [...modal.querySelector('#log-outcome').options].map(o => o.value);
+for (const kind of ['call', 'meeting']) { open(kind); assert.ok(options().includes('Buzón lleno')); }
+const row = name => [...document.querySelectorAll('[data-outcome-row]')].find(r => r.querySelector('input').value === name);
+row('Ocupado').querySelector('[data-outcome-action="toggle"]').click();
+for (const kind of ['call', 'meeting']) {
+  open(kind); assert.ok(!options().includes('Ocupado'));
+  const key = `last_${kind}_outcome`;
+  assert.ok(filters.eventValueOptions(key).some(([v]) => v === 'Buzón lleno'));
+  assert.ok(filters.eventValueOptions(key).some(([v]) => v === 'Ocupado'));
+  assert.ok(filters.eventConditionMatches({ key, op: 'is', value: 'Ocupado' }, contact, filters.eventIndex('contacts')));
+  open(kind, { ...old, type: kind }); assert.equal(modal.querySelector('#log-outcome').value, 'Ocupado');
+}
+row('Buzón lleno').querySelector('[data-outcome-action="up"]').click();
+assert.equal(callOutcomes().at(-2), 'Buzón lleno');
+form = row('Buzón lleno').querySelector('form'); form.elements.name.value = '<Buzón & lleno>'; submit(form);
+open('call'); assert.ok(options().includes('<Buzón & lleno>')); assert.equal(modal.querySelector('buzón'), null);
+form = document.querySelector('[data-outcome-add]'); form.elements.name.value = ' Conectado '; submit(form); assert.equal(callOutcomes().length, 6);
+row('Ocupado').querySelector('[data-outcome-action="toggle"]').click(); assert.ok(callOutcomes().includes('Ocupado'));
+document.querySelector('[data-general-tab="llamadas"]').click(); assert.ok(row('<Buzón & lleno>'));
+console.log('Activity outcomes smoke passed: settings, forms, history, filters, ordering and escaping.');

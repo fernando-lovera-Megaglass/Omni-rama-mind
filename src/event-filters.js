@@ -1,3 +1,4 @@
+import { callOutcomes } from './activity-outcomes.js';
 // «Eventos» in the segment filter editor: criteria over the record's real timeline (the activities table:
 // calls, e-mails, meetings, notes, tasks, messages) and over the Twilio call logs (call_logs) — last activity,
 // last call / number of calls / recorded call / last call outcome, last e-mail / number of e-mails / opened or
@@ -10,13 +11,12 @@ import { kindGroup, evalCondition, conditionValues } from './filter-ops.js';
 
 export const EVENTS_ASSOC = '__event';
 export const EVENTS_LABEL = 'Actividades, llamadas y correos (cronología)';
-// Outcomes the call box and the record's «Registrar llamada» dialog offer (union, deduplicated).
-export const CALL_OUTCOMES = ['Conectado', 'Sin respuesta', 'No contesta', 'Ocupado', 'Dejé mensaje de voz', 'Dejó mensaje de voz', 'Dejó mensaje en directo', 'Número equivocado'];
 const YES_NO = [['Sí', 'Sí'], ['No', 'No']];
 // [key, label, kind]: kind decides the operator family (date → «es de hace menos de (días)»…, number, bool, enum).
 export const EVENT_GROUPS = [
   { title: 'Actividad', items: [['last_activity', 'Última actividad registrada', 'datetime'], ['activity_count', 'Número de actividades', 'number']] },
   { title: 'Llamadas', items: [['last_call', 'Última llamada', 'datetime'], ['calls_count', 'Número de llamadas', 'number'], ['call_recorded', 'Tiene llamada grabada', 'bool'], ['last_call_outcome', 'Último resultado de llamada', 'enum']] },
+  { title: 'Reuniones', items: [['last_meeting_outcome', 'Último resultado de reunión', 'enum']] },
   { title: 'Correos', items: [['last_email', 'Último correo', 'datetime'], ['emails_count', 'Número de correos', 'number'], ['email_opened', 'Tiene correo abierto', 'bool'], ['email_unopened', 'Tiene correo sin abrir', 'bool']] },
 ];
 const DEFS = Object.fromEntries(EVENT_GROUPS.flatMap((g) => g.items.map(([k, l, kind]) => [k, { key: k, label: l, kind }])));
@@ -28,7 +28,10 @@ export function eventValueOptions(key) {
   const d = DEFS[key];
   if (!d) return null;
   if (d.kind === 'bool') return YES_NO;
-  if (key === 'last_call_outcome') return CALL_OUTCOMES.map((o) => [o, o]);
+  if (key === 'last_call_outcome' || key === 'last_meeting_outcome') {
+    const kind = key === 'last_call_outcome' ? 'call' : 'meeting';
+    return callOutcomes([...allActivities().filter(a => a.type === kind).map(a => a.extra?.outcome), ...(kind === 'call' ? callLogRows.map(row => row.outcome) : [])]).map(o => [o, o]);
+  }
   return null;
 }
 
@@ -59,7 +62,7 @@ export function ensureEventData() {
 const ENGAGEMENT = new Set(['note', 'email', 'call', 'meeting', 'task', 'message']);
 const ms = (v) => { if (!v) return 0; const n = typeof v === 'number' ? v : new Date(v).getTime(); return Number.isFinite(n) ? n : 0; };
 const incomingMail = (x) => x.direction === 'Entrante' || x.direction === 'in' || x.direction === 'inbound' || x.incoming === true;
-const blank = () => ({ lastActivity: 0, activities: 0, lastCall: 0, calls: 0, recorded: false, lastCallOutcome: '', lastEmail: 0, emails: 0, opened: false, unopened: false, sids: new Set() });
+const blank = () => ({ lastActivity: 0, activities: 0, lastCall: 0, calls: 0, recorded: false, lastCallOutcome: '', lastMeeting: 0, lastMeetingOutcome: '', lastEmail: 0, emails: 0, opened: false, unopened: false, sids: new Set() });
 export function eventIndex(type) {
   const map = new Map();
   const get = (id) => { const k = Number(id); if (!map.has(k)) map.set(k, blank()); return map.get(k); };
@@ -74,6 +77,8 @@ export function eventIndex(type) {
       if (x.callSid) e.sids.add(x.callSid);
       if (x.recorded || x.recording) e.recorded = true;
       if (when >= e.lastCall) { e.lastCall = when; if (x.outcome) e.lastCallOutcome = x.outcome; }
+    } else if (a.type === 'meeting') {
+      if (when >= e.lastMeeting) { e.lastMeeting = when; e.lastMeetingOutcome = x.outcome || ''; }
     } else if (a.type === 'email') {
       e.emails += 1;
       if (when > e.lastEmail) e.lastEmail = when;
@@ -106,6 +111,7 @@ export function eventValue(key, e = NONE) {
     case 'calls_count': return e.calls;
     case 'call_recorded': return e.recorded ? 'Sí' : 'No';
     case 'last_call_outcome': return e.lastCallOutcome || '';
+    case 'last_meeting_outcome': return e.lastMeetingOutcome || '';
     case 'last_email': return e.lastEmail ? new Date(e.lastEmail).toISOString() : '';
     case 'emails_count': return e.emails;
     case 'email_opened': return e.opened ? 'Sí' : 'No';

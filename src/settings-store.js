@@ -1,7 +1,7 @@
 // Synchronous memory reads, serialized optimistic writes and identity-isolated offline backup.
-export const settingsScope = (key) => key === 'crm:account' || key === 'crm:integrations' ||
+export const settingsScope = (key) => key === 'crm:call_outcomes' || key === 'crm:account' || key === 'crm:integrations' ||
   (key.startsWith('crm:settings:') && !/^crm:settings:(general-|navcollapsed)/.test(key)) ? 'account' : 'user';
-export const managedSetting = (key) => ['crm:profile', 'crm:notif', 'crm:account', 'crm:integrations'].includes(key) || key.startsWith('crm:settings:');
+export const managedSetting = (key) => ['crm:call_outcomes', 'crm:profile', 'crm:notif', 'crm:account', 'crm:integrations'].includes(key) || key.startsWith('crm:settings:');
 export function createSettingsStore({ client, storage, onError = () => {} }) {
   let user, cache = {}, pending = {}, queue = Promise.resolve();
   const clone = (v) => v === undefined ? v : JSON.parse(JSON.stringify(v));

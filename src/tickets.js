@@ -3,6 +3,7 @@ import { mountList, tag, link, ownerHtml } from './list.js';
 import { toast } from './shell.js';
 import { ticketMoveRefusal, runTicketAutomation } from './ticket-rules.js';
 import { mountCreateTicket } from './create-ticket.js';
+import { ticketTagChips, tagsForTicket, ready as ticketTagsReady } from './ticket-tags.js';
 import { allTickets, allContacts, PRIORITIES, OWNERS, formatDate, labelOf, classOf, TODAY, ticketPipelines, ticketStatusesFor, allTicketStatuses, ticketStatusLabel, ticketStatusClass, isTicketOpen, firstOpenTicketStatus, ticketPipelineCounts } from './data.js';
 
 boot({ root: '../', active: 'crm', sub: 'Tickets', title: 'Tickets' });
@@ -67,6 +68,8 @@ const list = mountList({
       ['Creado', formatDate(r.created)],
     ],
     sub: (r) => (r.contact ? { name: r.contact, href: `../contacts/record/?id=${r.contactId}` } : null),
+    // The ticket tags (Ajustes › Objetos › Tickets › Pipelines › Etiquetas de Ticket) the ticket earns right now.
+    badges: (r) => ticketTagChips(r),
     // Pipeline rules (Ajustes › Objetos › Tickets › Pipelines › Reglas): no going back, no moving closed tickets,
     // required properties before entering a status; the refusal message is shown by list.js.
     canMove: (r, from, to) => ticketMoveRefusal(r, from, to),
@@ -116,6 +119,8 @@ const list = mountList({
     { key: 'source', label: 'Fuente' },
     { key: 'lastActivity', label: 'Última actividad', default: false, text: (r) => formatDate(r.lastActivity), sortValue: (r) => new Date(r.lastActivity).getTime() },
     { key: 'created', label: 'Fecha de creación', text: (r) => formatDate(r.created), sortValue: (r) => new Date(r.created).getTime() },
+    // The ticket tags (colour + emoji chips), evaluated live from their filters; optional column.
+    { key: 'ticket_tags', label: 'Etiquetas de ticket', default: false, editable: false, serverSort: false, text: (r) => tagsForTicket(r).map((t) => t.name).join(', '), render: (r) => ticketTagChips(r) || '<span class="muted">—</span>' },
   ],
   // The generic drawer markup still needs the field list (list.js renders it for every object); the person
   // always gets the slide-over above, which also owns the associations (no more "first 30 contacts" select).
@@ -137,3 +142,6 @@ const list = mountList({
   },
 });
 createPanel = mountCreateTicket({ list });
+// The ticket tags load after the page (Supabase): repaint the chips when they arrive and whenever they change.
+ticketTagsReady.then(() => list.render());
+document.addEventListener('crm:ticket-tags', () => list.render());

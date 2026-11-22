@@ -1,3 +1,4 @@
+import { outcomesPaneHtml, mountOutcomesSettings } from './activity-outcomes-ui.js';
 import { ACTIVITY_COMPANY_SETTING, ACTIVITY_RULES_SETTING, ACTIVITY_KINDS, ACTIVITY_RULE_OPTIONS, activityRule } from './activity-associations.js';
 import { supabase } from './supabaseClient.js';
 import { createSettingsStore, managedSetting } from './settings-store.js';
@@ -25,6 +26,8 @@ import { paneHtml as connectedEmailsPane, mountConnectedEmails } from './connect
 import { paneChannels as paneIbChannels, paneInboxes as paneIbInboxes, paneAvailability as paneIbAvailability, paneSpam as paneIbSpam, mountInboxSettings } from './inbox-settings-ui.js';
 import { ready as inboxSettingsReady } from './inbox-settings.js';
 import { dealTagsPaneHtml, pipelineTagsHtml, mountDealTags } from './deal-tags-ui.js';
+import { ticketTagsPaneHtml, ticketPipelineTagsHtml, mountTicketTags } from './ticket-tags-ui.js';
+import { ready as ticketTagsReady } from './ticket-tags.js';
 import { TICKET_PIPE_RULES, TICKET_PIPE_AUTOS, TICKET_REQUIRED_PROPS } from './ticket-rules.js';
 import { tagsForPipeline, ready as dealTagsReady } from './deal-tags.js';
 import { twilioPaneHtml, mountTwilioPane, twilioReady } from './twilio-ui.js';
@@ -242,12 +245,13 @@ emailsReady.then(() => { if (state.section === 'prefs-general' && state.generalT
 twilioReady.then(() => { if (state.section === 'tools-calling' || (state.section === 'prefs-general' && state.generalTab === 'llamadas')) render(); });
 inboxSettingsReady.then(() => { if (state.section.startsWith('ib-')) render(); });
 dealTagsReady.then(() => { if (state.section === 'data-objects' && state.objectsObject === 'deals' && state.objectsTab === 'pipelines') render(); });
+ticketTagsReady.then(() => { if (state.section === 'data-objects' && state.objectsObject === 'tickets' && state.objectsTab === 'pipelines') render(); });
 function tabLlamadas() {
   const s = setting('general-llamadas', { record: true, voicemail: false });
   return `${twilioPaneHtml()}
     <h3 class="gh">Registro de llamadas</h3><p class="muted">Cómo se registran las llamadas en las fichas.</p>
     ${switchRow('general-llamadas', 'record', 'Grabar llamadas', 'Las grabaciones se guardan en la actividad de la llamada.', s.record)}
-    ${switchRow('general-llamadas', 'voicemail', 'Buzón de voz', 'Desvía al buzón cuando no contestas.', s.voicemail)}`;
+    ${switchRow('general-llamadas', 'voicemail', 'Buzón de voz', 'Desvía al buzón cuando no contestas.', s.voicemail)}${outcomesPaneHtml()}`;
 }
 function tabCalendario() { return constructionPane('Calendario'); }
 function tabTareas() {
@@ -642,12 +646,15 @@ function objectPipelineHtml(type) {
 // ---------- Ticket pipelines: each one with its own statuses (open or closed), as in the original ----------
 // The per-pipeline editor has the original's tabs: Configurar (statuses), Reglas del pipeline (rules and
 // required properties per status) and Automatizar (task / notification when a ticket enters a status).
-Object.assign(state, { tpipeEdit: null, tpipeSub: 'configure' });
+Object.assign(state, { tpipeEdit: null, tpipeSub: 'configure', tpipeTab: 'overview' });
 function ticketPipelinesHtml() {
   const defs = ticketPipelineDefs();
   const counts = ticketPipelineCounts();
   if (state.tpipeEdit !== null) return ticketPipelineEditorHtml(defs, counts);
-  return `<h3>Pipelines de tickets</h3><p class="muted">Cada ticket pertenece a un pipeline con sus propios estados; cada estado es <strong>Abierto</strong> o <strong>Cerrado</strong>. El pipeline de soporte predeterminado existe desde el principio con los cuatro estados del original. En la lista de Tickets se eligen con el selector de pipelines.</p>
+  // «Vista general» / «Etiquetas de Ticket» (the object tags of tickets, src/ticket-tags-ui.js), as for deals.
+  const tabs = `<div class="ptabs">${[['overview', 'Vista general'], ['labels', 'Etiquetas de Ticket']].map(([k, l]) => `<button type="button" class="${state.tpipeTab === k ? 'is-active' : ''}" data-tpipe-tab="${k}">${l}</button>`).join('')}</div>`;
+  if (state.tpipeTab === 'labels') return tabs + ticketTagsPaneHtml();
+  return `${tabs}<h3>Pipelines de tickets</h3><p class="muted">Cada ticket pertenece a un pipeline con sus propios estados; cada estado es <strong>Abierto</strong> o <strong>Cerrado</strong>. El pipeline de soporte predeterminado existe desde el principio con los cuatro estados del original. En la lista de Tickets se eligen con el selector de pipelines.</p>
     ${simpleTable(['Pipeline', 'Estados', 'Abiertos', 'Cerrados', ''], defs.map((p, i) => { const c = counts[p.name] || { open: 0, closed: 0 }; return [`<strong>${esc(p.name)}</strong>${i === 0 ? ' <span class="tag tag--none">Predeterminado</span>' : ''}`, p.stages.map((s) => `<span class="tstage tstage--${s[2]}">${esc(s[1])}</span>`).join(' → '), String(c.open), String(c.closed), `<button class="link-btn" type="button" data-tpipe-edit="${i}">Administrar</button> <button class="link-btn" type="button" data-tpipe-clone="${i}">Clonar</button>${defs.length > 1 ? ` <button class="link-btn" type="button" data-ticketpipe-rm="${i}" ${c.open + c.closed ? 'disabled title="Tiene tickets: muévelos a otro pipeline antes de eliminarlo"' : ''}>Eliminar</button>` : ''}`]; }))}
     <form class="sform" data-save="ticketpipeline"><div class="sform__row"><label class="field"><span>Nuevo pipeline</span><input name="name" required maxlength="60" placeholder="Por ejemplo: Cotizaciones Kafer" /></label></div><p class="muted">Empieza con los estados predeterminados (${DEFAULT_TICKET_STATUSES.map((s) => s[1]).join(', ')}); se cambian en «Administrar».</p><div class="sform__btns"><button class="btn btn--primary" type="submit">Crear pipeline</button></div></form>`;
 }
@@ -658,7 +665,7 @@ function ticketPipelineEditorHtml(defs, counts) {
   const count = (k) => tickets.filter((t) => t.pipeline === p.name && t.status === k).length;
   const c = counts[p.name] || { open: 0, closed: 0 };
   const sub = state.tpipeSub || 'configure';
-  const body = sub === 'rules' ? ticketPipelineRulesHtml(p) : sub === 'automate' ? ticketPipelineAutomateHtml(p) : ticketPipelineConfigureHtml(p, count);
+  const body = sub === 'rules' ? ticketPipelineRulesHtml(p) : sub === 'automate' ? ticketPipelineAutomateHtml(p) : sub === 'labels' ? ticketPipelineTagsHtml(p) : ticketPipelineConfigureHtml(p, count);
   return `<h2>Administrar ${esc(p.name)}</h2>
     <div class="pmanage">
       <div class="pmanage__top">
@@ -666,7 +673,7 @@ function ticketPipelineEditorHtml(defs, counts) {
         <div class="menu"><button class="btn btn--ghost" type="button" aria-haspopup="true" aria-expanded="false">Acciones <span class="caret"></span></button><div class="menu__panel menu__panel--right"><button class="menu__item" type="button" data-act="tpipe-rename">Cambiar nombre</button><button class="menu__item" type="button" data-tpipe-clone="${state.tpipeEdit}">Clonar pipeline</button><a class="menu__item" href="../tickets/">Ver tickets</a><button class="menu__item" type="button" data-act="tpipe-back">Volver a pipelines</button></div></div>
       </div>
       <p class="muted">${c.open} ${c.open === 1 ? 'ticket abierto' : 'tickets abiertos'} · ${c.closed} ${c.closed === 1 ? 'cerrado' : 'cerrados'}. Los tickets se mueven entre estados desde la lista, el tablero o la ficha.</p>
-      <div class="ptabs ptabs--sub">${[['configure', 'Configurar'], ['rules', 'Reglas del pipeline'], ['automate', 'Automatizar']].map(([k, l]) => `<button type="button" class="${sub === k ? 'is-active' : ''}" data-tpipe-sub="${k}">${l}</button>`).join('')}</div>
+      <div class="ptabs ptabs--sub">${[['configure', 'Configurar'], ['rules', 'Reglas del pipeline'], ['automate', 'Automatizar'], ['labels', 'Etiquetas de Ticket']].map(([k, l]) => `<button type="button" class="${sub === k ? 'is-active' : ''}" data-tpipe-sub="${k}">${l}</button>`).join('')}</div>
       ${body}
     </div>`;
 }
@@ -1439,7 +1446,11 @@ function render() {
   if (ibs) mountInboxSettings(ibs);
   const dtags = document.getElementById('dtags');
   if (dtags) mountDealTags(dtags, { rerender: render });
+  const ttags = document.getElementById('ttags');
+  if (ttags) mountTicketTags(ttags, { rerender: render });
   const twp = document.getElementById('twilio-pane');
+  const outcomesRoot = root.querySelector('[data-outcomes-settings]');
+  if (outcomesRoot) mountOutcomesSettings(outcomesRoot, { load, save, toast });
   if (twp) mountTwilioPane(twp, { rerender: render });
   if (state.section === 'data-properties') {
     const q = document.getElementById('props-q');
@@ -1680,6 +1691,8 @@ root.addEventListener('click', (e) => {
   if (tab) { state.objectsTab = tab.dataset.objectsTab; state.pipeEdit = null; state.tpipeEdit = null; render(); return; }
   const ptab = e.target.closest('[data-pipe-tab]');
   if (ptab) { state.pipeTab = ptab.dataset.pipeTab; render(); return; }
+  const tptab = e.target.closest('[data-tpipe-tab]');
+  if (tptab) { state.tpipeTab = tptab.dataset.tpipeTab; render(); return; }
   // conditional property logic editor
   const le = e.target.closest('[data-logic-edit]');
   if (le) {

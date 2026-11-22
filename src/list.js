@@ -1432,6 +1432,8 @@ export function mountList(cfg) {
     const defaultCard = (r) => {
       const sub = b.sub ? b.sub(r) : null;
       const when = r.lastActivity || r.created;
+      // Chips a page adds under the lines (the object tags of tickets, evaluated at every render).
+      const badges = b.badges ? b.badges(r) : '';
       return `
               <article class="kcard" draggable="true" data-id="${r.id}">
                 <div class="kcard__top">
@@ -1439,6 +1441,7 @@ export function mountList(cfg) {
                   <span class="kcard__clock" title="Última actividad: ${formatDate(when)}" aria-label="Última actividad ${formatDate(when)}">${ACT_ICONS.clock}</span>
                 </div>
                 <div class="kcard__lines">${linesOf(r).map(lineHtml).join('')}</div>
+                ${badges ? `<div class="kcard__tags">${badges}</div>` : ''}
                 ${sub && sub.name ? `<div class="kcard__sub"><span class="avatar avatar--xs avatar--soft" aria-hidden="true">${esc(String(sub.name).split(' ').filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase())}</span><a href="${sub.href || '#'}">${esc(sub.name)}</a></div>` : ''}
                 <span class="kcard__pill"><span class="kcard__pill-ico">${ACT_ICONS[r.lastActivityType === 'message' ? 'sms' : r.lastActivityType] || ACT_ICONS.email}</span> ${relativeTime(when)} <span class="kcard__pill-sep">|</span> <span class="kcard__info" title="Tiempo desde la última actividad" aria-label="Tiempo desde la última actividad">${ACT_ICONS.info}</span></span>
                 <div class="kcard__actions">

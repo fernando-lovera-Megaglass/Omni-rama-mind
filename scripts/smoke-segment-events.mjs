@@ -88,7 +88,7 @@ if (!eventsGroup || eventsGroup.querySelectorAll('option').length !== 1 || event
 input(assocSel, EF.EVENTS_ASSOC);
 const keySel = row().querySelector('[data-k="key"]');
 const groups = [...keySel.querySelectorAll('optgroup')].map((g) => g.label);
-if (groups.join('|') !== 'Actividad|Llamadas|Correos' || [...keySel.options].map((o) => o.value).filter(Boolean).join('|') !== 'last_activity|activity_count|last_call|calls_count|call_recorded|last_call_outcome|last_email|emails_count|email_opened|email_unopened') fail(`event properties: ${[...keySel.options].map((o) => o.value).join('|')}`);
+if (groups.join('|') !== 'Actividad|Llamadas|Reuniones|Correos' || [...keySel.options].map((o) => o.value).filter(Boolean).join('|') !== 'last_activity|activity_count|last_call|calls_count|call_recorded|last_call_outcome|last_meeting_outcome|last_email|emails_count|email_opened|email_unopened') fail(`event properties: ${[...keySel.options].map((o) => o.value).join('|')}`);
 if (!row().classList.contains('advc--event')) fail('event row style');
 input(keySel, 'last_call');
 const opSel = row().querySelector('[data-k="op"]');
@@ -110,7 +110,7 @@ yes.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
 if (previewCount() !== 2 || previewIds().join() !== ids([A, G]).join()) fail(`preview with recorded: ${previewCount()}`);
 // outcome choices
 input(row2().querySelector('[data-k="key"]'), 'last_call_outcome');
-if ([...row2().querySelectorAll('[data-multi]')].map((b) => b.value).join('|') !== EF.CALL_OUTCOMES.join('|')) fail('outcome choices');
+if ([...row2().querySelectorAll('[data-multi]')].map((b) => b.value).join('|') !== EF.eventValueOptions('last_call_outcome').map(([value]) => value).join('|')) fail('outcome choices');
 const sinResp = row2().querySelector('[data-multi][value="Sin respuesta"]');
 sinResp.checked = true;
 sinResp.dispatchEvent(new dom.window.Event('change', { bubbles: true }));

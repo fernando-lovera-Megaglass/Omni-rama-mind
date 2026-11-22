@@ -1,3 +1,4 @@
+import { callOutcomes } from './activity-outcomes.js';
 // Real browser calls with the Twilio Voice SDK (@twilio/voice-sdk, loaded on demand so tests and
 // non-call pages never touch WebRTC). The panel: name/number, timer, mute, hang up; it also rings
 // on inbound PSTN calls to the Twilio number (twilio-voice rings the identity omni-<userId>).
@@ -40,7 +41,6 @@ const wireRecordToggle = (root) => {
   });
 };
 
-const OUTCOMES = ['Conectado', 'Sin respuesta', 'Ocupado', 'Dejé mensaje de voz', 'Número equivocado'];
 const CALL_TYPES = ['Prospección', 'Seguimiento', 'Demostración', 'Cotización', 'Soporte', 'Cierre', 'Otro'];
 
 const fmtClock = (sec) => `${String(Math.floor(sec / 60)).padStart(2, '0')}:${String(sec % 60).padStart(2, '0')}`;
@@ -90,7 +90,7 @@ function paint(state, { name = '', to = '' } = {}) {
     ${ended ? '' : `
     <select class="callbox__outcome" aria-label="Resultado de la llamada">
       <option value="">Resultado…</option>
-      ${OUTCOMES.map((o) => `<option value="${esc(o)}" ${callOutcome === o ? 'selected' : ''}>${esc(o)}</option>`).join('')}
+      ${callOutcomes([callOutcome]).map((o) => `<option value="${esc(o)}" ${callOutcome === o ? 'selected' : ''}>${esc(o)}</option>`).join('')}
     </select>
     <textarea class="callbox__notes" rows="3" placeholder="Toma notas de la llamada…" aria-label="Notas de la llamada">${esc(callNotes)}</textarea>`}
     <div class="callbox__keypad" hidden>
@@ -126,7 +126,7 @@ function paintWrapUp() {
     <div class="callbox__num">${esc(displayPhone(ctx.to || ''))}${dur ? ` · ${fmtClock(dur)}` : ''}${callRecording ? ' · ● Grabada' : ''}</div>
     <select class="callbox__outcome" aria-label="Resultado de la llamada">
       <option value="">Resultado de la llamada…</option>
-      ${OUTCOMES.map((o) => `<option value="${esc(o)}" ${callOutcome === o ? 'selected' : ''}>${esc(o)}</option>`).join('')}
+      ${callOutcomes([callOutcome]).map((o) => `<option value="${esc(o)}" ${callOutcome === o ? 'selected' : ''}>${esc(o)}</option>`).join('')}
     </select>
     <select class="callbox__outcome" data-wrap="type" aria-label="Tipo de llamada">
       <option value="">Tipo de llamada…</option>
@@ -669,7 +669,7 @@ export function openCallReview({ callSid, title = 'Llamada', name = '', when = 0
     <label class="callreview__label" for="cr-outcome">Resultado de la llamada</label>
     <select id="cr-outcome" class="callbox__outcome">
       <option value="">Seleccionar resultado</option>
-      ${OUTCOMES.map((o) => `<option value="${esc(o)}" ${outcome === o ? 'selected' : ''}>${esc(o)}</option>`).join('')}
+      ${callOutcomes([outcome]).map((o) => `<option value="${esc(o)}" ${outcome === o ? 'selected' : ''}>${esc(o)}</option>`).join('')}
     </select>
     <div class="callreview__section">
       <h4>Grabación y transcripción${dur ? ` · ${esc(dur)}` : ''}</h4>

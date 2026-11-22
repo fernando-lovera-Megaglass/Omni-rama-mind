@@ -201,5 +201,9 @@
   },
   "message-template-usage.sql": {
     "appliedAt": "2026-11-21T18:29:00-06:00"
+  },
+  "ticket_tags.sql": {
+    "status": "pendiente",
+    "nota": "Solo código local; no aplicada a producción. Tabla ticket_tags (misma forma que deal_tags) para las Etiquetas de Ticket; mientras tanto la app usa localStorage crm:ticket_tags."
   }
 }
