@@ -1206,8 +1206,34 @@ export function mergeRecords(type, keepId, otherIds, { choices = {} } = {}) {
   if (type === 'contacts' && (chosen.includes('first') || chosen.includes('last'))) { const full = `${keep.first || ''} ${keep.last || ''}`.trim(); if (full && full !== keep.name) { keep.name = full; setField(type, keep.id, 'name', full); } }
   others.forEach((o) => mergeFillable(type, keep, o).forEach((k) => { keep[k] = o[k]; filled.push(k); setField(type, keep.id, k, o[k]); }));
   const ids = new Set(others.map((o) => Number(o.id)));
+  // Multi associations live in the related records' extra (assoc_<kind> + assoc_labels_<kind>): every id of a merged
+  // duplicate now points at the kept record (deduplicated, «Principal» kept), so no association is lost in a merge.
+  const remapAssoc = (t, kind) => ALL[t]().forEach((x) => {
+    const arr = Array.isArray(x[`assoc_${kind}`]) ? x[`assoc_${kind}`] : null;
+    if (!arr || !arr.some((v) => ids.has(Number(v)))) return;
+    setField(t, x.id, `assoc_${kind}`, [...new Set(arr.map((v) => (ids.has(Number(v)) ? Number(keep.id) : Number(v))))]);
+    const labels = x[`assoc_labels_${kind}`];
+    if (labels && typeof labels === 'object') {
+      const next = {};
+      Object.entries(labels).forEach(([k, v]) => { const nk = ids.has(Number(k)) ? String(Number(keep.id)) : k; if (next[nk] === undefined || v === 'Principal') next[nk] = v; });
+      setField(t, x.id, `assoc_labels_${kind}`, next);
+    }
+  });
+  // The duplicates' own multi associations (their assoc_<kind> arrays) join the kept record's, labels included.
+  const unionAssoc = (skip = []) => {
+    const kinds = new Set();
+    [keep, ...others].forEach((r) => Object.keys(r).forEach((k) => { const m = /^assoc_(?!labels_)(\w+)$/.exec(k); if (m && !skip.includes(m[1])) kinds.add(m[1]); }));
+    kinds.forEach((kind) => {
+      const merged = [...new Set([...(keep[`assoc_${kind}`] || []), ...others.flatMap((o) => o[`assoc_${kind}`] || [])].map(Number).filter((n) => n > 0 && !(kind === type && ids.has(n))))];
+      if (merged.length === (keep[`assoc_${kind}`] || []).length && merged.every((n) => (keep[`assoc_${kind}`] || []).map(Number).includes(n))) return;
+      setField(type, keep.id, `assoc_${kind}`, merged);
+      setField(type, keep.id, `assoc_labels_${kind}`, Object.assign({}, ...others.map((o) => o[`assoc_labels_${kind}`] || {}), keep[`assoc_labels_${kind}`] || {}));
+    });
+  };
   if (type === 'contacts') {
     ['deals', 'tickets', 'tasks'].forEach((t) => ALL[t]().forEach((x) => { if (ids.has(Number(x.contactId))) { setField(t, x.id, 'contactId', Number(keep.id)); if (t === 'tasks') setField(t, x.id, 'contact', keep.name); } }));
+    ['deals', 'tickets', 'tasks', 'companies'].forEach((t) => remapAssoc(t, 'contacts'));
+    unionAssoc(['companies']); // companies: the primary / links below
     const links = [...new Set([Number(keep.companyId) || 0, ...(keep.assoc_companies || []).map(Number), ...others.flatMap((o) => [Number(o.companyId) || 0, ...(o.assoc_companies || []).map(Number)])].filter((n) => n > 0))];
     if (links.length) {
       const labels = Object.assign({}, ...others.map((o) => o.assoc_labels_companies || {}), keep.assoc_labels_companies || {});
@@ -1218,9 +1244,10 @@ export function mergeRecords(type, keepId, otherIds, { choices = {} } = {}) {
   } else if (type === 'companies') {
     allContacts().forEach((c) => {
       if (ids.has(Number(c.companyId))) { setField('contacts', c.id, 'companyId', Number(keep.id)); setField('contacts', c.id, 'company', keep.name); }
-      if (Array.isArray(c.assoc_companies) && c.assoc_companies.some((x) => ids.has(Number(x)))) setField('contacts', c.id, 'assoc_companies', [...new Set(c.assoc_companies.map((x) => (ids.has(Number(x)) ? Number(keep.id) : Number(x))))]);
     });
+    ['contacts', 'deals', 'tickets', 'tasks'].forEach((t) => remapAssoc(t, 'companies'));
     ['deals', 'tickets'].forEach((t) => ALL[t]().forEach((x) => { if (ids.has(Number(x.companyId))) { setField(t, x.id, 'companyId', Number(keep.id)); setField(t, x.id, 'company', keep.name); } }));
+    unionAssoc();
     allCompanies().forEach((c) => { if (ids.has(Number(c.parentCompanyId)) && Number(c.id) !== Number(keep.id)) setField('companies', c.id, 'parentCompanyId', Number(keep.id)); });
     if (!keep.parentCompanyId) { const withParent = others.find((o) => o.parentCompanyId && !ids.has(Number(o.parentCompanyId)) && Number(o.parentCompanyId) !== Number(keep.id)); if (withParent) setField('companies', keep.id, 'parentCompanyId', Number(withParent.parentCompanyId)); }
   }

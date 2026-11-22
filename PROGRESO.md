@@ -1,5 +1,12 @@
 # Progreso — Omni CRM
 
+## 2026-11-22 (sesión 6) · Fusionar ya no pierde asociaciones múltiples (contactos y empresas)
+
+- Antes: `mergeRecords` (`src/data.js`) solo reasignaba las columnas escalares (`contactId`, `companyId`, `assoc_companies` del contacto, `parentCompanyId`); los arrays `assoc_contacts` / `assoc_companies` guardados en el `extra` de negocios, tickets, tareas, empresas y contactos seguían apuntando al duplicado (en papelera) y la asociación desaparecía de la ficha.
+- Ahora: `remapAssoc(tipo, kind)` reescribe en todos los registros relacionados los arrays `assoc_<kind>` sustituyendo los ids fusionados por el conservado (deduplicando) y traslada sus etiquetas (`assoc_labels_<kind>`, «Principal» gana); `unionAssoc()` une en el conservado las asociaciones múltiples propias del duplicado (`assoc_deals`, `assoc_tickets`, `assoc_tasks`, `assoc_contacts`…) con sus etiquetas. Contactos: negocios, tickets, tareas y empresas; empresas: contactos, negocios, tickets y tareas.
+- Pruebas: `scripts/smoke-record-merge.mjs` ampliado en local (negocio y ticket con `assoc_contacts` del duplicado → apuntan al conservado con la etiqueta «Principal» y sin duplicados; el conservado hereda `assoc_deals`; ticket y contacto con `assoc_companies` de la empresa duplicada → apuntan a la conservada) y en modo live (`SMOKE_LIVE=1`, verificado con SQL en `deals.extra->'assoc_contacts'`, `tickets.extra->'assoc_contacts'`, `contacts.extra->'assoc_deals'`, `tickets.extra->'assoc_companies'` y `contacts.extra->'assoc_companies'`). Smokes de duplicados, asociaciones, fichas y papelera en verde.
+- Solo código local; nada desplegado.
+
 ## 2026-11-22 (sesión 6) · Personalización del índice: «Vista predeterminada» y «Mostrar el número de registros» hacen lo que dicen (4 módulos)
 
 - `src/settings.js`: el select «Vista predeterminada» ofrece las vistas estándar reales de cada objeto (`STD_VIEWS` de `std-views.js`, valor `std:<clave>`) en vez de cuatro etiquetas fijas; el ajuste sigue en `crm:settings:obj-<objeto>` (este navegador).
