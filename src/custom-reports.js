@@ -11,12 +11,16 @@ export function validateConfig(c) {
   if (c.measure !== 'count' && c.source !== 'deals') throw new Error('El importe solo está disponible para negocios.');
   return c;
 }
-export function aggregateReport(config, suppliedRows) {
+export function aggregateReport(config, suppliedRows, period) {
   const c = validateConfig(config);
   const rows = suppliedRows ?? ({ contacts: allContacts, companies: allCompanies, deals: allDeals, tickets: allTickets, activities: allActivities, calls: () => allActivities().filter(a => a.type === 'call') }[c.source])();
   const groups = new Map();
   let total = 0, count = 0;
   for (const r of rows) {
+    if (period) {
+      const date = new Date(['activities', 'calls'].includes(c.source) ? r.when : r.created);
+      if (!(date >= period.start && date <= period.end)) continue;
+    }
     let label = r[c.dimension];
     if (c.dimension === 'stage') label = c.source === 'deals' ? dealStageLabel(r.pipeline, r.stage) : c.source === 'tickets' ? allTicketStatuses().find(([key]) => key === r.status)?.[1] || r.status : r.lifecycle || r.status;
     if (c.dimension === 'month') {
@@ -32,8 +36,8 @@ export function aggregateReport(config, suppliedRows) {
   }
   return { rows: [...groups.values()].map(g => ({ label: g.label, value: c.measure === 'average' ? g.sum / g.count : g.sum })).sort((a,b) => a.label.localeCompare(b.label, 'es')), total: c.measure === 'average' ? (count ? total / count : 0) : total, count };
 }
-export function reportChart(c) {
-  const result = aggregateReport(c);
+export function reportChart(c, period) {
+  const result = aggregateReport(c, undefined, period);
   const fmt = n => escapeHtml(c.measure === 'count' ? n.toLocaleString('es-ES') : formatMoney(n, homeCurrency()));
   if (!result.count) return '<p class="muted">Sin datos para esta configuración.</p>';
   if (c.visualization === 'kpi') return `<p class="kpi__value">${fmt(result.total)}</p>`;

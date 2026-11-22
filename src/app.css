@@ -19536,3 +19536,11 @@ td[data-key="deal_tags"] .dtag {
 .timeline__actions-panel { position: absolute; right: 0; top: 100%; z-index: 5; min-width: 210px; padding: 6px; background: var(--c-bg, white); border: 1px solid var(--c-border); border-radius: 6px; box-shadow: 0 4px 12px #0002; }
 .timeline__actions-panel .btn { display: block; width: 100%; text-align: left; }
 .timeline__actions + .timeline__head { width: auto; }
+
+/* Dashboard selector and local dashboard editor. */
+#dash-menu { min-width: 280px; max-height: 70vh; overflow-y: auto; }
+#dash-menu [data-dash-search] { box-sizing: border-box; width: calc(100% - 24px); margin: 12px; padding: 8px; }
+#dash-menu [data-dash][hidden] { display: none; }
+.dashboard-dialog { width: min(440px, calc(100vw - 48px)); border: 1px solid var(--border, #cbd6e2); border-radius: 8px; padding: 24px; color: var(--text, #33475b); background: var(--surface, #fff); }
+.dashboard-dialog::backdrop { background: #192b4280; }
+.dashboard-dialog h2 { margin-top: 0; }

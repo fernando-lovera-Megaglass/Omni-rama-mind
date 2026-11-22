@@ -2,6 +2,8 @@
 // set when there is no connection): every number is a count or a sum over the selected date range, and
 // the "frente al periodo anterior" deltas compare with the same length of time just before it.
 import { mountShell, wireMenus, closeMenus, toast } from './shell.js';
+import { createDashboardStore } from './dashboards.js';
+import { escapeHtml as esc } from './custom-reports.js';
 import { mountReportBuilder } from './report-builder.js';
 import { ownerHtml } from './owner.js';
 import {
@@ -11,13 +13,22 @@ import {
 
 mountShell({ root: '../', active: 'reports' });
 
-const state = { dash: 'ventas', range: 30 };
-
-const DASH = {
-  ventas: { name: 'Panel de ventas', sub: 'Compartido con todos · Datos de la cuenta en vivo' },
-  marketing: { name: 'Panel de marketing', sub: 'Compartido con el equipo de marketing · Datos de la cuenta en vivo' },
-  servicio: { name: 'Panel de servicio', sub: 'Privado · Datos de la cuenta en vivo' },
-};
+export const dashboards = createDashboardStore();
+const requested = new URL(window.location.href).searchParams.get('dash');
+const state = { dash: dashboards.get(requested)?.id || dashboards.list()[0].id, range: 30 };
+let builder;
+let availableCards = [];
+const current = () => dashboards.get(state.dash);
+function selectDashboard(id) {
+  document.getElementById('restore-reports')?.remove();
+  state.dash = id;
+  const url = new URL(window.location.href); url.searchParams.set('dash', id);
+  window.history.replaceState(null, '', url);
+  render();
+}
+function renderSelector() {
+  document.getElementById('dash-menu').innerHTML = `<input type="search" aria-label="Buscar paneles" placeholder="Buscar paneles" data-dash-search><div data-dash-list>${dashboards.list().map(d => `<button class="menu__item" data-dash="${esc(d.id)}">${esc(d.name)}</button>`).join('')}</div><button class="menu__item" data-action="create-dashboard">Crear panel</button><button class="menu__item" data-action="rename-dashboard">Renombrar panel</button><button class="menu__item" data-action="delete-dashboard" ${dashboards.list().length === 1 ? 'disabled' : ''}>Eliminar panel</button>`;
+}
 const RANGE_LABELS = { 7: 'Últimos 7 días', 30: 'Últimos 30 días', 90: 'Últimos 90 días', 365: 'Este año' };
 const MONTHS = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 const DOW = ['D', 'L', 'M', 'X', 'J', 'V', 'S'];
@@ -161,7 +172,6 @@ function card(title, body, wide = false, note = '') {
           <button class="icon-btn" type="button" aria-label="Opciones del informe" aria-haspopup="true">⋯</button>
           <div class="menu__panel menu__panel--right">
             <button class="menu__item" type="button" data-action="fullscreen">Ver a pantalla completa</button>
-            <button class="menu__item" type="button" data-action="export">Exportar</button>
             <button class="menu__item" type="button" data-action="remove">Quitar del panel</button>
           </div>
         </div>
@@ -276,14 +286,14 @@ const bar = (bk) => bk.list.map((b) => b.label);
 const titles = (bk) => bk.list.map((b) => b.title);
 
 function render() {
-  document.getElementById('dash-name').textContent = DASH[state.dash].name;
-  document.getElementById('dash-sub').textContent = `${DASH[state.dash].sub} · ${RANGE_LABELS[state.range]}`;
+  document.getElementById('dash-name').textContent = current().name;
+  document.getElementById('dash-sub').textContent = `${current().shared ? 'Compartido · Guardado en este navegador' : 'Privado · Guardado en este navegador'} · ${RANGE_LABELS[state.range]}`;
   document.getElementById('range-btn').innerHTML = `${RANGE_LABELS[state.range]} <span class="caret"></span>`;
 
   let kpis;
   let cards;
 
-  if (state.dash === 'ventas') {
+  if (current().template === 'ventas') {
     const f = salesFigures(state.range);
     kpis = kpiHtml([
       ['Negocios creados', fmt(f.created.length), delta(f.created.length, f.createdPrev.length), `Periodo anterior: ${fmt(f.createdPrev.length)}`],
@@ -298,7 +308,7 @@ function render() {
       card('Rendimiento por propietario', tableChart(f.owners.map((o) => [ownerHtml(o.owner), fmt(o.contacts), fmt(o.deals), money(o.revenue), o.rate === null ? '—' : `${Math.round(o.rate * 100)} %`]), ['Propietario', 'Contactos nuevos', 'Negocios creados', 'Ingresos cerrados', 'Tasa de cierre'])),
       card(`Llamadas registradas por ${f.bk.unitLabel}`, barChart(f.callSeries, bar(f.bk), '#006162', titles(f.bk)), true, `${fmt(f.calls.length)} en el periodo`),
     ];
-  } else if (state.dash === 'marketing') {
+  } else if (current().template === 'marketing') {
     const f = marketingFigures(state.range);
     kpis = kpiHtml([
       ['Contactos nuevos', fmt(f.newContacts.length), delta(f.newContacts.length, f.newContactsPrev.length), `Periodo anterior: ${fmt(f.newContactsPrev.length)}`],
@@ -328,17 +338,24 @@ function render() {
     ];
   }
 
-  document.getElementById('kpis').innerHTML = kpis;
-  document.getElementById('grid').innerHTML = cards.join('');
+  document.getElementById('kpis').innerHTML = current().showKpis === false ? '' : kpis;
+  availableCards = cards.map((html, i) => ({ key: `${current().template}:${i}`, html }));
+  const ordered = [...availableCards].sort((a,b) => current().order.indexOf(a.key) - current().order.indexOf(b.key));
+  document.getElementById('grid').innerHTML = ordered.filter(c => !current().hidden.includes(c.key)).map(c => c.html.replace('class="card card--report', `data-card-key="${c.key}" class="card card--report`)).join('');
+  if (!document.getElementById('grid').children.length && !current().pins.length) {
+    document.getElementById('kpis').innerHTML = '';
+    document.getElementById('grid').innerHTML = '<section class="card"><h2>Tu panel está vacío</h2><p>Añade informes para empezar a seguir tus resultados.</p><button class="btn btn--primary" data-action="add-report">Añadir informe</button></section>';
+  }
+  renderSelector();
+  builder?.renderPins();
   wireMenus();
 }
 
 document.getElementById('dash-menu').addEventListener('click', (e) => {
   const b = e.target.closest('[data-dash]');
   if (!b) return;
-  state.dash = b.dataset.dash;
   closeMenus();
-  render();
+  selectDashboard(b.dataset.dash);
 });
 document.getElementById('range-menu').addEventListener('click', (e) => {
   const b = e.target.closest('[data-range]');
@@ -348,27 +365,62 @@ document.getElementById('range-menu').addEventListener('click', (e) => {
   render();
 });
 
-const MESSAGES = {
-  share: 'Enlace copiado (solo en esta demostración).',
-  clone: 'El panel se ha clonado como "Copia de panel" (solo en esta demostración).',
-  export: 'Exportación en preparación: recibirás un correo cuando esté lista.',
-  fullscreen: 'La vista a pantalla completa estará disponible en la próxima versión.',
-};
-document.addEventListener('click', (e) => {
-  const el = e.target.closest('[data-action]');
-  if (!el) return;
-  const action = el.dataset.action;
-  if (action === 'remove') {
-    el.closest('.card--report').remove();
-    toast('Informe quitado del panel');
-  } else if (MESSAGES[action]) {
-    toast(MESSAGES[action]);
-  }
-  closeMenus();
+document.getElementById('dash-menu').addEventListener('click', e => { if (e.target.matches('[data-dash-search]')) e.stopPropagation(); });
+document.getElementById('dash-menu').addEventListener('input', e => {
+  if (!e.target.matches('[data-dash-search]')) return;
+  for (const button of document.querySelectorAll('[data-dash]')) button.hidden = !button.textContent.toLocaleLowerCase().includes(e.target.value.toLocaleLowerCase());
 });
-
+function dashboardDialog(action) {
+  const dialog = document.createElement('dialog'); dialog.className = 'dashboard-dialog';
+  const deleting = action === 'delete-dashboard';
+  dialog.innerHTML = `<form><h2>${deleting ? 'Eliminar panel' : action === 'create-dashboard' ? 'Crear panel' : 'Renombrar panel'}</h2>${deleting ? `<p>¿Eliminar «${esc(current().name)}»?</p>` : `<label class="field">Nombre<input name="name" required maxlength="120" value="${action === 'create-dashboard' ? '' : esc(current().name)}"></label><label class="field">Visibilidad<select name="shared"><option value="false">Privado</option><option value="true" ${current().shared && action !== 'create-dashboard' ? 'selected' : ''}>Compartido</option></select></label>`}<p>Los paneles se guardan en este navegador.</p><p role="alert"></p><button class="btn btn--primary" type="submit">${deleting ? 'Eliminar' : 'Guardar'}</button><button class="btn" type="button" data-cancel>Cancelar</button></form>`;
+  document.body.append(dialog);
+  dialog.querySelector('[data-cancel]').onclick = () => dialog.close();
+  dialog.addEventListener('close', () => dialog.remove());
+  dialog.querySelector('form').onsubmit = e => {
+    e.preventDefault();
+    try {
+      const form = e.target;
+      if (deleting) { dashboards.remove(state.dash); selectDashboard(dashboards.list()[0].id); }
+      else if (action === 'create-dashboard') selectDashboard(dashboards.create(form.elements.name.value, form.elements.shared.value === 'true', undefined).id);
+      else { if (!form.elements.name.value.trim()) throw new Error('Escribe un nombre.'); dashboards.update(state.dash, { name: form.elements.name.value.trim(), shared: form.elements.shared.value === 'true' }); render(); }
+      dialog.close();
+    } catch (error) { dialog.querySelector('[role=alert]').textContent = error.message; }
+  };
+  dialog.showModal();
+}
+function showAddReports() {
+  builder.open();
+  document.getElementById('restore-reports')?.remove();
+  const host = document.createElement('section'); host.id = 'restore-reports'; host.className = 'card';
+  host.innerHTML = '<h2>Informes del panel</h2>';
+  for (const c of availableCards.filter(c => current().hidden.includes(c.key))) {
+    const doc = document.createElement('div'); doc.innerHTML = c.html;
+    const button = document.createElement('button'); button.className = 'btn btn--ghost'; button.textContent = `Añadir ${doc.querySelector('h2').textContent}`;
+    button.onclick = () => { dashboards.update(state.dash, { hidden: current().hidden.filter(k => k !== c.key) }); render(); showAddReports(); };
+    host.append(button);
+  }
+  if (host.children.length === 1) host.insertAdjacentHTML('beforeend', '<p>Todos los informes predeterminados están visibles. Elige un informe personalizado en la biblioteca.</p>');
+  document.getElementById('grid').after(host);
+}
+document.addEventListener('click', async e => {
+  const el = e.target.closest('[data-action]'); if (!el) return;
+  closeMenus();
+  try {
+    const action = el.dataset.action;
+    if (action.endsWith('-dashboard')) dashboardDialog(action);
+    else if (action === 'add-report') showAddReports();
+    else if (action === 'remove') { const key = el.closest('[data-card-key]').dataset.cardKey; dashboards.update(state.dash, { hidden: [...new Set([...current().hidden, key])] }); render(); toast('Informe quitado del panel'); }
+    else if (action === 'share') { const url = new URL(window.location.href); url.searchParams.set('dash', state.dash); await navigator.clipboard.writeText(url.href); toast('Enlace copiado'); }
+    else if (action === 'clone') { const d = current(); selectDashboard(dashboards.create(`Copia de ${d.name}`, d.shared, d).id); toast('Panel clonado'); }
+    else if (action === 'fullscreen') await el.closest('.card--report').requestFullscreen();
+  } catch (error) { toast(`No se pudo completar la acción: ${error.message}`); }
+});
 wireMenus();
 render();
 export { state, render };
-
-export const customReports = mountReportBuilder({ root: document.querySelector('main'), dashboard: document.getElementById('grid'), wireMenus, closeMenus });
+export const customReports = builder = mountReportBuilder({ root: document.querySelector('main'), dashboard: document.getElementById('grid'), wireMenus, closeMenus,
+  panelContext: () => ({ ...current(), period: period(state.range), label: RANGE_LABELS[state.range] }),
+  migratePins: reports => dashboards.migratePins(reports),
+  togglePin: id => { const d = current(); dashboards.update(d.id, { pins: d.pins.includes(id) ? d.pins.filter(p => p !== id) : [...d.pins, id] }); render(); },
+});
