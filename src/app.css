@@ -86,6 +86,9 @@
 
 [data-theme="dark"] .dtag--green { background: #173d2a; color: #7bd7a2; }
 [data-theme="dark"] .dtag--red { background: #452222; color: #f19b97; }
+/* Light-tinted surfaces that keep a literal colour in the light theme: their dark counterparts. */
+[data-theme="dark"] .funnel__track { background: var(--c-row-hover); }
+[data-theme="dark"] .timeline__item--pinned { background: #3a3317; border-color: #6b5a2a; }
 
 /* Las sombras duras desaparecen sobre fondo oscuro; bordes un poco más visibles */
 [data-theme="dark"] .menu__panel,

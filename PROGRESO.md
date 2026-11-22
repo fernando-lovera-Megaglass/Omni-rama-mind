@@ -1,5 +1,11 @@
 # Progreso — Omni CRM
 
+## 2026-11-22 (sesión 6) · Tema oscuro: dos fondos claros sin equivalente oscuro (`smoke-dark-theme` vuelve a pasar)
+
+- La prueba estática listaba dos reglas con fondo claro literal y sin override en `[data-theme="dark"]`: `.funnel__track` (la barra del embudo de ventas, `#eaf0f6`) y `.timeline__item--pinned` (la actividad fijada de la cronología, `#fff8e6`).
+- `src/app.css`: en el bloque del tema oscuro, `.funnel__track` usa `var(--c-row-hover)` y `.timeline__item--pinned` un ámbar oscuro (`#3a3317`, borde `#6b5a2a`), junto a los demás overrides de superficies teñidas. Sin cambios en la lógica; la prueba termina con código 0.
+- Solo código local; nada desplegado.
+
 ## 2026-11-22 (sesión 6) · smoke-call-transcription vuelve a pasar: la transcripción fallida se muestra en el panel de detalle de la llamada
 
 - Diagnóstico: la celda «título» de la lista de llamadas ya no pinta el estado de transcripción (el otro carril lo movió al panel de detalle en 67ef472, «llamadas panel detalle»). Hoy, en `src/call-detail.js`, una transcripción fallida muestra su mensaje de error (escapado) en la sección «Transcripción», ofrece «Transcribir» como reintento mientras hay grabación y no hay transcripción, y el resultado del reintento se anuncia en la región `[role=status]` del panel («Transcribiendo…», «Transcripción lista», «No se pudo transcribir: …»). La prueba buscaba un `[role=status]` con «Transcripción fallida» en la celda de la lista, que ya no existe.
