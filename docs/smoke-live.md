@@ -2,7 +2,7 @@
 
 Las pruebas `scripts/smoke-*.mjs` corren sobre JSDOM con un `localStorage` en memoria y sin cliente de Supabase: validan la lógica y la interfaz, pero no la base de datos. Por eso una migración sin aplicar (una columna que falta, una tabla que no existe) no las hace fallar.
 
-Ocho smokes de persistencia tienen un **modo live opcional** que repite la operación clave contra el proyecto real y la comprueba con SQL:
+Nueve smokes de persistencia tienen un **modo live opcional** que repite la operación clave contra el proyecto real y la comprueba con SQL:
 
 | Smoke | Qué comprueba en vivo |
 | --- | --- |
@@ -11,6 +11,7 @@ Ocho smokes de persistencia tienen un **modo live opcional** que repite la opera
 | `smoke-create-ticket.mjs` | Crear un ticket → fila en `tickets` con pipeline y estado |
 | `smoke-ticket-deal-assoc.mjs` | Ticket ↔ negocio: crear un ticket con un negocio elegido → `tickets.extra->'assoc_deals'` y `deals.extra->'assoc_tickets'`; «Desasociar» en la ficha del ticket vacía ambas; «+ Agregar» en la ficha del negocio las vuelve a escribir |
 | `smoke-tickets-trash.mjs` | Exige la columna `tickets.deleted_at` (migración `soft_delete_tickets.sql`); borrar → `deleted_at` con fecha; restaurar → `null` |
+| `smoke-trash-purge.mjs` | Purga de 90 días (`purgeExpiredTrash`): un contacto, un negocio y una actividad «SMOKE» en la papelera con fecha de hace 91 días (puesta con SQL) desaparecen físicamente tras el barrido; los recientes siguen; la parte de propiedades archivadas reporta la migración `custom-properties-archived-at.sql` si falta |
 | `smoke-record-merge.mjs` | Fusionar dos contactos → el duplicado queda en la papelera (`deleted_at`) y el principal toma el valor elegido |
 | `smoke-record-customize.mjs` | Exige `user_settings.scope` y la tabla `account_settings` (migración `user_settings.sql`); personalizar «Acerca de» → fila en `user_settings` con `scope = 'user'`; «Aplicar a todos» → fila en `account_settings` solo con rol admin |
 | `smoke-views-shared.mjs` | Exige la tabla `crm_views` (migración `crm_views.sql`); el usuario A guarda vistas privada / equipo / todos → filas suyas; un segundo usuario SMOKE (B) lee con su sesión las compartidas con el autor A y no la privada, y RLS le impide editarlas; borrar una vista propia borra su fila |
@@ -27,6 +28,7 @@ SMOKE_LIVE=1 node scripts/smoke-create-contact.mjs
 SMOKE_LIVE=1 node scripts/smoke-create-deal.mjs
 SMOKE_LIVE=1 node scripts/smoke-create-ticket.mjs
 SMOKE_LIVE=1 node scripts/smoke-ticket-deal-assoc.mjs
+SMOKE_LIVE=1 node scripts/smoke-trash-purge.mjs
 SMOKE_LIVE=1 node scripts/smoke-record-merge.mjs
 ```
 

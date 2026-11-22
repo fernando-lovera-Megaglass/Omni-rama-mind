@@ -1,5 +1,15 @@
 # Progreso — Omni CRM
 
+## 2026-11-22 (sesión 6) · Purga real de 90 días: la papelera, las actividades eliminadas y las propiedades archivadas se borran de verdad
+
+- Opción (a): `purgeExpiredTrash` en `src/data.js` (constante `TRASH_DAYS = 90`) borra físicamente los contactos, empresas, negocios y tickets con `deleted_at` de más de 90 días (y lo que cuelga de ellos: actividades de su cronología, vínculos `contact_companies`, `deal_line_items`), las actividades en papelera (`extra.deletedAt`) igual de viejas y las propiedades personalizadas archivadas igual de viejas; las recientes no se tocan. Devuelve el conteo por tabla, lo pendiente y los errores.
+- Barrido automático al iniciar la app (`schedulePurge`, una vez al día por navegador, clave `crm:trash:purged-at`): en modo Supabase entra en la cola de escrituras; en modo local barre `localStorage` (los registros de demo purgados quedan fuera por `crm:<objeto>:purged`).
+- Propiedades archivadas: `src/properties.js` marca `archivedAt` al archivar y lo limpia al restaurar; `supabase/custom-properties-archived-at.sql` añade `custom_properties.archived_at` (registrada como **pendiente**, no aplicada: solo código local). Mientras falte la columna, las escrituras reintentan sin ella (nada se rompe) y la purga omite esa parte reportándola en `pending`.
+- Los cuatro textos (Configuración › Propiedades archivadas, Configuración › Objetos › Eliminación, «Eliminar actividad» y «Restaurar actividades eliminadas» en la ficha) muestran `TRASH_DAYS` en vez de un 90 literal: lo que prometen es lo que ocurre.
+- Pruebas: `scripts/smoke-trash-purge.mjs` en local (contacto añadido y de demo de hace 91 días, negocio con partida, actividad y propiedades archivadas: desaparecen; lo reciente sigue y se restaura; recarga y segunda purga limpias; textos y migración registrada) y con `SMOKE_LIVE=1` (filas «SMOKE» con `deleted_at` de hace 91 días puesto con SQL desaparecen físicamente de `contacts`, `deals` y `activities`; las recientes siguen; 0 filas reales caducadas antes de la prueba; limpieza completa). Documentado en `docs/smoke-live.md`.
+- Pendiente para la persona: aplicar `custom-properties-archived-at.sql` cuando lo decida (`node scripts/apply-migration.mjs supabase/custom-properties-archived-at.sql`); hasta entonces las propiedades archivadas no se purgan en la base (sí en local).
+- Solo código local; nada desplegado.
+
 ## 2026-11-22 (sesión 6) · Asociación ticket ↔ negocio (el cruce que faltaba entre los cuatro módulos)
 
 - Persistencia sin migración: el vínculo sigue el patrón `assoc_<kind>` de `src/data.js` y se guarda en los dos registros (`tickets.extra->'assoc_deals'` y `deals.extra->'assoc_tickets'`, con `assoc_labels_deals` para la etiqueta); `toDb` ya manda a `extra` cualquier clave que no sea columna.
