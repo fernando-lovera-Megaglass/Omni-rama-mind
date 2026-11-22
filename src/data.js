@@ -10,6 +10,7 @@ import { requireSession, signOut, siteRoot } from './auth.js';
 import { reportDbError } from './db-report.js';
 import { notifyAssigned, notifyFollowers, ACTOR } from './notifications.js';
 import { followersOf, bindFollowSettings } from './follows.js';
+import { bindLayoutSettings } from './layout-defaults.js';
 
 const FIRST = ['Ana', 'Luis', 'Marta', 'Pedro', 'Lucía', 'Javier', 'Carmen', 'Diego', 'Elena', 'Raúl', 'Sara', 'Hugo', 'Paula', 'Álvaro', 'Nuria', 'Iván', 'Laura', 'Sergio', 'Irene', 'Mario', 'Clara', 'Andrés', 'Beatriz', 'Tomás', 'Rocío', 'Daniel', 'Eva', 'Jorge', 'Alicia', 'Pablo', 'Silvia', 'Rubén', 'María José', 'Juan Carlos', 'Guadalupe', 'Ximena', 'Rodrigo', 'Valentina', 'Mateo', 'Camila', 'Santiago', 'Renata', 'Emilio', 'Fernanda', 'Joaquín', 'Patricia', 'Óscar', 'Verónica', 'Ignacio', 'Lorena'];
 const LAST = ['Torres', 'Martín', 'Gómez', 'Ruiz', 'Fernández', 'López', 'Díaz', 'Sánchez', 'Navarro', 'Moreno', 'Jiménez', 'Romero', 'Ortega', 'Castro', 'Serrano', 'Molina', 'Garrido', 'Pascual', 'Blanco', 'Herrera', 'Vidal', 'Peña', 'Cano', 'Ibáñez', 'Reyes', 'Prieto', 'Campos', 'Vargas', 'Lozano', 'Méndez', 'Gil', 'Santos', 'Zurita Rico', 'Cubas Vicencio', 'Hernández Zuviri', 'Zúñiga Verde', 'Garduño', 'De la Fuente', 'Ochoa', 'Salazar', 'Quintero', 'Villanueva', 'Esparza', 'Beltrán'];
@@ -2226,8 +2227,10 @@ export function setSetting(key, value, { scope } = {}) {
   });
   return true;
 }
-// The follow lists («Seguir» on records) use the same per-user settings when the table is live.
+// The follow lists («Seguir» on records) and the record / preview layouts («Personalizar») use the same
+// per-user settings when the table is live.
 bindFollowSettings({ live: settingsLive, get: getSetting, set: setSetting });
+bindLayoutSettings({ live: settingsLive, get: getSetting, set: setSetting });
 
 // ---------- deal line items ("Elementos de pedido" of the Crear negocio panel) ----------
 // Persisted in deal_line_items (supabase/deal_line_items.sql); in local mode in localStorage. There is no

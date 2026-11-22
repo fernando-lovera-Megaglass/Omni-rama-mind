@@ -6,6 +6,7 @@ import { sensitiveValue } from './property-privacy.js';
 import { propertyEditor } from './property-editor.js';
 import { focusPhoneInput } from './phone.js';
 import { logTaskAssociations, taskAssociationFields } from './task-associations.js';
+import { loadSavedPreview } from './layout-defaults.js';
 // Generic object list: views, filter menus, search, sort, paging, selection,
 // column editor (full property catalog), advanced filters, CSV export/import, create drawer.
 import { wireMenus, closeMenus, toast, linkHtml, wireLinkTooltips, recordToastAction } from './shell.js';
@@ -2109,7 +2110,7 @@ export function mountList(cfg) {
     $('pv-type').textContent = cfg.singular[0].toUpperCase() + cfg.singular.slice(1);
     // The preview panel layout comes from Configuración › Objetos › Previsualizar personalización when saved there.
     let pvLayout = null;
-    try { const saved = JSON.parse(localStorage.getItem(`crm:${cfg.type}:preview:default`)); if (saved && Array.isArray(saved.right) && Array.isArray(saved.props)) pvLayout = saved; } catch { /* ignore */ }
+    pvLayout = loadSavedPreview(cfg.type); // per user in Supabase when signed in, localStorage otherwise
     const fields = pvLayout ? pvLayout.props : cfg.previewFields || state.columns.slice(0, 10);
     $('pv-props').closest('.preview__about').hidden = Boolean(pvLayout) && !pvLayout.right.includes('about');
     $('pv-extra').innerHTML = pvLayout

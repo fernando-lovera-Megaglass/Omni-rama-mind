@@ -1,7 +1,7 @@
 // Record page layout editor ("Personalizar"): arrange cards in the three columns,
 // rename sections and tabs, add cards/sections/tabs, undo/redo, assign teams, save.
 import { toast, wireMenus, closeMenus } from './shell.js';
-import { cardCatalog, defaultLayout, loadLayout, saveLayout, teamViewLayout, loadViewLayout, saveViewLayout, VIEW_KEY, previewCatalog, defaultPreview, loadPreview, savePreview, PREVIEW_KEY, TEAMS, TYPE_META } from './layout-defaults.js';
+import { cardCatalog, defaultLayout, loadLayout, saveLayout, teamViewLayout, loadViewLayout, saveViewLayout, deleteViewLayout, loadViewsList, saveViewsList, previewCatalog, defaultPreview, loadPreview, savePreview, loadCardProps, saveCardProps, TEAMS, TYPE_META } from './layout-defaults.js';
 import { propertyList } from './properties.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
@@ -201,7 +201,10 @@ function openPropsPicker(id) {
   const all = propertyList(type);
   const isNew = id === null;
   const card = !isNew && id !== 'about' ? layout.cards[id] : null;
-  const chosen = isNew ? [] : id === 'about' ? layout.props : (card && card.props) || [];
+  // On the record page «Acerca de» shows the card properties saved from the record's «Personalizar» (same store).
+  const recordAbout = !previewMode && id === 'about';
+  const aboutProps = recordAbout ? (loadCardProps(type) || {}).keys || [] : null;
+  const chosen = isNew ? [] : id === 'about' ? (recordAbout ? aboutProps : layout.props) : (card && card.props) || [];
   const nameField = isNew || card ? `<label class="field"><span>Nombre de la tarjeta</span><input id="l-pp-name" type="text" maxlength="60" value="${esc(card ? card.label : 'Propiedades clave')}" /></label>` : '';
   openModal(isNew ? 'Nueva tarjeta de propiedades' : `Propiedades de "${(catalogOf(id) || {}).label || id}"`, `${nameField}<p class="muted">Marca las propiedades que aparecen en la tarjeta; se muestran en este orden.</p><input class="ginput" type="search" id="l-pp-q" placeholder="Buscar propiedad" /><div class="ocardgrid ocardgrid--modal" id="l-pp">${[...chosen.map((k) => all.find((p) => p.key === k) || { key: k, label: k }), ...all.filter((p) => !chosen.includes(p.key))].slice(0, 400).map((p) => `<label class="ocheck ocheck--sm" data-name="${esc(p.label.toLowerCase())}"><input type="checkbox" value="${esc(p.key)}" ${chosen.includes(p.key) ? 'checked' : ''} /><span>${esc(p.label)}</span></label>`).join('')}</div>`, `<button class="btn btn--primary" type="button" id="l-pp-ok">${isNew ? 'Crear tarjeta' : 'Aplicar'}</button><button class="btn btn--ghost" type="button" data-close>Cancelar</button>`);
   document.getElementById('l-pp-q').oninput = (ev) => { const q = ev.target.value.trim().toLowerCase(); document.querySelectorAll('#l-pp label').forEach((l) => { l.hidden = Boolean(q) && !l.dataset.name.includes(q); }); };
@@ -209,6 +212,15 @@ function openPropsPicker(id) {
     const keys = [...document.querySelectorAll('#l-pp input:checked')].map((i) => i.value);
     const nameEl = document.getElementById('l-pp-name');
     const label = nameEl ? nameEl.value.trim() || 'Propiedades' : '';
+    if (recordAbout) {
+      // Saved right away in the record's card-properties setting (what the record page reads), not in the layout.
+      if (!keys.length) { toast('Elige al menos una propiedad.'); return; }
+      const current = loadCardProps(type) || {};
+      saveCardProps(type, { title: current.title || (type === 'companies' ? 'Información clave' : 'Acerca de este objeto'), keys });
+      closeModal();
+      toast(`${keys.length} propiedades en «Acerca de»: ya se ven en la ficha`);
+      return;
+    }
     commit((l) => {
       if (id === 'about') l.props = keys;
       else if (isNew) { const nid = `pcard-${Date.now().toString(36)}`; l.cards = { ...(l.cards || {}), [nid]: { label, desc: 'Tarjeta de propiedades', zone: 'right', props: keys } }; l.right.push(nid); }
@@ -275,18 +287,15 @@ function doSave(exit) {
   if (previewMode) {
     // Preview panel: the default layout feeds the lists' side panel; team views are listed in Configuración.
     if (teamView) {
-      const key = `crm:${type}:previewviews`;
-      let list = [];
-      try { list = JSON.parse(localStorage.getItem(key)) || []; } catch { list = []; }
-      if (viewName && viewName !== layout.name) { localStorage.removeItem(PREVIEW_KEY(type, viewName)); list = list.filter((v) => v.name !== viewName); }
+      let list = loadViewsList(type, 'preview');
+      if (viewName && viewName !== layout.name) { savePreview(type, viewName, null); list = list.filter((v) => v.name !== viewName); }
       list = list.filter((v) => v.name !== layout.name);
       list.push({ name: layout.name, teams: [...layout.teams], updated: new Date().toISOString(), by: 'Fernando Lovera Colin' });
-      localStorage.setItem(key, JSON.stringify(list));
+      saveViewsList(type, 'preview', list);
       savePreview(type, layout.name, layout);
       viewName = layout.name;
     } else {
       savePreview(type, null, layout);
-      localStorage.setItem(`crm:${type}:preview-updated`, JSON.stringify(new Date().toISOString()));
     }
     saved = JSON.stringify(layout);
     toast(teamView ? 'Vista previa de equipo guardada' : 'Panel de vista previa guardado: ya se usa en la lista');
@@ -296,13 +305,11 @@ function doSave(exit) {
   }
   if (teamView) {
     // Team view: its own layout plus an entry in the views table of Configuración › Objetos.
-    const key = `crm:${type}:recordviews`;
-    let list = [];
-    try { list = JSON.parse(localStorage.getItem(key)) || []; } catch { list = []; }
-    if (viewName && viewName !== layout.name) { localStorage.removeItem(VIEW_KEY(type, viewName)); list = list.filter((v) => v.name !== viewName); }
+    let list = loadViewsList(type, 'record');
+    if (viewName && viewName !== layout.name) { deleteViewLayout(type, viewName); list = list.filter((v) => v.name !== viewName); }
     list = list.filter((v) => v.name !== layout.name);
     list.push({ name: layout.name, teams: [...layout.teams], updated: new Date().toISOString(), by: 'Fernando Lovera Colin' });
-    localStorage.setItem(key, JSON.stringify(list));
+    saveViewsList(type, 'record', list);
     saveViewLayout(type, layout.name, layout);
     viewName = layout.name;
   } else {
@@ -379,6 +386,7 @@ root.addEventListener('click', (e) => {
     case 'edit': {
       const c = catalogOf(id);
       if (previewMode && c && c.props) { openPropsPicker(id); break; }
+      if (!previewMode && id === 'about') { openPropsPicker('about'); break; }
       if (c && c.assoc) toast(`Las propiedades de la tarjeta "${c.label}" se editan desde su engranaje en la ficha.`);
       else toast(`Las propiedades de "${c ? c.label : id}" se editan desde su engranaje en la ficha.`);
       break;

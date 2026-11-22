@@ -14055,6 +14055,24 @@ a.is-done {
   margin-left: var(--sp-8);
 }
 
+/* «Colaboradores» card of the record's left column (src/record.js leftCardHtml). */
+.collab {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+}
+
+.collab__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-8);
+  font-size: var(--fs-sm);
+}
+
 /* Meeting attendees in the log modal (src/log-modal.js): compact contact rows + the shared search box. */
 .log-attendees {
   margin: 0 0 var(--sp-12);

@@ -1,7 +1,7 @@
 import { openLogModal as showLogModal, selectedActivityAssociations, readLogActivity, logAssociationsHtml as sharedLogAssociationsHtml, attendeeTargets } from './log-modal.js';
 import { formatAttachmentSize } from './mail-attachments.js';
 import { TASK_ASSOCIATIONS, taskAssociationLinks, taskLinksTo } from './task-associations.js';
-import { isFollowing as followStoreHas, toggleFollow } from './follows.js';
+import { isFollowing as followStoreHas, toggleFollow, followersOf } from './follows.js';
 import { ready as sequencesReady, scheduled, sequenceById, pauseEnrollment, resumeEnrollment, unenroll, enrollmentsOfContact, unenrollReasonOf, STATUS_LABELS as SEQ_STATUS } from './sequences-data.js';
 import { propertyEditor } from './property-editor.js';
 import { mountCreateDeal } from './create-deal.js';
@@ -255,6 +255,7 @@ mount.innerHTML = `
         <dl class="props" id="rec-props"></dl>
         <p class="props__custom"><button class="link-btn" type="button" data-act="all-props-panel">Ver todas las propiedades</button><button class="link-btn" type="button" data-act="customize-props">Personalizar</button></p>
       </div>
+      <div id="rec-left-extra"></div>
     </section>
     <div class="slideover" id="allprops-panel" aria-hidden="true">
       <div class="slideover__scrim" data-act="all-props-close"></div>
@@ -985,6 +986,17 @@ function renderMiddle() {
   addGrips($('record-root').querySelector('.record__middle'));
   const aboutCard = $('rec-props').closest('.card');
   aboutCard.hidden = !L.left.includes('about');
+  // The other cards of the left column («Colaboradores»…), in the order of the layout.
+  if ($('rec-left-extra')) $('rec-left-extra').innerHTML = L.left.filter((cid) => cid !== 'about').map((cid) => leftCardHtml(cid).replace('<div class="card', `<div data-lcard="${esc(cid)}" class="card`)).join('');
+}
+// Left-column cards besides «Acerca de»: «Colaboradores» lists who works the record (owner and followers).
+function leftCardHtml(cardId) {
+  const label = (CATALOG[cardId] || { label: cardId }).label;
+  if (cardId === 'collaborators') {
+    const people = [...new Set([rec.owner && rec.owner !== 'Sin asignar' ? rec.owner : '', ...followersOf(type, id)].filter(Boolean))];
+    return `<div class="card"><h3 class="card__title">${esc(label)}</h3>${people.length ? `<ul class="collab">${people.map((p, i) => `<li class="collab__row">${ownerHtml(p, 'sm')}<span class="muted">${i === 0 && p === rec.owner ? 'Propietario' : 'Sigue el registro'}</span></li>`).join('')}</ul>` : '<p class="muted">Nadie trabaja este registro todavía: asigna un propietario o pulsa «Seguir».</p>'}</div>`;
+  }
+  return `<div class="card"><h3 class="card__title">${esc(label)}</h3><p class="muted">Tarjeta sin contenido.</p></div>`;
 }
 function middleCardHtml(id) {
   const label = (CATALOG[id] || { label: id }).label;

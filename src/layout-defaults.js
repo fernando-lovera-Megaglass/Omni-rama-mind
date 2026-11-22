@@ -100,33 +100,78 @@ export function defaultPreview(type, name = 'Vista predeterminada') {
   if (type === 'deals' && !assoc.includes('tickets')) assoc.push('tickets');
   return { name, teams: [], isDefault: name === 'Vista predeterminada', props: [...(PREVIEW_PROPS[type] || PREVIEW_PROPS.contacts)], left: [], tabs: [], right: ['about', 'activity', 'upcoming', ...assoc.slice(0, 3).map((k) => `assoc-${k}`)] };
 }
+// ---------- persistence ----------
+// Every layout (record page, preview panel, team views and their lists) is kept per user in Supabase through
+// the interface-settings store of data.js (user_settings; account_settings for the shared team views) with a
+// localStorage copy as the offline / signed-out fallback. data.js binds the store with bindLayoutSettings; until
+// it does (or without a session) only localStorage is used.
+let settings = null; // { live, get, set }
+export function bindLayoutSettings(s) { settings = s; }
+const live = () => Boolean(settings && settings.live && settings.live());
+function readStored(key) {
+  if (live()) { const v = settings.get(key); if (v !== null && v !== undefined) return v; }
+  try { return JSON.parse(localStorage.getItem(key)); } catch { return null; }
+}
+function writeStored(key, value, scope = 'user') {
+  if (value === null || value === undefined) localStorage.removeItem(key); else localStorage.setItem(key, JSON.stringify(value));
+  if (live()) settings.set(key, value, { scope });
+}
+export const layoutsLive = () => live();
+
 export const PREVIEW_KEY = (type, name) => `crm:${type}:preview:${name || 'default'}`;
 export function loadPreview(type, name) {
-  try {
-    const saved = JSON.parse(localStorage.getItem(PREVIEW_KEY(type, name)));
-    if (saved && Array.isArray(saved.right) && Array.isArray(saved.props)) return saved;
-  } catch {
-    /* ignore */
-  }
+  const saved = readStored(PREVIEW_KEY(type, name));
+  if (saved && Array.isArray(saved.right) && Array.isArray(saved.props)) return saved;
   return defaultPreview(type, name || 'Vista predeterminada');
 }
 export function savePreview(type, name, layout) {
-  localStorage.setItem(PREVIEW_KEY(type, name), JSON.stringify(layout));
+  writeStored(PREVIEW_KEY(type, name), layout, name ? 'global' : 'user');
+  if (!name) writeStored(`crm:${type}:preview-updated`, new Date().toISOString());
+}
+export function resetPreview(type) {
+  writeStored(PREVIEW_KEY(type, null), null);
+  writeStored(`crm:${type}:preview-updated`, null);
 }
 
 export const VIEW_KEY = (type, name) => `crm:${type}:layout:${name}`;
 export function loadViewLayout(type, name) {
-  try {
-    const saved = JSON.parse(localStorage.getItem(VIEW_KEY(type, name)));
-    if (saved && Array.isArray(saved.tabs)) return saved;
-  } catch {
-    /* ignore */
-  }
+  const saved = readStored(VIEW_KEY(type, name));
+  if (saved && Array.isArray(saved.tabs)) return saved;
   return teamViewLayout(type, name);
 }
+// Team views are shared by the account (scope global).
 export function saveViewLayout(type, name, layout) {
-  localStorage.setItem(VIEW_KEY(type, name), JSON.stringify(layout));
+  writeStored(VIEW_KEY(type, name), layout, 'global');
 }
+export function deleteViewLayout(type, name) {
+  writeStored(VIEW_KEY(type, name), null, 'global');
+}
+// The lists of team views shown in Configuración › Objetos (record page views and preview views).
+export const VIEWS_LIST_KEY = (type, kind) => `crm:${type}:${kind === 'preview' ? 'previewviews' : 'recordviews'}`;
+export function loadViewsList(type, kind, fallback = []) {
+  const v = readStored(VIEWS_LIST_KEY(type, kind));
+  return Array.isArray(v) ? v : fallback;
+}
+export function saveViewsList(type, kind, list) {
+  writeStored(VIEWS_LIST_KEY(type, kind), list, 'global');
+}
+// The saved preview panel of the lists (null when the person never customised it: the list keeps its own fields).
+export function loadSavedPreview(type, name) {
+  const saved = readStored(PREVIEW_KEY(type, name));
+  return saved && Array.isArray(saved.right) && Array.isArray(saved.props) ? saved : null;
+}
+// The «Acerca de» card properties of the record page ({ title, keys }): the same setting the record's
+// «Personalizar» writes (crm:<type>:cardprops), so the layout editor's pencil and the record agree.
+export const CARD_PROPS_KEY = (type) => `crm:${type}:cardprops`;
+export function loadCardProps(type) {
+  const v = readStored(CARD_PROPS_KEY(type));
+  return v && Array.isArray(v.keys) ? v : null;
+}
+export function saveCardProps(type, card) {
+  writeStored(CARD_PROPS_KEY(type), card);
+}
+// When the default view was last saved («Última actualización» in Configuración › Objetos).
+export const layoutUpdatedAt = (type, kind = 'record') => { const v = readStored(kind === 'preview' ? `crm:${type}:preview-updated` : `crm:${type}:layout-updated`); return typeof v === 'string' ? v : null; };
 
 export function defaultLayout(type) {
   const right = ['summary'];
@@ -160,20 +205,23 @@ export function defaultLayout(type) {
 
 export const LAYOUT_KEY = (type) => `crm:${type}:layout`;
 
+// A saved layout is used only when it is well formed (tabs, right and left lists); anything else falls back.
+const validLayout = (saved) => Boolean(saved && Array.isArray(saved.tabs) && Array.isArray(saved.right));
 export function loadLayout(type) {
-  try {
-    const saved = JSON.parse(localStorage.getItem(LAYOUT_KEY(type)));
-    if (saved && Array.isArray(saved.tabs) && Array.isArray(saved.right)) return saved;
-  } catch {
-    /* ignore */
-  }
+  const saved = readStored(LAYOUT_KEY(type));
+  if (validLayout(saved)) return { ...saved, left: Array.isArray(saved.left) ? saved.left : ['about'] };
   return defaultLayout(type);
 }
 
 export function saveLayout(type, layout) {
-  localStorage.setItem(LAYOUT_KEY(type), JSON.stringify(layout));
+  writeStored(LAYOUT_KEY(type), layout);
   // Shown as "Última actualización" of the default view in Configuración › Objetos.
-  localStorage.setItem(`crm:${type}:layout-updated`, JSON.stringify(new Date().toISOString()));
+  writeStored(`crm:${type}:layout-updated`, new Date().toISOString());
+}
+// Back to the built-in design (Configuración › Objetos › «Restablecer» and the editor's «Restablecer diseño»).
+export function resetLayout(type) {
+  writeStored(LAYOUT_KEY(type), null);
+  writeStored(`crm:${type}:layout-updated`, null);
 }
 
 export const TEAMS = ['Acristala', 'Gerentes', 'JFC cargo destino', 'Mercadotecnia', 'Proyectos', 'SACA', 'Sistemas', 'Ventas en el Extranjero'];
