@@ -37,7 +37,11 @@ const qa = (s) => [...document.querySelectorAll(s)];
 const text = (el) => (el ? el.textContent.replace(/\s+/g, ' ').trim() : '');
 const click = (el) => { if (!el) fail('missing element to click'); el.dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true })); };
 const PDF = new TextEncoder().encode('%PDF-1.4\n1 0 obj << /Type /Catalog >> endobj\ntrailer << /Root 1 0 R >>\n%%EOF\n');
-const pdfFile = (name) => new File([PDF], name, { type: 'application/pdf' });
+// Node's own Blob / File / FormData, kept before any JSDOM window replaces them: the real Supabase client (undici
+// fetch) can only send native bodies, as a browser does with its own File.
+const NATIVE = { Blob: globalThis.Blob, File: globalThis.File, FormData: globalThis.FormData };
+const withNative = async (fn) => { const saved = { Blob: globalThis.Blob, File: globalThis.File, FormData: globalThis.FormData }; Object.assign(globalThis, NATIVE); try { return await fn(); } finally { Object.assign(globalThis, saved); } };
+const pdfFile = (name) => new NATIVE.File([PDF], name, { type: 'application/pdf' });
 let n = 0;
 const openRecord = async (type, id) => { useDom(RECORD(type), `http://localhost/${type}/record/?id=${id}`); await import(resolve(here, `../src/record.js?at=${n++}`)); await wait(80); };
 const card = () => q('[data-lcard="attachments"]');
@@ -45,28 +49,32 @@ const cardCount = () => Number((text(card() && card().querySelector('.card__togg
 const pickFile = async (file) => { const input = $('file-add'); if (!input) fail('«+ Subir» input'); Object.defineProperty(input, 'files', { value: [file], configurable: true }); input.dispatchEvent(new window.Event('change', { bubbles: true })); await wait(60); };
 
 // ---- modo live (SMOKE_LIVE=1): the real bucket and table ----
-await liveSmoke(TAG, async ({ data, one, sql, check, log, stamp, supabase }) => {
+await liveSmoke(TAG, async ({ data, one, sql, check, log, stamp, supabase, session }) => {
   await requireTable('attachments'); // supabase/attachments.sql
   const bucket = await one(`select id, public from storage.buckets where id = 'attachments'`);
   check(bucket && bucket.public === false, 'el bucket privado «attachments» existe (migración supabase/attachments.sql)');
   const A = await import(resolve(here, '../src/attachments.js'));
-  const def = data.dealPipelineDefs()[0];
-  const stage = def.stages.find((s) => !data.isClosedStage(s[0]))[0];
-  const deal = data.addRecord('deals', { name: `SMOKE Negocio adjuntos ${stamp}`, amount: 10, deal_currency_code: 'MXN', stage, pipeline: def.name, closeDate: new Date(data.TODAY.getTime() + 30 * 86400000).toISOString(), owner: 'Fernando L.', priority: 'medium', type: 'Nuevo negocio', description: 'Prueba live', lastActivity: data.TODAY.toISOString() }, { origin: 'Creación manual' });
+  const contact = data.addRecord('contacts', { name: `SMOKE Contacto adjuntos ${stamp}`, first: 'SMOKE Contacto', last: `adjuntos ${stamp}`, email: `smoke.${stamp}.att@ejemplo.com`, phone: '', owner: 'Fernando L.', lifecycle: 'Lead' });
   await data.dbIdle();
   let att = null;
   try {
     await A.ensureAttachments();
     check(A.attachmentsEnabled(), `los adjuntos están activos con la sesión (${A.attachmentsStatus()})`);
-    att = await A.uploadAttachment('deals', deal.id, pdfFile(`SMOKE cotizacion ${stamp}.pdf`));
-    const row = await one(`select name, path, size, content_type from public.attachments where object_type = 'deals' and record_id = ${Number(deal.id)}`);
-    check(row && row.path === att.path && Number(row.size) === PDF.length && row.content_type === 'application/pdf', `fila en public.attachments (${JSON.stringify(row)})`);
+    att = await withNative(() => A.uploadAttachment('contacts', contact.id, pdfFile(`SMOKE cotizacion ${stamp}.pdf`)));
+    const row = await one(`select name, path, size, content_type, uploaded_by from public.attachments where object_type = 'contacts' and record_id = ${Number(contact.id)}`);
+    check(row && row.path === att.path && Number(row.size) === PDF.length && row.content_type === 'application/pdf' && row.uploaded_by === session.uid, `fila en public.attachments (${JSON.stringify(row)})`);
     const obj = await one(`select name, bucket_id from storage.objects where bucket_id = 'attachments' and name = ${lit(att.path)}`);
     check(obj && obj.name === att.path, `objeto en Storage (${JSON.stringify(obj)})`);
     log(`subido «${att.name}» → ${att.path} (${row.size} B) en el bucket y en la tabla`);
+    // a reload: the module forgets what it had and reads the table again; the contact record lists the file
+    A.setAttachmentsClient(supabase);
+    await A.ensureAttachments();
+    check(A.attachmentsEnabled() && A.attachmentsFor('contacts', contact.id).some((a) => a.path === att.path), 'tras recargar, el adjunto sigue ahí (leído de public.attachments)');
+    await openRecord('contacts', contact.id);
+    check(cardCount() === 1 && /SMOKE cotizacion/.test(text(card())) && !!q('[data-file-open]'), `la ficha del contacto lista el adjunto tras recargar (${text(card()).slice(0, 120)})`);
+    log('recarga: la ficha del contacto muestra «Archivos adjuntos (1)» con el archivo');
     const url = await A.attachmentUrl(att);
-    const res = await fetch(url);
-    const bytes = new Uint8Array(await res.arrayBuffer());
+    const { res, bytes } = await withNative(async () => { const r = await fetch(url); return { res: r, bytes: new Uint8Array(await r.arrayBuffer()) }; });
     check(res.ok && bytes.length === PDF.length && String.fromCharCode(...bytes.slice(0, 4)) === '%PDF', `la URL firmada devuelve el contenido real (${res.status}, ${bytes.length} B)`);
     log(`URL firmada → ${res.status}, ${bytes.length} B, empieza por %PDF`);
     await A.removeAttachment(att);

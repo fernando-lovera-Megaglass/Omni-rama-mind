@@ -212,8 +212,11 @@
     "nota": "Solo código local; no aplicada a producción. Tabla ticket_tags (misma forma que deal_tags) para las Etiquetas de Ticket; mientras tanto la app usa localStorage crm:ticket_tags."
   },
   "attachments.sql": {
-    "status": "pendiente",
-    "nota": "Solo código local; no aplicada a producción. Tabla public.attachments + bucket privado attachments (Storage) con políticas de equipo para los archivos adjuntos reales de las fichas (src/attachments.js). Mientras falte, la tarjeta «Archivos adjuntos» lo indica y no ofrece «+ Subir»."
+    "status": "aplicada",
+    "at": "2026-11-22T11:47:45.153Z",
+    "nota": "Aplicada a petición expresa (la tarjeta «Archivos adjuntos» cargaba sin tabla y los adjuntos no persistían).",
+    "verificada": "2026-11-22T11:52:00Z",
+    "verificacion": "SQL: public.attachments con id, object_type, record_id, name, path, size, content_type, uploaded_by, uploaded_by_name, created_at; política «team access» (ALL, is_team_member); bucket storage 'attachments' privado con políticas attachments_team_select/insert/delete. App (SMOKE_LIVE=1 scripts/smoke-attachments.mjs): un PDF subido desde la ficha de un contacto SMOKE → fila en public.attachments (uploaded_by = usuario) y objeto en storage.objects; tras recargar el módulo la ficha lista el adjunto; la URL firmada devuelve los bytes; eliminar borra fila y objeto. Sin aviso «[adjuntos] tabla attachments no disponible»."
   },
   "custom-properties-archived-at.sql": {
     "status": "aplicada",

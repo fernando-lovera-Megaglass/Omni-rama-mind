@@ -1,5 +1,12 @@
 # Progreso — Omni CRM
 
+## 2026-11-22 (sesión 6) · Adjuntos: `supabase/attachments.sql` aplicada; la tabla y el bucket existen y los adjuntos persisten
+
+- A petición expresa, `supabase/attachments.sql` se aplicó con `scripts/apply-migration.mjs`: tabla `public.attachments` (id, object_type, record_id, name, path, size, content_type, uploaded_by, uploaded_by_name, created_at) con política «team access» (`is_team_member()`), bucket privado `attachments` y políticas `attachments_team_select/insert/delete` en `storage.objects`. Registrada como aplicada con la verificación en `scripts/applied-migrations.json`.
+- Verificado con SQL (`information_schema.columns`, `storage.buckets`, `pg_policies`) y con la app (`SMOKE_LIVE=1 scripts/smoke-attachments.mjs`, ahora sobre un contacto): un PDF subido desde la ficha → fila en `public.attachments` con `uploaded_by` del usuario y objeto en `storage.objects`; tras recargar el módulo la ficha del contacto lista el adjunto; la URL firmada devuelve los 77 bytes del PDF; eliminar borra fila y objeto. El aviso «[adjuntos] tabla attachments no disponible» ya no aparece en las corridas live.
+- Nota de la prueba: con JSDOM, el cliente real de Supabase necesita el `File`/`Blob`/`FormData` nativos de Node para enviar el cuerpo (si no, sube «[object File]»); el smoke conserva los nativos y los usa en la subida y en la descarga.
+- Sin cambios en `src/`; solo la migración aplicada, el registro, la prueba y la documentación.
+
 ## 2026-11-22 (sesión 6) · Fusionar ya no pierde asociaciones múltiples (contactos y empresas)
 
 - Antes: `mergeRecords` (`src/data.js`) solo reasignaba las columnas escalares (`contactId`, `companyId`, `assoc_companies` del contacto, `parentCompanyId`); los arrays `assoc_contacts` / `assoc_companies` guardados en el `extra` de negocios, tickets, tareas, empresas y contactos seguían apuntando al duplicado (en papelera) y la asociación desaparecía de la ficha.
