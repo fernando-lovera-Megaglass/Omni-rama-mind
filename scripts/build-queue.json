@@ -1861,10 +1861,12 @@
     },
     {
       "id": "gap-ui-preview-engranaje-editor-equivocado",
-      "status": "pending",
+      "status": "done",
       "lane": "claude",
       "createdAt": "2026-11-22T03:55:00-06:00",
-      "instruction": "EL ENGRANAJE DE LA VISTA PREVIA ABRE EL EDITOR EQUIVOCADO (panel de vista previa de las 4 listas): la tarjeta «Acerca de este objeto» del panel tiene un ⚙ (src/list.js:567, aria-label=\"Configurar\") que dispara data-action=\"columns\" → openColumnEditor() (list.js:3037), el editor de columnas DE LA TABLA. El usuario que quiere cambiar las propiedades que ve en el panel recibe el diálogo de columnas de la lista, que no toca el panel — la personalización parece rota. El camino real al editor correcto (../layout/?type=X&preview=1) solo existe enterrado en Configuración › Objetos › Previsualizar personalización (src/settings.js:1159). HubSpot: el engranaje de la tarjeta de la vista previa abre la personalización de ESE panel. Arreglo: que ese ⚙ abra el editor del panel de vista previa (navegar a ../layout/?type=${cfg.type}&preview=1, o incrustar el selector de propiedades de «Datos Generales» como openPropsPicker de src/layout.js:202) y dejar el editor de columnas solo en el menú de la tabla. Criterio de aceptación: en la lista de contactos, abre la vista previa de un contacto, pulsa el ⚙ de «Acerca de»: llegas al editor del panel de vista previa (no al de columnas), cambias una propiedad, guardas y el panel la refleja. No despliegues nada a producción; solo código local."
+      "instruction": "EL ENGRANAJE DE LA VISTA PREVIA ABRE EL EDITOR EQUIVOCADO (panel de vista previa de las 4 listas): la tarjeta «Acerca de este objeto» del panel tiene un ⚙ (src/list.js:567, aria-label=\"Configurar\") que dispara data-action=\"columns\" → openColumnEditor() (list.js:3037), el editor de columnas DE LA TABLA. El usuario que quiere cambiar las propiedades que ve en el panel recibe el diálogo de columnas de la lista, que no toca el panel — la personalización parece rota. El camino real al editor correcto (../layout/?type=X&preview=1) solo existe enterrado en Configuración › Objetos › Previsualizar personalización (src/settings.js:1159). HubSpot: el engranaje de la tarjeta de la vista previa abre la personalización de ESE panel. Arreglo: que ese ⚙ abra el editor del panel de vista previa (navegar a ../layout/?type=${cfg.type}&preview=1, o incrustar el selector de propiedades de «Datos Generales» como openPropsPicker de src/layout.js:202) y dejar el editor de columnas solo en el menú de la tabla. Criterio de aceptación: en la lista de contactos, abre la vista previa de un contacto, pulsa el ⚙ de «Acerca de»: llegas al editor del panel de vista previa (no al de columnas), cambias una propiedad, guardas y el panel la refleja. No despliegues nada a producción; solo código local.",
+      "completedAt": "2026-11-22T04:48:00-0600",
+      "completedBy": "claude"
     },
     {
       "id": "gap-ui-editor-borrar-tab-overview",
