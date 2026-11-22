@@ -2013,6 +2013,132 @@
       "instruction": "Personalización / vistas de equipo: los nombres auto-generados tienen la concordancia gramatical rota. En src/layout.js (líneas ~28-29) al crear/duplicar vistas de equipo desde el editor se sugieren nombres como «Nuevo vista previa de registro…» y «Nuevo página de registro…»; lo correcto es «Nueva vista previa de registro…» y «Nueva página de registro…» (femenino). El texto roto se ve en el editor y después en Configuración › Objetos (src/manage-views.js). Criterio de aceptación: al crear una vista de equipo nueva de página de registro o de vista previa, el nombre sugerido por defecto usa «Nueva…» con la concordancia correcta; no hace falta migrar las vistas ya creadas con el nombre roto. No despliegues nada a producción; solo código local.",
       "completedAt": "2026-11-22T06:59:56-0600",
       "completedBy": "claude"
+    },
+    {
+      "id": "gap-smoke-activity-actions-fijada",
+      "status": "pending",
+      "instruction": "smoke-activity-actions: AssertionError, el texto ya no coincide con /Fijada/ (acción de fijar actividad renombrada o eliminada). Verifica en src/ cómo se llama ahora la acción y si el comportamiento sigue existiendo. OBLIGATORIO: ejecuta node scripts/<smoke>.mjs DESPUÉS de tu cambio e itera hasta que termine con código 0; no des por terminado sin verificarlo. Si el fallo es una limitación del harness jsdom (API de navegador inexistente), agrega el shim en la prueba, no cambies la app para complacer al harness. No despliegues nada a producción; solo código local.",
+      "createdAt": "2026-11-22T08:22:54-06:00",
+      "lane": "claude"
+    },
+    {
+      "id": "gap-smoke-bulk-acciones",
+      "status": "pending",
+      "instruction": "smoke-bulk falla en «contact actions»: la barra de acciones masivas muestra ahora «→ Asignar | ✎ Editar | 🗑 Eliminar | + Crear tareas | ⇢ Inscribir en secuencia | ≡ Agregar a segmento | ↧ Exportar» y la prueba espera otra cosa. Alinea prueba o comportamiento. OBLIGATORIO: ejecuta node scripts/<smoke>.mjs DESPUÉS de tu cambio e itera hasta que termine con código 0; no des por terminado sin verificarlo. Si el fallo es una limitación del harness jsdom (API de navegador inexistente), agrega el shim en la prueba, no cambies la app para complacer al harness. No despliegues nada a producción; solo código local.",
+      "createdAt": "2026-11-22T08:22:54-06:00",
+      "lane": "codex"
+    },
+    {
+      "id": "gap-smoke-call-transcription-nulo",
+      "status": "pending",
+      "instruction": "smoke-call-transcription: busca [role=status] con «Transcripción fallida» y el elemento no existe (null.textContent). Revisa cómo se muestra ahora el estado de transcripción fallida en llamadas. OBLIGATORIO: ejecuta node scripts/<smoke>.mjs DESPUÉS de tu cambio e itera hasta que termine con código 0; no des por terminado sin verificarlo. Si el fallo es una limitación del harness jsdom (API de navegador inexistente), agrega el shim en la prueba, no cambies la app para complacer al harness. No despliegues nada a producción; solo código local.",
+      "createdAt": "2026-11-22T08:22:54-06:00",
+      "lane": "claude"
+    },
+    {
+      "id": "gap-smoke-connected-emails-flujo",
+      "status": "pending",
+      "instruction": "smoke-connected-emails falla al final del flujo (wizard OK; deactivate → error de conexión → reconnect → removed). Criterio: la prueba pasa. OBLIGATORIO: ejecuta node scripts/<smoke>.mjs DESPUÉS de tu cambio e itera hasta que termine con código 0; no des por terminado sin verificarlo. Si el fallo es una limitación del harness jsdom (API de navegador inexistente), agrega el shim en la prueba, no cambies la app para complacer al harness. No despliegues nada a producción; solo código local.",
+      "createdAt": "2026-11-22T08:22:54-06:00",
+      "lane": "codex"
+    },
+    {
+      "id": "gap-smoke-dark-theme-fondos",
+      "status": "pending",
+      "instruction": "smoke-dark-theme: aún hay fondos claros sin override de tema oscuro (la prueba lista los selectores al correrla). Corrige los estilos o los tokens. OBLIGATORIO: ejecuta node scripts/<smoke>.mjs DESPUÉS de tu cambio e itera hasta que termine con código 0; no des por terminado sin verificarlo. Si el fallo es una limitación del harness jsdom (API de navegador inexistente), agrega el shim en la prueba, no cambies la app para complacer al harness. No despliegues nada a producción; solo código local.",
+      "createdAt": "2026-11-22T08:22:54-06:00",
+      "lane": "claude"
+    },
+    {
+      "id": "gap-smoke-empty-states-inbox",
+      "status": "pending",
+      "instruction": "smoke-empty-states: «inbox thread pane: no .estate» — el panel de hilo de la bandeja no usa .estate para su estado vacío. Restaura la clase o actualiza la prueba al nuevo patrón. OBLIGATORIO: ejecuta node scripts/<smoke>.mjs DESPUÉS de tu cambio e itera hasta que termine con código 0; no des por terminado sin verificarlo. Si el fallo es una limitación del harness jsdom (API de navegador inexistente), agrega el shim en la prueba, no cambies la app para complacer al harness. No despliegues nada a producción; solo código local.",
+      "createdAt": "2026-11-22T08:22:54-06:00",
+      "lane": "codex"
+    },
+    {
+      "id": "gap-smoke-links-tarjeta",
+      "status": "pending",
+      "instruction": "smoke-links: «record card should show the links» — la tarjeta del registro no muestra los enlaces. OBLIGATORIO: ejecuta node scripts/<smoke>.mjs DESPUÉS de tu cambio e itera hasta que termine con código 0; no des por terminado sin verificarlo. Si el fallo es una limitación del harness jsdom (API de navegador inexistente), agrega el shim en la prueba, no cambies la app para complacer al harness. No despliegues nada a producción; solo código local.",
+      "createdAt": "2026-11-22T08:22:54-06:00",
+      "lane": "claude"
+    },
+    {
+      "id": "gap-smoke-owner-avatars-acceso",
+      "status": "pending",
+      "instruction": "smoke-owner-avatars: «access dialog users must render as owners» — el diálogo de acceso/compartir no muestra avatares de propietario. OBLIGATORIO: ejecuta node scripts/<smoke>.mjs DESPUÉS de tu cambio e itera hasta que termine con código 0; no des por terminado sin verificarlo. Si el fallo es una limitación del harness jsdom (API de navegador inexistente), agrega el shim en la prueba, no cambies la app para complacer al harness. No despliegues nada a producción; solo código local.",
+      "createdAt": "2026-11-22T08:22:54-06:00",
+      "lane": "codex"
+    },
+    {
+      "id": "gap-smoke-pagers-deal-tags",
+      "status": "pending",
+      "instruction": "smoke-pagers-unified: «src/deal-tags-ui.js must use pagination() + bindPagination()» — etiquetas de negocio no migró al paginador compartido (debió quedar en bd34e2d). OBLIGATORIO: ejecuta node scripts/<smoke>.mjs DESPUÉS de tu cambio e itera hasta que termine con código 0; no des por terminado sin verificarlo. Si el fallo es una limitación del harness jsdom (API de navegador inexistente), agrega el shim en la prueba, no cambies la app para complacer al harness. No despliegues nada a producción; solo código local.",
+      "createdAt": "2026-11-22T08:22:54-06:00",
+      "lane": "claude"
+    },
+    {
+      "id": "gap-smoke-record-jsdom",
+      "status": "pending",
+      "instruction": "smoke-record falla con errores de harness jsdom: scrollIntoView is not a function, URL.createObjectURL is not a function, dispatchEvent sobre null — llegaron con los adjuntos reales (d835d5c). Agrega los shims en la prueba/harness y verifica que no falte además algún render real. OBLIGATORIO: ejecuta node scripts/<smoke>.mjs DESPUÉS de tu cambio e itera hasta que termine con código 0; no des por terminado sin verificarlo. Si el fallo es una limitación del harness jsdom (API de navegador inexistente), agrega el shim en la prueba, no cambies la app para complacer al harness. No despliegues nada a producción; solo código local.",
+      "createdAt": "2026-11-22T08:22:54-06:00",
+      "lane": "codex"
+    },
+    {
+      "id": "gap-smoke-record-inline-pinned",
+      "status": "pending",
+      "instruction": "smoke-record-inline: «the customised card should show the chosen properties in order after the pinned subscription fields» — la tarjeta personalizada no respeta el orden tras los campos fijados. OBLIGATORIO: ejecuta node scripts/<smoke>.mjs DESPUÉS de tu cambio e itera hasta que termine con código 0; no des por terminado sin verificarlo. Si el fallo es una limitación del harness jsdom (API de navegador inexistente), agrega el shim en la prueba, no cambies la app para complacer al harness. No despliegues nada a producción; solo código local.",
+      "createdAt": "2026-11-22T08:22:54-06:00",
+      "lane": "claude"
+    },
+    {
+      "id": "gap-smoke-report-library-valores",
+      "status": "pending",
+      "instruction": "smoke-report-library: AssertionError deep-equal en valores de la biblioteca de informes. Ejecuta la prueba para ver el diff exacto. OBLIGATORIO: ejecuta node scripts/<smoke>.mjs DESPUÉS de tu cambio e itera hasta que termine con código 0; no des por terminado sin verificarlo. Si el fallo es una limitación del harness jsdom (API de navegador inexistente), agrega el shim en la prueba, no cambies la app para complacer al harness. No despliegues nada a producción; solo código local.",
+      "createdAt": "2026-11-22T08:22:54-06:00",
+      "lane": "codex"
+    },
+    {
+      "id": "gap-smoke-rls-ticket-tags",
+      "status": "pending",
+      "instruction": "smoke-rls-team: «tables with open policies not covered: ticket_tags» — la tabla ticket_tags tiene políticas abiertas o sin cobertura de equipo. Es un tema REAL de seguridad RLS, revisa supabase/*.sql y agrega políticas de equipo como en las demás tablas. OBLIGATORIO: ejecuta node scripts/<smoke>.mjs DESPUÉS de tu cambio e itera hasta que termine con código 0; no des por terminado sin verificarlo. Si el fallo es una limitación del harness jsdom (API de navegador inexistente), agrega el shim en la prueba, no cambies la app para complacer al harness. No despliegues nada a producción; solo código local.",
+      "createdAt": "2026-11-22T08:22:54-06:00",
+      "lane": "claude"
+    },
+    {
+      "id": "gap-smoke-sequence-backfill-conteo",
+      "status": "pending",
+      "instruction": "smoke-sequence-backfill: AssertionError de igualdad estricta en el conteo/valor del backfill. Ejecuta para ver el esperado vs actual. OBLIGATORIO: ejecuta node scripts/<smoke>.mjs DESPUÉS de tu cambio e itera hasta que termine con código 0; no des por terminado sin verificarlo. Si el fallo es una limitación del harness jsdom (API de navegador inexistente), agrega el shim en la prueba, no cambies la app para complacer al harness. No despliegues nada a producción; solo código local.",
+      "createdAt": "2026-11-22T08:22:54-06:00",
+      "lane": "codex"
+    },
+    {
+      "id": "gap-smoke-sequences-timeline",
+      "status": "pending",
+      "instruction": "smoke-sequences: «timeline: Actividad» — la entrada de actividad de secuencia en la línea de tiempo no coincide. OBLIGATORIO: ejecuta node scripts/<smoke>.mjs DESPUÉS de tu cambio e itera hasta que termine con código 0; no des por terminado sin verificarlo. Si el fallo es una limitación del harness jsdom (API de navegador inexistente), agrega el shim en la prueba, no cambies la app para complacer al harness. No despliegues nada a producción; solo código local.",
+      "createdAt": "2026-11-22T08:22:54-06:00",
+      "lane": "claude"
+    },
+    {
+      "id": "gap-smoke-task-recurrence-siguiente",
+      "status": "pending",
+      "instruction": "smoke-task-recurrence: «list checkbox completes and spawns next (+7)» — completar una tarea recurrente no genera la siguiente a +7 días. OBLIGATORIO: ejecuta node scripts/<smoke>.mjs DESPUÉS de tu cambio e itera hasta que termine con código 0; no des por terminado sin verificarlo. Si el fallo es una limitación del harness jsdom (API de navegador inexistente), agrega el shim en la prueba, no cambies la app para complacer al harness. No despliegues nada a producción; solo código local.",
+      "createdAt": "2026-11-22T08:22:54-06:00",
+      "lane": "codex"
+    },
+    {
+      "id": "gap-smoke-templates-ultima",
+      "status": "pending",
+      "instruction": "smoke-templates: «only the last applied template counts» — aplicar plantillas en secuencia ya no deja solo la última (posible cambio en cómo se registran/apilan). OBLIGATORIO: ejecuta node scripts/<smoke>.mjs DESPUÉS de tu cambio e itera hasta que termine con código 0; no des por terminado sin verificarlo. Si el fallo es una limitación del harness jsdom (API de navegador inexistente), agrega el shim en la prueba, no cambies la app para complacer al harness. No despliegues nada a producción; solo código local.",
+      "createdAt": "2026-11-22T08:22:54-06:00",
+      "lane": "claude"
+    },
+    {
+      "id": "gap-smoke-timeline-negocio-contacto",
+      "status": "pending",
+      "instruction": "smoke-timeline: «deal creation on the contact» — al crear un negocio, la línea de tiempo del contacto muestra el cambio de ciclo de vida pero quizá falta la entrada de creación del negocio. Verifica qué entradas genera hoy ebc2fc6. OBLIGATORIO: ejecuta node scripts/<smoke>.mjs DESPUÉS de tu cambio e itera hasta que termine con código 0; no des por terminado sin verificarlo. Si el fallo es una limitación del harness jsdom (API de navegador inexistente), agrega el shim en la prueba, no cambies la app para complacer al harness. No despliegues nada a producción; solo código local.",
+      "createdAt": "2026-11-22T08:22:54-06:00",
+      "lane": "codex"
     }
   ]
 }
