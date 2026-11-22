@@ -96,22 +96,25 @@ if (!has(first, 'range', (op) => op[1] === 0 && op[2] === 24)) fail(`first page 
 if (first.rows !== 25 || rows().length !== 25) fail(`one page of 25 rows expected (query ${first.rows}, table ${rows().length})`);
 if (first.bytes > 150 * 1024) fail(`a page must transfer well under 150 KB (got ${first.bytes} bytes)`);
 if (text($('total-pill')) !== '4900 contactos') fail(`total from the database: ${text($('total-pill'))}`);
-if (!qa('#pager-nums .pager__num').some((b) => b.dataset.page === '196')) fail('pager must show the last page from the exact count');
+// the list uses the shared pager (src/pagination.js): page buttons carry data-pagination-page
+const pageBtn = (n) => qa('#list-pagination .pager__num').find((b) => b.dataset.paginationPage === String(n));
+const pagerBtn = (label) => qa('#list-pagination .pager__btn').find((b) => b.textContent.includes(label));
+if (!pageBtn(196)) fail('pager must show the last page from the exact count');
 log(`load: 1 query, range(0,24), deleted_at is null, ${first.rows} rows / ${first.bytes} bytes, total 4900`);
 
 // 2) Changing page issues a new query and renders fast
 const firstId = rows()[0].dataset.id;
 const t0 = Date.now();
-click($('next'));
+click(pagerBtn('Siguiente'));
 await wait(30);
 const elapsed = Date.now() - t0;
 if (contactCalls().length !== 2 || !has(last(), 'range', (op) => op[1] === 25 && op[2] === 49)) fail('page 2 must be a new query with range(25, 49)');
 if (rows()[0].dataset.id === firstId || rows().length !== 25) fail('page 2 must show other rows');
 if (elapsed > 500) fail(`page change took ${elapsed} ms`);
-click(qa('#pager-nums .pager__num').find((b) => b.dataset.page === '196'));
+click(pageBtn(196));
 await wait(30);
 if (!has(last(), 'range', (op) => op[1] === 4875 && op[2] === 4899) || rows().length !== 25) fail('last page range');
-click($('prev'));
+click(pagerBtn('Anterior'));
 await wait(30);
 if (!has(last(), 'range', (op) => op[1] === 4850)) fail('prev page');
 log(`page change: new query per page, ${elapsed} ms to render page 2`);

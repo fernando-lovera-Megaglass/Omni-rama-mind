@@ -93,8 +93,9 @@ click(document.querySelector('[data-action="toggle-filters"]'));
 log('quickbar hidden after toggle:', $('quickbar').hidden, '| filter pill:', $('filter-pill').textContent.trim());
 click(document.querySelector('#sort-menu [data-sort]'));
 log('sort pill:', $('sort-pill').textContent.trim());
-click(document.querySelector('.pager__sizemenu [data-size="50"]'));
-log('page size btn:', $('page-size-btn').textContent.trim(), '| rows:', $('rows').querySelectorAll('tr[data-id]').length);
+// the list uses the shared pager (src/pagination.js): sizes carry data-pagination-size
+click(document.querySelector('#list-pagination .pager__sizemenu [data-pagination-size="50"]'));
+log('page size btn:', document.querySelector('#list-pagination .pager__sizemenu > .pager__btn').textContent.trim(), '| rows:', $('rows').querySelectorAll('tr[data-id]').length);
 
 // inline cell editing
 dom.window.HTMLElement.prototype.getBoundingClientRect = () => ({ left: 300, right: 500, top: 200, bottom: 240, width: 200, height: 40 });
