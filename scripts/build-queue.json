@@ -2007,10 +2007,12 @@
     },
     {
       "id": "gap-ui-nombres-vistas-gramatica",
-      "status": "pending",
+      "status": "done",
       "createdAt": "2026-11-22T06:32:22-06:00",
       "lane": "claude",
-      "instruction": "Personalización / vistas de equipo: los nombres auto-generados tienen la concordancia gramatical rota. En src/layout.js (líneas ~28-29) al crear/duplicar vistas de equipo desde el editor se sugieren nombres como «Nuevo vista previa de registro…» y «Nuevo página de registro…»; lo correcto es «Nueva vista previa de registro…» y «Nueva página de registro…» (femenino). El texto roto se ve en el editor y después en Configuración › Objetos (src/manage-views.js). Criterio de aceptación: al crear una vista de equipo nueva de página de registro o de vista previa, el nombre sugerido por defecto usa «Nueva…» con la concordancia correcta; no hace falta migrar las vistas ya creadas con el nombre roto. No despliegues nada a producción; solo código local."
+      "instruction": "Personalización / vistas de equipo: los nombres auto-generados tienen la concordancia gramatical rota. En src/layout.js (líneas ~28-29) al crear/duplicar vistas de equipo desde el editor se sugieren nombres como «Nuevo vista previa de registro…» y «Nuevo página de registro…»; lo correcto es «Nueva vista previa de registro…» y «Nueva página de registro…» (femenino). El texto roto se ve en el editor y después en Configuración › Objetos (src/manage-views.js). Criterio de aceptación: al crear una vista de equipo nueva de página de registro o de vista previa, el nombre sugerido por defecto usa «Nueva…» con la concordancia correcta; no hace falta migrar las vistas ya creadas con el nombre roto. No despliegues nada a producción; solo código local.",
+      "completedAt": "2026-11-22T06:59:56-0600",
+      "completedBy": "claude"
     }
   ]
 }
