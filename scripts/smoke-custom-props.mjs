@@ -115,11 +115,14 @@ if (!section || section.querySelectorAll('.props__row').length !== 19 || text(ro
 const beforeN = P.customProperties('contacts').length;
 const edited = P.customProperties('contacts');
 edited.push({ key: 'custom_zona', label: 'Zona', kind: 'enum', options: ['Norte', 'Sur'], group: GROUP, visible: true });
-P.saveCustomProperties('contacts', edited);
+await P.saveCustomProperties('contacts', edited);
 const last = written[written.length - 1];
+if (!last || last[0] !== 'contacts' || last[1].length !== beforeN + 1) fail('saving should persist through the writer');
 const row = P.customPropToDb('contacts', last[1].find((p) => p.key === 'custom_zona'));
 log('writer called:', written.length, '| type:', last && last[0], '| rows:', last && last[1].length, '| new row:', JSON.stringify(row));
-if (!last || last[0] !== 'contacts' || last[1].length !== beforeN + 1 || row.objeto !== 'contact' || row.in_form !== true || row.options.join() !== 'Norte,Sur' || row.group_name !== GROUP) fail('saving should persist through the writer');
+// The property editor stores option values and validation rules together in the JSONB column.
+if (row.objeto !== 'contact' || row.in_form !== true || row.options.values.join() !== 'Norte,Sur' || row.group_name !== GROUP) fail('saving should persist through the writer');
+if (!P.customProperties('contacts').some((p) => p.key === 'custom_zona')) fail('successful saving should update the catalog');
 if (mem['crm:customprops:contacts']) fail('with the table loaded nothing goes to localStorage');
 log('round trip:', JSON.stringify(P.customPropFromDb({ ...row, id: 'x' })).includes('"visible":true'));
 if (!P.customPropFromDb({ ...row, id: 'x' }).visible || P.customPropFromDb({ ...row, id: 'x' }).options.join() !== 'Norte,Sur') fail('row round trip');
