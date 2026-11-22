@@ -1766,10 +1766,12 @@
     },
     {
       "id": "gap-ui-administrar-vistas-enlaces-muertos",
-      "status": "pending",
+      "status": "done",
       "lane": "claude",
       "createdAt": "2026-11-22T02:13:47-06:00",
-      "instruction": "ENLACES MUERTOS Y ZONA HORARIA INVENTADA (personalización de vistas). 1) La banda informativa de Administrar vistas (src/manage-views.js:52) muestra «Haz clic para obtener más información ↗» y «Enviar feedback» como <a href=\"#\" onclick=\"return false\">: dos enlaces que no hacen nada, visibles en los 4 módulos (vistas/?type=contacts|companies|deals|tickets). HubSpot lleva a su base de conocimiento y a un formulario de feedback reales; si no hay destino, el enlace no debe existir. 2) Las fechas «Última actualización» de las vistas de registro/vista previa en Configuración › Objetos se pintan con el sufijo fijo « CST» (rvDate, src/settings.js:1153) aunque el navegador esté en otra zona horaria: la hora mostrada puede no corresponder a la zona del usuario. Arreglo: elimina los dos enlaces muertos o apúntalos a destinos reales (docs/ del repo o un mailto de feedback) y formatea la fecha con Intl.DateTimeFormat sin sufijo inventado (o con la abreviatura real del navegador). Criterio de aceptación: no queda ningún enlace que no haga nada al pulsarlo; la fecha de actualización no lleva «CST» salvo que el navegador esté realmente en CST. No despliegues nada a producción; solo código local."
+      "instruction": "ENLACES MUERTOS Y ZONA HORARIA INVENTADA (personalización de vistas). 1) La banda informativa de Administrar vistas (src/manage-views.js:52) muestra «Haz clic para obtener más información ↗» y «Enviar feedback» como <a href=\"#\" onclick=\"return false\">: dos enlaces que no hacen nada, visibles en los 4 módulos (vistas/?type=contacts|companies|deals|tickets). HubSpot lleva a su base de conocimiento y a un formulario de feedback reales; si no hay destino, el enlace no debe existir. 2) Las fechas «Última actualización» de las vistas de registro/vista previa en Configuración › Objetos se pintan con el sufijo fijo « CST» (rvDate, src/settings.js:1153) aunque el navegador esté en otra zona horaria: la hora mostrada puede no corresponder a la zona del usuario. Arreglo: elimina los dos enlaces muertos o apúntalos a destinos reales (docs/ del repo o un mailto de feedback) y formatea la fecha con Intl.DateTimeFormat sin sufijo inventado (o con la abreviatura real del navegador). Criterio de aceptación: no queda ningún enlace que no haga nada al pulsarlo; la fecha de actualización no lleva «CST» salvo que el navegador esté realmente en CST. No despliegues nada a producción; solo código local.",
+      "completedAt": "2026-11-22T02:57:28-0600",
+      "completedBy": "claude"
     }
   ]
 }
