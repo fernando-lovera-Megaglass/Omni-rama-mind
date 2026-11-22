@@ -225,9 +225,12 @@ if (phase === 'taskpage') {
   log('task page:', $('rec-name').textContent.trim(), '| bar hidden?', bar.hidden, '| "Ir a la tarea" offered?', Boolean(bar.querySelector('.tq__actions a')));
   if (bar.hidden || bar.querySelector('.tq__actions a')) fail('bar on the task page');
   clickIn(dom, document.querySelector('#rec-stages [data-status="done"]'));
-  await new Promise(resolve => setTimeout(resolve, 20));
-  log('after "Marcar como completada": status', data.findRecord('tasks', q0.ids[0]).status, '| bar tag:', bar.querySelector('.tq__title .tag')?.textContent, '| button:', bar.querySelector('[data-tq="complete"]').textContent);
-  if (!bar.querySelector('.tq__title .tag') || bar.querySelector('[data-tq="complete"]').textContent !== 'Terminar') fail('bar should reflect the completed task');
+  // The save is asynchronous (validation, then setField and the bar's refresh): wait for the bar to reflect
+  // the completed task instead of relying on a fixed delay, which is flaky on a busy machine.
+  const reflected = () => Boolean(bar.querySelector('.tq__title .tag')) && bar.querySelector('[data-tq="complete"]')?.textContent === 'Terminar';
+  for (let i = 0; i < 50 && !reflected(); i += 1) await new Promise(resolve => setTimeout(resolve, 20));
+  log('after "Marcar como completada": status', data.findRecord('tasks', q0.ids[0]).status, '| bar tag:', bar.querySelector('.tq__title .tag')?.textContent, '| button:', bar.querySelector('[data-tq="complete"]')?.textContent);
+  if (!reflected()) fail(`bar should reflect the completed task (status ${data.findRecord('tasks', q0.ids[0]).status}; bar: ${bar.textContent.replace(/\s+/g, ' ').trim().slice(0, 160)})`);
   clickIn(dom, bar.querySelector('[data-tq="complete"]'));
   if (!bar.classList.contains('tq--finished')) fail('finish from the task page');
   log('[taskpage] OK');

@@ -1,5 +1,11 @@
 # Progreso — Omni CRM
 
+## 2026-11-22 (sesión 6) · smoke-task-queue: espera robusta tras «Marcar como completada»
+
+- Diagnóstico: no se reproduce ninguna regresión. La prueba pasó 7 veces seguidas y 6 en paralelo: al marcar la tarea como completada desde la ficha de tarea, `save()` valida (`await validatePropertyValues`), escribe con `setField`, redibuja y refresca la barra de la cola (`queueBar.refresh()`), que muestra la etiqueta «Completada» y el botón «Terminar». El fallo reportado solo encaja con la espera fija de 20 ms de la prueba en una máquina ocupada (el guardado es asíncrono).
+- `scripts/smoke-task-queue.mjs` (fase `taskpage`): en vez de un retardo fijo, sondea hasta 1 s a que la barra refleje la tarea completada (`reflected()`), y si no llega, el mensaje de fallo incluye el estado de la tarea y el texto de la barra para diagnosticar. Sin cambios en la app.
+- Solo código local; nada desplegado.
+
 ## 2026-11-22 (sesión 6) · smoke-invitations: las invitaciones viven en su propia pestaña
 
 - Diagnóstico: no es regresión. Desde 9997478 / 1895529 (Configuración › Usuarios y equipos con vistas de usuarios), la sección abre en el directorio de usuarios (`.utable` con los usuarios de la cuenta, filtros, licencias y acciones) donde cada invitación aparece como «Invitación pendiente», y la lista de invitaciones con su formulario (`#invite-form`, Reenviar enlace, Revocar) está en la pestaña «Invitaciones (n)». La prueba, escrita cuando la lista sustituía a la tabla de usuarios de muestra, exigía que no hubiera `.utable`.
