@@ -1,8 +1,10 @@
 import { changeDealStage } from './deal-close.js';
 import { pagination, bindPagination } from './pagination.js';
 import { customFieldsHtml } from './create-contact.js';
-import { validatePropertyValues } from './data.js';
+import { validatePropertyValues, addHistoryEntry } from './data.js';
 import { sensitiveValue } from './property-privacy.js';
+import { propertyEditor } from './property-editor.js';
+import { focusPhoneInput } from './phone.js';
 // Generic object list: views, filter menus, search, sort, paging, selection,
 // column editor (full property catalog), advanced filters, CSV export/import, create drawer.
 import { wireMenus, closeMenus, toast, linkHtml, wireLinkTooltips, recordToastAction } from './shell.js';
@@ -2122,6 +2124,8 @@ export function mountList(cfg) {
           return '';
         }).join('')
       : '';
+    // «Acerca de»: the same inline editing as the record's card — a pencil on hover for the editable
+    // properties (read-only, system, calculated and sensitive ones stay as text).
     $('pv-props').innerHTML = fields
       .map((f) => {
         const key = Array.isArray(f) ? f[0] : f;
@@ -2129,7 +2133,9 @@ export function mountList(cfg) {
         const label = Array.isArray(f) ? f[1] : c ? c.label : key;
         const v = c ? cellText(c, r) : r[key];
         const isUser = key === 'owner' || (props[key] && props[key].kind === 'user');
-        return `<div class="props__row"><dt>${label}</dt><dd>${props[key]?.sensitive ? sensitiveValue(r[key]) : isUser ? ownerHtml(v, 'sm') : v === '' || v === undefined || v === null ? '<span class="muted">--</span>' : esc(v)}</dd></div>`;
+        const value = props[key]?.sensitive ? sensitiveValue(r[key]) : isUser ? ownerHtml(v, 'sm') : v === '' || v === undefined || v === null ? '<span class="muted">--</span>' : esc(v);
+        const pencil = previewEditable(key) ? `<button class="props__edit" type="button" data-pv-edit="${esc(key)}" aria-label="Editar ${esc(String(label))}">✎</button>` : '';
+        return `<div class="props__row" data-key="${esc(key)}"><dt>${label}</dt><dd class="props__value">${value}${pencil}</dd></div>`;
       })
       .join('');
     $('pv-open').href = `./record/?id=${r.id}`;
@@ -2145,6 +2151,100 @@ export function mountList(cfg) {
     state.previewId = null;
     render();
   }
+
+  // ---------- inline editing inside the preview's «Acerca de» ----------
+  // Which properties get the pencil: the list's own editability rules (cfg.readOnly, system and calculated
+  // properties, columns marked editable: false) plus the sensitive ones, which never show an editor here.
+  const previewEditable = (key) => Boolean(key) && isEditable(key) && !(props[key] && props[key].sensitive) && !(col(key) && col(key).calc);
+  // The field tuple the record's editor understands ([key, label, kind, options]) built from the list's catalogue.
+  function previewField(key) {
+    const c = col(key);
+    const label = c ? c.label : props[key] ? props[key].label : key;
+    const ek = editorKind(key);
+    if (ek.kind === 'select') return [key, label, 'select', [['', '--'], ...ek.options.filter((o) => String(o[0]) !== '')]];
+    if (ek.kind === 'phone') return [key, label, 'tel'];
+    if (ek.kind === 'date') return [key, label, props[key] && props[key].kind === 'datetime' ? 'datetime' : 'date'];
+    return [key, label, ek.kind];
+  }
+  const previewForms = () => [...$('pv-props').querySelectorAll('.props__form')];
+  function openPreviewEditor(key) {
+    const r = recordById(state.previewId);
+    if (!r || !previewEditable(key)) return;
+    // Another field still open keeps its change (saved if it changed), then the rows are re-drawn.
+    previewForms().forEach((open) => commitPreviewEdit(open));
+    const row = $('pv-props').querySelector(`.props__row[data-key="${key}"]`);
+    if (!row) return;
+    row.querySelector('dd').innerHTML = `<form class="props__form" data-key="${esc(key)}">${propertyEditor(previewField(key), r, props)}<span class="props__btns"><button class="btn btn--primary btn--sm" type="submit">Guardar</button><button class="btn btn--ghost btn--sm" type="button" data-pv-cancel>Cancelar</button></span></form>`;
+    enhanceOwnerSelects(row);
+    enhancePhoneInputs(row);
+    const input = row.querySelector('[data-edit]');
+    if (!focusPhoneInput(row)) (row.querySelector('.osel__btn') || input)?.focus();
+    if (input && input.select && input.type === 'text') input.select();
+  }
+  // Reads the editor in the record's own type; an untouched field just closes (clicking away must not write).
+  function commitPreviewEdit(form) {
+    if (!form || !form.isConnected) return;
+    const key = form.dataset.key;
+    const el = form.querySelector('[data-edit]');
+    const r = recordById(state.previewId);
+    if (!el || !r) { renderPreview(); return; }
+    let value = el.value;
+    if (el.type === 'number') value = value === '' ? '' : Number(value) || 0;
+    else if (el.type === 'date') value = value ? new Date(`${value}T12:00:00`).toISOString() : '';
+    else if (el.type === 'datetime-local') value = value ? new Date(value).toISOString() : '';
+    else value = String(value).trim();
+    const before = r[key] ?? '';
+    const day = (v) => (v ? String(v).slice(0, 10) : '');
+    const minute = (v) => { const t = v ? new Date(v).getTime() : NaN; return Number.isNaN(t) ? '' : String(Math.floor(t / 60000)); };
+    const same = el.type === 'date' ? day(before) === day(value) : el.type === 'datetime-local' ? minute(before) === minute(value) : String(before) === String(value);
+    if (same) { renderPreview(); return; }
+    savePreviewField(r, key, value);
+  }
+  // Saves through the record's proven path: validation, the deal-stage dialog, setField (rules may refuse),
+  // the property history, then the table row and the panel are re-drawn.
+  async function savePreviewField(r, key, value) {
+    const label = (col(key) || props[key] || { label: key }).label || key;
+    try { await validatePropertyValues(cfg.type, { [key]: value }, { id: r.id }); } catch (e) { toast(e.message); return; }
+    if (state.previewId !== Number(r.id)) return;
+    const from = r[key];
+    if (cfg.type === 'deals' && key === 'stage') {
+      if (!await changeDealStage(r, value)) { render(); return; }
+    } else {
+      try { setField(cfg.type, r.id, key, value); } catch (e) { toast(e.message || String(e)); render(); return; }
+    }
+    if (key === 'name' && cfg.type === 'contacts') {
+      const [first, ...rest] = String(value).split(' ');
+      setField(cfg.type, r.id, 'first', first);
+      setField(cfg.type, r.id, 'last', rest.join(' '));
+    }
+    addHistoryEntry(cfg.type, r.id, key, from, value, label);
+    render();
+    toast(`"${label}" actualizado`);
+  }
+  $('preview').addEventListener('submit', (e) => {
+    const form = e.target.closest('.props__form');
+    if (!form) return;
+    e.preventDefault();
+    commitPreviewEdit(form);
+  });
+  // Escape cancels the field (without closing the panel); Ctrl/Cmd+Enter saves a multi-line one.
+  $('preview').addEventListener('keydown', (e) => {
+    const form = e.target.closest('.props__form');
+    if (!form) return;
+    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); renderPreview(); }
+    else if (e.key === 'Enter' && e.target.tagName === 'TEXTAREA' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); commitPreviewEdit(form); }
+  });
+  // Clicking (or tabbing) outside the field saves it, as on the record.
+  $('preview').addEventListener('focusout', (e) => {
+    const form = e.target.closest('.props__form');
+    if (!form) return;
+    if (e.relatedTarget && form.contains(e.relatedTarget)) return;
+    setTimeout(() => {
+      if (!form.isConnected) return;
+      if (document.activeElement && form.contains(document.activeElement)) return;
+      commitPreviewEdit(form);
+    }, 0);
+  });
   $('preview').addEventListener('click', (e) => {
     const cp = e.target.closest('[data-copy]');
     if (cp) {
@@ -2152,6 +2252,10 @@ export function mountList(cfg) {
       toast('Copiado');
       return;
     }
+    const pencil = e.target.closest('[data-pv-edit]');
+    if (pencil) { openPreviewEditor(pencil.dataset.pvEdit); return; }
+    if (e.target.closest('[data-pv-cancel]')) { renderPreview(); return; }
+    if (e.target.closest('.props__form')) return;
     const b = e.target.closest('[data-pv]');
     if (!b) return;
     const r = recordById(state.previewId);
@@ -2861,7 +2965,8 @@ export function mountList(cfg) {
       e.preventDefault();
       $('row-search').focus();
     }
-    if (e.key === 'Escape' && state.previewId) closePreview();
+    // Escape closes the panel unless a field is being edited there (the panel's own handler cancels it).
+    if (e.key === 'Escape' && state.previewId && !$('pv-props').querySelector('.props__form')) closePreview();
   });
 
   root.addEventListener('click', (e) => {
