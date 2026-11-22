@@ -4,6 +4,7 @@
 // «cancelado»). While an e-mail waits, the entry offers «Cancelar envío» and «Editar fecha».
 import { addActivity, activitiesFor, updateActivity, formatDate } from './data.js';
 import { accountById } from './connected-emails.js';
+import { restoreDraftAttachments } from './compose-drafts.js';
 import { sendMail } from './gmail.js';
 
 export const SCHEDULED_KEY = 'crm:scheduled-emails';
@@ -47,6 +48,7 @@ export function scheduleEmail(fields) {
   if (!to.length) throw new Error('Añade al menos un destinatario');
   const item = {
     id: uuid(), status: 'scheduled', createdAt: new Date().toISOString(), sendAt: sendAt.toISOString(),
+    attachments: fields.attachments || [],
     to, toNames: fields.toNames || to.join(', '), cc: [].concat(fields.cc || []).filter(Boolean), bcc: [].concat(fields.bcc || []).filter(Boolean),
     subject: String(fields.subject || '(sin asunto)'), html: String(fields.html || ''), text: String(fields.text || ''),
     fromAccountId: fields.fromAccountId || '', fromName: fields.fromName || '', fromEmail: fields.fromEmail || '', via: fields.via === 'gmail' ? 'gmail' : 'simulado',
@@ -120,7 +122,7 @@ export async function processDueEmails(now = Date.now()) {
       try {
         if (account && account.real) {
           if (account.status !== 'active') throw new Error(`La cuenta ${account.email} no está activa`);
-          const r = await sendMail({ accountId: account.id, to: item.to, cc: item.cc, bcc: item.bcc, subject: item.subject, html: item.html, text: item.text, fromName: item.fromName });
+          const r = await sendMail({ accountId: account.id, to: item.to, cc: item.cc, bcc: item.bcc, subject: item.subject, html: item.html, text: item.text, fromName: item.fromName, attachments: restoreDraftAttachments(item.attachments) });
           Object.assign(item, { status: 'sent', sentAt: new Date().toISOString(), simulated: false, gmailId: (r && r.id) || '', threadId: (r && r.threadId) || '' });
           save(item);
           await updateEntry(item, `Correo enviado a ${item.toNames}: "${item.subject}" · enviado desde ${account.email} por Gmail (programado para el ${whenText(item.sendAt)})`, { status: 'sent', sentAt: item.sentAt, via: 'gmail', gmailId: item.gmailId, threadId: item.threadId }, Date.now());

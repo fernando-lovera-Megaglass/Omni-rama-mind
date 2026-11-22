@@ -1,6 +1,7 @@
 // Floating e-mail composer, laid out like the person's screenshot (attachments/picture-8.png):
 // header with drag handle / collapse / expand / close, tool tabs, Para / De / Asunto,
 // rich-text body with signature, formatting toolbar, associations, Enviar + follow-up task.
+import { getComposeDraft, saveComposeDraft, removeComposeDraft, restoreDraftAttachments } from './compose-drafts.js';
 import { toast, wireMenus, closeMenus } from './shell.js';
 import { ACT_ICONS } from './action-icons.js';
 import { addRecord, formatDate, TODAY, allContacts } from './data.js';
@@ -14,13 +15,13 @@ import { openEnrollDialog } from './sequence-enroll.js';
 import { ready as emailsReady, activeAccounts, signatureById, PROVIDERS } from './connected-emails.js';
 import { openConnectWizard } from './connected-emails-ui.js';
 import { sendMail } from './gmail.js';
-import { attachmentMetadata, formatAttachmentSize, validateAttachmentSize } from './mail-attachments.js';
+import { attachmentMetadata, formatAttachmentSize, validateAttachmentSize, encodeAttachments } from './mail-attachments.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
 const SIG_KEY = 'crm:signature';
 // "De": the user's connected and active e-mail accounts (Ajustes › General › Correo); none → nothing can be sent.
 const senders = () => activeAccounts().map((a) => [loadSig().name, a.email, a]);
-const senderIndex = () => Math.min(ctx && ctx.senderIdx ? ctx.senderIdx : 0, Math.max(0, senders().length - 1));
+const senderIndex = () => ctx?.fromAccountId && senders().some((s) => s[2].id === ctx.fromAccountId) ? senders().findIndex((s) => s[2].id === ctx.fromAccountId) : Math.min(ctx && ctx.senderIdx ? ctx.senderIdx : 0, Math.max(0, senders().length - 1));
 const currentSender = () => senders()[senderIndex()] || [loadSig().name, '', null];
 // The account's own signature when it has one, the sender card otherwise.
 function signatureFor(account, sig) {
@@ -264,6 +265,7 @@ function render() {
             <span class="menu"><button class="link-btn link-btn--dark" type="button" aria-haspopup="true">${follow[1]} (${DAY_NAMES[followDate.getDay()]}) <span class="caret"></span></button><div class="menu__panel menu__panel--up">${FOLLOW_OPTS.map(([n, l]) => `<button class="menu__item" type="button" data-fdays="${n}">${l} (${DAY_NAMES[businessDaysFrom(n).getDay()]})</button>`).join('')}</div></span>
           </span>
         </label>
+        ${ctx.updatedAt ? `<span class="muted" role="status">Borrador guardado a las ${esc(new Date(ctx.updatedAt).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit', hour12: false }))}</span><button type="button" class="link-btn" data-cm="discard-draft">Descartar borrador</button>` : ''}
       </footer>
     </div>`;
   wireMenus(el);
@@ -306,7 +308,7 @@ function aiText(kind) {
 }
 
 function send(whenLabel) {
-  if (ctx?.sending) return;
+  if (ctx?.sending || ctx?.saving) return;
   // Nothing goes out without a connected account: the wizard opens and the draft stays.
   if (!senders().length) { toast('Conecta tu correo para enviar'); openConnectWizard({ onConnected: reopenAfterConnect }); return; }
   // Personalisation tokens (chips or {{…}} markers) become the contact's real data when the e-mail goes out.
@@ -372,7 +374,7 @@ function openSendLater() {
 }
 // Queues the e-mail as it is now (tokens resolved, signature included) and logs «Correo programado para el …»
 // on the record; the checker of src/scheduled-emails.js sends it when the time comes.
-function scheduleSend(sendAt) {
+async function scheduleSend(sendAt) {
   if (!ctx || ctx.sending) return;
   if (!senders().length) { toast('Conecta tu correo para enviar'); openConnectWizard({ onConnected: reopenAfterConnect }); return; }
   syncFields();
@@ -386,13 +388,16 @@ function scheduleSend(sendAt) {
   const account = sender[2];
   const html = `${ctx.body || ''}${signatureFor(account, loadSig())}`;
   let item;
+  ctx.sending = true;
   try {
+    const attachments = ctx.attachments.length ? await encodeAttachments(ctx.attachments) : [];
     item = scheduleEmail({
+      attachments,
       to: ctx.recipients.map((x) => x.email).filter(Boolean), toNames: recipients, cc: splitAddresses(ctx.cc), bcc: splitAddresses(ctx.bcc),
       subject, html, text: plainText(html), fromAccountId: account ? account.id : '', fromName: sender[0], fromEmail: sender[1], via: account && account.real ? 'gmail' : 'simulado',
       recordType: ctx.recordType || '', recordId: ctx.recordId || '', sendAt, templateId: ctx.templateId || null,
     });
-  } catch (e) { toast(e.message || String(e)); return; }
+  } catch (e) { ctx.sending = false; toast(e.message || String(e)); return; }
   if (ctx.templateId) void recordTemplateUse(ctx.templateId);
   if (ctx.onSent) ctx.onSent(scheduledEntry(item, sender[0])); else logScheduled(item);
   closeSendLater();
@@ -439,6 +444,7 @@ function finishSend(sender, whenLabel, recipients, via = '', customToast = '') {
     ctx.onSent?.({ type: 'task', when: Date.now(), who: sender[0], text: `Tarea de seguimiento creada para el ${formatDate(due)}.` });
   }
   toast(customToast || (via ? `Correo enviado a ${recipients} por ${via}` : 'Simulación registrada: no se envió ningún correo ni se programó un envío real.'));
+  removeComposeDraft(ctx.recordType, ctx.recordId);
   close();
 }
 
@@ -449,22 +455,46 @@ function close() {
   expanded = false;
 }
 
+async function saveAndClose(explicit = false) {
+  if (!ctx || ctx.sending || ctx.saving) return false;
+  syncFields();
+  const hasContent = ctx.updatedAt || ctx.subject || bodyText(ctx.body) || /<(img|hr|video)\b/i.test(ctx.body) || ctx.attachments.length || ctx.cc || ctx.bcc || ctx.follow || JSON.stringify(ctx.recipients) !== ctx.initialRecipients;
+  if (!explicit && !hasContent) { close(); return true; }
+  const savingCtx = ctx;
+  ctx.saving = true;
+  el.inert = true;
+  try {
+    const { recipients, cc, bcc, subject, body, follow, followDays, followType, templateId, attachments, showCc, showBcc } = ctx;
+    await saveComposeDraft(ctx.recordType, ctx.recordId, { recipients, cc, bcc, subject, body, follow, followDays, followType, templateId, attachments, showCc, showBcc, fromAccountId: ctx.fromAccountId || currentSender()[2]?.id || '' });
+    if (explicit) toast('Borrador guardado');
+    close();
+    return true;
+  } catch (error) {
+    toast(`No se pudo guardar el borrador: ${error.message}. El correo sigue abierto.`);
+    return false;
+  } finally { savingCtx.saving = false; el.inert = false; }
+}
+
 function wire() {
   el.addEventListener('click', (e) => {
-    if (ctx?.sending) return;
+    if (ctx?.sending || ctx?.saving) return;
     const t = e.target;
     const cm = t.closest('[data-cm]');
     if (cm) {
       const a = cm.dataset.cm;
       closeMenus();
-      if (a === 'close') close();
-      else if (a === 'collapse') { collapsed = !collapsed; render(); }
-      else if (a === 'expand') { expanded = !expanded; collapsed = false; render(); }
+      if (a === 'close') void saveAndClose();
+      else if (a === 'collapse') { syncFields(); collapsed = !collapsed; render(); }
+      else if (a === 'expand') { syncFields(); expanded = !expanded; collapsed = false; render(); }
       else if (a === 'cc') { ctx.showCc = !ctx.showCc; syncFields(); render(); }
       else if (a === 'bcc') { ctx.showBcc = !ctx.showBcc; syncFields(); render(); }
       else if (a === 'send') send();
       else if (a === 'send-later') openSendLater();
-      else if (a === 'save-draft') { syncFields(); toast('Borrador guardado'); close(); }
+      else if (a === 'save-draft') void saveAndClose(true);
+      else if (a === 'discard-draft') {
+        try { removeComposeDraft(ctx.recordType, ctx.recordId); close(); toast('Borrador descartado'); }
+        catch (error) { toast(`No se pudo descartar el borrador: ${error.message}`); }
+      }
       else if (a === 'link') {
         const url = window.prompt('Dirección del enlace', 'https://');
         if (url) insertHtml(`<a href="${esc(url)}">${esc(url)}</a>`);
@@ -533,7 +563,7 @@ function wire() {
     const rmf = t.closest('[data-rmfile]');
     if (rmf) { ctx.attachments.splice(Number(rmf.dataset.rmfile), 1); syncFields(); render(); return; }
     const sender = t.closest('[data-sender]');
-    if (sender) { ctx.senderIdx = Number(sender.dataset.sender); closeMenus(); syncFields(); render(); return; }
+    if (sender) { ctx.senderIdx = Number(sender.dataset.sender); ctx.fromAccountId = senders()[ctx.senderIdx]?.[2].id || ''; closeMenus(); syncFields(); render(); return; }
     const ftype = t.closest('[data-ftype]');
     if (ftype) { closeMenus(); syncFields(); ctx.followType = ftype.dataset.ftype; ctx.follow = true; render(); return; }
     const fdays = t.closest('[data-fdays]');
@@ -543,7 +573,7 @@ function wire() {
     if (e.target.id === 'cmp-text' && !bodyText(e.target.innerHTML) && !e.target.querySelector('img')) ctx.templateId = null;
   });
   el.addEventListener('change', (e) => {
-    if (ctx?.sending) return;
+    if (ctx?.sending || ctx?.saving) return;
     const cb = e.target.closest('[data-assoc]');
     if (cb) { ctx.assoc[Number(cb.dataset.assoc)].on = cb.checked; syncFields(); render(); return; }
     if (e.target.id === 'cmp-follow') ctx.follow = e.target.checked;
@@ -561,6 +591,7 @@ function wire() {
       const v = e.target.value.trim().replace(/,$/, '');
       if (v) {
         ctx.recipients.push({ email: v });
+        e.target.value = '';
         syncFields();
         render();
         el.querySelector('#cmp-to').focus();
@@ -591,6 +622,8 @@ function wire() {
 
 function syncFields() {
   if (!el || !ctx) return;
+  const toInput = el.querySelector('#cmp-to');
+  if (toInput?.value.trim()) { ctx.recipients.push({ email: toInput.value.trim() }); toInput.value = ''; }
   const subj = el.querySelector('#cmp-subject');
   if (subj) ctx.subject = subj.value;
   const text = el.querySelector('#cmp-text');
@@ -604,6 +637,10 @@ function syncFields() {
 }
 
 export function openCompose(options) {
+  if (ctx && !el.hidden) {
+    if (ctx.sending || ctx.saving) return;
+    return saveAndClose().then((saved) => { if (saved) openCompose(options); });
+  }
   mount();
   if (!el.dataset.wired) {
     el.dataset.wired = '1';
@@ -631,6 +668,11 @@ export function openCompose(options) {
     assoc: options.assoc || [],
     onSent: options.onSent,
   };
+  ctx.initialRecipients = JSON.stringify(ctx.recipients);
+  try {
+    const draft = getComposeDraft(ctx.recordType, ctx.recordId);
+    if (draft) Object.assign(ctx, draft, { attachments: restoreDraftAttachments(draft.attachments) });
+  } catch (error) { toast(`No se pudo recuperar el borrador: ${error.message}`); }
   collapsed = false;
   expanded = false;
   el.style.left = '';
