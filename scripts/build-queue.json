@@ -1748,10 +1748,12 @@
     },
     {
       "id": "gap-ui-tablero-guardar-falso",
-      "status": "pending",
+      "status": "done",
       "lane": "claude",
       "createdAt": "2026-11-22T02:13:47-06:00",
-      "instruction": "DOS DETALLES DEL TABLERO (Negocios y Tickets, Vista de panel). 1) Botón «Guardar» sin función: el pie de la lista muestra un pill «Guardar» solo en modo tablero (src/list.js:512, visible en 1419) cuyo manejador (list.js:3226-3229) solo hace setPrefs({mode:'board'}) y muestra el toast «Vista de panel guardada» — no hay nada pendiente que guardar (los movimientos de tarjeta y el orden de etapas ya persisten al instante, list.js:1517-1531 y 1577-1598). HubSpot no tiene botón Guardar en el tablero: confunde y promete algo inexistente. 2) Tope de 60 tarjetas por etapa: cada columna corta en 60 tarjetas con «… y N más. Usa los filtros para acotar.» (list.js:1495-1498); HubSpot carga más tarjetas al hacer scroll en la columna, sin obligar a filtrar. Arreglo: elimina el botón «Guardar» del tablero (y su estilo/huella) y sustituye el corte de 60 por carga incremental (botón «Cargar más» o scroll infinito por columna). Criterio de aceptación: en el tablero no aparece ningún «Guardar»; una etapa con más de 60 negocios permite alcanzar todas las tarjetas desde la propia columna sin tocar filtros. No despliegues nada a producción; solo código local."
+      "instruction": "DOS DETALLES DEL TABLERO (Negocios y Tickets, Vista de panel). 1) Botón «Guardar» sin función: el pie de la lista muestra un pill «Guardar» solo en modo tablero (src/list.js:512, visible en 1419) cuyo manejador (list.js:3226-3229) solo hace setPrefs({mode:'board'}) y muestra el toast «Vista de panel guardada» — no hay nada pendiente que guardar (los movimientos de tarjeta y el orden de etapas ya persisten al instante, list.js:1517-1531 y 1577-1598). HubSpot no tiene botón Guardar en el tablero: confunde y promete algo inexistente. 2) Tope de 60 tarjetas por etapa: cada columna corta en 60 tarjetas con «… y N más. Usa los filtros para acotar.» (list.js:1495-1498); HubSpot carga más tarjetas al hacer scroll en la columna, sin obligar a filtrar. Arreglo: elimina el botón «Guardar» del tablero (y su estilo/huella) y sustituye el corte de 60 por carga incremental (botón «Cargar más» o scroll infinito por columna). Criterio de aceptación: en el tablero no aparece ningún «Guardar»; una etapa con más de 60 negocios permite alcanzar todas las tarjetas desde la propia columna sin tocar filtros. No despliegues nada a producción; solo código local.",
+      "completedAt": "2026-11-22T02:52:08-0600",
+      "completedBy": "claude"
     },
     {
       "id": "gap-ui-preview-acciones-salen",
