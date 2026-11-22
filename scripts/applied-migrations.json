@@ -164,8 +164,8 @@
     "nota": "Solo código local; no aplicada a producción. Ver docs/voicemail-storage.md."
   },
   "workflow-process.sql": {
-    "status": "pendiente",
-    "nota": "Solo código local; no aplicada a producción. Ejecutor de workflows (claimed_until, workflow_due/claim/finish) y migración de las inscripciones in_progress a workflow_runs. Ver docs/workflow-process.md."
+    "status": "aplicada",
+    "at": "2026-11-21T18:41:54-0600"
   },
   "contact-integrity.sql": {
     "status": "pendiente",
@@ -189,9 +189,5 @@
   },
   "message-template-usage.sql": {
     "appliedAt": "2026-11-21T18:29:00-06:00"
-  },
-  "workflow-process.sql": {
-    "status": "aplicada",
-    "at": "2026-11-21T18:41:54-0600"
   }
 }
