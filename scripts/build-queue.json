@@ -1962,10 +1962,12 @@
     },
     {
       "id": "gap-ui-editor-vistas-autor-fijo",
-      "status": "pending",
+      "status": "done",
       "createdAt": "2026-11-22T06:32:17-06:00",
       "lane": "codex",
-      "instruction": "Personalización / vistas de equipo: al guardar una vista de equipo desde el editor, el autor queda fijo. En src/layout.js (líneas ~338 y ~356, los dos puntos donde se guarda una vista — página de registro y vista previa de registro) el campo by se escribe siempre como 'Fernando Lovera Colin', sea quien sea el usuario que edita. En Configuración › Objetos (src/manage-views.js) la columna «Última actualización por» miente para cualquier otro usuario. En HubSpot esa columna muestra el usuario que modificó la vista por última vez. Fix: resolver el nombre del usuario actual de la sesión (src/auth.js currentUser(), con el perfil de team_members si aplica; no usar la constante fija ACTOR de src/notifications.js) y escribirlo en by en ambos guardados. Criterio de aceptación: con un usuario distinto de Fernando conectado, editar y guardar una vista de equipo de página de registro y otra de vista previa; en Configuración › Objetos la columna «Última actualización por» muestra ese usuario en ambas. No despliegues nada a producción; solo código local."
+      "instruction": "Personalización / vistas de equipo: al guardar una vista de equipo desde el editor, el autor queda fijo. En src/layout.js (líneas ~338 y ~356, los dos puntos donde se guarda una vista — página de registro y vista previa de registro) el campo by se escribe siempre como 'Fernando Lovera Colin', sea quien sea el usuario que edita. En Configuración › Objetos (src/manage-views.js) la columna «Última actualización por» miente para cualquier otro usuario. En HubSpot esa columna muestra el usuario que modificó la vista por última vez. Fix: resolver el nombre del usuario actual de la sesión (src/auth.js currentUser(), con el perfil de team_members si aplica; no usar la constante fija ACTOR de src/notifications.js) y escribirlo en by en ambos guardados. Criterio de aceptación: con un usuario distinto de Fernando conectado, editar y guardar una vista de equipo de página de registro y otra de vista previa; en Configuración › Objetos la columna «Última actualización por» muestra ese usuario en ambas. No despliegues nada a producción; solo código local.",
+      "completedAt": "2026-11-22T06:46:54-0600",
+      "completedBy": "codex"
     },
     {
       "id": "gap-ui-quickorder-solo-local",

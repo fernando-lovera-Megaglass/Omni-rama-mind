@@ -34,6 +34,7 @@ teamBox.checked = true;
 click($('l-teams-ok'));
 log('after team:', document.querySelector('[data-lc="teams"]').textContent.trim(), '| warning:', Boolean(document.querySelector('.ledit__warn')));
 click(document.querySelector('[data-lc="save"]'));
+await new Promise((resolve) => setTimeout(resolve, 0));
 const views = JSON.parse(mem['crm:deals:recordviews']);
 log('saved view:', views.map((v) => `${v.name} [${v.teams.join(',')}]`).join(' | '), '| layout stored:', Boolean(mem['crm:deals:layout:Vista SACA']), '| default layout untouched:', !mem['crm:deals:layout']);
 log('OK');
