@@ -2,6 +2,13 @@
   "project": "/Users/fernandolovera/Documents/Craft Anything/app-hubspot-com",
   "queue": [
     {
+      "id": "gap-personalizacion-fichas-no-funciona",
+      "status": "pending",
+      "lane": "claude",
+      "createdAt": "2026-11-21T22:53:53-06:00",
+      "instruction": "REPORTE DIRECTO DEL USUARIO (21-nov): el apartado de PERSONALIZACIÓN dentro de Contactos, Empresas, Negocios y Tickets NO funciona como debería. Es prioridad alta — el usuario lo usa y falla.\n\nInvestiga a fondo el panel de personalización de la ficha de registro (revisa src/layout.js, src/record.js, src/manage-views.js, src/layout-defaults.js y cualquier panel «Personalizar»/«Editar columnas»/«customize» de las fichas):\n1. Reproduce el flujo completo en los 4 módulos: abrir ficha → personalizar → hacer cambios (agregar/quitar/reordenar tarjetas o propiedades) → guardar → cerrar → recargar. Documenta en qué paso falla cada módulo.\n2. Fallas típicas a verificar: los cambios no se guardan, se guardan pero no se aplican, se aplican pero se pierden al recargar, el panel no refleja el estado actual, los botones del panel no hacen nada, el orden no se respeta.\n3. Corrige TODAS las fallas encontradas en los 4 módulos. La personalización debe persistir por usuario en Supabase (no solo localStorage) — si la tabla de layouts no existe, créala con migración supabase/record-layouts.sql y regístrala en scripts/applied-migrations.json tras aplicarla.\n4. Prueba smoke: personalizar la ficha de un contacto, recargar, y ver el cambio intacto; repetir en una empresa.\nNo despliegues nada a producción; solo código local."
+    },
+    {
       "id": "actividades-formularios",
       "status": "done",
       "instruction": "Continúa el proyecto Omni CRM (app/): mejora el módulo de actividades según especificacion-actividades-crm.md. Añade formularios dedicados al registrar llamada, correo y reunión desde la ficha del registro (fecha-hora, resultado, dirección, duración), escritura en la tabla activities de Supabase vía src/data.js, y edición/eliminación de actividades en la cronología. Verifica con npm run build antes de terminar.",
