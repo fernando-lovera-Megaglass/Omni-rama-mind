@@ -1,3 +1,4 @@
+import { openCallDetail } from './call-detail.js';
 import { pagination, bindPagination } from './pagination.js';
 import { ACT_ICONS } from './action-icons.js';
 // CRM › Llamadas: la página de índice de llamadas, copia de la del original — pestaña de vista,
@@ -6,7 +7,7 @@ import { ACT_ICONS } from './action-icons.js';
 // (call_logs) con las registradas a mano en las fichas (actividades de tipo "call").
 import { boot } from './page.js';
 import { toast, wireMenus, closeMenus } from './shell.js';
-import { allContacts, allActivities, OWNERS, toCsv, download, dbIsLive, dateCellHtml } from './data.js';
+import { allContacts, allActivities, activitiesFor, ensureAllActivities, toCsv, download, dbIsLive, dateCellHtml } from './data.js';
 import { supabase } from './supabaseClient.js';
 import { displayPhone } from './phone.js';
 import { ownerHtml } from './owner.js';
@@ -44,7 +45,6 @@ const state = {
   duration: '',
   page: 1,
   size: 25,
-  openTranscripts: new Set(), // filas con la transcripción desplegada
 };
 
 const callFiltersOn = () => Boolean(state.q || state.direction || state.owner || state.dateRange || state.duration || (state.view && state.view !== 'all'));
@@ -65,22 +65,25 @@ const contactName = (id) => {
 // Una fila por llamada, venga de Twilio o del registro manual.
 function normalize() {
   const rows = [];
-  for (const a of allActivities().filter((x) => x.type === 'call')) {
+  const records = new Map(allActivities().map((a) => [`${a.recordType}:${a.recordId}`, a]));
+  const activities = [...records.values()].flatMap((a) => activitiesFor(a.recordType, a.recordId));
+  for (const a of activities.filter((x) => x.type === 'call')) {
     const dirRaw = String((a.extra && a.extra.direction) || '').toLowerCase();
-    const direction = dirRaw.startsWith('sal') ? 'outbound' : dirRaw.startsWith('ent') ? 'inbound' : '';
-    const name = contactName(a.recordType === 'contacts' ? a.recordId : '') || (a.text.match(/con (.+?)(?:\s*\(|\.|$)/) || [])[1] || '';
+    const direction = (dirRaw.startsWith('sal') || dirRaw === 'outbound') ? 'outbound' : (dirRaw.startsWith('ent') || dirRaw === 'inbound') ? 'inbound' : '';
+    const name = contactName(a.recordType === 'contacts' ? a.recordId : '') || ((a.text || '').match(/con (.+?)(?:\s*\(|\.|$)/) || [])[1] || '';
     rows.push({
-      id: `log-${a.recordType}-${a.recordId}-${a.when}`,
+      id: `log-${a.id}`,
+      activity: a,
       title: name ? `Llamada con ${name}` : (a.text || 'Llamada'),
       when: a.when,
-      durationSec: (Number(a.extra && a.extra.durationMin) || 0) * 60,
+      durationSec: Number(a.extra?.durationSec) || (Number(a.extra?.durationMin) || 0) * 60,
       owner: a.who || '',
       direction,
       status: (a.extra && a.extra.outcome) || 'Registrada',
       number: '',
       contactId: a.recordType === 'contacts' ? a.recordId : '',
       source: 'log',
-      notes: a.text || '',
+      notes: a.extra?.notes ?? a.text ?? '',
     });
   }
   return rows;
@@ -119,6 +122,7 @@ async function loadTwilio() {
 async function load() {
   state.rows = null;
   render();
+  await ensureAllActivities();
   const tw = await loadTwilio();
   state.rows = [...tw, ...normalize()].sort((a, b) => b.when - a.when);
   render();
@@ -157,7 +161,7 @@ function filtered() {
 
 function cellHtml(r, key) {
   switch (key) {
-    case 'title': return `<span class="calls__call-title">${esc(r.title)}</span>${r.recording ? ` <button class="calls-play" type="button" data-play="${esc(r.callSid)}" title="Escuchar la grabación">▶ Grabación</button>` : ''}${r.transcript ? ` <button class="calls-play" type="button" data-transcript="${esc(r.id)}" title="Ver la transcripción">${state.openTranscripts.has(r.id) ? '▾' : '▸'} Transcripción</button>` : r.recording ? ` <button class="calls-play" type="button" data-transcribe="${esc(r.callSid)}" title="Transcribir con IA">${r.transcriptError ? 'Reintentar transcripción' : 'Transcribir'}</button>${r.transcriptError ? ` <span class="calls-transcript-error" role="status">Transcripción fallida: ${esc(r.transcriptError.message || 'Error al transcribir')}${r.transcriptError.timestamp ? ` (${esc(r.transcriptError.timestamp)})` : ''}</span>` : ''}` : ''}`;
+    case 'title': return `<span class="calls__call-title">${esc(r.title)}</span>${r.recording ? ' <span class="muted"> · Grabación</span>' : ''}`;
     case 'owner': return `${ownerHtml(r.owner)}`;
     case 'durationSec': return `${esc(fmtDuration(r.durationSec))}`;
     case 'when': return dateCellHtml(r.when); // the table rule: «12 nov 2026», full date-time in the tooltip
@@ -230,9 +234,9 @@ function render() {
                 </div></th>
               </tr></thead>
               <tbody>
-                ${slice.map((r) => `<tr data-callrow="${esc(r.id)}"${r.contactId ? ` data-contact="${esc(r.contactId)}"` : ''}>
+                ${slice.map((r) => `<tr data-callrow="${esc(r.id)}" tabindex="0" aria-label="Abrir ${esc(r.title)}">
                   ${state.columns.map((key) => `<td>${cellHtml(r, key)}</td>`).join('')}<td class="table__add"></td>
-                </tr>${r.transcript && state.openTranscripts.has(r.id) ? `<tr class="calls-transcript-row"><td colspan="${state.columns.length + 1}"><div class="calls-transcript"><strong>Transcripción</strong><p>${esc(r.transcript)}</p></div></td></tr>` : ''}`).join('')}
+                </tr>` ).join('')}
               </tbody>
             </table></div>
             ${pagination({ page: state.page, pages, size: state.size })}
@@ -304,37 +308,19 @@ function render() {
     download('llamadas.csv', toCsv(rowsOut));
     toast(`${rowsOut.length} ${rowsOut.length === 1 ? 'llamada exportada' : 'llamadas exportadas'}`);
   });
-  root.querySelectorAll('[data-contact]').forEach((tr) => tr.addEventListener('click', () => {
-    location.href = `../contacts/record/?id=${encodeURIComponent(tr.dataset.contact)}`;
-  }));
-  root.querySelectorAll('[data-play]').forEach((b) => b.addEventListener('click', (e) => {
-    e.stopPropagation();
-    import('./call.js').then((m) => m.playRecording(b, b.dataset.play)).catch(() => {});
-  }));
-  // Transcripciones: desplegar la que ya existe o pedirla a la IA si hay grabación sin texto.
-  root.querySelectorAll('[data-transcript]').forEach((b) => b.addEventListener('click', (e) => {
-    e.stopPropagation();
-    const id = b.dataset.transcript;
-    if (state.openTranscripts.has(id)) state.openTranscripts.delete(id); else state.openTranscripts.add(id);
-    render();
-  }));
-  root.querySelectorAll('[data-transcribe]').forEach((b) => b.addEventListener('click', async (e) => {
-    e.stopPropagation();
-    b.disabled = true;
-    b.textContent = 'Transcribiendo…';
-    try {
-      const { data, error } = await supabase.functions.invoke('twilio-transcribe', { body: { callSid: b.dataset.transcribe } });
-      if (error || (data && data.error)) throw new Error((data && data.error) || (error && error.message) || 'error');
-      toast('Transcripción lista');
-      const row = (state.rows || []).find((r) => r.callSid === b.dataset.transcribe);
-      if (row) { row.transcript = data.transcript || ''; row.transcriptError = null; state.openTranscripts.add(row.id); }
-      render();
-    } catch (err) {
-      b.disabled = false;
-      b.textContent = 'Transcribir';
-      toast(`No se pudo transcribir: ${(err && err.message) || err}`);
-    }
-  }));
+  root.querySelectorAll('[data-callrow]').forEach((tr) => {
+    const open = () => {
+      const row = state.rows.find((r) => r.id === tr.dataset.callrow);
+      openCallDetail(row, { contactName: contactName(row.contactId), duration: fmtDuration(row.durationSec), onSaved: () => {
+        state.rows = [...state.rows.filter((r) => r.source !== 'log'), ...normalize()];
+        render();
+      } });
+    };
+    tr.addEventListener('click', open);
+    tr.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); open(); }
+    });
+  });
   // "/" enfoca el buscador, como en el original.
   if (!render._keys) {
     render._keys = true;

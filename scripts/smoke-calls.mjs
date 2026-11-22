@@ -115,9 +115,9 @@ log('conteo del pie OK');
 
 // Búsqueda.
 chooseFilter('owner', '');
-click($('calls-size'));
-click(q('[data-size="50"]'));
-if (!text($('calls-size')).includes('50 por página')) fail('tamaño de página');
+click(q('.pager__sizemenu > button'));
+click(q('[data-pagination-size="50"]'));
+if (!text(q('.pager__sizemenu > button')).includes('50 por página')) fail('tamaño de página');
 const search = $('calls-q');
 search.value = 'zzzz-no-existe';
 search.dispatchEvent(new window.Event('input', { bubbles: true }));
@@ -127,6 +127,33 @@ search.value = '';
 search.dispatchEvent(new window.Event('input', { bubbles: true }));
 await wait(10);
 log('búsqueda y estado vacío OK');
+
+// La fila abre su propia ficha; el guardado actualiza la misma actividad de la cronología.
+const manualRow = qa('[data-callrow]').find((r) => text(r).includes('Sin respuesta'));
+click(manualRow);
+if (!q('[role="dialog"]') || location.pathname !== '/calls/') fail('ficha lateral sin navegación');
+if (!q('#call-detail a').href.includes(`/contacts/record/?id=${contact.id}`)) fail('contacto asociado');
+$('call-detail-outcome').value = 'Conectado';
+$('call-detail-notes').value = 'Notas completas editadas\nSegunda línea <texto>';
+click(q('[data-detail-save]'));
+await wait(20);
+if (!text(q('[data-detail-status]')).includes('guardada')) fail('guardar llamada');
+const edited = data.activitiesFor('contacts', contact.id).find((a) => a.when === old);
+if (edited.extra.outcome !== 'Conectado' || edited.extra.notes !== $('call-detail-notes').value || edited.text !== edited.extra.notes) fail('edición en datos de cronología');
+if (edited.extra.direction !== 'Entrante') fail('preservar metadatos');
+if (text(q('.table')).includes('Sin respuesta')) fail('resultado actualizado en tabla');
+click(q('[data-detail-close]'));
+click(qa('[data-callrow]').find((r) => r.dataset.callrow === `log-${edited.id}`));
+if ($('call-detail-notes').value !== edited.extra.notes) fail('persistencia al reabrir');
+document.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+if ($('call-detail')) fail('cerrar con Escape');
+// Twilio: lectura y controles dentro del panel, sin requerir una cuenta real.
+const { openCallDetail } = await import(resolve(here, '../src/call-detail.js'));
+openCallDetail({ source: 'twilio', title: 'Llamada grabada', when: old, direction: 'outbound', recording: true, callSid: 'CA-test', transcript: 'Transcripción de prueba <segura>', status: 'Conectado' });
+if (!q('[data-detail-play]') || q('[data-detail-save]')) fail('controles Twilio');
+if (text(q('#call-detail details p')) !== 'Transcripción de prueba <segura>') fail('transcripción del panel');
+click(q('[data-detail-close]'));
+log('ficha: edición persistida, tabla, cronología, enlace, cierre y transcripción OK');
 
 // ===== 2) Menú «Llamar» de la ficha =====
 const call = await import(resolve(here, '../src/call.js'));

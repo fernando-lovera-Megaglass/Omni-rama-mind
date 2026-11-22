@@ -861,16 +861,35 @@ export function restoreRecords(type, ids) {
 // Properties the merge never copies between records (identity, dates the app maintains, associations handled below).
 export const MERGE_SKIP = new Set(['id', 'created', 'deletedAt', 'lastActivity', 'lastActivityType', 'company', 'companyId', 'parentCompanyId']);
 const mergeEmpty = (v) => v === undefined || v === null || v === '' || v === 'Sin asignar';
-// The properties where the kept record and a duplicate differ (both filled), for the side-by-side dialog:
-// [{ key, keep: value, other: value }]. Name parts are included so the person can choose them too.
+// A catalogue value that is only the sample decoration of augment() (never stored) counts as empty for a merge:
+// it must not be offered as a "conflict" nor protect a gap from a real value of the duplicate.
+export function isDecorated(type, r, key) {
+  if (!r || r[key] === undefined || r[key] === null) return false;
+  const props = PROP_CACHE[type] || (PROP_CACHE[type] = propertyList(type));
+  const p = props.find((x) => x.key === key);
+  if (!p || p.custom || REAL_ONLY.has(key)) return false;
+  let sample;
+  try { sample = String(sampleValue(p, r, type)); } catch { return false; }
+  const marks = DECORATED.get(r);
+  // augment() marked it and nobody edited it since (the value is still the sample)
+  if (marks) return marks.has(key) && String(r[key]) === sample;
+  // a copy augment() never saw: only the kinds whose samples are distinctive can be told apart
+  return !['enum', 'user', 'bool'].includes(p.kind) && String(r[key]) === sample;
+}
+const mergeHas = (type, r, k) => !mergeEmpty(r[k]) && typeof r[k] !== 'object' && !isDecorated(type, r, k);
+const CASELESS = new Set(['email', 'alt_email', 'domain', 'website', 'hs_additional_emails', 'hs_additional_domains']);
+// The properties where the kept record and a duplicate differ (both really filled), for the side-by-side
+// dialog: [{ key, keep: value, other: value }]. The name parts are included so the person can choose them;
+// a contact's full name follows first/last and is not a row of its own.
 export function mergeConflicts(type, keep, other) {
   const out = [];
   const keys = [...new Set([...Object.keys(keep || {}), ...Object.keys(other || {})])];
   for (const k of keys) {
-    if (MERGE_SKIP.has(k) || k.startsWith('assoc_') || k.startsWith('num_') || k.startsWith('hs_lifecyclestage_')) continue;
+    if (MERGE_SKIP.has(k) || k.startsWith('assoc_') || k.startsWith('num_') || k.startsWith('hs_lifecyclestage_') || (type === 'contacts' && k === 'name')) continue;
+    if (!mergeHas(type, keep, k) || !mergeHas(type, other, k)) continue;
     const a = keep[k]; const b = other[k];
-    if (mergeEmpty(a) || mergeEmpty(b) || typeof a === 'object' || typeof b === 'object') continue;
-    if (String(a) !== String(b)) out.push({ key: k, keep: a, other: b });
+    const same = CASELESS.has(k) ? String(a).trim().toLowerCase() === String(b).trim().toLowerCase() : String(a) === String(b);
+    if (!same) out.push({ key: k, keep: a, other: b });
   }
   return out;
 }
@@ -894,8 +913,8 @@ export function mergeRecords(type, keepId, otherIds, { choices = {} } = {}) {
   });
   if (type === 'contacts' && (chosen.includes('first') || chosen.includes('last'))) { const full = `${keep.first || ''} ${keep.last || ''}`.trim(); if (full && full !== keep.name) { keep.name = full; setField(type, keep.id, 'name', full); } }
   others.forEach((o) => Object.entries(o).forEach(([k, v]) => {
-    if (MERGE_SKIP.has(k) || k === 'name' || k === 'first' || k === 'last' || k.startsWith('assoc_') || k.startsWith('num_') || empty(v)) return;
-    if (empty(keep[k])) { keep[k] = v; filled.push(k); setField(type, keep.id, k, v); }
+    if (MERGE_SKIP.has(k) || k === 'name' || k === 'first' || k === 'last' || k.startsWith('assoc_') || k.startsWith('num_') || empty(v) || typeof v === 'object' || isDecorated(type, o, k)) return;
+    if (empty(keep[k]) || isDecorated(type, keep, k)) { keep[k] = v; filled.push(k); setField(type, keep.id, k, v); }
   }));
   const ids = new Set(others.map((o) => Number(o.id)));
   if (type === 'contacts') {
@@ -1178,8 +1197,12 @@ function merge(type, base) {
   const tdefs = type === 'tickets' ? ticketPipelineDefs() : null;
   return [...extra, ...base]
     .filter((r) => !deleted.has(Number(r.id)))
-    .map((r) => (overrides[r.id] ? { ...r, ...overrides[r.id] } : r))
-    .map((r) => (type === 'deals' ? withHomeAmount(normalizeDealStage(r)) : type === 'contacts' ? withActivityCounts(withCompanyLinks(r), counts) : type === 'tickets' ? normalizeTicket(r, tdefs) : r));
+    .map((src) => {
+      const r = overrides[src.id] ? { ...src, ...overrides[src.id] } : src;
+      const out = type === 'deals' ? withHomeAmount(normalizeDealStage(r)) : type === 'contacts' ? withActivityCounts(withCompanyLinks(r), counts) : type === 'tickets' ? normalizeTicket(r, tdefs) : r;
+      if (out !== src && DECORATED.has(src)) DECORATED.set(out, DECORATED.get(src)); // the copies keep the decoration marks
+      return out;
+    });
 }
 
 // ---------- contact ↔ companies (contact_companies: a contact can belong to several companies) ----------
@@ -1351,12 +1374,17 @@ const PROP_CACHE = {};
 function augment(type, r) {
   if (type === 'contacts') r.marketingOptOut = [true, 'true', 'Sí'].includes(r.marketingOptOut) ? 'Sí' : 'No';
   const props = PROP_CACHE[type] || (PROP_CACHE[type] = propertyList(type));
+  const marks = new Set();
   for (const p of props) {
     if (p.custom || REAL_ONLY.has(p.key)) continue; // custom properties and the real-only ones never get sample values
-    if (r[p.key] === undefined || r[p.key] === null) r[p.key] = sampleValue(p, r, type);
+    if (r[p.key] === undefined || r[p.key] === null) { r[p.key] = sampleValue(p, r, type); marks.add(p.key); }
   }
+  DECORATED.set(r, marks);
   return r;
 }
+// Which keys of an augmented record are sample decoration (never stored): read by isDecorated() so a merge
+// neither offers them as conflicts nor lets them shadow a real value. Weak: nothing leaks into persistence.
+const DECORATED = new WeakMap();
 // Properties the app really drives: a sample value would be acted upon (a fake reminder would fire).
 const REAL_ONLY = new Set(['marketingOptOut', 'marketingOptOutAt', 'marketingOptOutReason', 'reminderAt', 'reminderFiredAt', 'closedLostReason', 'closedWonReason', 'notes_last_contacted', 'hs_additional_domains']);
 

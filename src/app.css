@@ -9281,6 +9281,79 @@ textarea.cellpop__input {
   margin-left: auto;
 }
 
+/* Fusionar (ficha): buscador del registro y comparación lado a lado */
+.merge__results {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 280px;
+  overflow: auto;
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-sm);
+}
+
+.merge__results li {
+  border-bottom: 1px solid var(--c-border);
+}
+
+.merge__results li:last-child {
+  border-bottom: 0;
+}
+
+.merge__results li.muted {
+  padding: var(--sp-8) var(--sp-10);
+}
+
+.merge__pick {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+  gap: var(--sp-10);
+  padding: var(--sp-8) var(--sp-10);
+  background: none;
+  border: 0;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+
+.merge__pick:hover,
+.merge__pick:focus-visible {
+  background: var(--c-soft);
+}
+
+.merge__keep {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-10) var(--sp-16);
+  margin: var(--sp-8) 0 var(--sp-10);
+}
+
+.merge__opt {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: var(--sp-8);
+  cursor: pointer;
+}
+
+.merge__table th[scope="row"] {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.merge__table td,
+.merge__table th {
+  vertical-align: top;
+}
+
+.merge__warn {
+  padding: var(--sp-8) var(--sp-10);
+  border-left: 3px solid var(--c-warn);
+  background: var(--c-soft);
+  border-radius: var(--r-sm);
+}
+
 .files,
 .guides {
   list-style: none;

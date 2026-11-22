@@ -7,7 +7,8 @@ import { mountCreateTicket } from './create-ticket.js';
 import { changeDealStage } from './deal-close.js';
 import { ACTIVITY_COMPANY_SETTING, activityAssociations, saveAssociatedActivity } from './activity-associations.js';
 import './filter-chip.js';
-import { validatePropertyValues, companyDomains } from './data.js';
+import { validatePropertyValues, companyDomains, mergeRecords, mergeConflicts, MERGE_SKIP } from './data.js';
+import { suggestedKeep } from './duplicates.js';
 import { sensitiveValue } from './property-privacy.js';
 import { mountActivityComments } from './activity-comments.js';
 // Generic record page for contacts, companies, deals, tickets and tasks.
@@ -1098,7 +1099,7 @@ function middleCardHtml(id) {
       const mine = type === 'companies' ? companyDomains(rec) : [];
       const dups = all.filter((r) => (rec.email && r.email && r.email.toLowerCase() === rec.email.toLowerCase()) || (mine.length && companyDomains(r).some((d) => mine.includes(d))) || (r.name && rec.name && r.name.toLowerCase() === rec.name.toLowerCase())).slice(0, 5);
       return `<div class="card"><h3 class="card__title">${esc(label)}</h3>${dups.length
-        ? `<p>Se han encontrado <strong>${dups.length}</strong> posibles duplicados:</p><ul class="dup-list">${dups.map((r) => `<li><a href="./?id=${r.id}">${esc(r.name)}</a> <span class="muted">${esc(r.email || r.domain || '')}</span><button class="link-btn" type="button" data-act="merge">Fusionar</button></li>`).join('')}</ul>`
+        ? `<p>Se han encontrado <strong>${dups.length}</strong> posibles duplicados:</p><ul class="dup-list">${dups.map((r) => `<li><a href="./?id=${r.id}">${esc(r.name)}</a> <span class="muted">${esc(r.email || r.domain || '')}</span><button class="link-btn" type="button" data-act="merge" data-merge-with="${r.id}">Fusionar</button></li>`).join('')}</ul>`
         : '<p class="muted">No se han detectado registros duplicados. ✓</p>'}</div>`;
     }
     default:
@@ -1790,7 +1791,71 @@ async function save(key, value, label) {
 }
 
 // ---------- Acciones menu ----------
-function runAction(act) {
+// ---------- Fusionar, as the original: pick the duplicate (search), compare side by side, choose the kept values ----------
+let mergeState = null;
+const mergeHaystack = (r) => [r.name, r.first, r.last, r.email, r.domain, r.phone, r.company].filter(Boolean).join(' ').toLowerCase();
+const mergeEmpty = (v) => v === undefined || v === null || v === '' || v === 'Sin asignar';
+// How many empty properties of `keep` the merge will fill from `other`.
+const mergeGaps = (keep, other) => Object.entries(other).filter(([k, v]) => !MERGE_SKIP.has(k) && !['name', 'first', 'last'].includes(k) && !k.startsWith('assoc_') && !k.startsWith('num_') && !mergeEmpty(v) && typeof v !== 'object' && mergeEmpty(keep[k])).length;
+function mergeCandidates(q) {
+  const all = ALL[type]().filter((r) => Number(r.id) !== Number(rec.id));
+  const s = String(q || '').trim().toLowerCase();
+  if (s) return all.filter((r) => mergeHaystack(r).includes(s)).slice(0, 8);
+  // without a query: the likely duplicates first (same e-mail, domain or name), then the rest
+  const likely = all.filter((r) => (rec.email && r.email && r.email.toLowerCase() === rec.email.toLowerCase()) || (rec.domain && r.domain && r.domain === rec.domain) || (rec.name && r.name && r.name.toLowerCase() === rec.name.toLowerCase()));
+  return [...likely, ...all.filter((r) => !likely.includes(r))].slice(0, 8);
+}
+const mergeResultsHtml = (q) => { const rows = mergeCandidates(q); return rows.length ? rows.map((r) => `<li><button class="merge__pick" type="button" data-merge-pick="${r.id}"><strong>${esc(r.name)}</strong><span class="muted">${esc(r.email || r.domain || r.company || '')}</span></button></li>`).join('') : '<li class="muted">Sin resultados</li>'; };
+function openMergePick(preselect = null) {
+  mergeState = null;
+  if (preselect && findRecord(type, preselect)) { openMergeCompare(preselect); return; }
+  openModal(`Fusionar ${cfg.singular}`, `<p>Elige el ${cfg.singular} que quieres fusionar con <strong>${esc(cfg.title(rec))}</strong>.</p>
+    <label class="field"><span>Buscar ${cfg.singular}</span><input id="merge-search" type="search" placeholder="Nombre, correo o dominio" autocomplete="off"></label>
+    <ul class="merge__results" id="merge-results">${mergeResultsHtml('')}</ul>`, '<button class="btn btn--ghost" type="button" data-close>Cancelar</button>');
+  setTimeout(() => { const i = $('merge-search'); if (i) i.focus(); }, 30);
+}
+function openMergeCompare(otherId) {
+  const other = findRecord(type, otherId);
+  if (!other || Number(other.id) === Number(rec.id)) { toast('Registro no encontrado'); return; }
+  const keep = suggestedKeep([rec, other]);
+  mergeState = { other, keepId: Number(keep.id), conflicts: mergeConflicts(type, rec, other) };
+  const pm = propertyMap(type);
+  const label = (k) => ({ first: 'Nombre', last: 'Apellidos', name: 'Nombre completo' }[k] || (pm[k] && pm[k].label) || k);
+  const side = (r) => `<strong>${esc(r.name)}</strong><br><span class="muted">${esc(r.email || r.domain || '')}</span>`;
+  const rows = mergeState.conflicts.map((c) => `<tr data-merge-key="${esc(c.key)}"><th scope="row">${esc(label(c.key))}</th>
+      <td><label class="merge__opt"><input type="radio" name="merge-val-${esc(c.key)}" value="${rec.id}"> <span>${esc(String(c.keep))}</span></label></td>
+      <td><label class="merge__opt"><input type="radio" name="merge-val-${esc(c.key)}" value="${other.id}"> <span>${esc(String(c.other))}</span></label></td></tr>`).join('');
+  openModal(`Fusionar ${cfg.singular}`, `
+    <p>Fusionar <strong>${esc(rec.name)}</strong> con <strong>${esc(other.name)}</strong>. Elige el registro principal y, en cada propiedad con valores distintos, el valor que se conserva.</p>
+    <div class="merge__keep" id="merge-keep">
+      <label class="merge__opt"><input type="radio" name="merge-keep" value="${rec.id}"> <span>Conservar <strong>${esc(rec.name)}</strong> como principal</span></label>
+      <label class="merge__opt"><input type="radio" name="merge-keep" value="${other.id}"> <span>Conservar <strong>${esc(other.name)}</strong> como principal</span></label>
+    </div>
+    ${rows ? `<table class="table merge__table" id="merge-table"><thead><tr><th>Propiedad</th><th>${side(rec)}</th><th>${side(other)}</th></tr></thead><tbody>${rows}</tbody></table>` : '<p class="muted" id="merge-table">No hay propiedades con valores distintos: no hay nada que elegir.</p>'}
+    <p class="muted" id="merge-gaps"></p>
+    <p class="merge__warn">El otro registro se envía a la papelera y puede restaurarse desde «Acciones › Papelera» de la lista; sus actividades, asociaciones e inscripciones en secuencias pasan al principal.</p>`,
+  `<button class="btn btn--primary" type="button" data-confirm="merge">Fusionar</button><button class="btn btn--ghost" type="button" data-merge-back>Atrás</button><button class="btn btn--ghost" type="button" data-close>Cancelar</button>`);
+  syncMergeDefaults();
+}
+// The principal's values are selected by default; choosing the other record as principal flips every row.
+function syncMergeDefaults() {
+  if (!mergeState) return;
+  const keepId = String(mergeState.keepId);
+  $('rec-modal-body').querySelectorAll('input[type="radio"]').forEach((i) => { if (i.name === 'merge-keep' || i.name.startsWith('merge-val-')) i.checked = i.value === keepId; });
+  const keep = keepId === String(rec.id) ? rec : mergeState.other;
+  const other = keep === rec ? mergeState.other : rec;
+  const n = mergeGaps(keep, other);
+  $('merge-gaps').textContent = n ? `${n} ${n === 1 ? 'propiedad vacía' : 'propiedades vacías'} de «${keep.name}» se completará${n === 1 ? '' : 'n'} con los valores del otro registro.` : `«${keep.name}» no tiene propiedades vacías que completar.`;
+}
+$('rec-modal').addEventListener('click', (e) => {
+  const pick = e.target.closest('[data-merge-pick]');
+  if (pick) { openMergeCompare(Number(pick.dataset.mergePick)); return; }
+  if (e.target.closest('[data-merge-back]')) openMergePick();
+});
+$('rec-modal').addEventListener('input', (e) => { if (e.target.id === 'merge-search') $('merge-results').innerHTML = mergeResultsHtml(e.target.value); });
+$('rec-modal').addEventListener('change', (e) => { if (e.target.name === 'merge-keep' && mergeState) { mergeState.keepId = Number(e.target.value); syncMergeDefaults(); } });
+
+function runAction(act, data = {}) {
   const name = cfg.title(rec);
   switch (act) {
     case 'follow': {
@@ -1862,17 +1927,9 @@ function runAction(act) {
         </tbody></table><p class="muted">El acceso depende de los permisos de cada usuario y de la propiedad del registro.</p>`,
       );
       break;
-    case 'merge': {
-      const list = ({ contacts: allContacts, companies: allCompanies, deals: allDeals, tickets: allTickets, tasks: allTasks })[type]().filter((r) => Number(r.id) !== Number(rec.id));
-      openModal(
-        `Fusionar ${cfg.singular}`,
-        `<p>Elige el ${cfg.singular} que quieres fusionar con <strong>${esc(name)}</strong>. Este registro se conservará como principal.</p>
-         <label class="field"><span>Buscar ${cfg.singular}</span><select id="merge-target">${list.slice(0, 60).map((r) => `<option value="${r.id}">${esc(r.name)}</option>`).join('')}</select></label>
-         <p class="muted">Las actividades y asociaciones del otro registro pasarán a este.</p>`,
-        `<button class="btn btn--primary" type="button" data-confirm="merge">Fusionar</button><button class="btn btn--ghost" type="button" data-close>Cancelar</button>`,
-      );
+    case 'merge':
+      openMergePick(Number(data.mergeWith) || null);
       break;
-    }
     case 'clone': {
       const copy = { ...rec };
       delete copy.id;
@@ -1961,12 +2018,25 @@ $('rec-modal').addEventListener('click', async (e) => {
     closeModal();
     toast(rec.marketingOptOut === 'Sí' ? 'Baja de marketing guardada' : 'Suscripción de marketing reactivada');
   } else if (what === 'merge') {
-    const otherId = $('merge-target').value;
-    const other = findRecord(type, otherId);
-    deleteRecords(type, [otherId]);
-    addEvent({ type: 'stage', when: Date.now(), who: 'Tú', text: `Registro "${other?.name || otherId}" fusionado en este ${cfg.singular}.` });
+    // never a bare delete: mergeRecords fills the gaps, moves associations, timeline and enrolments, trashes the duplicate
+    if (!mergeState) { toast('Elige primero el registro que quieres fusionar'); return; }
+    const checked = $('rec-modal-body').querySelector('input[name="merge-keep"]:checked');
+    const keepId = Number((checked && checked.value) || mergeState.keepId);
+    const keep = keepId === Number(rec.id) ? rec : mergeState.other;
+    const other = keep === rec ? mergeState.other : rec;
+    const choices = {};
+    mergeState.conflicts.forEach((c) => {
+      const picked = $('rec-modal-body').querySelector(`tr[data-merge-key="${c.key}"] input:checked`);
+      if (picked && Number(picked.value) !== keepId) choices[c.key] = Number(picked.value) === Number(rec.id) ? c.keep : c.other;
+    });
+    const result = mergeRecords(type, keepId, [other.id], { choices });
+    if (!result) { toast('No se pudo fusionar'); return; }
+    const done = result.filled.length + result.chosen.length;
     closeModal();
-    toast('Registros fusionados');
+    mergeState = null;
+    toast(`1 registro fusionado en «${result.kept.name}»${done ? ` · ${done} ${done === 1 ? 'propiedad completada' : 'propiedades completadas'}` : ''}`);
+    if (Number(result.kept.id) !== Number(rec.id)) { location.href = `./?id=${result.kept.id}`; return; }
+    Object.assign(rec, findRecord(type, rec.id) || {});
     renderAll();
   } else if (what === 'delete') {
     deleteRecords(type, [rec.id]);
@@ -2226,7 +2296,7 @@ if (!rec) {
     if (act) {
       e.preventDefault();
       closeMenus();
-      runAction(act.dataset.act);
+      runAction(act.dataset.act, act.dataset);
       return;
     }
     const tog = e.target.closest('[data-toggle]');
