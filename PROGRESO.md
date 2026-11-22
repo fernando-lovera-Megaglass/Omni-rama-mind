@@ -1,5 +1,11 @@
 # Progreso — Omni CRM
 
+## 2026-11-22 (sesión 6) · smoke-call-transcription vuelve a pasar: la transcripción fallida se muestra en el panel de detalle de la llamada
+
+- Diagnóstico: la celda «título» de la lista de llamadas ya no pinta el estado de transcripción (el otro carril lo movió al panel de detalle en 67ef472, «llamadas panel detalle»). Hoy, en `src/call-detail.js`, una transcripción fallida muestra su mensaje de error (escapado) en la sección «Transcripción», ofrece «Transcribir» como reintento mientras hay grabación y no hay transcripción, y el resultado del reintento se anuncia en la región `[role=status]` del panel («Transcribiendo…», «Transcripción lista», «No se pudo transcribir: …»). La prueba buscaba un `[role=status]` con «Transcripción fallida» en la celda de la lista, que ya no existe.
+- `scripts/smoke-call-transcription.mjs`: abre el panel real con `openCallDetail` en JSDOM para una llamada con `transcriptError` y comprueba el mensaje visible y escapado (sin `<img>`), el botón «Transcribir» y la región de estado; una llamada ya transcrita no ofrece reintento; y la lista sigue leyendo `extra.transcript_error`. Sin cambios en la app; termina con código 0.
+- Solo código local; nada desplegado.
+
 ## 2026-11-22 (sesión 6) · smoke-activity-actions vuelve a pasar: la prueba se puso al día con cómo se fija una actividad
 
 - Diagnóstico: la acción de fijar sigue existiendo en `src/record.js` (menú ⋮ de cada actividad: «Fijar en la parte superior» / «Desfijar», título «📌 Fijada ·» bajo la sección «Fijado»), pero desde los commits del otro carril sobre editar/eliminar actividades (c053d4e y anteriores) el fijado se guarda por registro en `crm:<objeto>:<id>:pinned` y una clave vacía anula la marca antigua `extra.pinned`. La prueba pulsaba «el primer botón de fijar» dos veces: fijaba la llamada y la volvía a desfijar, y luego buscaba «Fijada». También suponía que «Registro creado» no tenía ninguna acción, cuando ahora toda actividad puede fijarse (solo nota, llamada, correo, reunión y mensaje se editan o eliminan).

@@ -89,14 +89,24 @@ for (const scenario of ['missing', 'invalid', 'success']) {
     assert.ok(logs.some(log=>log.event === 'call_transcription_failed' && log.call_log_id === row.id));
   }
 }
-// Render the actual title cell to check visible errors, retry action and HTML escaping.
+// The failed transcription is shown on the call's detail drawer (src/call-detail.js, opened from the calls list):
+// the error message replaces the transcript text (HTML-escaped), «Transcribir» offers the retry while there is a
+// recording and no transcript, and the drawer's live region ([role=status]) reports the retry's outcome.
 const calls=readFileSync('src/calls.js','utf8');
-const expression=calls.match(/case 'title': return (.*);/)[1];
-const render=new Function('r','esc','state',`return ${expression}`);
-const esc=s=>String(s??'').replace(/[&<>"']/g,c=>`&#${c.charCodeAt(0)};`);
-const dom=new JSDOM(render({id:'log',title:'Call',callSid:'sid',recording:true,transcriptError:{message:'<img src=x onerror=alert(1)>',timestamp:'2026-11-21T00:00:00Z'}},esc,{openTranscripts:new Set()}));
-assert.match(dom.window.document.querySelector('[role=status]').textContent,/Transcripción fallida/);
-assert.equal(dom.window.document.querySelector('[data-transcribe]').textContent,'Reintentar transcripción');
-assert.equal(dom.window.document.querySelector('img'),null);
 assert.match(calls,/recording_url,transcript,extra/);
+assert.match(calls,/transcriptError: r\.extra\?\.transcript_error \|\| null/);
+const dom=new JSDOM('<body class="app"><main id="calls-root"></main></body>',{url:'http://localhost/calls/'});
+for (const k of ['window','document','localStorage','location','HTMLElement','CustomEvent','FormData','Option','MutationObserver']) globalThis[k]=dom.window[k];
+const { openCallDetail } = await import('../src/call-detail.js');
+openCallDetail({id:'log',source:'twilio',title:'Call',callSid:'sid',when:Date.now(),direction:'inbound',status:'completed',notes:'',recording:true,transcript:null,transcriptError:{message:'<img src=x onerror=alert(1)>',timestamp:'2026-11-21T00:00:00Z'}});
+const drawer=dom.window.document;
+assert.equal(drawer.querySelector('[data-detail-transcript]').textContent,'<img src=x onerror=alert(1)>','the failed transcription shows its error message');
+assert.equal(drawer.querySelector('img'),null,'the message is escaped');
+assert.equal(drawer.querySelector('[data-detail-transcribe]').textContent,'Transcribir','a retry is offered');
+assert.ok(drawer.querySelector('[role=status][data-detail-status]'),'a live region reports the retry');
+// a transcribed call offers no retry
+drawer.querySelector('[data-detail-close]').click();
+openCallDetail({id:'log2',source:'twilio',title:'Call 2',callSid:'sid2',when:Date.now(),direction:'inbound',status:'completed',notes:'',recording:true,transcript:'Transcripción de prueba',transcriptError:null});
+assert.equal(drawer.querySelector('[data-detail-transcript]').textContent,'Transcripción de prueba');
+assert.equal(drawer.querySelector('[data-detail-transcribe]'),null,'no retry once transcribed');
 console.log('PASS: signed recording webhook with real background transcription, missing/invalid key, download/network/empty response, database failures, background evidence, successful retry and cleanup, idempotency, UI error/retry/escaping. No remote services used.');
