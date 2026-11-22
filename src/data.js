@@ -165,6 +165,8 @@ function localSavedPipelineDefs() {
 }
 let pipelineDefsRemote = null; // the deal pipelines once the tables have been read
 export const pipelinesLive = () => pipelineDefsRemote !== null;
+let ticketDefsRemote = null; // the ticket pipelines once the tables have been read
+export const ticketPipelinesLive = () => ticketDefsRemote !== null;
 export function dealPipelineDefs() {
   if (pipelineDefsRemote) return pipelineDefsRemote.map(clonePipe);
   return localSavedPipelineDefs() || DEFAULT_DEAL_PIPELINES.map(clonePipe);
@@ -189,6 +191,10 @@ export function dealForecastLabel(deal) {
   const stage = stagesFor(deal.pipeline).find((s) => s[0] === deal.stage);
   return stage ? FORECAST_CATEGORIES.find(([key]) => key === stageForecastCategory(stage))[1] : '—';
 }
+// Ticket statuses in pipeline_stages: the open / closed flag travels in `descripcion` ('open' | 'closed', the
+// format the seed migration used) and `probabilidad` is 0 for open statuses and 100 for closed ones; the deal
+// stages keep their probability in `probabilidad` and a free text in `descripcion`. Rules, required properties
+// and automations of both objects ride in pipelines.extra ({ rules, required, automation, publicId, … }).
 export function pipelineDefsFromRows(pipes, stages, objeto = 'deal') {
   return (pipes || [])
     .filter((p) => p.objeto === objeto)
@@ -196,8 +202,12 @@ export function pipelineDefsFromRows(pipes, stages, objeto = 'deal') {
     .map((p) => {
       const extra = p.extra && typeof p.extra === 'object' ? p.extra : {};
       const { publicId, forecastCategories, ...rest } = extra;
-      const st = (stages || []).filter((s) => Number(s.pipeline_id) === Number(p.id)).sort((a, b) => (a.orden - b.orden) || (a.id - b.id))
-        .map((s) => (s.descripcion ? [s.clave, s.nombre, Number(s.probabilidad) || 0, s.descripcion] : [s.clave, s.nombre, Number(s.probabilidad) || 0]));
+      const rows = (stages || []).filter((s) => Number(s.pipeline_id) === Number(p.id)).sort((a, b) => (a.orden - b.orden) || (a.id - b.id));
+      if (objeto === 'ticket') {
+        const st = rows.map((s) => [s.clave, s.nombre, s.descripcion === 'closed' || (!s.descripcion && Number(s.probabilidad) >= 100) ? 'closed' : 'open']);
+        return { ...rest, id: publicId || p.id, dbId: p.id, name: p.nombre, desc: p.descripcion || '', stages: st, rules: { ...(rest.rules || {}) }, required: { ...(rest.required || {}) }, automation: { ...(rest.automation || {}) } };
+      }
+      const st = rows.map((s) => (s.descripcion ? [s.clave, s.nombre, Number(s.probabilidad) || 0, s.descripcion] : [s.clave, s.nombre, Number(s.probabilidad) || 0]));
       st.forEach((s) => { if (FORECAST_CATEGORIES.some(([key]) => key === forecastCategories?.[s[0]])) { s[3] ||= ''; s[4] = forecastCategories[s[0]]; } });
       return { ...rest, id: publicId || p.id, dbId: p.id, name: p.nombre, desc: p.descripcion || '', labels: rest.labels || 0, stages: st };
     });
@@ -205,7 +215,10 @@ export function pipelineDefsFromRows(pipes, stages, objeto = 'deal') {
 export function pipelineRowsFromDefs(defs, objeto = 'deal') {
   return defs.map((p, i) => {
     const { id, dbId, name, desc, stages, ...rest } = p;
-    return { pipeline: { objeto, nombre: name, orden: i, descripcion: desc || '', extra: { ...rest, publicId: id, ...(objeto === 'deal' ? { forecastCategories: Object.fromEntries(stages.filter((s) => s[4]).map((s) => [s[0], stageForecastCategory(s)])) } : {}) } }, stages: stages.map((s, j) => ({ clave: s[0], nombre: s[1], probabilidad: Number(s[2]) || 0, orden: j, descripcion: s[3] || '' })) };
+    const stageRows = objeto === 'ticket'
+      ? stages.map((s, j) => ({ clave: s[0], nombre: s[1], probabilidad: s[2] === 'closed' ? 100 : 0, orden: j, descripcion: s[2] === 'closed' ? 'closed' : 'open' }))
+      : stages.map((s, j) => ({ clave: s[0], nombre: s[1], probabilidad: Number(s[2]) || 0, orden: j, descripcion: s[3] || '' }));
+    return { pipeline: { objeto, nombre: name, orden: i, descripcion: desc || '', extra: { ...rest, publicId: id, ...(objeto === 'deal' ? { forecastCategories: Object.fromEntries(stages.filter((s) => s[4]).map((s) => [s[0], stageForecastCategory(s)])) } : {}) } }, stages: stageRows };
   });
 }
 async function fetchPipelineTables() {
@@ -236,13 +249,15 @@ async function writePipelines(defs, objeto = 'deal') {
       if (e2) console.error('[supabase] pipeline_stages insert', e2);
     }
   }
-  if (pipelineDefsRemote) pipelineDefsRemote.forEach((p) => { if (idOf.has(p.name)) p.dbId = idOf.get(p.name); });
+  const remote = objeto === 'ticket' ? ticketDefsRemote : pipelineDefsRemote;
+  if (remote) remote.forEach((p) => { if (idOf.has(p.name)) p.dbId = idOf.get(p.name); });
 }
 const PIPELINES_MIGRATED_KEY = 'crm:pipelines:migrated';
+const TICKET_PIPELINES_MIGRATED_KEY = 'crm:pipelines:tickets:migrated';
 // Reads the tables; the first time, moves the definitions kept in localStorage and adds any real pipeline
-// the tables still miss (an empty table gets all of them).
+// the tables still miss (an empty table gets all of them). Deals first, then tickets.
 async function initPipelines() {
-  const { pipes, stages } = await fetchPipelineTables();
+  let { pipes, stages } = await fetchPipelineTables();
   let defs = pipelineDefsFromRows(pipes, stages, 'deal');
   let changed = false;
   if (localStorage.getItem(PIPELINES_MIGRATED_KEY) !== '1') {
@@ -255,13 +270,47 @@ async function initPipelines() {
   REAL_DEAL_PIPELINES.forEach((p) => { if (!defs.some((d) => d.name === p.name)) { defs.push(clonePipe(p)); changed = true; } });
   if (changed) {
     await writePipelines(defs, 'deal');
-    const again = await fetchPipelineTables();
-    defs = pipelineDefsFromRows(again.pipes, again.stages, 'deal');
+    ({ pipes, stages } = await fetchPipelineTables());
+    defs = pipelineDefsFromRows(pipes, stages, 'deal');
   }
   pipelineDefsRemote = defs;
   localStorage.setItem(PIPELINES_MIGRATED_KEY, '1');
   localStorage.removeItem(DEAL_PIPELINES_KEY);
   syncDealStagesFromDefault();
+  // Ticket pipelines: the same tables (objeto 'ticket'). The configuration this browser kept in localStorage
+  // (renamed / reordered statuses, rules, required properties, automations) wins once over the seeded rows,
+  // then the tables are the shared source of truth for every browser and colleague.
+  let tdefs = pipelineDefsFromRows(pipes, stages, 'ticket').map(normalizeTicketDef);
+  let tchanged = false;
+  if (localStorage.getItem(TICKET_PIPELINES_MIGRATED_KEY) !== '1') {
+    const local = localSavedTicketPipelineDefs();
+    if (local) {
+      tdefs = mergeTicketPipelineDefs(tdefs, local);
+      tchanged = true;
+      console.info(`[supabase] pipelines de tickets migrados desde localStorage: ${local.length} leídos.`);
+    }
+  }
+  REAL_TICKET_PIPELINES.forEach((p) => { if (!tdefs.some((d) => d.name === p.name)) { tdefs.push(normalizeTicketDef(cloneTicketPipe(p))); tchanged = true; } });
+  if (tchanged) {
+    await writePipelines(tdefs, 'ticket');
+    ({ pipes, stages } = await fetchPipelineTables());
+    tdefs = pipelineDefsFromRows(pipes, stages, 'ticket').map(normalizeTicketDef);
+  }
+  ticketDefsRemote = tdefs;
+  localStorage.setItem(TICKET_PIPELINES_MIGRATED_KEY, '1');
+  localStorage.removeItem(TICKET_PIPELINES_KEY);
+}
+// The one-time merge of the ticket pipelines kept in localStorage into the table's rows: a pipeline this
+// browser configured keeps its statuses, rules, required properties, automations and description (its row
+// keeps its ids); pipelines only known locally are added; the rest of the table stays as it is.
+export function mergeTicketPipelineDefs(remote, local) {
+  const out = remote.map(cloneTicketPipe);
+  (local || []).forEach((l) => {
+    const i = out.findIndex((d) => d.name === l.name);
+    if (i >= 0) out[i] = { ...out[i], ...cloneTicketPipe(l), id: out[i].id, dbId: out[i].dbId };
+    else out.push(cloneTicketPipe(l));
+  });
+  return out;
 }
 // Every stage across the pipelines, the default pipeline's first (dropdowns that span all pipelines).
 export function allDealStages() {
@@ -316,13 +365,14 @@ const cloneTicketPipe = (p) => ({ ...p, stages: p.stages.map((s) => [...s]) });
 const ticketPipeId = (name) => 200000 + (Math.abs(Array.from(String(name)).reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 11)) % 700000);
 const ticketStage = (s) => [String(s[0]), String(s[1]), s[2] === 'closed' ? 'closed' : 'open'];
 // rules / required / automation share the deal pipelines' shape (src/ticket-rules.js): { noBack, lockClosed },
-// { [status]: [property labels] } and { [status]: { task, notify } }. They travel with the definition
-// (localStorage now; pipelines.extra jsonb when the pipelines tables take over).
+// { [status]: [property labels] } and { [status]: { task, notify } }. They travel with the definition: in the
+// pipelines / pipeline_stages tables (pipelines.extra jsonb) when there is a session, in localStorage otherwise.
 export function newTicketPipelineDef(name, stages) {
   return { id: ticketPipeId(name), name, desc: '', stages: (stages || DEFAULT_TICKET_STATUSES).map(ticketStage), rules: {}, required: {}, automation: {} };
 }
 const normalizeTicketDef = (p) => ({ ...p, id: p.id || ticketPipeId(p.name), desc: p.desc || '', stages: Array.isArray(p.stages) && p.stages.length ? p.stages.map(ticketStage) : DEFAULT_TICKET_STATUSES.map(ticketStage), rules: { ...(p.rules || {}) }, required: { ...(p.required || {}) }, automation: { ...(p.automation || {}) } });
-export function ticketPipelineDefs() {
+// What this browser saved before the tables took over (null when nothing was saved).
+function localSavedTicketPipelineDefs() {
   try {
     const saved = JSON.parse(localStorage.getItem(TICKET_PIPELINES_KEY));
     if (Array.isArray(saved) && saved.length) {
@@ -332,7 +382,11 @@ export function ticketPipelineDefs() {
   } catch {
     /* ignore */
   }
-  return REAL_TICKET_PIPELINES.map(cloneTicketPipe);
+  return null;
+}
+export function ticketPipelineDefs() {
+  if (ticketDefsRemote) return ticketDefsRemote.map(cloneTicketPipe);
+  return localSavedTicketPipelineDefs() || REAL_TICKET_PIPELINES.map(cloneTicketPipe);
 }
 // A ticket saved with one of the sample pipelines / statuses of earlier versions lands in its real pipeline
 // (the n-th open status, or the first closed one); an unknown status falls back to the first open status.
@@ -351,8 +405,17 @@ export function normalizeTicket(r, defs = ticketPipelineDefs()) {
   }
   return pipeline === r.pipeline && status === r.status ? r : { ...r, pipeline, status };
 }
+// With a session the ticket pipelines (statuses, rules, required properties, automations) go to the
+// pipelines / pipeline_stages tables, shared by every browser and colleague; otherwise to localStorage.
 export function saveTicketPipelineDefs(list) {
-  localStorage.setItem(TICKET_PIPELINES_KEY, JSON.stringify(list.map(normalizeTicketDef)));
+  const defs = list.map(normalizeTicketDef);
+  if (ticketDefsRemote) {
+    ticketDefsRemote = defs.map(cloneTicketPipe);
+    if (typeof bump === 'function') bump();
+    dbWrite(() => writePipelines(defs, 'ticket'));
+    return;
+  }
+  localStorage.setItem(TICKET_PIPELINES_KEY, JSON.stringify(defs));
   if (typeof bump === 'function') bump();
 }
 export function ticketPipelines() {
@@ -790,10 +853,8 @@ export function setField(type, id, field, value, opts = {}) {
 const SOFT_DELETE = new Set(['contacts', 'companies', 'deals', 'tickets']);
 const trashRows = {}; // live: deleted rows per type (deletedAt set), out of dbRows
 const DELETED_AT_KEY = (type) => K(type, 'deletedat'); // local: id → when it was deleted
-// The trash needs the deleted_at column. While its migration is pending on the database (tickets:
-// soft_delete_tickets.sql) the type degrades to a hard delete instead of breaking the list (see fetchTable).
-const softDeleteMissing = new Set();
-export const softDeletes = (type) => SOFT_DELETE.has(type) && !softDeleteMissing.has(type);
+// A missing migration must never change a recoverable deletion into a physical DELETE.
+export const softDeletes = (type) => SOFT_DELETE.has(type);
 // Deleting tasks also recomputes «Próxima actividad» of the records they counted for.
 export function deleteRecords(type, ids) {
   const links = type === 'tasks' ? cached('tasks').filter((t) => ids.map(Number).includes(Number(t.id)) || ids.map(Number).includes(Number(t.parentId))).flatMap(taskLinks) : [];
@@ -2527,12 +2588,6 @@ async function fetchTable(type) {
     let { data, error } = await q
       .order('id')
       .range(from, from + PAGE - 1);
-    if (error && softDeletes(type) && /deleted_at/.test(error.message || '')) {
-      // Column not there yet: load everything and keep this type on hard delete until the migration runs.
-      softDeleteMissing.add(type);
-      console.warn(`[supabase] ${type}: falta la columna deleted_at (migración pendiente); papelera desactivada para este tipo.`);
-      ({ data, error } = await supabase.from(type).select('*').order('id').range(from, from + PAGE - 1));
-    }
     if (error) throw error;
     all.push(...data);
     if (data.length < PAGE) break;

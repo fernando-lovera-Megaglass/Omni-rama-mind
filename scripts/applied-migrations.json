@@ -55,8 +55,10 @@
     "at": "2026-11-14T05:25:14.935Z"
   },
   "soft_delete_tickets.sql": {
-    "status": "pendiente",
-    "nota": "Solo código local; no aplicada a producción. Añade deleted_at a tickets (papelera de tickets)."
+    "status": "aplicada",
+    "at": "2026-11-22T05:50:07.281Z",
+    "verificada": "2026-11-22T05:51:37.995932+00:00",
+    "verificacion": "SQL: deleted_at timestamptz presente; verify-tickets-trash-sql.mjs verifica conservación, exclusión y restauración con pipeline/estado, en transacción revertida. Pendiente E2E desde lista con sesión real: acceso al navegador denegado. Smoke JSDOM local y regresión contra DELETE físico pasan; no equivalen a E2E remoto."
   },
   "conversations.sql": {
     "status": "aplicada",

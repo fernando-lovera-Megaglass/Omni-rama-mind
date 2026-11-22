@@ -22,9 +22,9 @@ if (!/tickets: \{[^}]*deletedAt: 'deleted_at'/.test(dataSrc) || !/tickets: \[[^\
 const sql = readFileSync(resolve(here, '../supabase/soft_delete_tickets.sql'), 'utf8');
 if (!/alter table public\.tickets add column if not exists deleted_at timestamptz/.test(sql)) fail('supabase/soft_delete_tickets.sql must add deleted_at to tickets');
 const register = JSON.parse(readFileSync(resolve(here, 'applied-migrations.json'), 'utf8'));
-if (!register['soft_delete_tickets.sql'] || register['soft_delete_tickets.sql'].status !== 'pendiente') fail('register: soft_delete_tickets.sql must be recorded as pendiente (not applied)');
+if (!register['soft_delete_tickets.sql'] || register['soft_delete_tickets.sql'].status !== 'aplicada') fail('register: soft_delete_tickets.sql must be recorded as aplicada');
 if (!/softDeletes\(type\)\) q = spec\.trash \? q\.not\('deleted_at', 'is', null\) : q\.is\('deleted_at', null\)/.test(readFileSync(resolve(here, '../src/server-list.js'), 'utf8'))) fail('server-list.js: soft-deleted rows must stay excluded by softDeletes(type)');
-log('static: tickets soft-deleted (mapping, column, migration pendiente, server exclusion); tasks not recycled');
+log('static: tickets soft-deleted (mapping, column, migration aplicada, server exclusion); tasks not recycled');
 
 // ---- DOM ----
 const mem = {};

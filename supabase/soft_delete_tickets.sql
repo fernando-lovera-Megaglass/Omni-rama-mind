@@ -1,6 +1,6 @@
 -- Omni CRM · Papelera (soft-delete) de tickets
 -- Aplicar con: node scripts/apply-migration.mjs supabase/soft_delete_tickets.sql
--- (o pegando este archivo en el SQL Editor de Supabase). Idempotente. Escrita como código local: NO aplicada.
+-- (o pegando este archivo en el SQL Editor de Supabase). Idempotente. Estado de aplicación: scripts/applied-migrations.json.
 --
 -- Igual que contactos, empresas y negocios (soft_delete.sql): eliminar un ticket desde la lista o la ficha ya no
 -- borra la fila, escribe deleted_at. La app no descarga las filas con deleted_at (fetchTable / server-list las
