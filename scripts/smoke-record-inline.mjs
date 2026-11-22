@@ -148,17 +148,22 @@ const item = [...document.querySelectorAll('#card-selected .colsel')].find((li) 
 let up = item && item.querySelector('[data-cardmove="-1"]');
 let guard = 0;
 while (up && !up.disabled && guard < 40) { click(up); guard += 1; const again = [...document.querySelectorAll('#card-selected .colsel')].find((li) => li.dataset.key === 'asesor_de_ventas'); up = again && again.querySelector('[data-cardmove="-1"]'); }
+// The marketing subscription properties are part of the default selection but the person decides: drop the
+// reason from the card (gap-ui-cardprops-marketing-no-quitables: nothing is forced back).
+const reasonItem = [...document.querySelectorAll('#card-selected .colsel')].find((li) => li.dataset.key === 'marketingOptOutReason');
+if (!reasonItem || !reasonItem.querySelector('[data-cardremove]')) fail('the marketing reason can be removed from the selection');
+click(reasonItem.querySelector('[data-cardremove]'));
 const chosenKeys = [...document.querySelectorAll('#card-selected .colsel')].map((li) => li.dataset.key);
 if (chosenKeys[0] !== 'asesor_de_ventas') fail('the custom property should move to the top of the selection');
+if (chosenKeys.includes('marketingOptOutReason') || !chosenKeys.includes('marketingOptOut')) fail('the removed marketing property leaves the selection, the others stay');
 click(document.querySelector('[data-confirm="card-save"]'));
 const keysNow = [...document.querySelectorAll('#rec-props .props__row')].map((r) => r.dataset.key);
 const savedCard = JSON.parse(mem['crm:contacts:cardprops']);
 log('card after customising:', keysNow.slice(0, 3).join(','), '… | saved keys:', savedCard.keys.length, '| first:', savedCard.keys[0], '| settings store (local mode):', data.settingsLive());
 if (JSON.stringify(savedCard.keys) !== JSON.stringify(chosenKeys)) fail('the saved card should preserve the complete chosen order');
-// Marketing subscription status, date and reason stay pinned above the customised
-// properties (gap-ui-marketing-bajas-suscripcion), even in an existing saved card.
-const pinnedKeys = ['marketingOptOut', 'marketingOptOutAt', 'marketingOptOutReason'];
-const expectedKeys = [...pinnedKeys, ...chosenKeys.filter((k) => !pinnedKeys.includes(k))];
-if (JSON.stringify(keysNow) !== JSON.stringify(expectedKeys)) fail('the customised card should show the chosen properties in order after the pinned subscription fields');
+// The card shows exactly the chosen properties in the chosen order: the custom one first, the marketing status and
+// date where the person left them, and no forced marketing reason.
+if (JSON.stringify(keysNow) !== JSON.stringify(chosenKeys)) fail(`the customised card should show exactly the chosen properties in order (${keysNow.slice(0, 5).join(',')} vs ${chosenKeys.slice(0, 5).join(',')})`);
+if (keysNow.includes('marketingOptOutReason')) fail('a deselected marketing property is not forced back onto the card');
 if (text(row('asesor_de_ventas').querySelector('dd')) !== 'Sofía R.✎') fail('the customised card should show the saved custom property value');
 log('OK');

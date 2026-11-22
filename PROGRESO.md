@@ -1,5 +1,11 @@
 # Progreso — Omni CRM
 
+## 2026-11-22 (sesión 6) · smoke-record-inline vuelve a pasar: la tarjeta «Acerca de» respeta la personalización de las propiedades de marketing
+
+- Diagnóstico: la prueba exigía que estado, fecha y motivo de la baja de marketing fueran siempre las tres primeras filas de la tarjeta, incluso en una tarjeta personalizada; pero la propia petición de la persona de hoy (gap `cardprops-marketing-no-quitables`, 06:32) pedía lo contrario: que la tarjeta respete la personalización y no anteponga esas propiedades a la fuerza, y el otro carril lo implementó en `currentFields()` (6743a01). La prueba era la obsoleta; la app está como se pidió.
+- `scripts/smoke-record-inline.mjs`: ahora quita el motivo de baja desde el selector de propiedades, deja la propiedad personalizada arriba, guarda y comprueba que la tarjeta muestra exactamente las propiedades elegidas en ese orden, sin forzar la propiedad quitada. `src/record.js`: solo un comentario que explica la regla. Termina con código 0.
+- Solo código local; nada desplegado.
+
 ## 2026-11-22 (sesión 6) · Reporte «Vista previa se oculta»: investigación, blindaje del panel y prueba en los 4 módulos
 
 - Reproducción: con JSDOM sobre el código actual (HEAD, que incluye el commit de fidelidad del panel 247a3cd del otro carril), en contactos, empresas, negocios y tickets, tabla y tablero, y en modo live con paginación del servidor (contactos, negocios, tickets con un usuario SMOKE): el botón ▭ de una fila abre el panel con ese registro, el panel permanece tras cargar actividades y tras un re-render, pulsar el botón de otra fila cambia de registro, pulsar el mismo botón lo deja abierto, y solo ×, Escape y «Ver registro» lo cierran. No se reprodujo el cierre; el DOM, el CSS (`.preview` fijo, `.preview.is-open`, media query ≤1279 px solo quita el padding) y los manejadores globales de clic (solo cierran menús, el buscador global y editores de celda) no lo explican.

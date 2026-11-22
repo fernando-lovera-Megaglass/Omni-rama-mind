@@ -525,6 +525,8 @@ function fieldFor(key) {
   return [key, p.label, 'text'];
 }
 const defaultCardKeys = () => [...(type === 'contacts' ? ['marketingOptOut', 'marketingOptOutAt', 'marketingOptOutReason'] : []), ...cfg.fields.map((f) => f[0]), ...(cfg.cardExtra || []).filter((k) => props[k])];
+// The card shows exactly what the person chose, in their order: the marketing subscription properties are part of
+// the default selection but are never forced back (gap-ui-cardprops-marketing-no-quitables).
 function currentFields() {
   const saved = loadCard();
   const keys = saved && Array.isArray(saved.keys) && saved.keys.length ? saved.keys : defaultCardKeys();
