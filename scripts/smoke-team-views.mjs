@@ -113,7 +113,7 @@ click(q('[data-lc="teams"]'));
 const box = q('[data-team-m="SACA"]');
 if (!box) fail('the «Asignar equipos» modal lists SACA');
 box.checked = true; click($('l-teams-ok'));
-click(q('[data-lc="save"]'));
+click(q('[data-lc="save"]')); await wait(30); // the editor resolves the author's name before writing
 const views = LD.loadViewsList('contacts', 'record');
 const tv = LD.loadViewLayout('contacts', 'Vista SACA');
 if (views.length !== 1 || views[0].name !== 'Vista SACA' || views[0].teams.join() !== 'SACA') fail(`views list (${JSON.stringify(views)})`);
@@ -158,7 +158,7 @@ click($('l-pp-ok'));
 click(q('[data-lc="rename-view"]')); $('l-prompt').value = 'Vista previa SACA'; click($('l-ok'));
 click(q('[data-lc="teams"]'));
 q('[data-team-m="SACA"]').checked = true; click($('l-teams-ok'));
-click(q('[data-lc="save"]'));
+click(q('[data-lc="save"]')); await wait(30); // the editor resolves the author's name before writing
 const pviews = LD.loadViewsList('contacts', 'preview');
 const pv = LD.loadSavedPreview('contacts', 'Vista previa SACA');
 if (pviews.length !== 1 || pviews[0].teams.join() !== 'SACA' || !pv || pv.props.length !== 3) fail(`preview team view saved (${JSON.stringify(pviews)} / ${pv && pv.props.length})`);

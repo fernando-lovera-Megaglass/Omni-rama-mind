@@ -26,8 +26,8 @@ const backHref = previewMode ? (fromList ? `../${type}/` : `../settings/#obj-${t
 const stampNow = () => { const d = new Date(); const p = (n) => String(n).padStart(2, '0'); return `${p(d.getDate())}/${p(d.getMonth() + 1)}/${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`; };
 
 let layout = previewMode
-  ? (isNewView ? defaultPreview(type, `Nuevo vista previa de registro ${meta.s} - (${stampNow()})`) : loadPreview(type, viewParam || undefined))
-  : isNewView ? teamViewLayout(type, `Nuevo página de registro ${meta.s} - (${stampNow()})`) : viewParam ? loadViewLayout(type, viewParam) : loadLayout(type);
+  ? (isNewView ? defaultPreview(type, `Nueva vista previa de registro ${meta.s} - (${stampNow()})`) : loadPreview(type, viewParam || undefined))
+  : isNewView ? teamViewLayout(type, `Nueva página de registro ${meta.s} - (${stampNow()})`) : viewParam ? loadViewLayout(type, viewParam) : loadLayout(type);
 let saved = isNewView ? '' : JSON.stringify(layout);
 const undoStack = [];
 const redoStack = [];

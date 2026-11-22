@@ -1,5 +1,12 @@
 # Progreso — Omni CRM
 
+## 2026-11-22 (sesión 6) · Vistas de equipo: los nombres sugeridos concuerdan («Nueva página de registro…», «Nueva vista previa de registro…»)
+
+- `src/layout.js`: al crear una vista de equipo nueva (página de registro o panel de vista previa) el nombre sugerido pasa de «Nuevo página de registro X - (fecha)» / «Nuevo vista previa de registro X - (fecha)» a «Nueva página…» / «Nueva vista previa…»; se ve así en el editor y, al guardar, en Configuración › Objetos. Las vistas ya creadas con el nombre anterior no se tocan.
+- Pruebas: `scripts/smoke-team-view-names.mjs` (en los 4 objetos, el nombre sugerido de la página de registro y del panel de vista previa empieza por «Nueva …» con el objeto y la fecha, y se guarda así en la lista de vistas; una vista antigua con el nombre roto se conserva; estático: sin «Nuevo vista previa / Nuevo página» en el editor). Smokes del editor, vistas de equipo y configuración en verde.
+- De paso: desde el commit 557149f del otro carril, «Guardar» del editor resuelve el nombre del autor antes de escribir (asíncrono); `smoke-team-views.mjs` y `smoke-preview-editor.mjs` leían la lista justo después del clic y fallaban también en HEAD (comprobado en un worktree limpio); ahora esperan un instante tras guardar y vuelven a pasar (no era un fallo de la app).
+- Solo código local; nada desplegado.
+
 ## 2026-11-22 (sesión 6) · «Ver todos los elementos asociados» abre la lista filtrada por el registro de origen (4 módulos × 4 destinos)
 
 - Antes: el enlace al pie de cada tarjeta de asociación solo añadía `?company=` o `?contact=` desde empresas y contactos; desde negocios y tickets llevaba a la lista completa del objeto asociado, y la lista solo filtraba por la clave escalar (`contactId` / `companyId`), sin las asociaciones múltiples y sin chip visible.

@@ -45,7 +45,7 @@ click(document.getElementById('l-ok'));
 click(document.querySelector('[data-lc="teams"]'));
 document.querySelector('[data-team-m]').checked = true;
 click(document.getElementById('l-teams-ok'));
-click(document.querySelector('[data-lc="save"]'));
+click(document.querySelector('[data-lc="save"]')); await new Promise((r) => setTimeout(r, 30)); // the editor resolves the author's name before writing
 const pviews = JSON.parse(mem['crm:deals:previewviews']);
 const saved = JSON.parse(mem['crm:deals:preview:Vista previa SACA']);
 log('saved team view:', pviews.map((v) => `${v.name} [${v.teams.join(',')}]`).join(' | '), '| order:', saved.right.join(','), '| props:', saved.props.length, '| warning gone:', !document.querySelector('.ledit__warn'));
@@ -60,7 +60,7 @@ document.getElementById('l-pp-name').value = 'Datos de cierre';
 [...document.querySelectorAll('#l-pp input')].filter((b) => ['closeDate', 'owner'].includes(b.value)).forEach((b) => { b.checked = true; });
 click(document.getElementById('l-pp-ok'));
 click(document.querySelector('[data-lc="remove"][data-card="assoc-tickets"]'));
-click(document.querySelector('[data-lc="save"]'));
+click(document.querySelector('[data-lc="save"]')); await new Promise((r) => setTimeout(r, 30)); // the editor resolves the author's name before writing
 const def = JSON.parse(mem['crm:deals:preview:default']);
 log('default saved:', def.right.join(','), '| custom:', Object.values(def.cards || {}).map((c) => `${c.label}:${c.props.length}`).join(','));
 
