@@ -220,7 +220,9 @@ if ($('enr-modal').classList.contains('is-open')) fail('dialog should close');
 const enr = S.enrollmentsOfContact(3);
 if (enr.length !== enrBefore + 1 || enr[0].sequenceId !== target.id || enr[0].status !== 'active' || enr[0].currentStep !== 1 || enr[0].placeholders['NEXT STEPS'] !== 'enviar la cotización el lunes') fail(`enrolment: ${JSON.stringify(enr[0])}`);
 if (data.allTasks().length !== tasksBefore + 1) fail('first manual step must create a task');
-const tl = text($('rec-timeline').firstElementChild);
+// the timeline opens with its «Actividad» section header (and a «Fijado» one when something is pinned): the newest
+// entry is the first .timeline__item
+const tl = text($('rec-timeline').querySelector('.timeline__item'));
 if (!tl.includes('Inscrito en la secuencia') || !tl.includes(target.name)) fail(`timeline: ${tl.slice(0, 160)}`);
 if (!S.scheduled().some((e) => e.id === enr[0].id)) fail('first step must be scheduled');
 // Already enrolled: warning + "Reinscribir" (cancels the running enrolment), start date/time

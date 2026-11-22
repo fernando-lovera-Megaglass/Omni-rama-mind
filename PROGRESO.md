@@ -1,5 +1,11 @@
 # Progreso — Omni CRM
 
+## 2026-11-22 (sesión 6) · smoke-sequences vuelve a pasar: la cronología empieza por su cabecera «Actividad»
+
+- Diagnóstico: la inscripción en una secuencia sigue registrando «Inscrito en la secuencia «…» por …» en la cronología del contacto; lo que cambió es la cronología misma, que ahora abre con la cabecera de sección «Actividad» (y «Fijado» cuando hay una actividad fijada), así que el primer hijo de `#rec-timeline` ya no es la entrada más reciente sino esa cabecera. La prueba leía `firstElementChild`.
+- `scripts/smoke-sequences.mjs`: lee el primer `.timeline__item`. Sin cambios en la app; termina con código 0.
+- Solo código local; nada desplegado.
+
 ## 2026-11-22 (sesión 6) · RLS: `ticket_tags` pasa a acceso por equipo (smoke-rls-team en verde)
 
 - Hallazgo real de seguridad: la migración pendiente `supabase/ticket_tags.sql` seguía creando las políticas abiertas «anon full access» y «authenticated full access» (el patrón previo a `rls_team.sql`), y `rls_team.sql` no la listaba: el día que se aplicara, la tabla quedaría abierta a la clave anónima y a cualquier usuario autenticado, sin pertenencia al equipo.
