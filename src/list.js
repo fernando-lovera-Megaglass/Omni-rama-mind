@@ -3105,6 +3105,10 @@ export function mountList(cfg) {
   if (linked && cfg.type !== linked[2] && !state.advanced.some((c) => c.key)) {
     state.advanced = [{ ...newCondition(0), key: linked[1], op: 'in', value: [urlParams.get(linked[0])] }];
   }
+  // «?view=<id>» (the segment of an import, a link to a saved view): that view becomes the active tab, with its
+  // filters, sort and columns; an id the store does not know is ignored.
+  const viewParam = urlParams.get('view');
+  if (viewParam && viewById(viewParam)) activateView(viewParam);
 
   wireMenus();
   wireLinkTooltips();

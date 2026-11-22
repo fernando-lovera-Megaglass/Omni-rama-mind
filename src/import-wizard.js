@@ -6,7 +6,7 @@ import { boot } from './page.js';
 import { toast } from './shell.js';
 import * as E from './import-engine.js';
 import { propertyGroups } from './properties.js';
-import { refreshTable, dbIsLive } from './data.js';
+import { refreshTable, dbIsLive, getViewStore } from './data.js';
 
 const params = new URLSearchParams(location.search);
 const initialObject = E.OBJECTS[params.get('object')] ? params.get('object') : 'contacts';
@@ -285,6 +285,14 @@ async function finish() {
 }
 
 // ---------- review page ----------
+// The saved view («Importación: …», filter hs_import_ids) this import created, if it exists in the object's store:
+// «Ver segmento» opens the index with exactly the records of this run.
+function importSegmentView(entry) {
+  if (!entry || entry.state !== 'DONE' || !(entry.options && entry.options.createSegment)) return '';
+  const viewId = `imp${entry.id}`;
+  const objectType = E.OBJECTS[entry.object] ? entry.object : 'contacts';
+  try { return (getViewStore(objectType).custom || []).some((v) => v.id === viewId) ? viewId : ''; } catch { return ''; }
+}
 function renderReview() {
   const entry = E.importHistory().find((r) => Number(r.id) === Number(state.importId));
   if (!entry) { root.innerHTML = frame('<section class="imp__card"><h2>Importación no encontrada</h2><p class="muted">No hay ninguna importación con ese identificador.</p><a class="btn btn--ghost" href="../">Volver</a></section>', 4, 'Importación'); return; }
@@ -317,7 +325,7 @@ function renderReview() {
         <div class="imp__stat"><span>Errores</span><strong>${(d.errors || []).length.toLocaleString('es-ES')}</strong></div>
       </div>
       ${entry.state === 'DONE' ? `<p class="muted">Las filas importadas pueden no coincidir con los registros: un identificador secundario que actualiza un ${esc(singular)} no cuenta como nuevo.</p>` : ''}
-      <div class="imp__row">${E.undoInfo(entry.id) ? '<button class="btn btn--ghost btn--sm" type="button" data-act="undo-import">Deshacer importación…</button>' : ''}${entry.state === 'DONE' ? `<a class="btn btn--primary btn--sm" href="../../${type}/">Ver ${esc(label.toLowerCase())}</a>${entry.options && entry.options.createSegment ? `<a class="btn btn--ghost btn--sm" href="../../${type}/">Ver segmento</a>` : ''}` : ''}<a class="btn btn--ghost btn--sm" href="../">Historial de importaciones</a>${!running ? '<a class="btn btn--ghost btn--sm" href="./">Nueva importación</a>' : ''}</div>
+      <div class="imp__row">${E.undoInfo(entry.id) ? '<button class="btn btn--ghost btn--sm" type="button" data-act="undo-import">Deshacer importación…</button>' : ''}${entry.state === 'DONE' ? `<a class="btn btn--primary btn--sm" href="../../${type}/">Ver ${esc(label.toLowerCase())}</a>${importSegmentView(entry) ? `<a class="btn btn--ghost btn--sm" href="../../${type}/?view=${encodeURIComponent(importSegmentView(entry))}">Ver segmento</a>` : ''}` : ''}<a class="btn btn--ghost btn--sm" href="../">Historial de importaciones</a>${!running ? '<a class="btn btn--ghost btn--sm" href="./">Nueva importación</a>' : ''}</div>
     </section>
     <section class="imp__card">
       <div class="imp__review-head"><h2>Importar errores</h2><div class="imp__row">${(d.errors || []).length ? `<button class="btn btn--ghost btn--sm" type="button" data-act="dl-errors">Descargar errores (zip)</button>` : ''}${(d.failedRows || []).length ? `<button class="btn btn--ghost btn--sm" type="button" data-act="dl-rows">Descargar filas con errores (zip)</button>` : ''}</div></div>

@@ -1,5 +1,12 @@
 # Progreso — Omni CRM
 
+## 2026-11-22 (sesión 6) · Importación: «Ver segmento» abre la vista de la corrida (`?view=imp<id>`)
+
+- `src/list.js`: al arrancar, la lista de cada objeto honra `?view=<id>`: si la vista existe en el store (`viewById`) la activa como pestaña (`activateView`: filtros, orden y columnas de la vista, queda como activa y abierta); un id desconocido se ignora sin romper nada.
+- `src/import-wizard.js`: en la revisión, «Ver segmento» apunta a `../../<objeto>/?view=imp<id>` y solo aparece cuando la importación creó el segmento y la vista `imp<id>` existe en el store del objeto (`importSegmentView`); «Ver <objeto>» sigue llevando al índice general.
+- Pruebas: `scripts/smoke-import-segment.mjs` (importación de 3 contactos con segmento → vista «Importación: Prueba segmento» con el filtro `hs_import_ids`; revisión con «Ver segmento» → `../../contacts/?view=imp1` y «Ver contactos» → índice; sin segmento no hay botón; índice con `?view=imp1` → pestaña activa, solo los 3 registros de la corrida, vista recordada como activa; recarga mantiene la vista; `?view=nope` se ignora). Pasan import-undo, import-multifile, bulk-enroll, contact-views-companies, export-dialog.
+- Solo código local; nada desplegado.
+
 ## 2026-11-22 (sesión 6) · Negocios: «Elementos de pedido» editables en la ficha con el importe recalculado
 
 - `src/data.js`: `updateLineItem(id, { name, quantity, price })` (UPDATE en `deal_line_items` / localStorage), `removeLineItem(id)` (DELETE / localStorage) y `applyLineItemsToDeal(dealId)`: el importe del negocio pasa a ser el total de las líneas mientras haya líneas (el importe anterior se guarda en `amountBeforeLines`) y vuelve a ese valor cuando se quita la última; cada cambio deja «Elementos de pedido actualizados: total <moneda> (N líneas) · importe del negocio …» en la cronología del negocio.
