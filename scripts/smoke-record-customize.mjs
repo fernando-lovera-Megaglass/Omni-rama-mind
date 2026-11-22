@@ -58,12 +58,21 @@ await liveSmoke('record-customize', async ({ data, one, check, log, stamp, sessi
   const rows = await (await import('./smoke-live.mjs')).sql(`select count(*)::int as n, max(jsonb_array_length(value->'keys')) as keys from public.user_settings where user_id = ${lit(session.uid)} and key = ${lit(KEY)}`);
   check(rows[0].n === 1 && Number(rows[0].keys) === 1, `una sola fila por usuario y clave, actualizada (${JSON.stringify(rows[0])})`);
   log('segundo guardado → la misma fila, 1 propiedad');
-  // «Aplicar a todos los usuarios de la cuenta» writes account_settings: only an admin may (RLS); the SMOKE user is not
-  data.setSetting(KEY, card, { scope: 'global' });
-  await data.dbIdle();
-  const global = await one(`select key from public.account_settings where key = ${lit(KEY)} and value->>'title' = ${lit(card.title)}`);
-  log(global ? 'account_settings: la fila de cuenta existe (el usuario tiene rol admin)' : 'account_settings: escritura rechazada por RLS para un usuario sin rol admin (esperado; la app lo avisa con un toast)');
-  if (global) await (await import('./smoke-live.mjs')).sql(`delete from public.account_settings where key = ${lit(KEY)} and value->>'title' = ${lit(card.title)}`);
+  // Shared writes must persist for an active team member without an admin JWT.
+  // Use an isolated key so this check cannot overwrite account-wide card preferences.
+  const sharedKey = `crm:contacts:layout:SMOKE_${stamp}`;
+  try {
+    check(data.setSetting(sharedKey, layout, { scope: 'global' }) === true, 'acepta diseño compartido');
+    await data.dbIdle();
+    const shared = await one(`select value from public.account_settings where key = ${lit(sharedKey)}`);
+    check(shared && JSON.stringify(shared.value.right) === JSON.stringify(layout.right), 'diseño compartido debe persistir en account_settings; un rechazo RLS no es esperado');
+    data.setSetting(sharedKey, null, { scope: 'global' });
+    await data.dbIdle();
+    check(!await one(`select key from public.account_settings where key = ${lit(sharedKey)}`), 'el miembro puede eliminar el diseño compartido');
+    log('account_settings: guardado y eliminación compartidos verificados');
+  } finally {
+    await (await import('./smoke-live.mjs')).sql(`delete from public.account_settings where key = ${lit(sharedKey)}`);
+  }
 });
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const mem = {};

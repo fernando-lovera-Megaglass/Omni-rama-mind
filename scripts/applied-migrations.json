@@ -234,11 +234,15 @@
     "verificacion": "SQL: tabla crm_views con id,object_type,name,share,owner_id,owner_name,teams,payload,created_at,updated_at y políticas crm_views_read/insert/update/delete; SMOKE_LIVE=1 scripts/smoke-views-shared.mjs: el usuario A guarda privada/equipo/todos, B ve solo las compartidas con autor A y RLS le impide editarlas; 0 filas al terminar."
   },
   "account-settings-authenticated.sql": {
-    "status": "pendiente",
-    "nota": "Opción (b). Solo código local; no aplicada en remoto. Permite ajustes globales a usuarios autenticados de la única cuenta del proyecto. Ver docs/settings-sync.md."
+    "status": "sustituida",
+    "nota": "No aplicar: sustituida por account-settings-team.sql, que exige pertenencia activa al equipo."
   },
   "deal-ticket-associations.sql": {
     "status": "aplicada",
     "at": "2026-11-22T04:17:15-0600"
+  },
+  "account-settings-team.sql": {
+    "status": "pendiente",
+    "nota": "Solo código local; no aplicada en remoto. Escritura con is_team_member(), lectura autenticada abierta. Ver docs/account-settings-team.md."
   }
 }

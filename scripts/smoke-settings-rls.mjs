@@ -19,7 +19,11 @@ await assert.rejects(db.exec(`insert into user_settings (user_id,key,value) valu
 assert.equal((await db.query(`update account_settings set value='false' returning *`)).rows.length, 0);
 // Upgrade the old admin-only policy; exercise real SQL as users without a role.
 await db.exec('reset role');
-const upgrade = await readFile(new URL('../supabase/account-settings-authenticated.sql', import.meta.url), 'utf8');
+await db.exec(`create table public.team_members (user_id uuid primary key, active boolean not null);
+insert into public.team_members values ('11111111-1111-1111-1111-111111111111',true), ('22222222-2222-2222-2222-222222222222',true);
+create function public.is_team_member() returns boolean language sql stable security definer set search_path=public as $$
+select exists(select 1 from public.team_members where user_id=auth.uid() and active) $$;`);
+const upgrade = await readFile(new URL('../supabase/account-settings-team.sql', import.meta.url), 'utf8');
 await db.exec(upgrade); await db.exec(upgrade);
 await db.exec(`set role authenticated; set test.jwt='{"app_metadata":{}}';
 insert into account_settings (key,value) values
@@ -43,6 +47,15 @@ for (const type of ['contacts', 'companies', 'deals', 'tickets']) {
 }
 await db.exec("set test.uid='22222222-2222-2222-2222-222222222222'");
 assert.deepEqual((await db.query("select scope,value from account_settings where key='crm:contacts:defaultcolumns'")).rows, [{ scope: 'account', value: ['name', 'owner'] }]);
+// Inactive members and outsiders can still read, but cannot write, even with an admin JWT.
+await db.exec("reset role; update team_members set active=false where user_id='22222222-2222-2222-2222-222222222222'; set role authenticated");
+for (const uid of ['22222222-2222-2222-2222-222222222222', '33333333-3333-3333-3333-333333333333']) {
+  await db.exec(`set test.uid='${uid}'; set test.jwt='{"app_metadata":{"role":"admin"}}'`);
+  assert.ok((await db.query('select * from account_settings')).rows.length > 0);
+  await assert.rejects(db.exec(`insert into account_settings (key,value) values ('forbidden','true')`), { code: '42501' });
+  assert.equal((await db.query(`update account_settings set value='false' returning *`)).rows.length, 0);
+  assert.equal((await db.query('delete from account_settings returning *')).rows.length, 0);
+}
 await db.exec('reset role; set role anon');
 await assert.rejects(db.exec('select * from account_settings'));
 await assert.rejects(db.exec(`insert into account_settings (key,value) values ('anonymous','true')`));
