@@ -542,5 +542,6 @@ if (state.activeId) markRead(state.activeId), renderAll();
 // snoozed conversations whose time came: once now, then every minute while the inbox is open
 checkSnoozed();
 const snoozeTimer = setInterval(() => checkSnoozed(), 60_000);
+if (snoozeTimer && typeof snoozeTimer.unref === 'function') snoozeTimer.unref(); // never keeps a test process alive
 
 export { state, renderAll, snoozeTimer };
