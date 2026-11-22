@@ -406,8 +406,11 @@ export const PRIORITIES = [
 ];
 export const TASK_TYPES = ['Llamada', 'Correo', 'Tarea'];
 export const TASK_STATUSES = [
-  ['todo', 'Pendiente', 'tag--open'],
+  ['todo', 'No iniciada', 'tag--none'],
+  ['in-progress', 'En curso', 'tag--open'],
   ['done', 'Completada', 'tag--done'],
+  ['waiting', 'En espera', 'tag--warn'],
+  ['deferred', 'Aplazada', 'tag--none'],
 ];
 
 const MONTHS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
@@ -1553,7 +1556,7 @@ function buildTask(i) {
     id: i + 1,
     name: [`Llamar a ${c.name}`, `Enviar presupuesto a ${c.name}`, `Seguimiento con ${c.name}`, `Preparar reunión con ${c.name}`, `Enviar catálogo a ${c.name}`, `Confirmar medidas con ${c.name}`][i % 6],
     type: TASK_TYPES[i % 3],
-    status: TASK_STATUSES[i % 4 === 0 ? 1 : 0][0],
+    status: i % 4 === 0 ? 'done' : 'todo',
     priority: PRIORITIES[(i * 2) % 3][0],
     owner: OWNERS[(i * 2) % OWNERS.length],
     contactId: c.id,

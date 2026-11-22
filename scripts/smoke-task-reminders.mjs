@@ -111,7 +111,7 @@ log('list: default «1 hora antes» from Ajustes, drawer with Recordatorio (defa
 
 // ===== 2) A reminder in 1 minute fires when the minute passes: browser notification, bubble, chime, bell =====
 const now = Date.now();
-const soon = data.addRecord('tasks', { name: 'Enviar cotización a Ana Ruiz', type: 'Correo', status: 'todo', priority: 'high', owner: 'Fernando L.', contactId: 1, contact: 'Ana Ruiz', due: new Date(now + 60 * MIN).toISOString(), reminderAt: new Date(now + MIN).toISOString(), lastActivity: data.TODAY.toISOString() });
+const soon = data.addRecord('tasks', { name: 'Enviar cotización a Ana Ruiz', type: 'Correo', status: 'waiting', priority: 'high', owner: 'Fernando L.', contactId: 1, contact: 'Ana Ruiz', due: new Date(now + 60 * MIN).toISOString(), reminderAt: new Date(now + MIN).toISOString(), lastActivity: data.TODAY.toISOString() });
 if (TR.dueReminders(now).length !== 0 || !TR.upcomingReminders(now).some((t) => t.id === soon.id)) fail(`not due yet: due=${JSON.stringify(TR.dueReminders(now).map((t) => [t.name, t.reminderAt]))} upcoming=${JSON.stringify(TR.upcomingReminders(now).map((t) => [t.name, t.reminderAt]))} soon=${JSON.stringify([soon.id, soon.reminderAt, soon.status])}`);
 let events = 0;
 document.addEventListener('crm:reminder', () => { events += 1; });

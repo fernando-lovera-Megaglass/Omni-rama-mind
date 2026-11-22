@@ -45,6 +45,33 @@ if (phase === 'list') {
   await import(resolve(here, '../src/tasks.js'));
   const $ = (id) => document.getElementById(id);
   const total = () => Number($('total-pill').textContent.split(' ')[0]);
+  // New open states travel through the same inline editor and persistence path.
+  const edited = [];
+  for (const status of ['in-progress', 'waiting', 'deferred']) {
+    const td = [...document.querySelectorAll('td[data-key="status"]')].find(el => !edited.includes(Number(el.dataset.id)));
+    clickIn(dom, td);
+    const select = $('cp-value');
+    if (!select || select.options.length !== 6) fail('inline editor must offer all five statuses');
+    select.value = status;
+    changeIn(dom, select);
+    clickIn(dom, $('cellpop-save'));
+    await new Promise(resolve => setTimeout(resolve, 20));
+    const id = Number(td.dataset.id);
+    edited.push(id);
+    if (data.findRecord('tasks', id).status !== status) fail('inline status save');
+    const reloaded = await import(resolve(here, '../src/data.js') + '?reload=' + status);
+    if (reloaded.findRecord('tasks', id).status !== status) fail('persisted status after module reload');
+    clickIn(dom, document.querySelector('.menu__item[data-filter="status"][data-value="' + status + '"]'));
+    if (total() !== data.allTasks().filter(t => t.status === status).length) fail('new status filter');
+    clickIn(dom, document.querySelector('.menu__item[data-filter="status"][data-value=""]'));
+  }
+  clickIn(dom, document.querySelector('[data-action="mode-board"]'));
+  if (document.querySelectorAll('#kanban .kcol').length !== 5) fail('five board columns');
+  for (const status of ['in-progress', 'waiting', 'deferred']) {
+    const column = document.querySelector('#kanban .kcol[data-group="' + status + '"]');
+    if (!column || !column.querySelector('.kcard')) fail('new state card in board column');
+  }
+  clickIn(dom, document.querySelector('[data-action="mode-table"]'));
   const all = data.allTasks();
   const pendingAll = all.filter((t) => t.status !== 'done');
   log('tabs:', [...document.querySelectorAll('button.views__tab')].map((t) => t.textContent.trim()).join(' | '));
@@ -169,6 +196,7 @@ if (phase === 'taskpage') {
   log('task page:', $('rec-name').textContent.trim(), '| bar hidden?', bar.hidden, '| "Ir a la tarea" offered?', Boolean(bar.querySelector('.tq__actions a')));
   if (bar.hidden || bar.querySelector('.tq__actions a')) fail('bar on the task page');
   clickIn(dom, document.querySelector('#rec-stages [data-status="done"]'));
+  await new Promise(resolve => setTimeout(resolve, 20));
   log('after "Marcar como completada": status', data.findRecord('tasks', q0.ids[0]).status, '| bar tag:', bar.querySelector('.tq__title .tag')?.textContent, '| button:', bar.querySelector('[data-tq="complete"]').textContent);
   if (!bar.querySelector('.tq__title .tag') || bar.querySelector('[data-tq="complete"]').textContent !== 'Terminar') fail('bar should reflect the completed task');
   clickIn(dom, bar.querySelector('[data-tq="complete"]'));
