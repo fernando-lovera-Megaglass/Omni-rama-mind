@@ -1,5 +1,11 @@
 # Progreso — Omni CRM
 
+## 2026-11-22 (sesión 6) · smoke-company-record: etapa en línea asíncrona, cabecera de cronología y «Dominios adicionales»
+
+- Diagnóstico: no es regresión; tres cambios intencionales dejaron la prueba desactualizada. (1) Desde 1e15204 / ff9aaae (reglas de etapa y motivo de cierre) el desplegable de etapa de la tarjeta de negocios de la ficha pasa por `changeDealStage` (reglas, propiedades obligatorias, validación, diálogo para las etapas cerradas), que es asíncrono: la prueba comprobaba la etapa en el mismo tick. (2) Desde 3a803b9 (fijar actividad) la cronología lleva cabeceras `li.timeline__section` («Fijado», «Actividad») que la prueba contaba como entradas (fallo «date filter (today)» en local). (3) Desde 4bb1798 el panel «Agregar empresas» incluye «Dominios adicionales» (`hs_additional_domains`) tras el dominio.
+- `scripts/smoke-company-record.mjs`: elige una etapa abierta (`isClosedStage`) y espera 50 ms tras el `change`; `entries()` cuenta `li.timeline__item`; la lista de campos del panel incluye `hs_additional_domains`. Pasa completa (ficha, cronología y filtros, tarjetas de asociación, cajón «+ Agregar», lista con panel de creación y `?company=`).
+- Solo código local; nada desplegado.
+
 ## 2026-11-22 (sesión 6) · smoke-task-queue: espera robusta tras «Marcar como completada»
 
 - Diagnóstico: no se reproduce ninguna regresión. La prueba pasó 7 veces seguidas y 6 en paralelo: al marcar la tarea como completada desde la ficha de tarea, `save()` valida (`await validatePropertyValues`), escribe con `setField`, redibuja y refresca la barra de la cola (`queueBar.refresh()`), que muestra la etiqueta «Completada» y el botón «Terminar». El fallo reportado solo encaja con la espera fija de 20 ms de la prueba en una máquina ocupada (el guardado es asíncrono).

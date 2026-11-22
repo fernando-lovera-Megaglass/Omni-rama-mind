@@ -66,7 +66,7 @@ click(document.querySelector('[data-tab="activity"]'));
 const subtabs = [...document.querySelectorAll('#act-filters .chip')].map((c) => txt(c));
 log('activity sub-tabs:', subtabs.join(' | '), '| date filter:', Boolean($('act-date')), '| who filter:', Boolean($('act-who')));
 if (!['Notas', 'Correos', 'Llamadas', 'Tareas', 'Reuniones'].every((s) => subtabs.includes(s)) || !$('act-date') || !$('act-who')) fail('activity sub-tabs and filters');
-const entries = () => $('rec-timeline').querySelectorAll('li:not(.muted)').length; // the empty state is a muted li
+const entries = () => $('rec-timeline').querySelectorAll('li.timeline__item').length; // section headers («Actividad», «Fijado») and the empty state are not items
 $('note-form').querySelector('textarea').value = 'Nota de prueba en la empresa';
 $('note-form').dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true }));
 const n1 = entries();
@@ -91,9 +91,12 @@ log('deals card: + Agregar', Boolean(dealsCard.querySelector('[data-act="add-ass
 if (!dealsCard.querySelector('[data-act="add-assoc"]') || !dealsCard.querySelector('[data-deal-stage]') || dealsCard.querySelector('.assoc-more')?.getAttribute('href') !== '../../deals/?company=1') fail('deals card tools');
 const sel = dealsCard.querySelector('[data-deal-stage]');
 const dealId = Number(sel.dataset.dealStage);
-const other = [...sel.options].find((o) => o.value !== sel.value).value;
+// an open stage (a closed one would ask for the reason in a dialog); the change goes through the shared
+// changeDealStage (rules, required properties, validation), which is asynchronous
+const other = [...sel.options].find((o) => o.value !== sel.value && !data.isClosedStage(o.value)).value;
 sel.value = other;
 change(sel);
+await new Promise((r) => setTimeout(r, 50));
 log('stage changed inline →', data.findRecord('deals', dealId).stage, '| toast:', $('toast')?.textContent, '| still selected:', document.querySelector(`[data-deal-stage="${dealId}"]`).value);
 if (data.findRecord('deals', dealId).stage !== other || document.querySelector(`[data-deal-stage="${dealId}"]`).value !== other) fail('inline stage update');
 click(document.querySelector('.card--assoc[data-kind="deals"] [data-act="add-assoc"]')); // the cards were re-rendered after the stage change
@@ -115,7 +118,8 @@ click(addBtn);
 const panel = $('cco-panel');
 const names = [...$('cco-form').querySelectorAll('[name]')].map((e) => e.name);
 log('panel open:', panel.classList.contains('is-open'), '| fields:', names.join(', '), '| owner default:', $('cco-form').elements.owner.value, '| hint:', txt($('cco-dups')));
-if (!panel.classList.contains('is-open') || names.join(',') !== 'domain,name,owner,state,country,phone,industry' || txt($('cco-dups')) !== 'Comienza por escribir un nombre de dominio, un nombre de cuenta o ambos.') fail('panel fields');
+// «Dominios adicionales» (hs_additional_domains) sits right after the domain since the additional-domains work
+if (!panel.classList.contains('is-open') || names.join(',') !== 'domain,hs_additional_domains,name,owner,state,country,phone,industry' || txt($('cco-dups')) !== 'Comienza por escribir un nombre de dominio, un nombre de cuenta o ambos.') fail('panel fields');
 if (!$('cco-create').disabled) fail('Crear disabled until the name is filled');
 type($('cco-form').elements.domain, 'cristales');
 await wait(350);
