@@ -1384,10 +1384,11 @@
     },
     {
       "id": "gap-smoke-dedupe-skip",
-      "status": "pending",
+      "status": "done",
       "instruction": "smoke-dedupe falla en «skip duplicates choice» (stats created:2, updated:2, failed:1; contacts 420→422). Criterio: la prueba pasa. Ejecuta la(s) prueba(s) con node scripts/<smoke>.mjs hasta que pasen. Verifica si es regresión del código o prueba desactualizada por un cambio intencional; corrige lo que corresponda. No despliegues nada a producción; solo código local.",
       "createdAt": "2026-11-21T16:25:45-06:00",
-      "lane": "claude"
+      "lane": "claude",
+      "completedAt": "2026-11-21T21:48:53-0600"
     },
     {
       "id": "gap-smoke-import-map-en",
