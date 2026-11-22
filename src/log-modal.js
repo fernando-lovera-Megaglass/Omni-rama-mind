@@ -1,6 +1,6 @@
 import { callOutcomes } from './activity-outcomes.js';
 // Shared activity form, usable without booting a record page.
-import { TODAY, getSetting, dbIsLive, allContacts, allCompanies, allDeals, allTickets, ticketStatusIsClosed } from './data.js';
+import { TODAY, getSetting, dbIsLive, allContacts, allCompanies, allDeals, allTickets, ticketStatusIsClosed, strip } from './data.js';
 import { ACTIVITY_COMPANY_SETTING, ACTIVITY_RULES_SETTING, activityAssociations } from './activity-associations.js';
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const CONFIG = Object.fromEntries(Object.entries({ contacts: 'contacto', companies: 'empresa', deals: 'negocio', tickets: 'ticket', tasks: 'tarea' }).map(([type, singular]) => [type, { singular, title: r => r.name }]));
@@ -62,6 +62,10 @@ export function openLogModal(kind, { type, rec, openModal, $, schedule = false, 
   } else if (kind === 'meeting') {
     body = `<label class="field"><span>Título</span><input id="log-title" type="text" value="Reunión con ${esc(name)}" /></label>
       ${whenRow}
+      <fieldset class="log-attendees" id="log-attendees" data-attendees="[]"><legend>Asistentes</legend>
+        <ul class="cd-assoc" id="log-attendees-list"></ul>
+        <div class="cd-search"><input type="search" id="log-attendees-q" placeholder="Buscar contactos por nombre o correo" aria-label="Buscar contactos" autocomplete="off" /><ul class="cd-search__results" id="log-attendees-results" hidden></ul></div>
+      </fieldset>
       <div class="adv-row adv-row--two"><label class="field"><span>Duración</span>${durSelect(30)}</label><label class="field"><span>Ubicación</span><select id="log-location">${MEETING_LOCS.map((o) => `<option>${esc(o)}</option>`).join('')}</select></label></div>
       ${schedule ? '' : outcomeRow}
       <label class="field"><span>Descripción</span><textarea id="log-notes" rows="3" placeholder="Orden del día, acuerdos..."></textarea></label>`;
@@ -84,6 +88,7 @@ export function openLogModal(kind, { type, rec, openModal, $, schedule = false, 
     body,
     `<button class="btn btn--primary" type="button" data-confirm="logact" data-kind="${kind}" data-schedule="${schedule ? '1' : ''}" data-channel="${esc(channel)}">${verb} ${what}</button><button class="btn btn--ghost" type="button" data-close>Cancelar</button>`,
   );
+  if (kind === 'meeting') mountAttendees($, { type, rec, activity });
   if (activity) {
     const x = activity.extra || {};
     let title = x.title ?? x.subject ?? '';
@@ -103,6 +108,69 @@ export function openLogModal(kind, { type, rec, openModal, $, schedule = false, 
   }
 }
 
+// ---------- meeting attendees ----------
+// Contacts matching the search (name or e-mail), skipping the ones already chosen; up to 6 like the panels.
+export function findAttendees(q, chosenIds = [], limit = 6) {
+  const qq = strip(q);
+  if (!qq) return [];
+  const chosen = new Set(chosenIds.map(Number));
+  return allContacts().filter((c) => !chosen.has(Number(c.id)) && (strip(c.name || '').includes(qq) || strip(c.email || '').includes(qq))).slice(0, limit).map((c) => ({ id: Number(c.id), name: c.name || 'Sin nombre', sub: c.email || '' }));
+}
+// The attendees a new meeting starts with: the contact of the record it is logged from (the record itself
+// for a contact, its primary contact otherwise); an edited meeting starts with the ones it saved.
+export function defaultAttendees(type, rec, activity = null) {
+  if (activity) return (activity.extra && Array.isArray(activity.extra.attendees) ? activity.extra.attendees : []).map((a) => ({ id: Number(a.id), name: a.name || '' }));
+  if (!rec) return [];
+  const contact = type === 'contacts' ? rec : rec.contactId ? allContacts().find((c) => Number(c.id) === Number(rec.contactId)) : null;
+  return contact ? [{ id: Number(contact.id), name: contact.name || 'Sin nombre' }] : [];
+}
+// The attendees chosen in the open meeting form (kept as JSON on the fieldset so readLogActivity can read them).
+export const readAttendees = ($) => { try { const v = JSON.parse(($('log-attendees') || { dataset: {} }).dataset.attendees || '[]'); return Array.isArray(v) ? v : []; } catch { return []; } };
+// Where a meeting is logged besides its record: every attendee's timeline (saveAssociatedActivity deduplicates).
+export const attendeeTargets = (extra) => (extra && Array.isArray(extra.attendees) ? extra.attendees : []).map((a) => ({ type: 'contacts', id: a.id }));
+function mountAttendees($, { type, rec, activity }) {
+  const box = $('log-attendees');
+  if (!box) return;
+  let chosen = defaultAttendees(type, rec, activity);
+  const list = $('log-attendees-list');
+  const input = $('log-attendees-q');
+  const results = $('log-attendees-results');
+  const render = () => {
+    box.dataset.attendees = JSON.stringify(chosen);
+    list.innerHTML = chosen.length
+      ? chosen.map((a) => `<li class="cd-assoc__row" data-attendee="${esc(a.id)}"><div class="cd-assoc__who"><span class="avatar avatar--xs avatar--soft" aria-hidden="true">${esc(String(a.name).split(' ').filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase())}</span><div><strong>${esc(a.name)}</strong></div></div><button type="button" class="icon-btn icon-btn--sm" data-attendee-rm="${esc(a.id)}" aria-label="Quitar a ${esc(a.name)}">×</button></li>`).join('')
+      : '<li class="muted">Sin asistentes: la reunión solo queda en este registro.</li>';
+  };
+  const search = () => {
+    const hits = findAttendees(input.value, chosen.map((a) => a.id));
+    results.hidden = !hits.length;
+    results.innerHTML = hits.map((r) => `<li><button type="button" data-attendee-pick="${esc(r.id)}" data-name="${esc(r.name)}"><strong>${esc(r.name)}</strong>${r.sub ? `<span class="muted">${esc(r.sub)}</span>` : ''}</button></li>`).join('');
+  };
+  const pick = (id, name) => {
+    if (chosen.some((a) => Number(a.id) === Number(id))) return;
+    chosen = [...chosen, { id: Number(id), name }];
+    input.value = '';
+    results.hidden = true;
+    results.innerHTML = '';
+    render();
+    input.focus();
+  };
+  box.addEventListener('input', (e) => { if (e.target === input) search(); });
+  box.addEventListener('keydown', (e) => {
+    if (e.target !== input || e.key !== 'Enter') return;
+    e.preventDefault();
+    const first = results.querySelector('[data-attendee-pick]');
+    if (first) pick(first.dataset.attendeePick, first.dataset.name);
+  });
+  box.addEventListener('click', (e) => {
+    const p = e.target.closest('[data-attendee-pick]');
+    if (p) { pick(p.dataset.attendeePick, p.dataset.name); return; }
+    const rm = e.target.closest('[data-attendee-rm]');
+    if (rm) { chosen = chosen.filter((a) => Number(a.id) !== Number(rm.dataset.attendeeRm)); render(); }
+  });
+  render();
+}
+
 export function readLogActivity($, kind, name, schedule = false, channel = '') {
     const dstr = $('log-date').value;
     const when = dstr ? new Date(`${dstr}T${$('log-time').value || '09:00'}`).getTime() : Date.now();
@@ -120,6 +188,7 @@ export function readLogActivity($, kind, name, schedule = false, channel = '') {
       extra.title = title;
       extra.durationMin = Number($('log-duration').value);
       extra.locationType = $('log-location').value;
+      extra.attendees = readAttendees($);
       if (!schedule) extra.outcome = $('log-outcome').value;
       text = schedule ? `Reunión programada: ${title}${notes ? `. ${notes}` : ''}` : `${title}${notes ? ` — ${notes}` : ''}`;
     } else if (kind === 'email') {

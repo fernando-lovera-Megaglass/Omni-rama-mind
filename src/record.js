@@ -1,4 +1,4 @@
-import { openLogModal as showLogModal, selectedActivityAssociations, readLogActivity, logAssociationsHtml as sharedLogAssociationsHtml } from './log-modal.js';
+import { openLogModal as showLogModal, selectedActivityAssociations, readLogActivity, logAssociationsHtml as sharedLogAssociationsHtml, attendeeTargets } from './log-modal.js';
 import { formatAttachmentSize } from './mail-attachments.js';
 import { TASK_ASSOCIATIONS, taskAssociationLinks, taskLinksTo } from './task-associations.js';
 import { isFollowing as followStoreHas, toggleFollow } from './follows.js';
@@ -1500,6 +1500,8 @@ function renderTimeline() {
     if (x.locationType) tags.push(x.locationType);
     if (x.channel) tags.push(x.channel);
     if (x.subject) tags.push(`Asunto: ${x.subject}`);
+    // The meeting's attendees («con Ana, Luis…»), the same on every timeline that carries it.
+    if (Array.isArray(x.attendees) && x.attendees.length) tags.push(`con ${x.attendees.map((a) => a.name).filter(Boolean).join(', ')}`);
     return tags.length ? `<div class="timeline__tags">${tags.map((t) => `<span class="tag tag--none">${esc(t)}</span>`).join('')}</div>` : '';
   };
   // Grabada: mini reproductor en línea (play grande, tiempo y duración) + enlace al panel lateral.
@@ -2134,13 +2136,20 @@ $('rec-modal').addEventListener('click', async (e) => {
         const wasPinned = pinnedEvent(allEvents());
         await updateActivity(editingActivity.id, { when, text, extra });
         if (wasPinned && evKey(wasPinned) === evKey(editingActivity)) localStorage.setItem(pinnedStorageKey, evKey({ ...editingActivity, when }));
+        // Attendees added while editing a meeting get their copy too (the ones it already had keep theirs).
+        if (kind === 'meeting' && !editingActivity.extra?.associatedFrom) {
+          const had = new Set(((editingActivity.extra && editingActivity.extra.attendees) || []).map((a) => Number(a.id)));
+          const added = attendeeTargets(extra).filter((t) => !had.has(Number(t.id)) && !(type === 'contacts' && Number(t.id) === Number(id)));
+          if (added.length) saveAssociatedActivity({ type: kind, when, who: 'Tú', text, extra }, { type, id, name }, added, (ev) => { if (!(ev.recordType === type && Number(ev.recordId) === Number(id))) addActivity(ev); });
+        }
         renderTimeline();
       }
       catch (error) { toast(error.message); b.disabled = false; return; }
     } else {
       if (b.disabled) return;
       b.disabled = true;
-      const targets = selectedActivityAssociations($('rec-modal'));
+      // A meeting is logged on every attendee's timeline as well (saveAssociatedActivity skips duplicates).
+      const targets = [...selectedActivityAssociations($('rec-modal')), ...attendeeTargets(extra)];
       saveAssociatedActivity({ type: kind, when, who: 'Tú', text, extra }, { type, id, name }, targets, addActivity);
       renderTimeline();
     }

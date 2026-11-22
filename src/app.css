@@ -14055,6 +14055,39 @@ a.is-done {
   margin-left: var(--sp-8);
 }
 
+/* Meeting attendees in the log modal (src/log-modal.js): compact contact rows + the shared search box. */
+.log-attendees {
+  margin: 0 0 var(--sp-12);
+  padding: 0;
+  border: 0;
+}
+
+.log-attendees legend {
+  font-size: var(--fs-xs);
+  color: var(--c-muted);
+  margin-bottom: var(--sp-4);
+}
+
+.log-attendees .cd-assoc {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-8);
+  margin: 0 0 var(--sp-8);
+  padding: 0;
+  list-style: none;
+}
+
+.log-attendees .cd-assoc__row {
+  flex-direction: row;
+  align-items: center;
+  padding: var(--sp-4) var(--sp-8);
+  border-radius: 999px;
+}
+
+.log-attendees .cd-search {
+  position: relative;
+}
+
 /* «Embudo de ventas» (src/funnel.js): one horizontal bar per open stage, the conversion between them. */
 .card__tools {
   margin-left: auto;
