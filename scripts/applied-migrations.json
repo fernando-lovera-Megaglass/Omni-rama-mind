@@ -212,8 +212,11 @@
     "nota": "Solo código local; no aplicada a producción. Tabla ticket_tags (misma forma que deal_tags) para las Etiquetas de Ticket; mientras tanto la app usa localStorage crm:ticket_tags."
   },
   "custom-properties-archived-at.sql": {
-    "status": "pendiente",
-    "nota": "Solo código local; no aplicada a producción. Añade custom_properties.archived_at (fecha de archivado) para que la purga de 90 días (purgeExpiredTrash, src/data.js) borre las propiedades archivadas; mientras falte, la app escribe sin la columna y omite esa parte de la purga."
+    "status": "aplicada",
+    "at": "2026-11-22T09:58:00.310Z",
+    "nota": "Aplicada a petición expresa (re-apertura de la purga de 90 días): la purga de propiedades archivadas no podía funcionar sin archived_at.",
+    "verificada": "2026-11-22T10:00:00Z",
+    "verificacion": "SQL: information_schema muestra custom_properties.archived_at (timestamptz, nullable) y pg_indexes custom_properties_archived_at_idx (where archived); 61 propiedades, 0 archivadas sin fecha. App (SMOKE_LIVE=1 scripts/smoke-trash-purge.mjs): crear una propiedad smoke_prop_… → archived_at nulo; archivarla con saveCustomProperties → la fila guarda archived_at; restaurarla → nulo; fechada hace 91 días por SQL → purgeExpiredTrash la borra de custom_properties y de la app sin nada pendiente. Fila de prueba eliminada."
   },
   "crm_views.sql": {
     "status": "aplicada",

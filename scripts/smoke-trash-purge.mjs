@@ -12,7 +12,7 @@ import { JSDOM } from 'jsdom';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
-import { liveSmoke, lit } from './smoke-live.mjs';
+import { liveSmoke, requireColumns, lit } from './smoke-live.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const TAG = 'trash-purge';
@@ -56,6 +56,40 @@ await liveSmoke(TAG, async ({ data, one, sql, check, log, stamp }) => {
   check(!data.trashedRecords('contacts').some((x) => Number(x.id) === Number(oldC.id)) && data.trashedRecords('contacts').some((x) => Number(x.id) === Number(newC.id)), 'la papelera de la app refleja la purga');
   log(`purga: ${JSON.stringify(res.records)} · actividades ${res.activities} · propiedades ${res.properties} · pendiente: ${res.pending.join(', ') || 'nada'}`);
   log(`SQL después: ${JSON.stringify(after)}`);
+  // ---- archived custom properties (custom-properties-archived-at.sql): archived_at saved, cleared, purged ----
+  await requireColumns('custom_properties', ['archived', 'archived_at']);
+  const P = await import(resolve(here, '../src/properties.js'));
+  check(P.customPropertiesLive(), 'las propiedades personalizadas vienen de la tabla');
+  const key = `smoke_prop_${stamp}`;
+  const propRow = () => one(`select archived, archived_at from public.custom_properties where objeto = 'contact' and name = ${lit(key)}`);
+  try {
+    // what Configuración › Propiedades does: create, archive, restore, archive again (the whole list is saved each time)
+    await P.saveCustomProperties('contacts', [...P.customProperties('contacts'), { key, label: `SMOKE Propiedad ${stamp}`, kind: 'text', group: 'Propiedades personalizadas', custom: true }]);
+    await data.dbIdle();
+    let p = await propRow();
+    check(p && p.archived === false && p.archived_at === null, `propiedad creada sin fecha de archivado (${JSON.stringify(p)})`);
+    await P.saveCustomProperties('contacts', P.customProperties('contacts').map((x) => (x.key === key ? { ...x, archived: true } : x)));
+    await data.dbIdle();
+    p = await propRow();
+    check(p && p.archived === true && p.archived_at, `archivar guarda archived_at en la fila (${JSON.stringify(p)})`);
+    log(`propiedad «${key}» archivada → archived_at = ${p.archived_at}`);
+    await P.saveCustomProperties('contacts', P.customProperties('contacts').map((x) => (x.key === key ? { ...x, archived: false } : x)));
+    await data.dbIdle();
+    p = await propRow();
+    check(p && p.archived === false && p.archived_at === null, `restaurar limpia archived_at (${JSON.stringify(p)})`);
+    await P.saveCustomProperties('contacts', P.customProperties('contacts').map((x) => (x.key === key ? { ...x, archived: true } : x)));
+    await data.dbIdle();
+    // 91 days later: the purge removes it for good; a recently archived one would stay (none here)
+    await sql(`update public.custom_properties set archived_at = now() - interval '91 days' where objeto = 'contact' and name = ${lit(key)}`);
+    const res2 = await data.purgeExpiredTrash();
+    check(!res2.pending.length && !res2.errors.length && res2.properties >= 1, `la purga de propiedades ya no queda pendiente (${JSON.stringify({ properties: res2.properties, pending: res2.pending, errors: res2.errors })})`);
+    p = await propRow();
+    check(p === null, 'la propiedad archivada hace 91 días desaparece de custom_properties');
+    check(!P.customProperties('contacts').some((x) => x.key === key), 'y de la lista de la app');
+    log(`propiedad archivada hace 91 días → purgada (propiedades: ${res2.properties}, pendiente: nada)`);
+  } finally {
+    await sql(`delete from public.custom_properties where name like 'smoke_prop_%'`);
+  }
 });
 
 // ---- static: migration registered, the four texts share TRASH_DAYS ----

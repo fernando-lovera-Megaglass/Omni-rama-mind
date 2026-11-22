@@ -1,5 +1,13 @@
 # Progreso — Omni CRM
 
+## 2026-11-22 (sesión 6) · Re-apertura purga 90 días: `custom_properties.archived_at` aplicada; las propiedades archivadas ya se fechan y se purgan
+
+- A petición expresa, `supabase/custom-properties-archived-at.sql` se aplicó con `scripts/apply-migration.mjs` (columna `archived_at timestamptz`, backfill `now()` para las archivadas sin fecha —había 0— e índice parcial `custom_properties_archived_at_idx`). `scripts/applied-migrations.json` la marca aplicada con la verificación.
+- Verificado con SQL: `information_schema.columns` muestra `custom_properties.archived_at` (timestamptz, nullable) y `pg_indexes` el índice; 61 propiedades, 0 archivadas sin fecha.
+- Verificado con la app (`SMOKE_LIVE=1 scripts/smoke-trash-purge.mjs`, ampliado): crear una propiedad «smoke_prop_…» de contactos → `archived_at` nulo; archivarla con `saveCustomProperties` → la fila guarda `archived_at`; restaurarla → vuelve a nulo; archivada y fechada hace 91 días por SQL → `purgeExpiredTrash` la borra de `custom_properties` y de la lista de la app, sin nada pendiente. Fila de prueba eliminada al terminar.
+- Consecuencias cerradas: `withArchivedAt` ya no tiene que quitar la columna (el aviso de consola no se produce), `purgeExpiredTrash` ya no reporta `pending` y el texto «Se eliminan definitivamente a los 90 días» se cumple también para propiedades.
+- Sin cambios de código en `src/`; solo la migración aplicada, el registro, la prueba y la documentación.
+
 ## 2026-11-22 (sesión 6) · ⭐ Las preferencias de las 4 listas persisten por usuario en Supabase (user_settings)
 
 - Antes: `getPrefs`/`setPrefs` (`src/data.js`) leían y escribían solo `crm:<objeto>:prefs` en localStorage, aunque hubiera sesión: columnas elegidas con «Editar columnas» sobre las vistas estándar, orden por arrastre, anchuras, columnas congeladas, densidad, cebra, métricas, tamaño de página, estado del tablero y pipeline se perdían al cambiar de navegador o equipo.
