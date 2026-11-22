@@ -868,15 +868,19 @@ export function isDecorated(type, r, key) {
   const props = PROP_CACHE[type] || (PROP_CACHE[type] = propertyList(type));
   const p = props.find((x) => x.key === key);
   if (!p || p.custom || REAL_ONLY.has(key)) return false;
-  let sample;
-  try { sample = String(sampleValue(p, r, type)); } catch { return false; }
   const marks = DECORATED.get(r);
-  // augment() marked it and nobody edited it since (the value is still the sample)
-  if (marks) return marks.has(key) && String(r[key]) === sample;
+  // augment() wrote it and nobody edited it since (the value is still the one it wrote)
+  if (marks) return marks.has(key) && String(r[key]) === marks.get(key);
   // a copy augment() never saw: only the kinds whose samples are distinctive can be told apart
-  return !['enum', 'user', 'bool'].includes(p.kind) && String(r[key]) === sample;
+  if (['enum', 'user', 'bool'].includes(p.kind)) return false;
+  try { return String(r[key]) === String(sampleValue(p, r, type)); } catch { return false; }
 }
 const mergeHas = (type, r, k) => !mergeEmpty(r[k]) && typeof r[k] !== 'object' && !isDecorated(type, r, k);
+// The properties a merge fills into `keep` from `other`: really filled there, empty (or only decorated) here.
+export function mergeFillable(type, keep, other) {
+  return Object.keys(other || {}).filter((k) => !MERGE_SKIP.has(k) && k !== 'name' && k !== 'first' && k !== 'last' && !k.startsWith('assoc_') && !k.startsWith('num_') && !k.startsWith('hs_lifecyclestage_')
+    && mergeHas(type, other, k) && (mergeEmpty(keep[k]) || isDecorated(type, keep, k)));
+}
 const CASELESS = new Set(['email', 'alt_email', 'domain', 'website', 'hs_additional_emails', 'hs_additional_domains']);
 // The properties where the kept record and a duplicate differ (both really filled), for the side-by-side
 // dialog: [{ key, keep: value, other: value }]. The name parts are included so the person can choose them;
@@ -912,10 +916,7 @@ export function mergeRecords(type, keepId, otherIds, { choices = {} } = {}) {
     keep[k] = v; chosen.push(k); setField(type, keep.id, k, v);
   });
   if (type === 'contacts' && (chosen.includes('first') || chosen.includes('last'))) { const full = `${keep.first || ''} ${keep.last || ''}`.trim(); if (full && full !== keep.name) { keep.name = full; setField(type, keep.id, 'name', full); } }
-  others.forEach((o) => Object.entries(o).forEach(([k, v]) => {
-    if (MERGE_SKIP.has(k) || k === 'name' || k === 'first' || k === 'last' || k.startsWith('assoc_') || k.startsWith('num_') || empty(v) || typeof v === 'object' || isDecorated(type, o, k)) return;
-    if (empty(keep[k]) || isDecorated(type, keep, k)) { keep[k] = v; filled.push(k); setField(type, keep.id, k, v); }
-  }));
+  others.forEach((o) => mergeFillable(type, keep, o).forEach((k) => { keep[k] = o[k]; filled.push(k); setField(type, keep.id, k, o[k]); }));
   const ids = new Set(others.map((o) => Number(o.id)));
   if (type === 'contacts') {
     ['deals', 'tickets', 'tasks'].forEach((t) => ALL[t]().forEach((x) => { if (ids.has(Number(x.contactId))) { setField(t, x.id, 'contactId', Number(keep.id)); if (t === 'tasks') setField(t, x.id, 'contact', keep.name); } }));
@@ -1374,16 +1375,17 @@ const PROP_CACHE = {};
 function augment(type, r) {
   if (type === 'contacts') r.marketingOptOut = [true, 'true', 'Sí'].includes(r.marketingOptOut) ? 'Sí' : 'No';
   const props = PROP_CACHE[type] || (PROP_CACHE[type] = propertyList(type));
-  const marks = new Set();
+  const marks = new Map();
   for (const p of props) {
     if (p.custom || REAL_ONLY.has(p.key)) continue; // custom properties and the real-only ones never get sample values
-    if (r[p.key] === undefined || r[p.key] === null) { r[p.key] = sampleValue(p, r, type); marks.add(p.key); }
+    if (r[p.key] === undefined || r[p.key] === null) { r[p.key] = sampleValue(p, r, type); marks.set(p.key, String(r[p.key])); }
   }
   DECORATED.set(r, marks);
   return r;
 }
-// Which keys of an augmented record are sample decoration (never stored): read by isDecorated() so a merge
-// neither offers them as conflicts nor lets them shadow a real value. Weak: nothing leaks into persistence.
+// Which keys of an augmented record are sample decoration (never stored), with the value written: read by
+// isDecorated() so a merge neither offers them as conflicts nor lets them shadow a real value. Weak: nothing
+// leaks into persistence.
 const DECORATED = new WeakMap();
 // Properties the app really drives: a sample value would be acted upon (a fake reminder would fire).
 const REAL_ONLY = new Set(['marketingOptOut', 'marketingOptOutAt', 'marketingOptOutReason', 'reminderAt', 'reminderFiredAt', 'closedLostReason', 'closedWonReason', 'notes_last_contacted', 'hs_additional_domains']);

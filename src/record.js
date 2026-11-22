@@ -7,7 +7,7 @@ import { mountCreateTicket } from './create-ticket.js';
 import { changeDealStage } from './deal-close.js';
 import { ACTIVITY_COMPANY_SETTING, activityAssociations, saveAssociatedActivity } from './activity-associations.js';
 import './filter-chip.js';
-import { validatePropertyValues, companyDomains, mergeRecords, mergeConflicts, MERGE_SKIP } from './data.js';
+import { validatePropertyValues, companyDomains, mergeRecords, mergeConflicts, mergeFillable } from './data.js';
 import { suggestedKeep } from './duplicates.js';
 import { sensitiveValue } from './property-privacy.js';
 import { mountActivityComments } from './activity-comments.js';
@@ -1794,9 +1794,8 @@ async function save(key, value, label) {
 // ---------- Fusionar, as the original: pick the duplicate (search), compare side by side, choose the kept values ----------
 let mergeState = null;
 const mergeHaystack = (r) => [r.name, r.first, r.last, r.email, r.domain, r.phone, r.company].filter(Boolean).join(' ').toLowerCase();
-const mergeEmpty = (v) => v === undefined || v === null || v === '' || v === 'Sin asignar';
-// How many empty properties of `keep` the merge will fill from `other`.
-const mergeGaps = (keep, other) => Object.entries(other).filter(([k, v]) => !MERGE_SKIP.has(k) && !['name', 'first', 'last'].includes(k) && !k.startsWith('assoc_') && !k.startsWith('num_') && !mergeEmpty(v) && typeof v !== 'object' && mergeEmpty(keep[k])).length;
+// How many empty properties of `keep` the merge will fill from `other` (the same rule mergeRecords applies).
+const mergeGaps = (keep, other) => mergeFillable(type, keep, other).length;
 function mergeCandidates(q) {
   const all = ALL[type]().filter((r) => Number(r.id) !== Number(rec.id));
   const s = String(q || '').trim().toLowerCase();
