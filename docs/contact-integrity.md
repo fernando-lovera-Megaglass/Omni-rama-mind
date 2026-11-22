@@ -10,6 +10,14 @@ La selección no depende de la cantidad de campos ni de asociaciones.
 
 ## Revalidación local del 22 de noviembre
 
+En la nueva revisión se encontró `scripts/build-status-codex.json` nuevamente en
+`done`, pese a declarar que no se había modificado producción. Se corrigió a
+`pending`: aprobar pruebas locales no acredita la aceptación sobre la base viva.
+Se ejecutaron nuevamente ambas pruebas: deduplicación con PGlite y concurrencia
+con dos sesiones de PostgreSQL temporal; ambas finalizaron con código 0.
+El código local ya contenía el reparador por menor ID y el RPC con advisory lock;
+no fue necesario sustituirlos. El wrapper rechaza deliberadamente bases remotas.
+
 `test-contact-integrity.mjs` pasó: 77 pares sintéticos, las seis relaciones requeridas, cero grupos vivos duplicados, cero referencias a copias y conservación de los campos originales excepto `deleted_at`. Incluye selección de la canónica de menor ID aunque la copia tenga más datos, rollback, FK adicionales, índice único y restauración tras resolver el conflicto de email. Restaurar no revierte el traslado de asociaciones.
 
 `test-bootstrap-concurrency.mjs` pasó con dos conexiones a PostgreSQL temporal: se observó espera por bloqueo y exactamente una siembra de 420 contactos. La prueba necesitó memoria compartida fuera del sandbox. Ambas pruebas emitieron un aviso de `localStorage` al importar el módulo en Node y finalizaron con código 0.
