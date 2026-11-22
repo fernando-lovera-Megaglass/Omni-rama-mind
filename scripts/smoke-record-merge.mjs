@@ -22,7 +22,8 @@ await liveSmoke('record-merge', async ({ data, one, check, log, stamp }) => {
   await data.dbIdle();
   const before = await one(`select count(*)::int as n from public.contacts where name in (${lit(keep.name)}, ${lit(dup.name)}) and deleted_at is null`);
   check(before && before.n === 2, 'ambos contactos existen en la base antes de fusionar');
-  data.mergeRecords('contacts', keep.id, [dup.id], { choices: { city: dup.id } });
+  // choices hold the value to keep per property (what the comparison dialog's radios pick)
+  data.mergeRecords('contacts', keep.id, [dup.id], { choices: { city: 'SMOKE Toluca' } });
   await data.dbIdle();
   const kept = await one(`select city, phone, deleted_at from public.contacts where name = ${lit(keep.name)}`);
   const gone = await one(`select deleted_at from public.contacts where name = ${lit(dup.name)}`);

@@ -49,10 +49,16 @@ export async function startLiveSession(tag, supabase) {
   const found = await sql(`select id from auth.users where email = ${lit(email)}`);
   const uid = found && found[0] && found[0].id;
   if (!uid) throw new Error('no se pudo crear el usuario SMOKE en auth.users');
-  // A trigger of rls_team.sql may have mirrored the new user already: make sure the row is active either way.
-  await sql(`insert into public.team_members (user_id, email, role, team, active) values (${lit(uid)}, ${lit(email)}, 'member', '', true) on conflict (user_id) do update set active = true, email = excluded.email`);
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error) { await removeLiveUser({ email, uid }); throw new Error(`no se pudo iniciar sesión con el usuario SMOKE: ${error.message}`); }
+  try {
+    // A trigger of rls_team.sql may have mirrored the new user already: make sure the row is active either way.
+    await sql(`insert into public.team_members (user_id, email, role, team, active) values (${lit(uid)}, ${lit(email)}, 'member', '', true) on conflict (user_id) do update set active = true, email = excluded.email`);
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw new Error(`no se pudo iniciar sesión con el usuario SMOKE: ${error.message}`);
+  } catch (e) {
+    // Never leave the throw-away user behind when the session could not be set up.
+    await removeLiveUser({ email, uid }).catch(() => {});
+    throw e;
+  }
   return { email, uid, stamp };
 }
 export async function removeLiveUser({ email, uid }) {
