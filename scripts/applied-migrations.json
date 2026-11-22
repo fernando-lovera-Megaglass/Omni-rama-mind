@@ -247,5 +247,9 @@
   "account-settings-team.sql": {
     "status": "pendiente",
     "nota": "Solo código local; no aplicada en remoto. Escritura con is_team_member(), lectura autenticada abierta. Ver docs/account-settings-team.md."
+  },
+  "app-sync.sql": {
+    "status": "aplicada",
+    "at": "2026-11-22T10:21:27-0600"
   }
 }
