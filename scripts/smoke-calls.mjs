@@ -48,7 +48,7 @@ await import(resolve(here, '../src/calls.js'));
 await wait(60);
 
 if (text(q('.calls .page-title')) !== 'Llamadas') fail('título de la página');
-if (!q('.calls__view.is-active') || text(q('.calls__view.is-active')) !== 'Todas las llamadas') fail('pestaña de vista');
+if (!q('.views__tab.is-active') || text(q('.views__tab.is-active')) !== 'Todas las llamadas') fail('pestaña de vista');
 if (!$('calls-q') || !$('calls-f-direction') || !$('calls-f-owner') || !$('calls-f-date') || !$('calls-f-duration')) fail('filtros rápidos');
 // Ambas llamadas en la tabla.
 let rowsText = text(q('.calls'));

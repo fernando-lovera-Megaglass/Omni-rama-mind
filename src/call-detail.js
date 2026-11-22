@@ -39,16 +39,23 @@ export function openCallDetail(row, { contactName = '', duration = '—', onSave
   const status = drawer.querySelector('[data-detail-status]');
   const close = () => {
     if (saving) return;
-    drawer.querySelectorAll('audio').forEach((audio) => audio.pause());
+    drawer.querySelectorAll('audio').forEach((audio) => {
+      audio.pause();
+      if (audio.dataset.recordingUrl) URL.revokeObjectURL(audio.dataset.recordingUrl);
+      audio.removeAttribute('src');
+      audio.load();
+    });
     drawer.remove();
     document.removeEventListener('keydown', onKey, true);
     if (previous?.isConnected) previous.focus();
-    else document.querySelector('[data-callrow]')?.focus();
+    else ([...document.querySelectorAll('[data-callrow]')].find((tr) => tr.dataset.callrow === row.id)
+      || document.querySelector('[data-callrow]'))?.focus();
   };
   const onKey = (event) => {
     if (event.key === 'Escape') { event.preventDefault(); event.stopImmediatePropagation(); close(); }
     if (event.key === 'Tab') {
-      const items = [...drawer.querySelectorAll('button:not(:disabled), a, select, textarea, summary, audio[controls]')];
+      const items = [...drawer.querySelectorAll('button:not(:disabled), a, select:not(:disabled), textarea:not(:disabled), summary, audio[controls]')]
+        .filter((item) => !item.hidden && (!item.closest('details:not([open])') || item.tagName === 'SUMMARY'));
       const first = items[0], last = items.at(-1);
       if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
       else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
@@ -81,12 +88,17 @@ export function openCallDetail(row, { contactName = '', duration = '—', onSave
     status.textContent = 'Guardando…';
     const outcome = drawer.querySelector('select').value;
     const notes = drawer.querySelector('textarea').value;
+    drawer.querySelectorAll('select, textarea').forEach((input) => { input.disabled = true; });
     try {
       await updateActivity(row.activity.id, { text: notes || row.title, extra: { outcome, notes } });
       onSaved();
       status.textContent = 'Llamada guardada';
     } catch (error) { status.textContent = `No se pudo guardar: ${error.message}`; }
-    finally { saving = false; button.disabled = false; }
+    finally {
+      saving = false;
+      button.disabled = false;
+      drawer.querySelectorAll('select, textarea').forEach((input) => { input.disabled = false; });
+    }
   });
   return drawer;
 }

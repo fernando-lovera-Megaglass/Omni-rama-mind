@@ -577,14 +577,17 @@ export async function playRecording(btn, callSid) {
   btn.textContent = 'Cargando…';
   try {
     const url = await fetchRecordingUrl(callSid);
-    const holder = btn.closest('td') || btn.parentElement;
+    // The drawer may have closed while the authenticated recording downloaded.
+    if (!btn.isConnected) { URL.revokeObjectURL(url); return; }
     const audio = document.createElement('audio');
     audio.controls = true;
     audio.src = url;
     audio.className = 'calls-audio';
+    audio.dataset.recordingUrl = url;
     btn.replaceWith(audio);
     audio.play().catch(() => {});
   } catch (e) {
+    if (!btn.isConnected) return;
     btn.disabled = false;
     btn.textContent = old;
     toast(`No se pudo reproducir: ${(e && e.message) || e}`);

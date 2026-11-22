@@ -19353,6 +19353,9 @@ td[data-key="deal_tags"] .dtag {
 .calls { padding: 20px 24px; max-width: 1400px; }
 .calls__head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
 .calls__views { display: flex; gap: 4px; border-bottom: 1px solid var(--border, #e3e8ee); margin-bottom: 12px; }
+/* Llamadas: pestañas de vistas guardadas (mismas clases .views que los índices de objetos) */
+.calls__viewsbar { margin-bottom: 12px; }
+.calls__viewsbar .views__add { align-self: center; }
 .calls__view {
   background: none;
   border: 0;

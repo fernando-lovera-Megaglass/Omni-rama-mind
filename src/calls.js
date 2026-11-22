@@ -7,7 +7,7 @@ import { ACT_ICONS } from './action-icons.js';
 // (call_logs) con las registradas a mano en las fichas (actividades de tipo "call").
 import { boot } from './page.js';
 import { toast, wireMenus, closeMenus } from './shell.js';
-import { allContacts, allActivities, activitiesFor, ensureAllActivities, toCsv, download, dbIsLive, dateCellHtml } from './data.js';
+import { allContacts, allActivities, activitiesFor, ensureAllActivities, toCsv, download, dbIsLive, dateCellHtml, getViewStore, setViewStore } from './data.js';
 import { supabase } from './supabaseClient.js';
 import { displayPhone } from './phone.js';
 import { ownerHtml } from './owner.js';
@@ -24,7 +24,6 @@ const STATUS_LABEL = {
   busy: 'Ocupado', 'no-answer': 'Sin respuesta', failed: 'Fallida', canceled: 'Cancelada', initiated: 'Iniciada',
 };
 const DIRECTION_LABEL = { outbound: 'Saliente', inbound: 'Entrante' };
-const VIEWS = [['all', 'Todas las llamadas'], ['recorded', 'Llamadas grabadas']];
 
 const COLUMNS = [
   ['title', 'Título de la llamada'], ['owner', 'Actividad asignada a'],
@@ -33,8 +32,9 @@ const COLUMNS = [
   ['number', 'Número'], ['notes', 'Notas'],
 ];
 
+const DEFAULT_COLUMNS = COLUMNS.slice(0, 6).map(([key]) => key);
 const state = {
-  columns: COLUMNS.slice(0, 6).map(([key]) => key),
+  columns: [...DEFAULT_COLUMNS],
   sort: { key: 'when', dir: -1 },
   rows: null, // null = todavía cargando
   q: '',
@@ -43,11 +43,123 @@ const state = {
   owner: '',
   dateRange: '',
   duration: '',
+  status: '',
   page: 1,
   size: 25,
 };
 
-const callFiltersOn = () => Boolean(state.q || state.direction || state.owner || state.dateRange || state.duration || (state.view && state.view !== 'all'));
+// ---------- saved views (crm:calls:views) ----------
+// As on the object indexes: tabs backed by a store in localStorage — the two system views («Todas las
+// llamadas», «Llamadas grabadas», never deleted) plus the views the person saves with a name (search, filters,
+// sort and columns). The active tab survives navigation; switching tabs applies the view's state at once.
+const SYSTEM_VIEWS = [['sys:all', 'Todas las llamadas', 'all'], ['sys:recorded', 'Llamadas grabadas', 'recorded']];
+const VIEW_FIELDS = ['base', 'q', 'direction', 'owner', 'dateRange', 'duration', 'status', 'sort', 'columns'];
+const blankView = (base) => ({ base, q: '', direction: '', owner: '', dateRange: '', duration: '', status: '', sort: { key: 'when', dir: -1 }, columns: [...DEFAULT_COLUMNS] });
+const viewFields = (v) => Object.fromEntries(VIEW_FIELDS.map((k) => [k, v[k]]));
+let store = null;
+export function viewsStore() {
+  if (store) return store;
+  const saved = getViewStore('calls');
+  const custom = Array.isArray(saved.custom) ? saved.custom : [];
+  const system = SYSTEM_VIEWS.map(([id, name, base]) => ({ ...blankView(base), id, name, base, system: true }));
+  store = { custom: [...system, ...custom.filter((v) => v && v.id && v.name && !String(v.id).startsWith('sys:')).map((v) => ({ ...blankView('all'), ...v, system: false }))], active: saved.active || 'sys:all' };
+  if (!store.custom.some((v) => v.id === store.active)) store.active = 'sys:all';
+  return store;
+}
+const persistViews = () => setViewStore('calls', { custom: viewsStore().custom, active: viewsStore().active });
+export const viewById = (id) => viewsStore().custom.find((v) => v.id === id) || null;
+export const activeView = () => viewById(viewsStore().active) || viewsStore().custom[0];
+const snapshot = () => ({ base: state.view, q: state.q, direction: state.direction, owner: state.owner, dateRange: state.dateRange, duration: state.duration, status: state.status, sort: { ...state.sort }, columns: [...state.columns] });
+const isDirty = () => JSON.stringify(viewFields(snapshot())) !== JSON.stringify(viewFields(activeView()));
+function applyView(v) {
+  state.view = v.base || 'all'; state.q = v.q || ''; state.direction = v.direction || ''; state.owner = v.owner || ''; state.dateRange = v.dateRange || ''; state.duration = v.duration || ''; state.status = v.status || '';
+  state.sort = { ...(v.sort && v.sort.key ? v.sort : { key: 'when', dir: -1 }) };
+  state.columns = [...(Array.isArray(v.columns) && v.columns.length ? v.columns : DEFAULT_COLUMNS)];
+  state.page = 1;
+}
+export function selectView(id) { const v = viewById(id); if (!v) return false; viewsStore().active = id; applyView(v); persistViews(); return true; }
+const uuid = () => (globalThis.crypto && typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : `v-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`);
+// A new view from the current state (or from another view's saved state when duplicating) becomes the active tab.
+export function createView(name, from = snapshot()) {
+  const n = String(name || '').trim();
+  if (!n) return null;
+  const v = { id: uuid(), name: n, system: false, createdAt: new Date().toISOString(), ...viewFields({ ...blankView('all'), ...from }) };
+  viewsStore().custom.push(v);
+  viewsStore().active = v.id;
+  applyView(v);
+  persistViews();
+  return v;
+}
+export function renameView(id, name) { const v = viewById(id); const n = String(name || '').trim(); if (!v || v.system || !n) return false; v.name = n; persistViews(); return true; }
+export function saveViewChanges(id) { const v = viewById(id); if (!v || v.system) return false; Object.assign(v, viewFields(snapshot())); persistViews(); return true; }
+export function deleteView(id) {
+  const v = viewById(id);
+  if (!v || v.system) return false;
+  const s = viewsStore();
+  s.custom = s.custom.filter((x) => x.id !== id);
+  if (s.active === id) { s.active = 'sys:all'; applyView(viewById('sys:all')); }
+  persistViews();
+  return true;
+}
+function viewTabsHtml() {
+  const s = viewsStore();
+  const dirty = isDirty();
+  return `<div class="views calls__viewsbar" id="calls-views"><div class="views__tabs" role="tablist">${s.custom.map((v) => {
+    const on = v.id === s.active;
+    return `<div class="views__tabwrap${on ? ' is-active' : ''}" data-view="${esc(v.id)}">
+      <button class="views__tab${on ? ' is-active' : ''}" role="tab" type="button" aria-selected="${on}" data-view="${esc(v.id)}" title="${esc(v.name)}">${esc(v.name)}${on && dirty ? '<span class="views__dot" title="Cambios sin guardar"></span>' : ''}</button>
+      ${on ? `<div class="menu views__menu"><button class="views__caret" type="button" aria-label="Opciones de la vista" aria-haspopup="true" aria-expanded="false"><span class="caret"></span></button><div class="menu__panel">
+        <button class="menu__item" type="button" data-calls-view="save" ${v.system || !dirty ? 'disabled' : ''}>Guardar cambios</button>
+        <button class="menu__item" type="button" data-calls-view="rename" ${v.system ? 'disabled' : ''}>Cambiar nombre</button>
+        <button class="menu__item" type="button" data-calls-view="clone">Duplicar</button>
+        <button class="menu__item menu__item--danger" type="button" data-calls-view="delete" ${v.system ? 'disabled' : ''}>Eliminar</button>
+      </div></div>` : ''}
+    </div>`;
+  }).join('')}<button class="views__add views__add--icon" type="button" data-calls-view="add" aria-label="Añadir vista" title="Añadir vista">+</button></div></div>`;
+}
+// The name dialog (create / duplicate / rename), outside the page root so re-rendering keeps it.
+let dialogMode = null;
+function ensureViewDialog() {
+  if ($('calls-view-dialog')) return;
+  const d = document.createElement('div');
+  d.className = 'drawer drawer--modal';
+  d.id = 'calls-view-dialog';
+  d.setAttribute('aria-hidden', 'true');
+  d.innerHTML = `<div class="drawer__panel drawer__panel--modal drawer__panel--wide" role="dialog" aria-modal="true" aria-labelledby="calls-view-title">
+      <div class="drawer__head drawer__head--light"><h2 id="calls-view-title">Crear vista</h2><button class="drawer__close" type="button" data-close aria-label="Cerrar">×</button></div>
+      <form class="drawer__body" id="calls-view-form"><label class="field"><span>Nombre de la vista</span><input name="name" type="text" required maxlength="80" autocomplete="off" /></label><p class="muted" id="calls-view-hint"></p></form>
+      <div class="drawer__foot"><button class="btn btn--primary" type="submit" form="calls-view-form" id="calls-view-ok">Crear</button><button class="btn btn--ghost" type="button" data-close>Cancelar</button></div>
+    </div>`;
+  document.body.appendChild(d);
+  d.addEventListener('click', (e) => { if (e.target === d || e.target.closest('[data-close]')) closeViewDialog(); });
+  d.querySelector('#calls-view-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const name = e.target.elements.name.value.trim();
+    if (!name || !dialogMode) return;
+    const { kind, view } = dialogMode;
+    if (kind === 'create') { createView(name); toast(`Vista «${name}» creada`); }
+    else if (kind === 'clone') { createView(name, viewFields(view)); toast(`Vista «${name}» creada`); }
+    else if (kind === 'rename') { renameView(view.id, name); toast('Nombre guardado'); }
+    closeViewDialog();
+    render();
+  });
+}
+function openViewDialog(kind, view = null) {
+  ensureViewDialog();
+  dialogMode = { kind, view };
+  const d = $('calls-view-dialog');
+  d.querySelector('#calls-view-title').textContent = { create: 'Crear vista', clone: 'Duplicar vista', rename: 'Cambiar nombre' }[kind];
+  d.querySelector('#calls-view-ok').textContent = kind === 'rename' ? 'Guardar' : 'Crear';
+  d.querySelector('#calls-view-hint').textContent = kind === 'create' ? 'Se guardarán la búsqueda, los filtros, el orden y las columnas actuales.' : kind === 'clone' ? `Copia de «${view.name}» con sus mismos filtros, orden y columnas.` : '';
+  const input = d.querySelector('[name="name"]');
+  input.value = kind === 'clone' ? `Copia de ${view.name}` : kind === 'rename' ? view.name : '';
+  d.classList.add('is-open');
+  d.setAttribute('aria-hidden', 'false');
+  setTimeout(() => { input.focus(); if (input.select) input.select(); }, 30);
+}
+function closeViewDialog() { const d = $('calls-view-dialog'); if (!d) return; d.classList.remove('is-open'); d.setAttribute('aria-hidden', 'true'); dialogMode = null; }
+
+const callFiltersOn = () => Boolean(state.q || state.direction || state.owner || state.dateRange || state.duration || state.status || (state.view && state.view !== 'all'));
 function fmtDuration(sec) {
   const s = Number(sec) || 0;
   if (!s) return '—';
@@ -137,6 +249,7 @@ function filtered() {
     if (t && !`${r.title} ${r.number}`.toLowerCase().includes(t)) return false;
     if (state.direction && r.direction !== state.direction) return false;
     if (state.owner && r.owner !== state.owner) return false;
+    if (state.status && r.status !== state.status) return false;
     if (state.dateRange) {
       const d = new Date(r.when);
       if (state.dateRange === 'today' && d.toDateString() !== now.toDateString()) return false;
@@ -192,6 +305,7 @@ function render() {
   if (state.page > pages) state.page = pages;
   const slice = list.slice((state.page - 1) * state.size, state.page * state.size);
   const owners = [...new Set((rows || []).map((r) => r.owner).filter(Boolean))].sort();
+  const statuses = [...new Set((rows || []).map((r) => r.status).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es'));
   root.innerHTML = `
     <div class="calls">
       <div class="calls__head">
@@ -200,15 +314,14 @@ function render() {
           <button class="btn btn--ghost" type="button" id="calls-export" ${total ? '' : 'disabled'}>Exportar</button>
         </div>
       </div>
-      <div class="calls__views">
-        ${VIEWS.map(([k, label]) => `<button class="calls__view ${state.view === k ? 'is-active' : ''}" type="button" data-view="${k}">${label}</button>`).join('')}
-      </div>
+      ${viewTabsHtml()}
       <div class="calls__toolbar">
         <div class="search search--pill"><span class="ico ico--search" aria-hidden="true"></span><input type="search" id="calls-q" placeholder="Buscar ( / )" value="${esc(state.q)}" aria-label="Buscar llamadas" /></div>
         ${filterChip('direction', 'direction', 'Dirección', Object.entries(DIRECTION_LABEL))}
         ${filterChip('owner', 'owner', 'Actividad asignada a', owners.map((o) => [o, o]))}
         ${filterChip('date', 'dateRange', 'Fecha de actividad', [['today', 'Hoy'], ['week', 'Últimos 7 días'], ['month', 'Este mes']])}
         ${filterChip('duration', 'duration', 'Duración de la llamada', [['lt1', 'Menos de 1 minuto'], ['1-5', '1 a 5 minutos'], ['gt5', 'Más de 5 minutos']])}
+        ${filterChip('status', 'status', 'Resultado de la llamada', statuses.map((s) => [s, s]))}
       </div>
       ${rows === null
         ? '<p class="muted calls__empty">Cargando llamadas…</p>'
@@ -281,7 +394,17 @@ function render() {
     sync();
   }
   $('calls-q').addEventListener('input', (e) => { state.q = e.target.value; state.page = 1; render(); $('calls-q').focus(); });
-  root.querySelectorAll('[data-view]').forEach((b) => b.addEventListener('click', () => { state.view = b.dataset.view; state.page = 1; render(); }));
+  // view tabs: switching applies the view's search, filters, sort and columns at once; the menu of the active tab
+  root.querySelectorAll('button.views__tab[data-view]').forEach((b) => b.addEventListener('click', () => { if (selectView(b.dataset.view)) render(); }));
+  root.querySelectorAll('[data-calls-view]').forEach((b) => b.addEventListener('click', () => {
+    const a = b.dataset.callsView;
+    const v = activeView();
+    if (a === 'add') openViewDialog('create');
+    else if (a === 'rename') { if (!v.system) openViewDialog('rename', v); }
+    else if (a === 'clone') openViewDialog('clone', v);
+    else if (a === 'save') { if (saveViewChanges(v.id)) { toast('Vista guardada'); render(); } }
+    else if (a === 'delete') { if (v.system) { toast('Las vistas del sistema no se pueden eliminar'); return; } if (window.confirm(`¿Eliminar la vista «${v.name}»?`)) { deleteView(v.id); toast('Vista eliminada'); render(); } }
+  }));
   root.querySelectorAll('[data-call-filter]').forEach((button) => button.addEventListener('click', () => {
     state[button.dataset.callFilter] = button.dataset.value;
     state.page = 1;
@@ -290,7 +413,7 @@ function render() {
   // Empty state actions: open the dialer, or clear the search and the filters.
   root.querySelectorAll('[data-calls]').forEach((button) => button.addEventListener('click', () => {
     if (button.dataset.calls === 'dial') { openDialer(); return; }
-    if (button.dataset.calls === 'clear') { state.q = ''; state.direction = ''; state.owner = ''; state.dateRange = ''; state.duration = ''; state.view = 'all'; state.page = 1; render(); }
+    if (button.dataset.calls === 'clear') { state.q = ''; state.direction = ''; state.owner = ''; state.dateRange = ''; state.duration = ''; state.status = ''; state.view = 'all'; state.page = 1; render(); }
   }));
   bindPagination(root, ({ page, size }) => { state.page = page; if (size) state.size = size; render(); });
   const exp = $('calls-export');
@@ -325,9 +448,12 @@ function render() {
   if (!render._keys) {
     render._keys = true;
     document.addEventListener('keydown', (e) => {
-      if (e.key === '/' && !/input|textarea|select/i.test(document.activeElement.tagName)) { e.preventDefault(); $('calls-q').focus(); }
+      if (e.key === '/' && !document.getElementById('call-detail') && !/input|textarea|select/i.test(document.activeElement.tagName)) { e.preventDefault(); $('calls-q').focus(); }
     });
   }
 }
 
+applyView(activeView()); // the tab left open last time, with its filters, sort and columns
 load();
+
+export { state, render };
