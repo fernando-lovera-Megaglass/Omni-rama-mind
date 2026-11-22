@@ -1,5 +1,13 @@
 # Progreso — Omni CRM
 
+## 2026-11-22 (sesión 6) · Tablero de Negocios y Tickets: fuera el «Guardar» sin función; las etapas cargan todas sus tarjetas desde la columna
+
+- `src/list.js`: eliminado el pill «Guardar» del pie del tablero y su manejador (solo hacía `setPrefs({mode:'board'})` y un toast; mover tarjetas y ordenar etapas ya persisten al instante, como en el original, que no tiene ese botón).
+- Columnas: en vez de cortar en 60 con «… y N más. Usa los filtros para acotar.», cada etapa pinta 60 tarjetas y ofrece «Cargar N más (60 de total)»; el botón añade la siguiente página sin re-render (la columna conserva su scroll) y llegar al final de la columna con el scroll carga la siguiente página también (`loadMoreCards`, `state.boardShown` por etapa, que sobrevive a los re-render de la sesión). La cabecera sigue mostrando el total real.
+- `src/app.css`: `.kcol__more` pasa de texto apagado a botón discreto (borde punteado, color de enlace).
+- Pruebas: `scripts/smoke-board-load-more.mjs` (negocios: etapa con 131 → 60 → 120 → 131 desde la columna; otra con 71 cargada por scroll; etapas cortas sin botón; recargar mantiene lo cargado; arrastrar una tarjeta cargada sigue cambiando la etapa; tickets igual; ningún «Guardar» en el tablero). `scripts/smoke-views.mjs` ahora exige que no exista el botón. Smokes de tablero, vistas, negocios y tickets en verde.
+- Solo código local; nada desplegado.
+
 ## 2026-11-22 (sesión 6) · Sin tarjetas muertas en la ficha: fuera «Archivos adjuntos de Google Drive» (sin integración) y fuera «Tarjeta sin contenido.»
 
 - `src/layout-defaults.js`: el catálogo del editor ya no ofrece la tarjeta de Google Drive (no existe la integración) y `teamViewLayout` ya no la preinstala en las vistas de equipo nuevas. Los diseños guardados que aún la referencian (o tarjetas «x-…» no soportadas) se leen sin ellas (`RETIRED_CARDS` / `liveCardIds` en `loadLayout`, `loadViewLayout` y `resolveLayout`), así que ni la ficha ni el editor las muestran.
