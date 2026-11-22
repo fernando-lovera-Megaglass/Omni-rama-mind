@@ -211,6 +211,10 @@
     "status": "pendiente",
     "nota": "Solo código local; no aplicada a producción. Tabla ticket_tags (misma forma que deal_tags) para las Etiquetas de Ticket; mientras tanto la app usa localStorage crm:ticket_tags."
   },
+  "attachments.sql": {
+    "status": "pendiente",
+    "nota": "Solo código local; no aplicada a producción. Tabla public.attachments + bucket privado attachments (Storage) con políticas de equipo para los archivos adjuntos reales de las fichas (src/attachments.js). Mientras falte, la tarjeta «Archivos adjuntos» lo indica y no ofrece «+ Subir»."
+  },
   "custom-properties-archived-at.sql": {
     "status": "aplicada",
     "at": "2026-11-22T09:58:00.310Z",

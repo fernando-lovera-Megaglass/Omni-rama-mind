@@ -9582,6 +9582,17 @@ textarea.cellpop__input {
 .files__add {
   cursor: pointer;
 }
+/* The file name opens it (signed URL): a link-looking button, no dead anchor. */
+button.files__name {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: var(--c-link);
+  text-align: left;
+  cursor: pointer;
+}
+button.files__name:hover { text-decoration: underline; }
 
 /* ---------- Layout editor page ("Personalizar") ---------- */
 .app--editor {

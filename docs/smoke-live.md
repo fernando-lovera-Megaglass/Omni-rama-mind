@@ -2,7 +2,7 @@
 
 Las pruebas `scripts/smoke-*.mjs` corren sobre JSDOM con un `localStorage` en memoria y sin cliente de Supabase: validan la lógica y la interfaz, pero no la base de datos. Por eso una migración sin aplicar (una columna que falta, una tabla que no existe) no las hace fallar.
 
-Once smokes de persistencia tienen un **modo live opcional** que repite la operación clave contra el proyecto real y la comprueba con SQL:
+Doce smokes de persistencia tienen un **modo live opcional** que repite la operación clave contra el proyecto real y la comprueba con SQL:
 
 | Smoke | Qué comprueba en vivo |
 | --- | --- |
@@ -14,6 +14,7 @@ Once smokes de persistencia tienen un **modo live opcional** que repite la opera
 | `smoke-trash-purge.mjs` | Purga de 90 días (`purgeExpiredTrash`): un contacto, un negocio y una actividad «SMOKE» en la papelera con fecha de hace 91 días (puesta con SQL) desaparecen físicamente tras el barrido; los recientes siguen. Exige `custom_properties.archived_at` (migración `custom-properties-archived-at.sql`): archivar una propiedad guarda `archived_at`, restaurarla lo limpia y una archivada hace 91 días se borra de `custom_properties` |
 | `smoke-team-views.mjs` | Vistas de equipo: el `team_members.team` del usuario SMOKE se fija con SQL y una vista de equipo se guarda en `account_settings` (lo que escribe un administrador); un arranque nuevo de `data.js` resuelve esa vista en la ficha del contacto; sin equipo vuelve la predeterminada. Se restaura la lista de vistas previa y se borran las filas |
 | `smoke-list-prefs.mjs` | Preferencias de lista por usuario: «Editar columnas» y densidad en la lista real de contactos (más una anchura como la escribe el redimensionado) → fila `crm:contacts:prefs` en `user_settings`; con localStorage vacío, un arranque nuevo de `data.js` recupera columnas, anchura y densidad desde Supabase |
+| `smoke-attachments.mjs` | Exige la tabla `attachments` y el bucket privado `attachments` (migración `attachments.sql`); sube un PDF a un negocio «SMOKE» con el cliente real → fila en `attachments` y objeto en `storage.objects`; la URL firmada devuelve los bytes; eliminar borra fila y objeto |
 | `smoke-record-merge.mjs` | Fusionar dos contactos → el duplicado queda en la papelera (`deleted_at`) y el principal toma el valor elegido |
 | `smoke-record-customize.mjs` | Exige `user_settings.scope` y la tabla `account_settings` (migración `user_settings.sql`); personalizar «Acerca de» → fila en `user_settings` con `scope = 'user'`; «Aplicar a todos» → fila en `account_settings` solo con rol admin |
 | `smoke-views-shared.mjs` | Exige la tabla `crm_views` (migración `crm_views.sql`); el usuario A guarda vistas privada / equipo / todos → filas suyas; un segundo usuario SMOKE (B) lee con su sesión las compartidas con el autor A y no la privada, y RLS le impide editarlas; borrar una vista propia borra su fila |
@@ -33,6 +34,7 @@ SMOKE_LIVE=1 node scripts/smoke-ticket-deal-assoc.mjs
 SMOKE_LIVE=1 node scripts/smoke-trash-purge.mjs
 SMOKE_LIVE=1 node scripts/smoke-team-views.mjs
 SMOKE_LIVE=1 node scripts/smoke-list-prefs.mjs
+SMOKE_LIVE=1 node scripts/smoke-attachments.mjs
 SMOKE_LIVE=1 node scripts/smoke-record-merge.mjs
 ```
 

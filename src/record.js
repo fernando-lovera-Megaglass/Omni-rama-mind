@@ -37,6 +37,7 @@ import {
   parentCompanyOf, childCompaniesOf, isCompanyDescendant, dbIsLive,
 } from './data.js';
 import { supabase } from './supabaseClient.js';
+import { ensureAttachments, attachmentsFor, attachmentsEnabled, attachmentsStatus, uploadAttachment, removeAttachment, attachmentUrl, formatSize, MIGRATION as ATTACHMENTS_MIGRATION } from './attachments.js';
 import { propertyGroups, propertyMap } from './properties.js';
 const PROPERTIES = new Proxy({}, { get: (_, t) => propertyGroups(t) });
 wireLinkTooltips();
@@ -1060,8 +1061,36 @@ function middleCardHtml(id) {
       return ''; // a card this page cannot render is skipped, never painted empty (as the original)
   }
 }
-const FILES_KEY = `crm:${type}:files:${id}`;
-const loadFiles = () => loadJson(FILES_KEY, []);
+// «Archivos adjuntos»: real files in Supabase Storage through src/attachments.js (open with a signed URL, delete the
+// object and its row, upload the bytes). The rows are read once; the card repaints when they arrive.
+ensureAttachments().then(() => { if ($('rec-right')) renderRight(); }).catch(() => {});
+async function openAttachment(attId) {
+  const att = attachmentsFor(type, id).find((a) => String(a.id) === String(attId));
+  if (!att) return;
+  try { window.open(await attachmentUrl(att), '_blank', 'noopener'); } catch (e) { toast(`No se pudo abrir «${att.name}»: ${e.message || e}`); }
+}
+async function deleteAttachment(attId) {
+  const att = attachmentsFor(type, id).find((a) => String(a.id) === String(attId));
+  if (!att || !window.confirm(`¿Eliminar «${att.name}»? Se borrará del almacenamiento.`)) return;
+  try {
+    await removeAttachment(att);
+    renderRight();
+    addEvent({ type: 'note', when: Date.now(), who: 'Tú', text: `Archivo eliminado: ${att.name}.` });
+    toast('Archivo eliminado');
+  } catch (e) { toast(`No se pudo eliminar «${att.name}»: ${e.message || e}`); }
+}
+async function uploadAttachments(fileList) {
+  const files = [...(fileList || [])];
+  if (!files.length) return;
+  const done = [];
+  for (const f of files) {
+    try { await uploadAttachment(type, id, f); done.push(f.name); } catch (e) { toast(`No se pudo subir «${f.name}»: ${e.message || e}`); }
+  }
+  if (!done.length) return;
+  renderRight();
+  addEvent({ type: 'note', when: Date.now(), who: 'Tú', text: `${done.length} archivo(s) adjuntado(s): ${done.join(', ')}.` });
+  toast(done.length === 1 ? 'Archivo adjuntado' : `${done.length} archivos adjuntados`);
+}
 // ---------- company hierarchy cards ----------
 const companyItem = (c) => `<div class="hier__item">${companyAvatarHtml(c)}<a href="./record/?id=${c.id}">${esc(c.name)}</a>${c.domain ? `<small>${esc(c.domain)}</small>` : ''}</div>`;
 let parentQuery = '';
@@ -1114,9 +1143,13 @@ function rightCardHtml(cardId) {
   if (cardId === 'parent' && type === 'companies') return parentCompanyCard(label);
   if (cardId === 'subsidiaries' && type === 'companies') return subsidiariesCard(label);
   if (cardId === 'attachments') {
-    const files = loadFiles();
-    return `<div class="card"><div class="card__head"><button class="card__toggle" type="button" data-toggle="files"><span class="chev">⌄</span> ${esc(label)} (${files.length})</button><label class="link-btn files__add">+ Subir<input type="file" id="file-add" multiple hidden /></label></div>
-      ${files.length ? `<ul class="files">${files.map((f, i) => `<li><span class="files__ico">📎</span><span class="files__name">${esc(f.name)}</span><span class="muted">${esc(f.when)}</span><button class="icon-btn" type="button" data-file-rm="${i}" aria-label="Quitar">×</button></li>`).join('')}</ul>` : `<p class="muted">Ve los archivos adjuntos a este registro. Sube uno con “+ Subir”.</p>`}</div>`;
+    // Real files (Storage + public.attachments). Without a session, or while the migration is pending, the card
+    // says so and offers no «+ Subir» instead of pretending.
+    const files = attachmentsFor(type, id);
+    const on = attachmentsEnabled();
+    const why = attachmentsStatus() === 'missing' ? `Los adjuntos necesitan la migración ${ATTACHMENTS_MIGRATION} (Storage).` : 'Inicia sesión para subir archivos a este registro.';
+    return `<div class="card"><div class="card__head"><button class="card__toggle" type="button" data-toggle="files"><span class="chev">⌄</span> ${esc(label)} (${files.length})</button>${on ? '<label class="link-btn files__add">+ Subir<input type="file" id="file-add" multiple hidden /></label>' : ''}</div>
+      ${files.length ? `<ul class="files">${files.map((f) => `<li><span class="files__ico">📎</span><button class="files__name" type="button" data-file-open="${esc(f.id)}" title="Abrir ${esc(f.name)}">${esc(f.name)}</button><span class="muted">${esc(formatSize(f.size))} · ${esc(formatDate(f.when))}</span>${on ? `<button class="icon-btn" type="button" data-file-rm="${esc(f.id)}" aria-label="Eliminar ${esc(f.name)}">×</button>` : ''}</li>`).join('')}</ul>` : `<p class="muted">${on ? 'Ve los archivos adjuntos a este registro. Sube uno con “+ Subir”.' : esc(why)}</p>`}</div>`;
   }
   if (cardId === 'playbooks') {
     const guides = ['Llamada de descubrimiento', 'Presentación de cotización', 'Gestión de objeciones de precio'];
@@ -2485,15 +2518,10 @@ if (!rec) {
       if (row) { row.click(); row.closest('.props__row').scrollIntoView?.({ behavior: 'smooth', block: 'center' }); }
       return;
     }
+    const fop = e.target.closest('[data-file-open]');
+    if (fop) { openAttachment(fop.dataset.fileOpen); return; }
     const frm = e.target.closest('[data-file-rm]');
-    if (frm) {
-      const files = loadFiles();
-      files.splice(Number(frm.dataset.fileRm), 1);
-      saveJson(FILES_KEY, files);
-      renderRight();
-      toast('Archivo quitado');
-      return;
-    }
+    if (frm) { deleteAttachment(frm.dataset.fileRm); return; }
     const guide = e.target.closest('[data-guide]');
     if (guide) {
       toast(`Guía "${guide.dataset.guide}": 1) Prepara el contexto · 2) Haz las preguntas clave · 3) Registra el resultado.`);
@@ -2670,12 +2698,8 @@ if (!rec) {
       return;
     }
     if (e.target.id === 'file-add') {
-      const files = loadFiles();
-      [...e.target.files].forEach((f) => files.unshift({ name: f.name, size: f.size, when: formatDate(new Date()) }));
-      saveJson(FILES_KEY, files);
-      addEvent({ type: 'note', when: Date.now(), who: 'Tú', text: `${e.target.files.length} archivo(s) adjuntado(s).` });
-      renderRight();
-      toast('Archivo adjuntado');
+      const picked = e.target.files;
+      uploadAttachments(picked);
     }
   });
   mount.addEventListener('input', (e) => {

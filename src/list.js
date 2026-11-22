@@ -31,6 +31,9 @@ import { opsFor, kindGroup, evalCondition, conditionValues } from './filter-ops.
 import { createFilterEditor, newCondition, SEGMENT_ASSOC } from './filter-editor.js';
 import { countWithConditions } from './filter-query.js';
 import { supabase as dbClient } from './supabaseClient.js';
+import { ensureAttachments, attachmentsFor } from './attachments.js';
+// The preview panel counts the real attachments of a record (Storage + public.attachments); read once per page.
+ensureAttachments().catch(() => {});
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
 
@@ -2171,7 +2174,7 @@ export function mountList(cfg) {
             return `<section class="pvcard"><h3 class="pvcard__title">Actividades recientes</h3>${recent.length ? `<ul class="pvcard__list">${recent.map(a => `<li>${esc({ note: 'Nota', email: 'Correo', call: 'Llamada', task: 'Tarea', meeting: 'Reunión' }[a.type] || 'Actividad')}: ${esc(a.text)} <span class="muted">· ${esc(relativeTime(a.when))}</span></li>`).join('')}</ul>` : '<p class="muted">Sin actividades recientes.</p>'}</section>`;
           }
           if (c === 'summary') return `<section class="pvcard"><h3 class="pvcard__title">Resumen de registros <span class="ai-badge">✦ AI</span></h3><p class="muted">${esc(r.name)} · propietario ${ownerHtml(r.owner)} · última actividad ${esc(relativeTime(r.lastActivity || r.created))}.</p></section>`;
-          if (c === 'attachments') { let n = 0; try { n = (JSON.parse(localStorage.getItem(`crm:${cfg.type}:files:${r.id}`)) || []).length; } catch { n = 0; } return `<section class="pvcard"><h3 class="pvcard__title">Archivos adjuntos <span class="muted">(${n})</span></h3><p class="muted">${n ? `${n} archivo${n > 1 ? 's' : ''} adjunto${n > 1 ? 's' : ''}.` : 'Sin archivos adjuntos.'}</p></section>`; }
+          if (c === 'attachments') { const files = attachmentsFor(cfg.type, r.id); const n = files.length; return `<section class="pvcard"><h3 class="pvcard__title">Archivos adjuntos <span class="muted">(${n})</span></h3>${n ? `<ul class="pvcard__list">${files.slice(0, 3).map((f) => `<li>📎 ${esc(f.name)}</li>`).join('')}${n > 3 ? `<li class="muted">y ${n - 3} más</li>` : ''}</ul>` : '<p class="muted">Sin archivos adjuntos.</p>'}</section>`; }
           if (c.startsWith('pcard-') && pvLayout.cards && pvLayout.cards[c]) {
             // Custom property card created in the preview editor.
             const card = pvLayout.cards[c];
