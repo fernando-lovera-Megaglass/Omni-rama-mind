@@ -37,6 +37,7 @@ import {
   parentCompanyOf, childCompaniesOf, isCompanyDescendant, dbIsLive,
 } from './data.js';
 import { supabase } from './supabaseClient.js';
+import { currentUserName } from './auth.js';
 import { ensureAttachments, attachmentsFor, attachmentsEnabled, attachmentsStatus, uploadAttachment, removeAttachment, attachmentUrl, formatSize, MIGRATION as ATTACHMENTS_MIGRATION } from './attachments.js';
 import { propertyGroups, propertyMap } from './properties.js';
 const PROPERTIES = new Proxy({}, { get: (_, t) => propertyGroups(t) });
@@ -2963,9 +2964,10 @@ if (rec) {
       inp.setSelectionRange(pos, pos);
     }
   });
-  el.addEventListener('submit', (e) => {
+  el.addEventListener('submit', async (e) => {
     if (e.target.id !== 'ad-new-form') return;
     e.preventDefault();
+    if (e.target.dataset.saving) return;
     const data = Object.fromEntries(new FormData(e.target).entries());
     const kind = ad.kind;
     const label = data.label;
@@ -2975,7 +2977,18 @@ if (rec) {
     if (kind === 'tickets') { data.pipeline = ticketPipelines()[0]; data.status = ticketStatusesFor(data.pipeline).find((status) => status[2] !== 'closed')?.[0]; if (!data.pipeline || !data.status) { toast('No hay estados abiertos en el pipeline de tickets.'); return; } data.priority = 'medium'; if (type === 'contacts') data.contactId = rec.id; }
     if (kind === 'tasks') { data.status = 'todo'; data.type = 'Tarea'; data.priority = 'medium'; data.due = data.due ? new Date(data.due).toISOString() : TODAY.toISOString(); }
     if (kind === 'companies') data.lifecycle = 'Lead';
-    data.owner = rec.owner && rec.owner !== 'Sin asignar' ? rec.owner : 'Fernando L.';
+    const drawer = ad;
+    const form = e.target;
+    form.dataset.saving = 'true';
+    try {
+      data.owner = rec.owner && rec.owner !== 'Sin asignar'
+        ? rec.owner : (await currentUserName()) || 'Sin asignar';
+    } catch {
+      data.owner = 'Sin asignar';
+    } finally {
+      delete form.dataset.saving;
+    }
+    if (ad !== drawer || !form.isConnected) return;
     data.lastActivity = TODAY.toISOString();
     const made = addRecord(kind, data);
     closeAssocDrawer();

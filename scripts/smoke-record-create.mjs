@@ -70,12 +70,53 @@ for (const kind of ['deals', 'tickets']) {
   const form = $('ad-new-form');
   form.elements.name.value = `Smoke drawer ${kind}`;
   form.dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true }));
+  await new Promise(r => setTimeout(r, 0));
   const made = data.ALL[kind]().find(r => r.name === `Smoke drawer ${kind}`);
   assert.ok(made);
   assert.equal(made.pipeline, kind === 'deals' ? data.dealPipelines()[0] : data.ticketPipelines()[0]);
   if (kind === 'deals') assert.equal(made.stage, data.stagesFor(made.pipeline).find(s => !data.dealStageIsClosed(made.pipeline, s[0]))[0]);
   else assert.equal(made.status, data.firstOpenTicketStatus(made.pipeline));
 }
+// Exercise the association drawer with a different signed-in team member and no session.
+const { setAuthClient } = await import('../src/auth.js');
+const sessionUser = { id: 'another-user', email: 'ana@example.test', user_metadata: { full_name: 'Ana Metadata' } };
+const sessionClient = {
+  auth: { getSession: async () => ({ data: { session: { user: sessionUser } } }) },
+  from: (table) => {
+    assert.equal(table, 'team_members');
+    return { select: () => ({ eq: (key, value) => {
+      assert.equal(key, 'user_id');
+      assert.equal(value, sessionUser.id);
+      return { maybeSingle: async () => ({ data: { name: 'Ana Equipo' } }) };
+    } }) };
+  },
+};
+for (const [parentOwner, client, expected] of [
+  ['Sin asignar', sessionClient, 'Ana Equipo'],
+  ['', sessionClient, 'Ana Equipo'],
+  ['Sin asignar', null, 'Sin asignar'],
+  ['Propietaria heredada', sessionClient, 'Propietaria heredada'],
+]) {
+  click(document.querySelector('#rec-props [data-edit-key="owner"]'));
+  const ownerForm = document.querySelector('.props__form[data-key="owner"]');
+  const ownerInput = ownerForm.querySelector('[data-edit]');
+  ownerInput.add(new dom.window.Option(parentOwner, parentOwner));
+  ownerInput.value = parentOwner;
+  ownerForm.dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true }));
+  await new Promise(r => setTimeout(r, 0));
+  setAuthClient(client);
+  click(document.querySelector('[data-act="add-assoc"][data-kind="deals"]'));
+  click(document.querySelector('[data-adtab="new"]'));
+  const form = $('ad-new-form');
+  const name = `Owner regression ${parentOwner} ${expected}`;
+  form.elements.name.value = name;
+  form.dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true }));
+  await new Promise(r => setTimeout(r, 0));
+  const made = data.allDeals().find(r => r.name === name);
+  assert.ok(made, 'associated deal created');
+  assert.equal(made.owner, expected);
+}
+setAuthClient(null);
 const madeDeal = data.allDeals().find(r => r.name === `Smoke ficha ${type} deal`);
 $('cd-panel').remove();
 $('ct-panel').remove();

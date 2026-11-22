@@ -1998,10 +1998,12 @@
     },
     {
       "id": "gap-ui-assoc-nuevo-owner-fijo",
-      "status": "pending",
+      "status": "done",
       "createdAt": "2026-11-22T06:32:21-06:00",
       "lane": "codex",
-      "instruction": "Los 4 módulos: al crear un registro nuevo desde el drawer «+ Agregar» de asociaciones de una ficha, el propietario puede quedar fijo en una persona inventada. En src/record.js (línea ~2915, manejador submit de #ad-new-form): data.owner = rec.owner && rec.owner !== 'Sin asignar' ? rec.owner : 'Fernando L.' — si la ficha actual no tiene propietario, el registro nuevo (contacto, empresa, negocio, ticket o tarea) se crea asignado a «Fernando L.» fijo, sea cual sea el usuario conectado. En HubSpot el propietario por defecto es el usuario actual o queda sin asignar, nunca una persona fija. Fix: usar como propietario por defecto el usuario actual de la sesión (src/auth.js currentUser() mapeado al nombre del equipo, como hacen otros formularios de creación, p. ej. src/create-contact.js) y, si no hay sesión, dejar 'Sin asignar'. Criterio de aceptación: con otro usuario conectado, crear un negocio asociado desde una ficha sin propietario: el negocio queda asignado a ese usuario o sin asignar, nunca a «Fernando L.»; si la ficha sí tiene propietario, se hereda como ahora. No despliegues nada a producción; solo código local."
+      "instruction": "Los 4 módulos: al crear un registro nuevo desde el drawer «+ Agregar» de asociaciones de una ficha, el propietario puede quedar fijo en una persona inventada. En src/record.js (línea ~2915, manejador submit de #ad-new-form): data.owner = rec.owner && rec.owner !== 'Sin asignar' ? rec.owner : 'Fernando L.' — si la ficha actual no tiene propietario, el registro nuevo (contacto, empresa, negocio, ticket o tarea) se crea asignado a «Fernando L.» fijo, sea cual sea el usuario conectado. En HubSpot el propietario por defecto es el usuario actual o queda sin asignar, nunca una persona fija. Fix: usar como propietario por defecto el usuario actual de la sesión (src/auth.js currentUser() mapeado al nombre del equipo, como hacen otros formularios de creación, p. ej. src/create-contact.js) y, si no hay sesión, dejar 'Sin asignar'. Criterio de aceptación: con otro usuario conectado, crear un negocio asociado desde una ficha sin propietario: el negocio queda asignado a ese usuario o sin asignar, nunca a «Fernando L.»; si la ficha sí tiene propietario, se hereda como ahora. No despliegues nada a producción; solo código local.",
+      "completedAt": "2026-11-22T06:56:35-0600",
+      "completedBy": "codex"
     },
     {
       "id": "gap-ui-nombres-vistas-gramatica",
