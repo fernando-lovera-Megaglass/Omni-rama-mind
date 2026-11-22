@@ -8,10 +8,33 @@ import { JSDOM } from 'jsdom';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
+import { liveSmoke, requireColumns, lit } from './smoke-live.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const log = (...a) => console.log('[tickets-trash]', ...a);
 const fail = (msg) => { console.error(`[tickets-trash] FAIL: ${msg}`); process.exit(1); };
+
+// ---- modo live (SMOKE_LIVE=1, docs/smoke-live.md): the trash against the real project, checked with SQL ----
+await liveSmoke('tickets-trash', async ({ data, one, check, log, stamp }) => {
+  await requireColumns('tickets', ['deleted_at']); // soft_delete_tickets.sql
+  const pipe = data.ticketPipelines()[0];
+  const t = data.addRecord('tickets', { name: `SMOKE Ticket papelera ${stamp}`, pipeline: pipe, status: data.firstOpenTicketStatus(pipe), priority: 'medium', owner: 'Fernando L.', source: 'Correo', description: 'Prueba live de la papelera', lastActivity: data.TODAY.toISOString() });
+  await data.dbIdle();
+  let row = await one(`select id, name, deleted_at from public.tickets where name = ${lit(t.name)}`);
+  check(row && row.deleted_at === null, `el ticket creado debe existir en tickets sin deleted_at (${JSON.stringify(row)})`);
+  log(`ticket «${t.name}» en la base (id ${row.id})`);
+  data.deleteRecords('tickets', [t.id]);
+  await data.dbIdle();
+  row = await one(`select deleted_at from public.tickets where name = ${lit(t.name)}`);
+  check(row && row.deleted_at, 'al borrar, la fila sigue con deleted_at (papelera), no desaparece');
+  check(data.trashedRecords('tickets').some((x) => Number(x.id) === Number(t.id)), 'la papelera de la app lo lista');
+  log(`borrado → deleted_at = ${row.deleted_at}`);
+  data.restoreRecords('tickets', [t.id]);
+  await data.dbIdle();
+  row = await one(`select deleted_at, status, pipeline from public.tickets where name = ${lit(t.name)}`);
+  check(row && row.deleted_at === null && row.pipeline === pipe, `restaurar deja deleted_at en null con su pipeline (${JSON.stringify(row)})`);
+  log('restaurado → deleted_at = null, mismo pipeline y estado');
+});
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // ---- static ----

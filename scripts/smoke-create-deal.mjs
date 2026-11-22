@@ -8,9 +8,30 @@ import { JSDOM } from 'jsdom';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 
+import { liveSmoke, lit } from './smoke-live.mjs';
 const here = dirname(fileURLToPath(import.meta.url));
 const log = (...a) => console.log('[create-deal]', ...a);
 const fail = (msg) => { console.error(`[create-deal] FAIL: ${msg}`); process.exit(1); };
+
+// ---- modo live (SMOKE_LIVE=1, docs/smoke-live.md): the deal the panel creates lands in Supabase ----
+await liveSmoke('create-deal', async ({ data, one, check, log, stamp }) => {
+  const def = data.dealPipelineDefs()[0];
+  const stage = def.stages.find((s) => !data.isClosedStage(s[0]))[0];
+  // what the «Crear negocio» panel inserts (src/create-deal.js → addRecord)
+  const d = data.addRecord('deals', { name: `SMOKE Negocio ${stamp}`, amount: 18751.5, deal_currency_code: 'MXN', stage, pipeline: def.name, closeDate: new Date(data.TODAY.getTime() + 30 * 86400000).toISOString(), owner: 'Fernando L.', priority: 'medium', type: 'Nuevo negocio', description: 'Prueba live', lastActivity: data.TODAY.toISOString() }, { origin: 'Creación manual' });
+  await data.dbIdle();
+  let row = await one(`select id, name, pipeline, stage, amount::float as amount, owner from public.deals where name = ${lit(d.name)}`);
+  check(row && row.pipeline === def.name && row.stage === stage && Number(row.amount) === 18751.5, `la fila del negocio existe con pipeline, etapa e importe (${JSON.stringify(row)})`);
+  log(`negocio «${row.name}» en la base (id ${row.id}, ${row.pipeline} › ${row.stage}, ${row.amount})`);
+  const next = def.stages.find((s) => s[0] !== stage && !data.isClosedStage(s[0]));
+  if (next) {
+    data.setField('deals', d.id, 'stage', next[0]);
+    await data.dbIdle();
+    row = await one(`select stage from public.deals where name = ${lit(d.name)}`);
+    check(row && row.stage === next[0], `cambiar la etapa cambia la fila (${JSON.stringify(row)})`);
+    log(`etapa → ${row.stage} en la base`);
+  }
+});
 const mem = {};
 const dom = new JSDOM('<!doctype html><body class="app"><aside id="sidenav"></aside><header id="topbar"></header><main id="list-root"></main><div id="scrim"></div></body>', { url: 'http://localhost/deals/' });
 globalThis.window = dom.window;

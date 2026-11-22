@@ -60,6 +60,28 @@ assert.equal((await db.query('SELECT count(*)::int n FROM tickets WHERE contact_
 await db.exec('INSERT INTO deals(contact_id) VALUES (99999)');
 await assert.rejects(db.exec(`BEGIN; ${repair} COMMIT;`), /Orphans/);
 await db.exec('ROLLBACK; DELETE FROM deals WHERE contact_id=99999');
+// Regression for the reported 77 pairs, with all four required relationship types.
+await db.exec(`
+ INSERT INTO contacts(id,email)
+ SELECT n, 'pair' || n || '@example.com' FROM generate_series(1000,1076) n
+ UNION ALL SELECT n+300, 'pair' || n || '@example.com' FROM generate_series(1000,1076) n;
+ INSERT INTO deals(contact_id) SELECT n FROM generate_series(1300,1376) n;
+ INSERT INTO tickets(contact_id) SELECT n FROM generate_series(1300,1376) n;
+ INSERT INTO activities(id,record_type,record_id) SELECT n,'contacts',n FROM generate_series(1300,1376) n;
+ INSERT INTO contact_companies(contact_id,company_id) SELECT n,1 FROM generate_series(1300,1376) n;
+`);
+await db.exec(`BEGIN; ${repair} COMMIT;`);
+assert.equal((await db.query('SELECT count(*)::int n FROM contacts WHERE id BETWEEN 1300 AND 1376 AND deleted_at IS NOT NULL')).rows[0].n,77);
+assert.equal((await db.query(`SELECT count(*)::int n FROM (
+ SELECT lower(btrim(email)) FROM contacts WHERE deleted_at IS NULL AND btrim(email)<>''
+ GROUP BY 1 HAVING count(*)>1) d`)).rows[0].n,0);
+for (const [table,column,predicate] of [
+ ['deals','contact_id','true'], ['tickets','contact_id','true'],
+ ['activities','record_id',"record_type='contacts'"], ['contact_companies','contact_id','true'],
+]) {
+ assert.equal((await db.query(`SELECT count(*)::int n FROM ${table} WHERE ${predicate} AND ${column} BETWEEN 1300 AND 1376`)).rows[0].n,0);
+ assert.equal((await db.query(`SELECT count(*)::int n FROM ${table} WHERE ${predicate} AND ${column} BETWEEN 1000 AND 1076`)).rows[0].n,77);
+}
 await db.exec(sql('../supabase/contact-integrity.sql'));
 await db.exec(sql('../supabase/bootstrap-demo.sql'));
 await assert.rejects(db.exec("INSERT INTO contacts(email) VALUES ('ana@EXAMPLE.com')"));

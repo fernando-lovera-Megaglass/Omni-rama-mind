@@ -5,10 +5,27 @@
 import { JSDOM } from 'jsdom';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
+import { liveSmoke, lit } from './smoke-live.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const log = (...a) => console.log('[create-contact]', ...a);
 const fail = (msg) => { console.error(`[create-contact] FAIL: ${msg}`); process.exit(1); };
+
+// ---- modo live (SMOKE_LIVE=1, docs/smoke-live.md): the contact the panel creates lands in Supabase ----
+await liveSmoke('create-contact', async ({ data, one, check, log, stamp }) => {
+  const email = `smoke.${stamp}@ejemplo.com`;
+  // what the «Crear contacto» panel inserts (src/create-contact.js → addRecord)
+  const c = data.addRecord('contacts', { name: `SMOKE Contacto ${stamp}`, first: 'SMOKE', last: `Contacto ${stamp}`, email, phone: '', owner: 'Fernando L.', lifecycle: 'Lead', status: 'new', source: 'Formulario', hs_buying_role: 'Influenciador', lastActivity: data.TODAY.toISOString() }, { origin: 'Creación manual' });
+  await data.dbIdle();
+  let row = await one(`select id, name, first, last, email, owner from public.contacts where lower(email) = ${lit(email)}`);
+  check(row && row.name === c.name && row.first === 'SMOKE' && row.owner === 'Fernando L.', `la fila del contacto creado existe en contacts (${JSON.stringify(row)})`);
+  log(`contacto «${row.name}» en la base (id ${row.id}, ${row.email})`);
+  data.setField('contacts', c.id, 'city', `SMOKE Ciudad ${stamp}`);
+  await data.dbIdle();
+  row = await one(`select city from public.contacts where lower(email) = ${lit(email)}`);
+  check(row && row.city === `SMOKE Ciudad ${stamp}`, `editar una propiedad cambia la fila (${JSON.stringify(row)})`);
+  log(`ciudad editada → «${row.city}» en la base`);
+});
 const mem = {};
 const dom = new JSDOM('<!doctype html><body class="app"><aside id="sidenav"></aside><header id="topbar"></header><main id="list-root"></main><div id="scrim"></div></body>', { url: 'http://localhost/contacts/' });
 globalThis.window = dom.window;

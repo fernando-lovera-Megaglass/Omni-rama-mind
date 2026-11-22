@@ -1,5 +1,11 @@
 # Reparación local de contactos
 
+## Verificación local del 22 de noviembre
+
+Revalidado en esta intervención: prueba PGlite con 77 pares sintéticos, cero grupos duplicados activos, 77 copias en papelera y cero referencias restantes a esas copias en deals, tickets, activities y contact_companies. La prueba PostgreSQL con dos sesiones independientes observó espera por bloqueo y una sola siembra de 420 contactos. El reparador ahora adquiere el mismo advisory lock que el bootstrap antes de bloquear tablas, evitando órdenes de adquisición incompatibles entre ambos procesos.
+
+El ítem original y su reapertura quedan pendientes en la cola local, sin completedAt: la aceptación de datos reales sigue pendiente. No se ejecutó mgmt-sql.mjs, no se aplicaron migraciones remotas y no se desplegó código. Estos resultados sintéticos no verifican los 423 contactos reportados en producción.
+
 No se ha ejecutado contra Supabase ni producción. No usar `apply-migration.mjs` para estas pruebas: ese comando apunta al proyecto remoto.
 
 Requisitos: una copia local de PostgreSQL, `psql`, esquema actual (incluyendo `soft_delete.sql`, `company_hierarchy.sql` y las tablas de relaciones), y una conexión propietaria de las tablas para ver todos los registros sin filtros RLS.

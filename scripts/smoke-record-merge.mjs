@@ -10,9 +10,26 @@ import { JSDOM } from 'jsdom';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 
+import { liveSmoke, lit } from './smoke-live.mjs';
 const here = dirname(fileURLToPath(import.meta.url));
 const log = (...a) => console.log('[record-merge]', ...a);
 const fail = (msg) => { console.error(`[record-merge] FAIL: ${msg}`); process.exit(1); };
+
+// ---- modo live (SMOKE_LIVE=1, docs/smoke-live.md): a merge leaves the duplicate in the trash and the kept row updated ----
+await liveSmoke('record-merge', async ({ data, one, check, log, stamp }) => {
+  const keep = data.addRecord('contacts', { name: `SMOKE Ana Fusión ${stamp}`, first: 'SMOKE Ana', last: `Fusión ${stamp}`, email: `smoke.${stamp}@ejemplo.com`, phone: '', owner: 'Fernando L.', lifecycle: 'Lead', city: '', lastActivity: data.TODAY.toISOString() });
+  const dup = data.addRecord('contacts', { name: `SMOKE Ana Fusion Dup ${stamp}`, first: 'SMOKE Ana', last: `Fusion Dup ${stamp}`, email: `smoke.${stamp}.dup@ejemplo.com`, phone: '+52 55 1234 5678', owner: 'Sofía R.', lifecycle: 'Lead', city: 'SMOKE Toluca', lastActivity: data.TODAY.toISOString() });
+  await data.dbIdle();
+  const before = await one(`select count(*)::int as n from public.contacts where name in (${lit(keep.name)}, ${lit(dup.name)}) and deleted_at is null`);
+  check(before && before.n === 2, 'ambos contactos existen en la base antes de fusionar');
+  data.mergeRecords('contacts', keep.id, [dup.id], { choices: { city: dup.id } });
+  await data.dbIdle();
+  const kept = await one(`select city, phone, deleted_at from public.contacts where name = ${lit(keep.name)}`);
+  const gone = await one(`select deleted_at from public.contacts where name = ${lit(dup.name)}`);
+  check(kept && kept.deleted_at === null && kept.city === 'SMOKE Toluca' && kept.phone === '+52 55 1234 5678', `el principal toma el valor elegido y rellena vacíos (${JSON.stringify(kept)})`);
+  check(gone && gone.deleted_at, `el duplicado queda en la papelera con deleted_at (${JSON.stringify(gone)})`);
+  log(`fusión: «${keep.name}» ciudad «${kept.city}», teléfono rellenado; duplicado con deleted_at = ${gone.deleted_at}`);
+});
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const mem = {};
 globalThis.localStorage = { getItem: (k) => (k in mem ? mem[k] : null), setItem: (k, v) => { mem[k] = String(v); }, removeItem: (k) => { delete mem[k]; }, key: (i) => Object.keys(mem)[i] ?? null, get length() { return Object.keys(mem).length; } };

@@ -1,4 +1,6 @@
 -- Run inside a transaction. Locks prevent new references during the repair.
+-- Serialize with bootstrap before acquiring tables in a different order.
+SELECT pg_advisory_xact_lock(714025, 1);
 DO $$
 DECLARE r record;
 BEGIN

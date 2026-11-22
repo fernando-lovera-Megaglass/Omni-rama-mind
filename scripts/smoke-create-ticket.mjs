@@ -8,9 +8,30 @@ import { JSDOM } from 'jsdom';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 
+import { liveSmoke, lit } from './smoke-live.mjs';
 const here = dirname(fileURLToPath(import.meta.url));
 const log = (...a) => console.log('[create-ticket]', ...a);
 const fail = (msg) => { console.error(`[create-ticket] FAIL: ${msg}`); process.exit(1); };
+
+// ---- modo live (SMOKE_LIVE=1, docs/smoke-live.md): the ticket the panel creates lands in Supabase ----
+await liveSmoke('create-ticket', async ({ data, one, check, log, stamp }) => {
+  const pipe = data.ticketPipelines()[1] || data.ticketPipelines()[0];
+  const status = data.firstOpenTicketStatus(pipe);
+  // what the «Crear ticket» panel inserts (src/create-ticket.js → addRecord)
+  const t = data.addRecord('tickets', { name: `SMOKE Ticket ${stamp}`, pipeline: pipe, status, priority: 'high', owner: 'Fernando L.', source: 'Correo', description: 'Prueba live', lastActivity: data.TODAY.toISOString() }, { origin: 'Creación manual' });
+  await data.dbIdle();
+  let row = await one(`select id, name, pipeline, status, priority from public.tickets where name = ${lit(t.name)}`);
+  check(row && row.pipeline === pipe && row.status === status && row.priority === 'high', `la fila del ticket existe con pipeline y estado (${JSON.stringify(row)})`);
+  log(`ticket «${row.name}» en la base (id ${row.id}, ${row.pipeline} › ${row.status})`);
+  const nextStatus = data.ticketStatusesFor(pipe).find((s) => s[0] !== status && s[2] !== 'closed');
+  if (nextStatus) {
+    data.setField('tickets', t.id, 'status', nextStatus[0]);
+    await data.dbIdle();
+    row = await one(`select status from public.tickets where name = ${lit(t.name)}`);
+    check(row && row.status === nextStatus[0], `cambiar el estado cambia la fila (${JSON.stringify(row)})`);
+    log(`estado → ${row.status} en la base`);
+  }
+});
 const mem = {};
 const dom = new JSDOM('<!doctype html><body class="app"><aside id="sidenav"></aside><header id="topbar"></header><main id="list-root"></main><div id="scrim"></div></body>', { url: 'http://localhost/tickets/', pretendToBeVisual: true });
 for (const k of ['window', 'document', 'location', 'history', 'HTMLElement', 'Event', 'CustomEvent', 'FormData', 'URL', 'Blob', 'MutationObserver']) globalThis[k] = dom.window[k];

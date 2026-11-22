@@ -7,10 +7,37 @@
 import { JSDOM } from 'jsdom';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
+import { liveSmoke, requireColumns, requireTable, lit } from './smoke-live.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const log = (...a) => console.log('[record-customize]', ...a);
 const fail = (msg) => { console.error(`[record-customize] FAIL: ${msg}`); process.exit(1); };
+
+// ---- modo live (SMOKE_LIVE=1, docs/smoke-live.md): the «Acerca de» customisation stored per user in Supabase ----
+await liveSmoke('record-customize', async ({ data, one, check, log, stamp, session }) => {
+  await requireColumns('user_settings', ['user_id', 'scope', 'key', 'value']); // user_settings.sql (current version)
+  await requireTable('account_settings');
+  check(data.settingsLive(), 'la app arrancó con los ajustes en localStorage (fetchUserSettings falló: ¿user_settings sin scope?)');
+  const KEY = 'crm:contacts:cardprops';
+  const card = { title: `SMOKE Acerca de ${stamp}`, keys: ['email', 'phone', 'city'] };
+  check(data.setSetting(KEY, card) === true, 'setSetting debe aceptar la escritura con la sesión viva');
+  await data.dbIdle();
+  let row = await one(`select scope, value->>'title' as title, jsonb_array_length(value->'keys') as n from public.user_settings where user_id = ${lit(session.uid)} and key = ${lit(KEY)}`);
+  check(row && row.scope === 'user' && row.title === card.title && Number(row.n) === 3, `fila en user_settings con scope 'user' (${JSON.stringify(row)})`);
+  log(`user_settings: ${KEY} scope=${row.scope} título «${row.title}» (${row.n} propiedades)`);
+  // a second save updates the same row (unique user_id + key), it does not pile up
+  data.setSetting(KEY, { ...card, keys: ['email'] });
+  await data.dbIdle();
+  const rows = await (await import('./smoke-live.mjs')).sql(`select count(*)::int as n, max(jsonb_array_length(value->'keys')) as keys from public.user_settings where user_id = ${lit(session.uid)} and key = ${lit(KEY)}`);
+  check(rows[0].n === 1 && Number(rows[0].keys) === 1, `una sola fila por usuario y clave, actualizada (${JSON.stringify(rows[0])})`);
+  log('segundo guardado → la misma fila, 1 propiedad');
+  // «Aplicar a todos los usuarios de la cuenta» writes account_settings: only an admin may (RLS); the SMOKE user is not
+  data.setSetting(KEY, card, { scope: 'global' });
+  await data.dbIdle();
+  const global = await one(`select key from public.account_settings where key = ${lit(KEY)} and value->>'title' = ${lit(card.title)}`);
+  log(global ? 'account_settings: la fila de cuenta existe (el usuario tiene rol admin)' : 'account_settings: escritura rechazada por RLS para un usuario sin rol admin (esperado; la app lo avisa con un toast)');
+  if (global) await (await import('./smoke-live.mjs')).sql(`delete from public.account_settings where key = ${lit(KEY)} and value->>'title' = ${lit(card.title)}`);
+});
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const mem = {};
 globalThis.localStorage = { getItem: (k) => (k in mem ? mem[k] : null), setItem: (k, v) => { mem[k] = String(v); }, removeItem: (k) => { delete mem[k]; }, key: (i) => Object.keys(mem)[i] ?? null, get length() { return Object.keys(mem).length; } };

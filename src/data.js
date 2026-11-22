@@ -717,6 +717,9 @@ export function setPageRows(type, rows) {
 // Writes are applied to the in-memory cache immediately (the UI stays
 // synchronous) and then sent to Supabase in order, in the background.
 let writeQueue = Promise.resolve();
+// Resolves once every queued write has reached (or been refused by) the database: the live smokes wait for it
+// before checking the rows with SQL.
+export const dbIdle = () => writeQueue.then(() => true, () => true);
 function dbWrite(fn) {
   const pending = writeQueue.then(fn);
   writeQueue = pending.catch((e) => reportDbError('escritura', e));
