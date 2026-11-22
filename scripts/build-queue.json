@@ -3,10 +3,12 @@
   "queue": [
     {
       "id": "gap-backend-transferencia-asistida-crm",
-      "status": "pending",
+      "status": "done",
       "lane": "codex",
       "createdAt": "2026-11-22T16:04:46.821Z",
-      "instruction": "PRIORIDAD EXPLÍCITA DEL USUARIO (22-nov, 10:00 am): «la integración de datos quiero que funcione de manera perfecta». Foco 3 de 3: «Transfiere tus datos» (Gestión de datos › Integración de datos), que hoy solo muestra un toast.\n\nTRABAJO — conviértelo en la transferencia inteligente real:\n1. Al pulsar «Transferir datos» se abre un asistente: elige el CRM de origen (Salesforce, Zoho, Pipedrive u hoja de cálculo genérica).\n2. Para cada origen: explica QUÉ exportar desde ese CRM (qué reporte/archivo, formato esperado) y luego acepta ese archivo.\n3. Alimenta el archivo al motor de importación existente (src/import-engine.js / import-wizard.js) con un MAPEO DE COLUMNAS PRECONFIGURADO para ese origen (nombres típicos de columnas de Salesforce/Zoho/Pipedrive → propiedades de Omni), de modo que el usuario no tenga que mapear a mano; el wizard arranca en el paso de revisión del mapeo ya resuelto.\n4. Soporta contactos y empresas como mínimo; negocios si el formato lo permite.\n5. Criterio: un CSV exportado de Pipedrive o Salesforce (genéralo tú con columnas típicas para probar) se importa sin que el usuario toque el mapeo, y aparece en el monitor con sus conteos reales.\n\nTermina con: No despliegues nada a producción; solo código local."
+      "instruction": "PRIORIDAD EXPLÍCITA DEL USUARIO (22-nov, 10:00 am): «la integración de datos quiero que funcione de manera perfecta». Foco 3 de 3: «Transfiere tus datos» (Gestión de datos › Integración de datos), que hoy solo muestra un toast.\n\nTRABAJO — conviértelo en la transferencia inteligente real:\n1. Al pulsar «Transferir datos» se abre un asistente: elige el CRM de origen (Salesforce, Zoho, Pipedrive u hoja de cálculo genérica).\n2. Para cada origen: explica QUÉ exportar desde ese CRM (qué reporte/archivo, formato esperado) y luego acepta ese archivo.\n3. Alimenta el archivo al motor de importación existente (src/import-engine.js / import-wizard.js) con un MAPEO DE COLUMNAS PRECONFIGURADO para ese origen (nombres típicos de columnas de Salesforce/Zoho/Pipedrive → propiedades de Omni), de modo que el usuario no tenga que mapear a mano; el wizard arranca en el paso de revisión del mapeo ya resuelto.\n4. Soporta contactos y empresas como mínimo; negocios si el formato lo permite.\n5. Criterio: un CSV exportado de Pipedrive o Salesforce (genéralo tú con columnas típicas para probar) se importa sin que el usuario toque el mapeo, y aparece en el monitor con sus conteos reales.\n\nTermina con: No despliegues nada a producción; solo código local.",
+      "completedAt": "2026-11-22T10:13:37-0600",
+      "completedBy": "codex"
     },
     {
       "id": "gap-backend-apps-sync-real-o-honesta",

@@ -388,7 +388,7 @@ export function planImport(table, mapping, options = {}) {
   });
   const companies = type === 'contacts' || type === 'deals' ? companyIndex() : null;
   const active = mapping.filter((m) => m.key && !m.skip && propByKey(type, m.key));
-  const unmapped = mapping.filter((m) => m.header && (!m.key || m.skip)).map((m) => m.header);
+  const unmapped = mapping.filter((m) => m.header && (!m.key || m.skip) && !m.ignoredExternalId).map((m) => m.header);
   const seenKey = new Set();
   const firstRowByKey = new Map(); // unique value → index in `records` of the row kept for it
   const seenId = new Set();

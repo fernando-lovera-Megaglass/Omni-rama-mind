@@ -279,8 +279,8 @@ root.addEventListener('click', (e) => {
   if (a === 'import') { location.href = `./import/${FROM && FROM_LABELS[FROM] ? `?object=${FROM}` : ''}`; }
   else if (a === 'apps') openApps();
   else if (a === 'columns') openColumns();
-  else if (a === 'transfer') toast('La herramienta de transferencia inteligente copia tus datos desde otro CRM. Elige el origen y Omni mapea los campos por ti.');
-  else if (a === 'transfer-info') toast('La transferencia inteligente admite archivos de Salesforce, Zoho, Pipedrive y hojas de cálculo.');
+  else if (a === 'transfer') location.href = './import/?transfer=1';
+  else if (a === 'transfer-info') location.href = './import/?transfer=1';
   else if (a === 'datahub') toast('Data Hub no está incluido en tu plan. Permite unificar datos de todas las fuentes y activarlos en campañas.');
 });
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });

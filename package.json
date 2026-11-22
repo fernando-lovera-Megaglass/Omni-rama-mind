@@ -14,6 +14,7 @@
     "test:sequence-remote": "node scripts/smoke-remote-scheduler.mjs && node scripts/smoke-sequence-backfill.mjs",
     "test:marketing-process": "node scripts/smoke-marketing-process.mjs",
     "test:task-queues": "node scripts/smoke-named-task-queues.mjs",
+    "test:import-transfer": "node scripts/smoke-import-transfer.mjs",
     "test:import-multifile": "node scripts/smoke-import-multifile.mjs",
     "test:import-undo": "node scripts/smoke-import-undo.mjs",
     "test:marketing-subscriptions": "node scripts/smoke-marketing-subscriptions.mjs"

@@ -2,6 +2,7 @@
 // tickets and tasks: upload or paste, map columns to properties (with inline fixes and new properties),
 // details and consent, then the review page with the state timeline, counts, error tables and downloads.
 // Rules: import-engine.js (from especificacion-importacion-contactos-crm.md).
+import { TRANSFER_SOURCES, transferMap, transferFields } from './import-transfer.js';
 import { boot } from './page.js';
 import { toast } from './shell.js';
 import * as E from './import-engine.js';
@@ -19,6 +20,8 @@ const fmtTime = (iso) => { const d = new Date(iso); return `${String(d.getHours(
 const fmtDate = (iso) => new Date(iso).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' });
 
 const state = {
+  transfer: params.has('transfer'),
+  transferSource: 'salesforce',
   step: 1,
   flow: initialObject === 'contacts' ? 'quick' : 'advanced',
   object: initialObject,
@@ -62,7 +65,24 @@ function downloadBytes(name, bytes, type) {
 }
 
 // ---------- step 1: object and file ----------
+function renderTransfer() {
+  const source = TRANSFER_SOURCES[state.transferSource];
+  root.innerHTML = frame(`<section class="imp__card">
+    <h2>Transfiere tus datos</h2>
+    <label class="field"><span>CRM de origen</span><select id="transfer-source">${Object.entries(TRANSFER_SOURCES).map(([key, item]) => `<option value="${key}" ${key === state.transferSource ? 'selected' : ''}>${item.label}</option>`).join('')}</select></label>
+    <label class="field"><span>Objeto a transferir</span><select id="transfer-object">${['contacts', 'companies', 'deals'].map((key) => `<option value="${key}" ${key === state.object ? 'selected' : ''}>${E.objectDef(key).label}</option>`).join('')}</select></label>
+    <h3>Qué exportar desde ${source.label}</h3><p>${source.instruction}</p>
+    ${source.url ? `<a href="${source.url}" target="_blank" rel="noopener">Instrucciones de exportación del proveedor</a>` : ''}
+    <p><strong>Columnas recomendadas:</strong> ${transferFields(state.transferSource, state.object)}.</p>
+    <p>Un objeto por archivo, una sola hoja, encabezados en la primera fila y sin totales. CSV UTF-8, XLSX o XLS; máximo ${E.LIMITS.fileBytes / 1048576} MB. Repite el asistente para otro objeto.</p>
+    <p>${state.object === 'deals' ? 'Los negocios necesitan nombre, Pipeline y Etapa con valores existentes en Omni. Añade Pipeline si el origen no lo exporta; puedes corregir los valores en la revisión.' : 'Incluye correo electrónico para identificar contactos y dominio para identificar empresas en futuras importaciones.'} Los ID externos se omiten; no son identificadores de Omni.</p>
+    <label class="dropzone imp__drop"><input type="file" id="imp-file" accept=".csv,.xlsx,.xls" /><span>Selecciona el archivo exportado para revisar el mapeo automático</span></label>
+    ${state.fileError ? `<p class="imp__error" role="alert">${esc(state.fileError)}</p>` : ''}
+    <div class="imp__foot"><a class="btn btn--ghost" href="../">Cancelar</a></div>
+  </section>`, 1, 'Transferencia inteligente');
+}
 function renderStep1() {
+  if (state.transfer) { renderTransfer(); return; }
   const t = state.table;
   const d = def();
   root.innerHTML = frame(`
@@ -109,19 +129,24 @@ async function loadFiles(files) {
   state.table = null;
   state.files = [];
   try {
+    if (state.transfer && files.length !== 1) throw new Error('Selecciona un solo archivo por objeto.');
+    if (state.transfer && !/\.(csv|xlsx|xls)$/i.test(files[0].name)) throw new Error('Elige un archivo CSV, XLSX o XLS.');
     const [tables] = await Promise.all([
       Promise.all(Array.from(files, E.parseFile)),
       E.refreshImportOwners(),
     ]);
+    if (state.transfer && !tables[0].rows.length) throw new Error('El archivo no contiene registros. Exporta encabezados y al menos una fila de datos.');
     state.files = tables.map((table) => {
       const object = tables.length > 1 ? E.detectObject(table, state.object) : state.object;
-      return { table, object, mapping: tables.length > 1 ? E.autoMapBatch(table, state.language, object) : E.autoMap(table.headers, state.language, object) };
+      return { table, object, mapping: state.transfer ? transferMap(table.headers, state.transferSource, object) : tables.length > 1 ? E.autoMapBatch(table, state.language, object) : E.autoMap(table.headers, state.language, object) };
     });
     state.activeFile = 0;
     Object.assign(state, state.files[0]);
     if (tables.length > 1) state.flow = 'advanced';
-    state.name = tables.map((t) => t.fileName).join(' + ');
+    state.name = (state.transfer ? `Transferencia ${TRANSFER_SOURCES[state.transferSource].label}: ` : '') + tables.map((t) => t.fileName).join(' + ');
+    if (state.transfer) { state.step = 2; renderStep2(); return; }
   } catch (e) { state.fileError = `${e.code || ''}: ${e.message}`; }
+  state.step = 1;
   renderStep1();
 }
 function usePasted(text) {
@@ -153,6 +178,7 @@ function renderStep2() {
   root.innerHTML = frame(`
     <section class="imp__card">
       ${fileTabs()}
+      ${state.transfer ? `<p class="imp__ok">Mapeo preconfigurado de ${TRANSFER_SOURCES[state.transferSource].label} aplicado. Revisa las columnas antes de continuar; los ID externos se omiten intencionalmente.</p>` : ''}
       <h2>Mapea las columnas del archivo a propiedades de ${esc(d.singular)}</h2>
       <p class="muted">Cada columna necesita una propiedad; las que no se asignen no se importan. El icono 🔑 marca los identificadores únicos (${d.unique.map((k) => E.UNIQUE_LABELS[k]).join(', ')}). ${t.rows.length > 1000 ? '<strong>Con más de 1.000 filas puede haber errores no resueltos en esta etapa.</strong>' : ''}</p>
       <p class="imp__summary">${used.size} de ${t.headers.filter(Boolean).length} columnas asignadas${unmapped ? ` · ${unmapped} sin importar` : ''}${totalErrors ? ` · <span class="imp__warn">${totalErrors} valores con errores</span>` : ' · sin errores'}</p>
@@ -262,7 +288,7 @@ async function finish() {
   if (!state.options.consent || ['STARTED', 'PROCESSING', 'DEFERRED'].includes(E.importHistory().find((r) => r.id === state.importId)?.state)) return;
   saveActiveFile();
   const multi = state.files.length > 1;
-  const o = { ...state.options, object: state.object };
+  const o = { ...state.options, object: state.object, ...(state.transfer ? { transferSource: state.transferSource } : {}) };
   const check = E.canStart(multi ? state.files.reduce((n, f) => n + f.table.rows.length, 0) : state.table.rows.length);
   if (!check.ok) { toast(`${check.code}: ${check.reason}`); return; }
   const plan = multi ? E.planBatch(state.files, o) : E.planImport(state.table, state.mapping, o);
@@ -337,6 +363,11 @@ function renderReview() {
 // ---------- events ----------
 root.addEventListener('change', (e) => {
   const t = e.target;
+  if (t.id === 'transfer-source' || t.id === 'transfer-object') {
+    if (t.id === 'transfer-source') state.transferSource = t.value;
+    else setObject(t.value);
+    state.table = null; state.files = []; state.mapping = []; state.fileError = ''; renderStep1(); return;
+  }
   if (t.id === 'imp-file' && t.files && t.files[0]) { loadFiles(t.files); return; }
   if (t.id === 'imp-lang') { state.language = t.value; if (state.table) state.mapping = state.files.length > 1 ? E.autoMapBatch(state.table, state.language, state.object) : E.autoMap(state.table.headers, state.language, state.object); saveActiveFile(); return; }
   if (t.name === 'flow') { state.flow = t.value; if (state.flow === 'quick') setObject('contacts'); renderStep1(); return; }
@@ -347,6 +378,7 @@ root.addEventListener('change', (e) => {
     if (t.value === '__new') { state.newProp = i; renderStep2(); return; }
     state.mapping.forEach((x) => { if (x !== m && x.key === t.value && t.value) { x.key = ''; } });
     m.key = t.value;
+    m.ignoredExternalId = false;
     m.skip = !t.value;
     m.replacements = {};
     m.dropped = [];
