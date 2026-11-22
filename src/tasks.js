@@ -85,6 +85,7 @@ const list = mountList({
     { key: 'status', label: 'Estado', options: TASK_STATUSES.map(([k, l]) => [k, l]), test: (r, v) => r.status === v },
   ],
   columns: [
+    { key: 'notes', label: 'Notas', default: false, text: (r) => r.notes || '' },
     { key: 'name', label: 'Título', render: (r) => `<a href="./record/?id=${r.id}" class="${r.status === 'done' ? 'is-done' : ''}">${esc(r.name)}</a>` },
     { key: 'done', label: 'Hecha', text: (r) => (r.status === 'done' ? 'Sí' : 'No'), render: (r) => `<input type="checkbox" class="task-done" data-id="${r.id}" ${r.status === 'done' ? 'checked' : ''} aria-label="Marcar como completada" />` },
     { key: 'contact', label: 'Contacto asociado', render: (r) => (r.contact ? link(`../contacts/record/?id=${r.contactId}`, r.contact) : '<span class="muted">—</span>') },
@@ -101,6 +102,7 @@ const list = mountList({
   ],
   createFields: [
     { name: 'name', label: 'Título', required: true },
+    { name: 'notes', label: 'Notas', type: 'textarea' },
     { name: 'type', label: 'Tipo de tarea', type: 'select', options: TASK_TYPES.map((t) => [t, t]) },
     { name: 'due', label: 'Fecha de vencimiento', type: 'date' },
     { name: 'recur', label: 'Repetir', type: 'select', options: RECUR_OPTIONS },

@@ -3111,6 +3111,9 @@ export function mountList(cfg) {
 }
 
 function fieldHtml(f) {
+  if (f.type === 'textarea') {
+    return `<label class="field"><span>${esc(f.label)}</span><textarea name="${esc(f.name)}" rows="4" ${f.required ? 'required' : ''} placeholder="${esc(f.placeholder || '')}"></textarea></label>`;
+  }
   if (f.type === 'select') {
     return `<label class="field"><span>${f.label}</span><select name="${f.name}">${f.options.map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}</select></label>`;
   }

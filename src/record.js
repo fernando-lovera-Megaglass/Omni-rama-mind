@@ -138,6 +138,7 @@ const CONFIG = {
     label: 'Tareas', singular: 'tarea', sub: 'Tareas', listHref: `${root}tasks/`,
     title: (r) => r.name, subtitle: (r) => `${r.type} · vence ${formatDate(r.due)}`, mail: () => '',
     fields: [
+      ['notes', 'Notas', 'textarea'],
       ['status', 'Estado', 'select', opt(TASK_STATUSES.map(([k, l]) => [k, l]))], ['type', 'Tipo de tarea', 'select', opt(TASK_TYPES)], ['due', 'Fecha de vencimiento', 'date'], ['reminderAt', 'Recordatorio', 'datetime'],
       ['priority', 'Prioridad', 'select', opt(PRIORITIES.map(([k, l]) => [k, l]))], ['owner', 'Asignada a', 'select', ownerOpts], ['recur', 'Repetir', 'select', opt(RECUR_OPTIONS)], ['created', 'Fecha de creación', 'date-ro'],
     ],
