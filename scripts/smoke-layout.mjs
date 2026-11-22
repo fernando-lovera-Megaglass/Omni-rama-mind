@@ -2,6 +2,7 @@
 import { JSDOM } from 'jsdom';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
+import assert from 'node:assert/strict';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const mem = {};
@@ -58,8 +59,11 @@ log('tabs now:', [...document.querySelectorAll('.ltab > button')].map((b) => b.t
 click(document.querySelector('[data-lc="teams"]'));
 document.querySelector('[data-team-m]').checked = true;
 click($('l-teams-ok'));
+click(document.querySelector('[data-lc="add"][data-card="collaborators"]'));
+click(document.querySelector('[data-lc="up"][data-card="collaborators"]'));
 click(document.querySelector('[data-lc="save"]'));
 const savedLayout = JSON.parse(mem['crm:contacts:layout']);
+assert.deepEqual(savedLayout.left, ['collaborators', 'about']);
 log('saved: name', savedLayout.name, '| teams', savedLayout.teams.join(','), '| right[0]', savedLayout.right[0], '| section0', savedLayout.tabs[0].sections[0].title, '| tabs', savedLayout.tabs.length);
 
 // 2) the record page follows it
@@ -77,4 +81,28 @@ log('record tabs:', [...document.querySelectorAll('.rtabs__tab')].map((b) => b.t
 log('record sections:', [...document.querySelectorAll('#overview-body .rsection')].map((h) => h.textContent).join(' | '));
 log('record right first card:', document.querySelector('#rec-right .card').textContent.replace(/\s+/g, ' ').trim().slice(0, 40));
 log('custom pane exists:', Boolean(document.querySelector('#custom-panes .tabpane')), '| missing-data card:', document.body.textContent.includes('Datos faltantes'));
+const leftOrder = () => [...document.querySelectorAll('#rec-left-extra > .card:not([hidden])')].map((c) => c.dataset.lcard);
+assert.deepEqual(leftOrder(), ['collaborators', 'about']);
+const about = $('rec-props').closest('.card');
+globalThis.requestAnimationFrame = (fn) => fn();
+const dragBefore = (source, target) => {
+  ev('dragstart', document.querySelector(`[data-lcard="${source}"] > .card__grip`));
+  const over = document.querySelector(`#rec-left-extra > [data-lcard="${target}"]`);
+  over.classList.add('drop-before');
+  ev('drop', over);
+};
+dragBefore('about', 'collaborators');
+assert.deepEqual(leftOrder(), ['about', 'collaborators']);
+assert.equal($('rec-props').closest('.card'), about, 'About node survives rerender');
+dragBefore('collaborators', 'about');
+assert.deepEqual(JSON.parse(mem['crm:contacts:layout']).left, ['collaborators', 'about']);
+await import(resolve(here, '../src/record.js') + '?reload-left');
+assert.deepEqual(leftOrder(), ['collaborators', 'about'], 'Saved order survives reload');
+const { saveLayout, loadLayout } = await import('../src/layout-defaults.js');
+const withoutAbout = loadLayout('contacts');
+withoutAbout.left = ['collaborators'];
+saveLayout('contacts', withoutAbout);
+await import(resolve(here, '../src/record.js') + '?without-about');
+assert.deepEqual(leftOrder(), ['collaborators']);
+assert.equal($('rec-props').closest('.card').hidden, true);
 log('OK');

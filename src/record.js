@@ -1051,8 +1051,17 @@ function renderMiddle() {
   addGrips($('record-root').querySelector('.record__middle'));
   const aboutCard = $('rec-props').closest('.card');
   aboutCard.hidden = !L.left.includes('about');
-  // The other cards of the left column («Colaboradores»…), in the order of the layout.
-  if ($('rec-left-extra')) $('rec-left-extra').innerHTML = L.left.filter((cid) => cid !== 'about').map((cid) => leftCardHtml(cid).replace('<div class="card', `<div data-lcard="${esc(cid)}" class="card`)).join('');
+  aboutCard.dataset.lcard = 'about';
+  const left = $('rec-left-extra');
+  // Move the existing about node so its controls and state survive every render.
+  left.replaceChildren();
+  for (const cid of L.left) {
+    if (cid === 'about') left.appendChild(aboutCard);
+    else left.insertAdjacentHTML('beforeend', leftCardHtml(cid).replace('<div class="card', `<div data-lcard="${esc(cid)}" class="card`));
+  }
+  // Keep properties addressable while the card is excluded from the layout.
+  if (aboutCard.hidden) left.appendChild(aboutCard);
+  addGrips(left);
 }
 // Left-column cards besides «Acerca de»: «Colaboradores» lists who works the record (owner and followers).
 function leftCardHtml(cardId) {
@@ -1200,10 +1209,11 @@ function addGrips(container) {
 }
 let dragCard = null; // { id, tab, sect, zone }
 function dropZoneOf(el) {
-  return el.closest('#rec-right') ? 'right' : 'middle';
+  return el.closest('#rec-left-extra') ? 'left' : el.closest('#rec-right') ? 'right' : 'middle';
 }
 function cardListOf(zone, tabId) {
   const L = layoutOf();
+  if (zone === 'left') return L.left;
   if (zone === 'right') return L.right;
   const tab = L.tabs.find((t) => t.id === tabId) || { sections: [] };
   return (tab.sections || []).flatMap((s) => s.cards);
@@ -1236,11 +1246,12 @@ mount.addEventListener('drop', (e) => {
   e.preventDefault();
   const before = over.classList.contains('drop-before');
   const L = layoutOf();
-  if (dragCard.zone === 'right') {
-    const i = L.right.indexOf(dragCard.id);
-    if (i >= 0) L.right.splice(i, 1);
-    const j = L.right.indexOf(over.dataset.lcard);
-    L.right.splice(j < 0 ? L.right.length : before ? j : j + 1, 0, dragCard.id);
+  if (dragCard.zone === 'right' || dragCard.zone === 'left') {
+    const cards = L[dragCard.zone];
+    const i = cards.indexOf(dragCard.id);
+    if (i >= 0) cards.splice(i, 1);
+    const j = cards.indexOf(over.dataset.lcard);
+    cards.splice(j < 0 ? cards.length : before ? j : j + 1, 0, dragCard.id);
   } else {
     const tab = L.tabs.find((t) => t.id === dragCard.tab);
     if (!tab) return;

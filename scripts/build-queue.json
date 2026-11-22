@@ -1737,10 +1737,12 @@
     },
     {
       "id": "gap-ui-ficha-columna-izquierda-orden",
-      "status": "pending",
+      "status": "done",
       "lane": "codex",
       "createdAt": "2026-11-22T02:13:47-06:00",
-      "instruction": "ORDEN NO RESPETADO (los 4 módulos, ficha): la tarjeta «Acerca de» está fijada en el markup como primer elemento de la columna izquierda (src/record.js:248-267) y renderMiddle (record.js:1045-1048) solo la muestra/oculta (aboutCard.hidden) y luego pinta el resto de tarjetas de L.left DESPUÉS de ella. Si en el editor de diseño (src/layout.js) el usuario arrastra «Colaboradores» por encima de «Acerca de» en la columna izquierda — o reordena con el grip de la propia ficha, que guarda el orden de L.left —, la ficha sigue mostrando «Acerca de» primero: el orden de la columna izquierda que guarda el editor no se respeta (en las columnas central y derecha sí). HubSpot respeta el orden exacto de tarjetas de cada columna. Arreglo: renderizar toda la columna izquierda a partir de L.left en orden, montando la tarjeta «Acerca de» en su posición correspondiente (p. ej. mover el nodo estático dentro de #rec-left-extra según el índice). Criterio de aceptación: pon «Colaboradores» encima de «Acerca de» en el editor, guarda → la ficha la muestra encima, y sigue así tras recargar; quitar «about» de L.left sigue ocultando la tarjeta. No despliegues nada a producción; solo código local."
+      "instruction": "ORDEN NO RESPETADO (los 4 módulos, ficha): la tarjeta «Acerca de» está fijada en el markup como primer elemento de la columna izquierda (src/record.js:248-267) y renderMiddle (record.js:1045-1048) solo la muestra/oculta (aboutCard.hidden) y luego pinta el resto de tarjetas de L.left DESPUÉS de ella. Si en el editor de diseño (src/layout.js) el usuario arrastra «Colaboradores» por encima de «Acerca de» en la columna izquierda — o reordena con el grip de la propia ficha, que guarda el orden de L.left —, la ficha sigue mostrando «Acerca de» primero: el orden de la columna izquierda que guarda el editor no se respeta (en las columnas central y derecha sí). HubSpot respeta el orden exacto de tarjetas de cada columna. Arreglo: renderizar toda la columna izquierda a partir de L.left en orden, montando la tarjeta «Acerca de» en su posición correspondiente (p. ej. mover el nodo estático dentro de #rec-left-extra según el índice). Criterio de aceptación: pon «Colaboradores» encima de «Acerca de» en el editor, guarda → la ficha la muestra encima, y sigue así tras recargar; quitar «about» de L.left sigue ocultando la tarjeta. No despliegues nada a producción; solo código local.",
+      "completedAt": "2026-11-22T04:01:33-0600",
+      "completedBy": "codex"
     },
     {
       "id": "gap-ui-tarjeta-gdrive-vacia",
