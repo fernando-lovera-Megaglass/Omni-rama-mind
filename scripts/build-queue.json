@@ -2023,10 +2023,12 @@
     },
     {
       "id": "gap-smoke-bulk-acciones",
-      "status": "pending",
+      "status": "done",
       "instruction": "smoke-bulk falla en «contact actions»: la barra de acciones masivas muestra ahora «→ Asignar | ✎ Editar | 🗑 Eliminar | + Crear tareas | ⇢ Inscribir en secuencia | ≡ Agregar a segmento | ↧ Exportar» y la prueba espera otra cosa. Alinea prueba o comportamiento. OBLIGATORIO: ejecuta node scripts/<smoke>.mjs DESPUÉS de tu cambio e itera hasta que termine con código 0; no des por terminado sin verificarlo. Si el fallo es una limitación del harness jsdom (API de navegador inexistente), agrega el shim en la prueba, no cambies la app para complacer al harness. No despliegues nada a producción; solo código local.",
       "createdAt": "2026-11-22T08:22:54-06:00",
-      "lane": "codex"
+      "lane": "codex",
+      "completedAt": "2026-11-22T08:25:33-0600",
+      "completedBy": "codex"
     },
     {
       "id": "gap-smoke-call-transcription-nulo",
