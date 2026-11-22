@@ -23,7 +23,7 @@ click('[data-action="add-report"]'); click('#restore-reports button');
 assert.equal(document.querySelectorAll('#grid [data-card-key]').length,1);
 click('#grid [data-action="remove"]');
 R.render(); assert.equal(document.querySelectorAll('#grid [data-card-key]').length,0);
-assert.equal(createDashboardStore().get(created).hidden.length,5);
+assert.equal(createDashboardStore().get(created).hidden.length,6);
 click('[data-action="clone"]');
 assert.notEqual(R.state.dash,created);
 assert.equal(new URL(location.href).searchParams.get('dash'),R.state.dash);

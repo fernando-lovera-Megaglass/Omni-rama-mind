@@ -1,4 +1,5 @@
 import { SOURCES, MEASURES, DIMENSIONS, VIEWS, escapeHtml as esc, reportChart, createReportStore } from './custom-reports.js';
+import { funnelPipelines } from './funnel.js';
 import { supabase } from './supabaseClient.js';
 
 // The page passes shell's wireMenus/closeMenus so the row menus («Acciones») behave like every other .menu of the CRM.
@@ -48,13 +49,19 @@ export function mountReportBuilder({ root, dashboard, store = createReportStore(
   function builder() {
     // System form classes (.field) so the builder looks like any other form of the CRM, in light and dark.
     const select = (key, label, options) => `<label class="field"><span>${label}</span><select name="${key}">${Object.entries(options).map(([v,l]) => `<option value="${v}" ${config[key] === v ? 'selected' : ''} ${key === 'measure' && config.source !== 'deals' && v !== 'count' ? 'disabled' : ''}>${l}</option>`).join('')}</select></label>`;
-    host.innerHTML = `<h2>Crear informe personalizado</h2><form data-builder><label class="field"><span>Nombre del informe</span><input name="name" required maxlength="120" value="Negocios por etapa (barras)"></label><div class="custom-fields">${select('source','1. Fuente',SOURCES)}${select('measure','2. Medida',MEASURES)}${select('dimension','3. Dimensión',DIMENSIONS)}${select('visualization','4. Visualización',VIEWS)}</div><p class="muted">Todos los registros cargados. Suma y promedio usan el importe de negocios en la moneda de la cuenta. Campos ausentes se agrupan como «Sin dato».</p><h3>Vista previa</h3><div data-preview></div><p role="status" data-status></p><button class="btn btn--primary" type="submit">Guardar informe</button> <button class="btn btn--ghost" type="button" data-back>Volver a biblioteca</button></form>`;
+    // The funnel needs a pipeline (5th control, only enabled for the «Embudo» visualization).
+    const pipelines = Object.fromEntries(funnelPipelines().map(n => [n, n]));
+    host.innerHTML = `<h2>Crear informe personalizado</h2><form data-builder><label class="field"><span>Nombre del informe</span><input name="name" required maxlength="120" value="Negocios por etapa (barras)"></label><div class="custom-fields">${select('source','1. Fuente',SOURCES)}${select('measure','2. Medida',MEASURES)}${select('dimension','3. Dimensión',DIMENSIONS)}${select('visualization','4. Visualización',VIEWS)}${select('pipeline','5. Pipeline (embudo)',pipelines)}</div><p class="muted">Todos los registros cargados. Suma y promedio usan el importe de negocios en la moneda de la cuenta. Campos ausentes se agrupan como «Sin dato». El embudo muestra las etapas abiertas del pipeline elegido con negocios, importe y conversión, sin rango de fechas.</p><h3>Vista previa</h3><div data-preview></div><p role="status" data-status></p><button class="btn btn--primary" type="submit">Guardar informe</button> <button class="btn btn--ghost" type="button" data-back>Volver a biblioteca</button></form>`;
     const form = host.querySelector('form');
     function preview() {
       config.source = form.elements.source.value;
       if (config.source !== 'deals') form.elements.measure.value = 'count';
       [...form.elements.measure.options].forEach(o => { o.disabled = config.source !== 'deals' && o.value !== 'count'; });
       for (const key of ['measure','dimension','visualization']) config[key] = form.elements[key].value;
+      const funnel = config.visualization === 'funnel';
+      form.elements.pipeline.disabled = !funnel;
+      if (funnel) { config.pipeline = form.elements.pipeline.value; if (config.source !== 'deals') { form.elements.source.value = 'deals'; config.source = 'deals'; } }
+      else delete config.pipeline;
       host.querySelector('[data-preview]').innerHTML = safeChart(config);
     }
     form.addEventListener('change', preview); preview();

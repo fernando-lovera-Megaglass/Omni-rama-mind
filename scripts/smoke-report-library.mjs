@@ -46,14 +46,14 @@ log('search: .search.search--sm + icon');
 // builder fields
 click(q('[data-create]'));
 const form = q('form[data-builder]');
-assert.equal(form.querySelectorAll('label.field > span + input, label.field > span + select').length, 5, 'name + 4 selects as .field');
+assert.equal(form.querySelectorAll('label.field > span + input, label.field > span + select').length, 6, 'name + 5 selects as .field');
 assert.equal(form.querySelectorAll('label:not(.field)').length, 0, 'no bare labels in the builder');
 form.elements.name.value = 'Un informe con un nombre largo para comprobar que la fila no se desalinea con muchas palabras';
 form.dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true })); await tick();
 click(q('[data-create]'));
 q('form[data-builder]').elements.name.value = 'Negocios por propietario';
 q('form[data-builder]').dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true })); await tick();
-log('builder: 5 .field controls, two reports saved');
+log('builder: 6 .field controls, two reports saved');
 
 // rows: one primary button + the Acciones menu
 const rows = qa('.custom-library-row');

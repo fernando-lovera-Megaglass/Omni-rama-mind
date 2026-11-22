@@ -1,14 +1,18 @@
 import { supabase } from './supabaseClient.js';
 import { allContacts, allCompanies, allDeals, allTickets, allActivities, dealStageLabel, allTicketStatuses, formatMoney, homeCurrency } from './data.js';
+import { funnelFigures, funnelHtml } from './funnel.js';
 
 export const SOURCES = { contacts: 'Contactos', companies: 'Empresas', deals: 'Negocios', tickets: 'Tickets', activities: 'Actividades', calls: 'Llamadas' };
 export const MEASURES = { count: 'Conteo', sum: 'Suma de importe', average: 'Promedio de importe' };
 export const DIMENSIONS = { stage: 'Etapa', pipeline: 'Pipeline', owner: 'Propietario', source: 'Fuente', month: 'Mes de creación' };
-export const VIEWS = { table: 'Tabla', bars: 'Barras', line: 'Línea', donut: 'Dona', kpi: 'KPI numérico' };
+// «Embudo» is the sales funnel of one pipeline (config.pipeline): deals only, stages in pipeline order,
+// count + amount + conversion, and no date range (it is a snapshot).
+export const VIEWS = { table: 'Tabla', bars: 'Barras', line: 'Línea', donut: 'Dona', kpi: 'KPI numérico', funnel: 'Embudo' };
 export const escapeHtml = (v) => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 export function validateConfig(c) {
   if (!c || !SOURCES[c.source] || !MEASURES[c.measure] || !DIMENSIONS[c.dimension] || !VIEWS[c.visualization]) throw new Error('Configuración de informe inválida.');
   if (c.measure !== 'count' && c.source !== 'deals') throw new Error('El importe solo está disponible para negocios.');
+  if (c.visualization === 'funnel' && c.source !== 'deals') throw new Error('El embudo solo está disponible para negocios.');
   return c;
 }
 export function aggregateReport(config, suppliedRows, period) {
@@ -37,6 +41,10 @@ export function aggregateReport(config, suppliedRows, period) {
   return { rows: [...groups.values()].map(g => ({ label: g.label, value: c.measure === 'average' ? g.sum / g.count : g.sum })).sort((a,b) => a.label.localeCompare(b.label, 'es')), total: c.measure === 'average' ? (count ? total / count : 0) : total, count };
 }
 export function reportChart(c, period) {
+  if (validateConfig(c).visualization === 'funnel') {
+    const f = funnelFigures(c.pipeline);
+    return `<p class="muted">Pipeline «${escapeHtml(f.pipeline)}» · foto actual, sin rango de fechas.</p>${funnelHtml(f)}`;
+  }
   const result = aggregateReport(c, undefined, period);
   const fmt = n => escapeHtml(c.measure === 'count' ? n.toLocaleString('es-ES') : formatMoney(n, homeCurrency()));
   if (!result.count) return '<p class="muted">Sin datos para esta configuración.</p>';

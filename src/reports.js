@@ -6,6 +6,7 @@ import { createDashboardStore } from './dashboards.js';
 import { escapeHtml as esc } from './custom-reports.js';
 import { mountReportBuilder } from './report-builder.js';
 import { ownerHtml } from './owner.js';
+import { funnelFigures, funnelHtml, funnelSelectHtml } from './funnel.js';
 import {
   allContacts, allCompanies, allDeals, allTickets, allTasks, allActivities,
   STATUSES, COLORS, OWNERS, DEAL_STAGES, PRIORITIES, TASK_TYPES, TODAY, formatDate, formatMoney, formatMoneyShort, homeCurrency, isTicketOpen, allTicketStatuses, isClosedStage,
@@ -163,11 +164,13 @@ function tableChart(rows, head) {
     </table>`;
 }
 
-function card(title, body, wide = false, note = '') {
+// `tools` (optional) sits in the head, between the title and the «⋯» menu: the funnel's pipeline selector.
+function card(title, body, wide = false, note = '', tools = '') {
   return `
     <section class="card card--report${wide ? ' card--wide' : ''}">
       <div class="card__head">
         <h2 class="card__title">${title}${note ? ` <span class="card__note muted">${note}</span>` : ''}</h2>
+        ${tools ? `<div class="card__tools">${tools}</div>` : ''}
         <div class="menu">
           <button class="icon-btn" type="button" aria-label="Opciones del informe" aria-haspopup="true">⋯</button>
           <div class="menu__panel menu__panel--right">
@@ -307,6 +310,8 @@ function render() {
       card('Contactos por estado del lead', donut(f.byStatus), false, 'contactos creados en el periodo'),
       card('Rendimiento por propietario', tableChart(f.owners.map((o) => [ownerHtml(o.owner), fmt(o.contacts), fmt(o.deals), money(o.revenue), o.rate === null ? '—' : `${Math.round(o.rate * 100)} %`]), ['Propietario', 'Contactos nuevos', 'Negocios creados', 'Ingresos cerrados', 'Tasa de cierre'])),
       card(`Llamadas registradas por ${f.bk.unitLabel}`, barChart(f.callSeries, bar(f.bk), '#006162', titles(f.bk)), true, `${fmt(f.calls.length)} en el periodo`),
+      // Snapshot of one pipeline (the one chosen on the card, the default pipeline at first); it ignores the range.
+      (() => { const fn = funnelFigures(current().funnelPipeline); return card('Embudo de ventas', funnelHtml(fn), true, 'foto actual del pipeline', funnelSelectHtml(fn)); })(),
     ];
   } else if (current().template === 'marketing') {
     const f = marketingFigures(state.range);
@@ -340,7 +345,9 @@ function render() {
 
   document.getElementById('kpis').innerHTML = current().showKpis === false ? '' : kpis;
   availableCards = cards.map((html, i) => ({ key: `${current().template}:${i}`, html }));
-  const ordered = [...availableCards].sort((a,b) => current().order.indexOf(a.key) - current().order.indexOf(b.key));
+  // A card the saved order does not know yet (added after the dashboard was saved) goes last.
+  const position = (key) => { const i = current().order.indexOf(key); return i < 0 ? 1e9 : i; };
+  const ordered = [...availableCards].sort((a,b) => position(a.key) - position(b.key));
   document.getElementById('grid').innerHTML = ordered.filter(c => !current().hidden.includes(c.key)).map(c => c.html.replace('class="card card--report', `data-card-key="${c.key}" class="card card--report`)).join('');
   if (!document.getElementById('grid').children.length && !current().pins.length) {
     document.getElementById('kpis').innerHTML = '';
@@ -365,6 +372,13 @@ document.getElementById('range-menu').addEventListener('click', (e) => {
   render();
 });
 
+// The funnel's pipeline selector: the choice is kept with the dashboard, so it survives a reload.
+document.getElementById('grid').addEventListener('change', (e) => {
+  const sel = e.target.closest('[data-funnel-pipeline]');
+  if (!sel) return;
+  dashboards.update(state.dash, { funnelPipeline: sel.value });
+  render();
+});
 document.getElementById('dash-menu').addEventListener('click', e => { if (e.target.matches('[data-dash-search]')) e.stopPropagation(); });
 document.getElementById('dash-menu').addEventListener('input', e => {
   if (!e.target.matches('[data-dash-search]')) return;
