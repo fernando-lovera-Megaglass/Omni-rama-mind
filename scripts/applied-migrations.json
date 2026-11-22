@@ -134,12 +134,17 @@
     "nota": "ya existía de la aplicación manual original"
   },
   "contact-search-indexes.sql": {
-    "status": "pendiente",
-    "nota": "Solo código local; no aplicada a producción. Ver docs/contact-search-indexes.md."
+    "status": "aplicada",
+    "at": "2026-11-22T01:34:05.633Z",
+    "verificada": "2026-11-22T01:36:00Z",
+    "verificacion": "pg_indexes: contacts_email_idx (lower(email) where deleted_at is null), deals_contact_id_idx, deals_company_id_idx. EXPLAIN ANALYZE de lower(email) = lower($1) and deleted_at is null → Index Scan using contacts_email_idx."
   },
   "sequence-process.sql": {
-    "appliedAt": "2026-11-21T18:29:00-06:00",
-    "note": "reaplicada: faltaba sequence_step_runs"
+    "status": "aplicada",
+    "at": "2026-11-21T18:29:00-06:00",
+    "nota": "Aplicada por el otro carril (reaplicada: faltaba sequence_step_runs). La función sequence-process sigue sin desplegar; runbook en docs/sequence-process.md.",
+    "verificada": "2026-11-22T01:33:00Z",
+    "verificacion": "SQL: sequence_step_runs existe (0 filas), columnas sender_account_id/extra, sequence_enrollments_due_idx y RPC sequence_due/claim/finish/complete_task presentes."
   },
   "marketing-process.sql": {
     "status": "aplicada",
@@ -164,8 +169,11 @@
     "nota": "Solo código local; no aplicada a producción. Añade extra jsonb a conversations para el plazo de «Posponer» (snoozeUntil)."
   },
   "voicemail-storage.sql": {
-    "status": "pendiente",
-    "nota": "Solo código local; no aplicada a producción. Ver docs/voicemail-storage.md."
+    "status": "aplicada",
+    "at": "2026-11-18T00:00:00Z",
+    "nota": "Aplicada fuera de este registro (el bucket voicemails existe desde el 2026-11-18); fecha exacta desconocida. Ver docs/voicemail-storage.md.",
+    "verificada": "2026-11-22T01:33:00Z",
+    "verificacion": "SQL: bucket storage.buckets 'voicemails' presente, políticas voicemails_insert_own/update_own/delete_own en storage.objects y columnas twilio_connections.voicemail_text/voicemail_url."
   },
   "workflow-process.sql": {
     "status": "aplicada",

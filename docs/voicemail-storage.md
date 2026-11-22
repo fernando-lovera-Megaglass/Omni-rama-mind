@@ -1,7 +1,12 @@
 # Storage de mensajes de voz
 
-Estado: pendiente de aplicación. Este cambio solo prepara código local; no crea
-el bucket remoto ni acredita una subida real.
+Estado: aplicada en el proyecto (verificado con SQL de solo lectura el 2026-11-22:
+el bucket `voicemails` existe desde el 2026-11-18, con las políticas
+`voicemails_insert_own`, `voicemails_update_own` y `voicemails_delete_own` y las
+columnas `voicemail_text` / `voicemail_url` en `twilio_connections`). La aplicación se
+hizo fuera del registro `scripts/applied-migrations.json`, que quedó `pendiente` por
+error hasta esa verificación; la fecha exacta no consta. Este documento conserva los
+pasos por si hay que reaplicarla (es repetible).
 
 `supabase/voicemail-storage.sql` es la única fuente del esquema: conserva las
 columnas `voicemail_text` y `voicemail_url`, crea el bucket público `voicemails`

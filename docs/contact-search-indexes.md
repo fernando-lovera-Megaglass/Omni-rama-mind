@@ -23,4 +23,13 @@ WHERE lower(email) = lower('persona@example.invalid')
 
 Limitación: las consultas actuales de Gmail y alta de contactos usan `ILIKE`; las búsquedas parciales de listas también. Este índice no acelera esas consultas sin adaptar su acceso a igualdad sobre `lower(email)` (por ejemplo mediante RPC). Tampoco evita un scan de un dedupe que lea toda la tabla. No se ha modificado ese comportamiento en esta migración.
 
-No se ha aplicado a ningún proyecto remoto. El registro queda `pendiente`; solo después de una aplicación autorizada y exitosa debe pasar a `aplicada` con su fecha real mediante el mecanismo existente `scripts/apply-migration.mjs`.
+## Estado en producción
+
+Aplicada al proyecto el 2026-11-22 (01:34 UTC) con `node scripts/apply-migration.mjs supabase/contact-search-indexes.sql`, a petición expresa, y registrada en `scripts/applied-migrations.json` con fecha y verificación. Antes de aplicarla, `pg_indexes` solo tenía `contacts_pkey`, `contacts_user_id_idx` y `contacts_deleted_at_idx` (423 contactos, 308 correos distintos vivos). Comprobación de solo lectura después:
+
+```sh
+node scripts/mgmt-sql.mjs "select indexname, indexdef from pg_indexes where schemaname='public' and tablename in ('contacts','deals') and indexname in ('contacts_email_idx','deals_contact_id_idx','deals_company_id_idx')"
+node scripts/mgmt-sql.mjs "explain (analyze, buffers) select id, email from public.contacts where lower(email) = lower('persona@example.invalid') and deleted_at is null"
+```
+
+Resultado: los tres índices existen y el plan es `Index Scan using contacts_email_idx … Index Cond: (lower(email) = '…')` con 2 páginas leídas. La migración es idempotente (`create index if not exists`) y puede repetirse sin efecto. La limitación de las consultas `ILIKE` del apartado anterior sigue vigente.
