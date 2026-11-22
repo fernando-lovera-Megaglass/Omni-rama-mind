@@ -67,7 +67,7 @@ export const normalizeCompany = (d) => ({
   domain: siteDomain(d.domain) || d.domain || '',
   ...(d.hs_additional_domains !== undefined ? { hs_additional_domains: normalizeAdditionalDomains(d.hs_additional_domains, d.domain) } : {}),
   owner: d.owner || 'Sin asignar',
-  lifecycle: 'Lead',
+  lifecycle: d.lifecycle || 'Lead',
   lastActivity: TODAY.toISOString(),
 });
 
@@ -109,7 +109,7 @@ export function mountCreateCompany({ root = document.getElementById('list-root')
   const anotherBtn = el.querySelector('#cco-create-another');
   const state = { open: false, busy: false, timer: null, seq: 0 };
   const isOpen = () => state.open;
-  const read = () => { const d = {}; new FormData(form).forEach((v, k) => { const s = String(v).trim(); if (s) d[k] = s; }); return d; };
+  const read = () => { const d = { lifecycle: state.lifecycle || 'Lead' }; new FormData(form).forEach((v, k) => { const s = String(v).trim(); if (s) d[k] = s; }); return d; };
   const complete = () => Boolean(form.elements.name.value.trim());
   const update = () => { const ok = complete() && !state.busy; createBtn.disabled = !ok; anotherBtn.disabled = !ok; };
   const busy = (on) => { state.busy = on; update(); };
@@ -151,6 +151,8 @@ export function mountCreateCompany({ root = document.getElementById('list-root')
   };
   const reset = () => { form.reset(); hint(); update(); setOwner(); };
   function open(prefill) {
+    // Board creation keeps its stage even when the form has no lifecycle field.
+    state.lifecycle = prefill?.lifecycle || 'Lead';
     el.querySelector('#cco-custom').innerHTML = customFieldsHtml('companies');
     reset();
     Object.entries(prefill || {}).forEach(([k, v]) => { if (form.elements[k] && v !== undefined && v !== null) form.elements[k].value = v; });

@@ -74,7 +74,7 @@ export const normalizeContact = (d) => ({
   name: `${d.first || ''} ${d.last || ''}`.trim() || 'Sin nombre',
   status: 'new',
   owner: d.owner || 'Sin asignar',
-  lifecycle: 'Lead',
+  lifecycle: d.lifecycle || 'Lead',
   source: 'Creación manual',
   lastActivity: TODAY.toISOString(),
 });
@@ -127,7 +127,7 @@ export function mountCreateContact({ root = document.getElementById('list-root')
   const isOpen = () => state.open;
 
   const read = () => {
-    const d = {};
+    const d = { lifecycle: state.lifecycle || 'Lead' };
     new FormData(form).forEach((v, k) => { const s = String(v).trim(); if (s) d[k] = s; });
     return d;
   };
@@ -168,6 +168,8 @@ export function mountCreateContact({ root = document.getElementById('list-root')
     if (authEnabled()) currentUser().then((u) => { if (u && isOpen()) { sel.value = ownerForUser(u); refreshOwnerSelects(form); } }).catch(() => {});
   };
   function open(prefill) {
+    // Board creation keeps its stage even when the form has no lifecycle field.
+    state.lifecycle = prefill?.lifecycle || 'Lead';
     reset();
     Object.entries(prefill || {}).forEach(([k, v]) => { if (form.elements[k] && v !== undefined && v !== null) form.elements[k].value = v; });
     refreshOwnerSelects(form);

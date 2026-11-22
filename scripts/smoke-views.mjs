@@ -1,12 +1,19 @@
-// DOM smoke test for the saved-views flow. Run: node scripts/smoke-views.mjs contacts
+// DOM smoke test for saved views. Run: node scripts/smoke-views.mjs [contacts|companies|deals|tickets]
 import { JSDOM } from 'jsdom';
+import assert from 'node:assert/strict';
+
+const page = process.argv[2] || 'contacts';
+const fail = (error) => { console.error(`[${page}] FAIL: ${error.stack || error}`); process.exit(1); };
+process.on('uncaughtException', fail);
+process.on('unhandledRejection', fail);
+assert.ok(['contacts', 'companies', 'deals', 'tickets'].includes(page), `Unsupported page: ${page}`);
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const dom = new JSDOM(
   '<!doctype html><body class="app"><aside id="sidenav"></aside><header id="topbar"></header><main id="list-root"></main><div id="scrim"></div></body>',
-  { url: 'http://localhost/contacts/' },
+  { url: `http://localhost/${page}/` },
 );
 const mem = {};
 globalThis.window = dom.window;
@@ -20,13 +27,21 @@ globalThis.Blob = dom.window.Blob;
 dom.window.confirm = () => true;
 dom.window.prompt = () => 'Sofía R.';
 
-const page = process.argv[2] || 'contacts';
+dom.window.addEventListener('error', (event) => fail(event.error || event.message));
+const data = await import(resolve(here, '../src/data.js'));
+const boardKey = { contacts: 'lifecycle', companies: 'lifecycle', deals: 'stage', tickets: 'status' }[page];
 await import(resolve(here, `../src/${page}.js`));
 const $ = (id) => document.getElementById(id);
-const click = (el) => el.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true }));
+const click = (el) => { assert.ok(el, 'Missing element to click'); return el.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true })); };
 const submit = (form) => form.dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true }));
 const tabs = () => [...document.querySelectorAll('button.views__tab')].map((t) => t.textContent.trim()).join(' | ');
 const log = (...a) => console.log(`[${page}]`, ...a);
+
+const waitFor = async (predicate, message) => {
+  const deadline = Date.now() + 2000;
+  while (!predicate() && Date.now() < deadline) await new Promise((r) => setTimeout(r, 10));
+  assert.ok(predicate(), message);
+};
 
 log('tabs:', tabs());
 log('rows:', $('rows').querySelectorAll('tr[data-id]').length, 'total:', $('total-pill').textContent);
@@ -41,6 +56,8 @@ $('view-form').querySelector('[name="name"]').value = 'Mis leads VIP';
 $('view-form').querySelector('[name="share"][value="team"]').checked = true;
 submit($('view-form'));
 log('tabs now:', tabs());
+assert.ok($('view-dirty').hidden, 'Saving a view must clear its dirty state');
+assert.ok(JSON.parse(mem[`crm:${page}:views`]).custom.some((v) => v.name === 'Mis leads VIP'), 'Custom view must be persisted');
 log('dirty after save:', !$('view-dirty').hidden, '| stored custom:', JSON.parse(mem[`crm:${page}:views`]).custom.length);
 
 click(document.querySelector('[data-action="columns"]'));
@@ -55,6 +72,7 @@ log('saved | dirty:', !$('view-dirty').hidden);
 click(document.querySelector('[data-action="view-rename"]'));
 $('view-form').querySelector('[name="name"]').value = 'Leads VIP';
 submit($('view-form'));
+assert.ok(JSON.parse(mem[`crm:${page}:views`]).custom.some((v) => v.name === 'Leads VIP'), 'Renamed view must be persisted');
 log('renamed tabs:', tabs());
 
 click(document.querySelector('[data-action="allviews"]'));
@@ -114,6 +132,8 @@ if (phoneTd) {
   $('cp-phone').dispatchEvent(new dom.window.Event('input', { bubbles: true }));
   log('valid phone -> error hidden:', $('cp-err').hidden, '| save enabled:', !$('cellpop-save').disabled);
   click($('cellpop-save'));
+  await waitFor(() => $('cellpop').hidden, 'Inline save did not finish');
+  assert.match(data.findRecord(page, phoneTd.dataset.id)[phoneTd.dataset.key], /611 222 333, ext\. 4$/);
   const saved = document.querySelector(`td[data-key="${phoneTd.dataset.key}"][data-id="${phoneTd.dataset.id}"]`);
   log('saved cell text:', saved && saved.textContent.trim());
 } else {
@@ -122,17 +142,23 @@ if (phoneTd) {
   inp.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
   inp.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
   click($('cellpop-save'));
+  await waitFor(() => $('cellpop').hidden, 'Inline save did not finish');
+  assert.equal(data.findRecord(page, anyTd.dataset.id)[anyTd.dataset.key], inp.value, 'Inline value must be persisted');
   const afterGen = document.querySelector(`td[data-key="${anyTd.dataset.key}"][data-id="${anyTd.dataset.id}"]`);
   log('saved generic cell:', afterGen ? afterGen.textContent.trim() : '(row moved by view filter)');
 }
-const selTd = cells().find((td) => ['status', 'stage', 'priority', 'owner'].includes(td.dataset.key));
+const selTd = cells().find((td) => td.dataset.key === 'owner');
 if (selTd) {
   click(selTd);
   const sel = $('cp-value');
   log('select editor options:', sel && sel.options.length, '| title:', $('cellpop-title').textContent);
-  sel.selectedIndex = 1;
+  const option = [...sel.options].find((o) => o.value && o.value !== sel.value);
+  assert.ok(option, 'Expected a different select value');
+  sel.value = option.value;
   sel.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
   click($('cellpop-save'));
+  await waitFor(() => $('cellpop').hidden, 'Inline save did not finish');
+  assert.equal(data.findRecord(page, selTd.dataset.id).owner, option.value, 'Owner must be persisted');
   const after = document.querySelector(`td[data-key="${selTd.dataset.key}"][data-id="${selTd.dataset.id}"]`);
   log('select saved:', after ? after.textContent.trim() : '(row moved by view filter)', '| popover closed:', $('cellpop').hidden);
 }
@@ -183,18 +209,19 @@ if (firstCard) {
   ev('dragstart', firstCard);
   ev('dragover', targetCol);
   ev('drop', targetCol);
+  await waitFor(() => String(data.findRecord(page, firstCard.dataset.id)[boardKey]) === targetCol.dataset.group, 'Board move was not persisted');
   const moved = document.querySelector(`.kcard[data-id="${firstCard.dataset.id}"]`);
   log('dragged card now in:', moved ? moved.closest('.kcol').dataset.group : '(filtered out)', '| expected:', targetCol.dataset.group);
 }
 // stage tools: collapse, expand, move, "+ add" prefill
 const order0 = [...document.querySelectorAll('.kcol')].map((c) => c.dataset.group);
 click(document.querySelector('.kcol__tools [data-kcol-collapse]'));
-log('collapsed strips:', document.querySelectorAll('.kcol--collapsed').length, '| vlabel:', document.querySelector('.kcol__vlabel').textContent, '| stored:', JSON.parse(mem['crm:contacts:prefs']).boardCollapsed.join(','));
+log('collapsed strips:', document.querySelectorAll('.kcol--collapsed').length, '| vlabel:', document.querySelector('.kcol__vlabel').textContent, '| stored:', JSON.parse(mem[`crm:${page}:prefs`]).boardCollapsed.join(','));
 click(document.querySelector('[data-kcol-expand]'));
 log('after expand collapsed:', document.querySelectorAll('.kcol--collapsed').length);
 click(document.querySelector('[data-kcol-move="1"]'));
 const order1 = [...document.querySelectorAll('.kcol')].map((c) => c.dataset.group);
-log('moved right:', order0.slice(0, 2).join(','), '→', order1.slice(0, 2).join(','), '| persisted:', JSON.parse(mem['crm:contacts:prefs']).boardOrder.slice(0, 2).join(','));
+log('moved right:', order0.slice(0, 2).join(','), '→', order1.slice(0, 2).join(','), '| persisted:', JSON.parse(mem[`crm:${page}:prefs`]).boardOrder.slice(0, 2).join(','));
 click(document.querySelector('[data-kcol-reset]'));
 log('reset order:', [...document.querySelectorAll('.kcol')].map((c) => c.dataset.group).join(',') === order0.join(','));
 click(document.querySelector('[data-kcol-collapse-others]'));
@@ -203,12 +230,19 @@ click(document.querySelector('[data-kcol-expand-all]'));
 log('expand all:', document.querySelectorAll('.kcol--collapsed').length);
 const addBtn = document.querySelectorAll('[data-kcol-add]')[2];
 click(addBtn);
-log('add button label:', addBtn.textContent.trim(), '| drawer open:', $('create-drawer').classList.contains('is-open') || $('create-drawer').getAttribute('aria-hidden') === 'false');
-$('create-form').querySelector('[name="first"], [name="name"]').value = 'Prueba Etapa';
-const emailIn = $('create-form').querySelector('[name="email"]'); if (emailIn) emailIn.value = 'prueba.etapa@megaglass.us';
-$('create-form').dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true }));
-const created = JSON.parse(mem['crm:contacts:extra'] || '[]').find((r) => String(r.name).includes('Prueba Etapa'));
-log('created in stage:', created ? created.lifecycle : '(none)', '| expected:', addBtn.dataset.kcolAdd);
+const prefix = { contacts: 'cc', companies: 'cco', deals: 'cd', tickets: 'ct' }[page];
+const panel = $(`${prefix}-panel`);
+assert.ok(panel.classList.contains('is-open'), 'Create panel must open');
+const form = $(`${prefix}-form`);
+const type = (name, value) => { form.elements[name].value = value; form.elements[name].dispatchEvent(new dom.window.Event('input', { bubbles: true })); };
+if (page === 'contacts') { type('first', 'Prueba'); type('last', 'Etapa'); type('email', 'prueba.etapa@megaglass.us'); }
+else type('name', 'Prueba Etapa');
+submit(form);
+await waitFor(() => !panel.classList.contains('is-open'), 'Create panel did not finish saving');
+const created = JSON.parse(mem[`crm:${page}:extra`] || '[]').find((r) => r.name === 'Prueba Etapa');
+assert.ok(created, 'Created record must be persisted');
+assert.equal(String(created[boardKey]), addBtn.dataset.kcolAdd, 'Created record must use the selected board stage');
+log('created in stage:', created[boardKey]);
 click(document.querySelector('[data-action="mode-table"]'));
 log('back to table:', !$('table-wrap').hidden, '| board hidden:', $('kanban').hidden);
 // side navigation collapse/expand button
