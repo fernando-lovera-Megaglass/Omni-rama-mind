@@ -2223,10 +2223,12 @@
     },
     {
       "id": "gap-smoke-record-click-target",
-      "status": "pending",
+      "status": "done",
       "lane": "claude",
       "createdAt": "2026-11-22T09:58:02-06:00",
-      "instruction": "smoke-record falla con AssertionError «click target must exist in the rendered document»: un objetivo de clic que la prueba busca ya no existe en el documento renderizado de la ficha (posible efecto de los cambios de layout de ficha del 22-nov: columna central, sidebars colapsables, editor de diseño). Ejecuta node scripts/smoke-record.mjs, identifica qué selector falta, verifica si es regresión del código o prueba desactualizada y corrige lo que corresponda. Itera hasta que la prueba termine con código 0. No despliegues nada a producción; solo código local."
+      "instruction": "smoke-record falla con AssertionError «click target must exist in the rendered document»: un objetivo de clic que la prueba busca ya no existe en el documento renderizado de la ficha (posible efecto de los cambios de layout de ficha del 22-nov: columna central, sidebars colapsables, editor de diseño). Ejecuta node scripts/smoke-record.mjs, identifica qué selector falta, verifica si es regresión del código o prueba desactualizada y corrige lo que corresponda. Itera hasta que la prueba termine con código 0. No despliegues nada a producción; solo código local.",
+      "completedAt": "2026-11-22T10:04:15-0600",
+      "completedBy": "claude"
     }
   ]
 }
