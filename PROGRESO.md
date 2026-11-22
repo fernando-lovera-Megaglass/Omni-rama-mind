@@ -1,5 +1,13 @@
 # Progreso — Omni CRM
 
+## 2026-11-22 (sesión 6) · ⭐ Las preferencias de las 4 listas persisten por usuario en Supabase (user_settings)
+
+- Antes: `getPrefs`/`setPrefs` (`src/data.js`) leían y escribían solo `crm:<objeto>:prefs` en localStorage, aunque hubiera sesión: columnas elegidas con «Editar columnas» sobre las vistas estándar, orden por arrastre, anchuras, columnas congeladas, densidad, cebra, métricas, tamaño de página, estado del tablero y pipeline se perdían al cambiar de navegador o equipo.
+- Ahora: `getPrefs(type)` devuelve el ajuste `crm:<objeto>:prefs` de `user_settings` del usuario con sesión (`getSetting`), y la copia de localStorage cuando no hay sesión o la tabla no está; `setPrefs(type, parcial)` fusiona con lo actual, guarda la copia local y, con sesión, hace upsert por usuario (`setSetting`, mismo patrón que las pestañas de vistas y los diseños de ficha). Ningún cambio en `src/list.js`: todos sus `setPrefs` (columns-apply, persistLayout, densidad/cebra/métricas, paginación, tablero, pipeline) quedan cubiertos.
+- Pruebas: `scripts/smoke-list-prefs.mjs` en local (en las 4 listas: «Editar columnas» añade una propiedad y el engranaje pone filas compactas → se guardan y vuelven al recargar) y con `SMOKE_LIVE=1` (la lista real de contactos cambia columnas y densidad, se guarda una anchura como la escribe el redimensionado, `dbIdle()` y la fila `crm:contacts:prefs` en `user_settings` tiene columnas, anchura y densidad; con el localStorage de la app vacío, un arranque nuevo de `data.js` recupera las mismas preferencias desde Supabase). Documentado en `docs/smoke-live.md`.
+- Nota de la prueba live: vaciar localStorage debe respetar la clave de sesión de Supabase (si se borra, el arranque nuevo queda como `anon` y `user_settings` lo rechaza con 42501).
+- Solo código local; nada desplegado.
+
 ## 2026-11-22 (sesión 6) · Administrar vistas sin enlaces muertos; fechas con la zona horaria real del navegador
 
 - `src/manage-views.js`: la banda informativa ya no lleva «Haz clic para obtener más información ↗» ni «Enviar feedback» (eran `href="#"` sin destino; no hay base de conocimiento ni formulario de feedback propios). El aviso se mantiene.

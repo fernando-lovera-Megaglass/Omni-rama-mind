@@ -752,11 +752,20 @@ export function getDeleted(type) {
   if (dbLive) return new Set();
   return new Set(read(K(type, 'deleted'), []));
 }
+// The list preferences of a person (columns of the standard views, order, widths, frozen columns, density, zebra,
+// metrics, page size, board state, pipeline…): per user in user_settings when signed in (the same store as the
+// view tabs and the record layouts), with the localStorage copy as the offline / signed-out fallback — so they
+// follow the person to another browser or computer instead of staying in this one.
 export function getPrefs(type) {
-  return read(K(type, 'prefs'), {});
+  const local = read(K(type, 'prefs'), {});
+  if (!settingsLive()) return local;
+  const remote = getSetting(K(type, 'prefs'));
+  return remote && typeof remote === 'object' && !Array.isArray(remote) ? remote : local;
 }
 export function setPrefs(type, prefs) {
-  write(K(type, 'prefs'), { ...getPrefs(type), ...prefs });
+  const next = { ...getPrefs(type), ...prefs };
+  write(K(type, 'prefs'), next);
+  if (settingsLive()) setSetting(K(type, 'prefs'), next);
 }
 
 // ---------- saved views (crm_views, supabase/crm_views.sql) ----------
