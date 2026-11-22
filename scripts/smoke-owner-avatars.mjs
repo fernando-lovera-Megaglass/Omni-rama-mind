@@ -113,6 +113,12 @@ if (sizeOf(pvRow.querySelector('dd .owner')) !== 'avatar--sm') fail('preview pan
 log('preview panel: «Asignada a» row with the sm avatar');
 
 // ===== 3) Record page: «Acerca de» panel (sm) and the access dialog =====
+// Access lists the actual record owner and persisted active administrators.
+data.setField('contacts', 3, 'owner', 'Fernando L.');
+localStorage.setItem('crm:users', JSON.stringify([
+  { name: 'Fernando L.', role: 'Usuario', status: 'Activo' },
+  { name: 'Sofía R.', role: 'Administrador', status: 'Activo' },
+]));
 useDom('<!doctype html><body class="app" data-type="contacts"><aside id="sidenav"></aside><header id="topbar"></header><main id="record-root"></main><div id="scrim"></div></body>', 'http://localhost/contacts/record/?id=3');
 document.body.dataset.type = 'contacts';
 await import(resolve(here, '../src/record.js'));
@@ -124,6 +130,7 @@ click(q('#actions-menu [data-act="access"]'));
 const accessOwners = qa('#rec-modal .mini-table .owner');
 if (accessOwners.length < 2) fail('access dialog users must render as owners');
 checkOwner(accessOwners[0], 'access dialog', 'Fernando L.');
+checkOwner(accessOwners[1], 'access dialog administrator', 'Sofía R.');
 click(q('#rec-modal [data-close]'));
 log('record page: «Acerca de» owner row (sm) and access dialog users with avatar');
 

@@ -2077,10 +2077,12 @@
     },
     {
       "id": "gap-smoke-owner-avatars-acceso",
-      "status": "pending",
+      "status": "done",
       "instruction": "smoke-owner-avatars: «access dialog users must render as owners» — el diálogo de acceso/compartir no muestra avatares de propietario. OBLIGATORIO: ejecuta node scripts/<smoke>.mjs DESPUÉS de tu cambio e itera hasta que termine con código 0; no des por terminado sin verificarlo. Si el fallo es una limitación del harness jsdom (API de navegador inexistente), agrega el shim en la prueba, no cambies la app para complacer al harness. No despliegues nada a producción; solo código local.",
       "createdAt": "2026-11-22T08:22:54-06:00",
-      "lane": "codex"
+      "lane": "codex",
+      "completedAt": "2026-11-22T08:40:41-0600",
+      "completedBy": "codex"
     },
     {
       "id": "gap-smoke-pagers-deal-tags",

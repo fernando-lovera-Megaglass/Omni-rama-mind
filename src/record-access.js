@@ -1,4 +1,5 @@
 import { TEAMS } from './layout-defaults.js';
+import { ownerHtml } from './owner.js';
 
 const esc = (value) => String(value ?? '').replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
 const key = (value) => String(value || '').trim().toLowerCase();
@@ -17,7 +18,7 @@ export function recordAccessHtml(rec, storage = localStorage) {
   const matches = hasOwner ? users.filter((u) => [u.name, u.email, u.id].some((v) => v && key(v) === key(owner))) : [];
   const ownerUser = matches.length === 1 ? matches[0] : null;
   const rows = [];
-  const row = (name, u, access) => `<tr><td>${esc(name)}</td><td>${esc(u && teams.has(u.team) ? u.team : '—')}</td><td>${esc(access)}</td></tr>`;
+  const row = (name, u, access) => `<tr><td>${ownerHtml(name)}</td><td>${esc(u && teams.has(u.team) ? u.team : '—')}</td><td>${esc(access)}</td></tr>`;
   if (hasOwner) rows.push(row(owner, ownerUser, admin(ownerUser || {}) ? 'Propietario · Administrador · Control total' : 'Propietario · Permisos no verificados'));
   const seen = new Set();
   for (const u of users) {

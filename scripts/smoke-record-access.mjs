@@ -13,9 +13,9 @@ for (const type of ['contacts', 'companies', 'deals', 'tickets']) {
   const a = recordAccessHtml({ type, owner: 'Ana' }, storage);
   const b = recordAccessHtml({ type, owner: 'Luis' }, storage);
   assert.notEqual(a, b);
-  assert.match(a, /Ana<\/td><td>Acristala/);
-  assert.match(b, /Luis<\/td><td>Sistemas<\/td><td>Propietario/);
-  assert.equal((b.match(/Luis<\/td>/g) || []).length, 1);
+  assert.match(a, /Ana<\/span><\/span><\/td><td>Acristala/);
+  assert.match(b, /Luis<\/span><\/span><\/td><td>Sistemas<\/td><td>Propietario/);
+  assert.equal((b.match(/class="owner__name">Luis<\/span>/g) || []).length, 1);
   assert.doesNotMatch(a, /Sofía|Ventas Norte|Ventas Sur|Baja|Pendiente/);
 }
 values['crm:teams'] = [];
