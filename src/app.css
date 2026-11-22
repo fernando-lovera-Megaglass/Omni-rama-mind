@@ -13778,6 +13778,16 @@ a.is-done {
 .tq__title a {
   color: var(--c-link);
 }
+.tq__notes {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.4;
+  max-height: 4.2em;
+}
 
 .tq__title a.is-done {
   text-decoration: line-through;

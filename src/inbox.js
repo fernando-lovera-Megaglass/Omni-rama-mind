@@ -14,7 +14,7 @@ import { emptyStateHtml } from './empty-state.js';
 import { enhanceOwnerSelects } from './owner-select.js';
 import { mountCreateTicket } from './create-ticket.js';
 import { addActivity, allCompanies, allContacts, relativeTimeFine, formatDate, initials, colorFor } from './data.js';
-import { ready, conversations, conversationById, messagesOf, sendMessage, addInternalNote, isInternalNote, createConversation, markRead, bulkAssignConversations, bulkSetConversationStatus, bulkMarkConversationsRead, bulkDeleteConversations, assignConversation, setConversationStatus, reopenSnoozed, snoozeUntilFor, SNOOZE_OPTIONS, unreadCount, CHANNELS, STATUS_LABELS, ASSIGNEES, ME } from './conversations-data.js';
+import { ready, conversations, conversationById, messagesOf, sendMessage, addInternalNote, isInternalNote, createConversation, markRead, bulkAssignConversations, bulkSetConversationStatus, bulkMarkConversationsRead, bulkDeleteConversations, assignConversation, setConversationStatus, reopenSnoozed, snoozeUntilFor, SNOOZE_OPTIONS, messageText, unreadCount, CHANNELS, STATUS_LABELS, ASSIGNEES, ME } from './conversations-data.js';
 import { ready as gmailReady, hasGmail, sendMail } from './gmail.js';
 import { syncInbox, gmailThreadFor } from './gmail-inbox.js';
 
@@ -103,14 +103,16 @@ const noteHtml = (body) => messageHtml(body).replace(/\.\.\/tickets\/record\/\?i
 // The reply editor: a contenteditable with a mirror <textarea name="body"> (what the form, the drafts and the
 // tests read) — the editor keeps the mirror in sync on input; setDraft() fills both.
 const editorEl = () => $('inbox-editor');
-function getDraft() { const ed = editorEl(); const ta = $('inbox-reply') && $('inbox-reply').elements.body; if (ed && ed.textContent.trim()) return ed.innerHTML; return ta ? ta.value : ''; }
+// Once the person edits (typing, toolbar, inserts) the editor's HTML is the draft; until then the mirror's value
+// is (a draft restored after a re-render, or one set directly on the form).
+function getDraft() { const ed = editorEl(); const ta = $('inbox-reply') && $('inbox-reply').elements.body; if (ed && ed.dataset.dirty) return ed.textContent.trim() || ed.querySelector('ul,ol,a') ? ed.innerHTML : ''; return ta ? ta.value : ''; }
 function setDraft(value) {
   const ta = $('inbox-reply') && $('inbox-reply').elements.body;
   const ed = editorEl();
   if (ta) ta.value = value || '';
-  if (ed) ed.innerHTML = value ? (isHtml(value) ? sanitizeHtml(value) : textToHtml(value)) : '';
+  if (ed) { ed.innerHTML = value ? (isHtml(value) ? sanitizeHtml(value) : textToHtml(value)) : ''; delete ed.dataset.dirty; }
 }
-const syncMirror = () => { const ta = $('inbox-reply') && $('inbox-reply').elements.body; const ed = editorEl(); if (ta && ed) ta.value = ed.textContent.trim() || ed.querySelector('ul,ol,a') ? ed.innerHTML : ''; };
+const syncMirror = () => { const ta = $('inbox-reply') && $('inbox-reply').elements.body; const ed = editorEl(); if (!ed) return; ed.dataset.dirty = '1'; if (ta) ta.value = ed.textContent.trim() || ed.querySelector('ul,ol,a') ? ed.innerHTML : ''; };
 const focusEditor = () => { const ed = editorEl(); if (ed) ed.focus(); };
 // The conversation's contact for the personalisation tokens of templates and snippets.
 const tokenContext = () => { const c = state.activeId ? conversationById(state.activeId) : null; return contextFromRecord('contacts', c && c.contact ? c.contact : null); };
