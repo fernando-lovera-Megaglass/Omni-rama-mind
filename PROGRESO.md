@@ -1,5 +1,13 @@
 # Progreso — Omni CRM
 
+## 2026-11-22 (sesión 6) · El ⚙ de «Acerca de» del panel de vista previa abre el editor de ese panel (4 listas)
+
+- Antes: el engranaje de la tarjeta «Acerca de este objeto» del panel de vista previa disparaba `data-action="columns"`, el editor de columnas de la tabla, que no toca el panel; el editor correcto solo estaba en Configuración › Objetos › Previsualizar personalización.
+- `src/list.js`: el ⚙ es ahora un enlace (`#pv-customize`) a `../layout/?type=<objeto>&preview=1&from=list`, el editor del panel de vista previa; «Editar columnas» sigue solo en el menú de la tabla. `src/layout.js`: con `from=list`, «Salir» y «Guardar y salir» vuelven a la lista en vez de a Configuración.
+- Pruebas: `scripts/smoke-preview-gear.mjs` (en contactos, empresas, negocios y tickets el ⚙ enlaza al editor del panel y no abre el cajón de columnas; en contactos se sigue el enlace, se añade una propiedad a «Datos generales», se guarda y el panel la refleja; «Salir» → `../contacts/`). Smokes de vista previa, columnas, diseño y listas en verde.
+- De paso, tres smokes propios que habían quedado obsoletos por cambios del otro carril (el selector de propiedades del editor registra las marcas en `change`, commit 6e8f956; «Acerca de» vive ahora dentro de la columna izquierda arrastrable, d0384ed): `smoke-team-views.mjs` y `smoke-record-customize.mjs` disparan `change` al marcar casillas, como hace un clic real, y `smoke-team-view-cards.mjs` compara las tarjetas izquierdas sin contar «Acerca de»; los tres vuelven a pasar (no era un fallo de la app).
+- Solo código local; nada desplegado.
+
 ## 2026-11-22 (sesión 6) · Adjuntos reales en la ficha (4 módulos): Storage + tabla attachments, abrir y eliminar de verdad
 
 - Antes: «+ Subir» guardaba solo nombre/tamaño/fecha en localStorage (`crm:<objeto>:files:<id>`) y descartaba el archivo; la lista no permitía abrirlo y se perdía al cambiar de navegador. El toast «Archivo adjuntado» prometía lo que no ocurría.

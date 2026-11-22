@@ -141,6 +141,7 @@ click(q('[data-lc="edit"][data-card="about"]'));
 const pick = q('#l-pp input[value="jobTitle"]');
 if (!$('l-pp') || !pick || pick.checked) fail('editor pencil opens the card properties with «Cargo» unchecked');
 pick.checked = true;
+pick.dispatchEvent(new window.Event('change', { bubbles: true })); // the picker records ticks on change
 click($('l-pp-ok'));
 if (!LD.loadCardProps('contacts').keys.includes('jobTitle')) fail('pencil saves into the same card setting');
 await openRecord('contacts', 3);

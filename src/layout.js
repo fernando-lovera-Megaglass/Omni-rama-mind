@@ -19,7 +19,9 @@ const isNewView = params.get('new') === '1';
 const viewParam = params.get('view');
 const teamView = isNewView || Boolean(viewParam);
 let viewName = viewParam || null;
-const backHref = previewMode ? `../settings/#obj-${type}:preview` : teamView ? `../settings/#obj-${type}:record` : recordId ? `../${type}/record/?id=${recordId}` : `../${type}/`;
+// The preview-panel editor opened from a list's ⚙ («from=list») goes back to that list; from Configuración, back there.
+const fromList = params.get('from') === 'list';
+const backHref = previewMode ? (fromList ? `../${type}/` : `../settings/#obj-${type}:preview`) : teamView ? `../settings/#obj-${type}:record` : recordId ? `../${type}/record/?id=${recordId}` : `../${type}/`;
 const stampNow = () => { const d = new Date(); const p = (n) => String(n).padStart(2, '0'); return `${p(d.getDate())}/${p(d.getMonth() + 1)}/${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`; };
 
 let layout = previewMode

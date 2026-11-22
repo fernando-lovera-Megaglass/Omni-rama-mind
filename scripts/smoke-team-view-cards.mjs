@@ -69,7 +69,9 @@ for (const type of TYPES) {
   if (rightCards().join() !== tv.right.join()) fail(`${type}: every right card of the team view renders (${rightCards().join()} vs ${tv.right.join()})`);
   const empty = qa('#rec-right [data-lcard]').filter((c) => !c.querySelector('.card__toggle, .card__head, ul, table, .assoc-card, p, .ai-box, .files, .guides'));
   if (empty.length) fail(`${type}: cards without any content (${empty.map((c) => c.dataset.lcard).join()})`);
-  if (!q('#rec-left-extra [data-lcard="collaborators"]') || qa('#rec-left-extra [data-lcard]').length !== tv.left.filter((c) => c !== 'about').length) fail(`${type}: left cards of the team view render`);
+  // the left column renders the team view's cards («Acerca de» may sit in the same draggable column)
+  const leftNow = qa('#rec-left-extra [data-lcard]').map((c) => c.dataset.lcard).filter((c) => c !== 'about');
+  if (!q('#rec-left-extra [data-lcard="collaborators"]') || leftNow.join() !== tv.left.filter((c) => c !== 'about').join()) fail(`${type}: left cards of the team view render (${leftNow.join()})`);
   log(`${type}: vista de equipo nueva con ${tv.right.length} tarjetas a la derecha, todas con contenido (${tv.right.slice(0, 3).join(', ')}…)`);
 }
 

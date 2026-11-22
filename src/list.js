@@ -570,7 +570,7 @@ export function mountList(cfg) {
                 <button class="menu__item" type="button" data-pv="export">Exportar datos</button>
               </div>
             </div>
-            <button class="icon-btn" type="button" data-action="columns" aria-label="Configurar">⚙</button>
+            <a class="icon-btn" id="pv-customize" href="../layout/?type=${cfg.type}&preview=1&from=list" aria-label="Personalizar el panel de vista previa" title="Personalizar el panel de vista previa">⚙</a>
           </span>
         </div>
         <dl class="props" id="pv-props"></dl>

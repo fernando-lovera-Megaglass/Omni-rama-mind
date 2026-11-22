@@ -150,8 +150,10 @@ LD.saveViewsList('contacts', 'record', [{ name: 'Vista SACA', teams: ['SACA'] }]
 await openEditor('contacts', '&preview=1&new=1');
 click(q('[data-lc="edit"][data-card="about"]'));
 const boxes = qa('#l-pp input');
-boxes.forEach((b) => { b.checked = false; });
-boxes.slice(0, 3).forEach((b) => { b.checked = true; });
+// the picker records ticks on change (as a person's click does)
+const tick = (b, on) => { b.checked = on; b.dispatchEvent(new window.Event('change', { bubbles: true })); };
+boxes.forEach((b) => tick(b, false));
+boxes.slice(0, 3).forEach((b) => tick(b, true));
 click($('l-pp-ok'));
 click(q('[data-lc="rename-view"]')); $('l-prompt').value = 'Vista previa SACA'; click($('l-ok'));
 click(q('[data-lc="teams"]'));
