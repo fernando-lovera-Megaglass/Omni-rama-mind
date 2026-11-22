@@ -1,15 +1,11 @@
-// Tests for the contact import module (especificacion-importacion-contactos-crm.md): file parsing (CSV, XLSX,
-// pasted data, invalid files), auto-mapping ES/EN, value conversion per type, de-duplication by e-mail / record
-// ID, the three modes, the error catalogue with downloads, the states (STARTED → PROCESSING → DONE / FAILED /
-// CANCELED / DEFERRED), limits, and the wizard pages. Run: node scripts/smoke-import.mjs
+// Import undo acceptance: persisted creation ledger, confirmation, soft deletion,
+// restoration, updated contacts, review/history actions and reload protection.
+// Run: npm run test:import-undo
 import { JSDOM } from 'jsdom';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
-import { createRequire } from 'node:module';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const require = createRequire(import.meta.url);
-const XLSX = require('xlsx');
 const log = (...a) => console.log('[import]', ...a);
 const fail = (msg) => { console.error(`[import] FAIL: ${msg}`); process.exit(1); };
 const mem = {};
@@ -57,16 +53,26 @@ if (JSON.stringify(data.allContacts().find((r) => Number(r.id) === Number(known.
 if (document.querySelector('.imp__state').textContent !== 'Anulada' || document.querySelector('[data-act="undo-import"]')) fail('undone review');
 if (reloaded.importDetail(undoEntry.id).timeline.at(-1).note !== 'Anulada por el usuario: 5 registros eliminados') fail('undo timeline');
 data.restoreRecords('contacts', ledger);
-if (reloaded.undoImport(undoEntry.id) !== false || !data.allContacts().some((r) => ledger.includes(r.id))) fail('repeat undo deleted restored records');
-const extraEntry = E.registerImport({ name: 'History undo', table: undoTable, plan: undoPlan, options: {} });
-await E.runImport(extraEntry.id, { ...undoPlan, records: [], errors: [] });
+const afterUndoReload = await import(resolve(here, '../src/import-engine.js') + '?after-undo-reload');
+if (afterUndoReload.undoImport(undoEntry.id) !== false || data.allContacts().filter((r) => ledger.includes(r.id)).length !== 5) fail('repeat undo deleted restored records');
+dom = boot(`http://localhost/data/import/?id=${undoEntry.id}`, '<body class="app"><aside id="sidenav"></aside><header id="topbar"></header><main id="imp-root"></main><div id="scrim"></div></body>');
+await import(resolve(here, '../src/import-wizard.js') + '?after-undo-review');
+if (document.querySelector('.imp__state').textContent !== 'Anulada' || document.querySelector('[data-act="undo-import"]')) fail('reload must preserve undone review');
+const historyTable = await E.parseFile(fileOf('history.csv', 'Nombre,Correo electrónico\nHistory,hist.undo@example.test'));
+const historyPlan = E.planImport(historyTable, E.autoMap(historyTable.headers, 'es', 'contacts'), { object: 'contacts' });
+const extraEntry = E.registerImport({ name: 'History undo', table: historyTable, plan: historyPlan, options: {} });
+await E.runImport(extraEntry.id, historyPlan);
+const historyIds = E.importDetail(extraEntry.id).createdIds.contacts;
 dom = boot('http://localhost/data/', '<body class="app"><aside id="sidenav"></aside><header id="topbar"></header><main id="dint-root"></main><div id="scrim"></div></body>');
 await import(resolve(here, '../src/integration.js') + '?undo-history');
 const undoneRow = document.querySelector(`tr[data-id="${undoEntry.id}"]`);
 if (!undoneRow.textContent.includes('Anulada') || undoneRow.querySelector('[data-undo-import]') || !undoneRow.textContent.includes('Ver detalle')) fail('undone history actions');
-const nextUndo = document.querySelector('[data-undo-import]');
+const nextUndo = document.querySelector(`tr[data-id="${extraEntry.id}"] [data-undo-import]`);
 if (!nextUndo) fail('real history undo action missing');
 const nextId = nextUndo.dataset.undoImport;
 click(nextUndo);
 if (!E.importHistory().find((r) => Number(r.id) === Number(nextId)).undone) fail('history undo action');
+if (data.allContacts().some((r) => historyIds.includes(r.id)) || data.trashedRecords('contacts').filter((r) => historyIds.includes(r.id)).length !== 1) fail('history action must move created contact to trash');
+const canceledRow = document.querySelector(`tr[data-id="${extraEntry.id}"]`);
+if (!canceledRow.textContent.includes('Anulada') || canceledRow.querySelector('[data-undo-import]')) fail('history must refresh after undo');
 log('OK undo: CSV, confirmation, trash, restore, updated record, reload, review and history');
