@@ -8,7 +8,8 @@ import { REAL_DEAL_PIPELINES, LEGACY_STAGE_MAP, DEFAULT_PIPELINE_NAME, REAL_TICK
 import { supabase, DB_MODE, createAnonProbe } from './supabaseClient.js';
 import { requireSession, signOut, siteRoot } from './auth.js';
 import { reportDbError } from './db-report.js';
-import { notifyAssigned } from './notifications.js';
+import { notifyAssigned, notifyFollowers, ACTOR } from './notifications.js';
+import { followersOf, bindFollowSettings } from './follows.js';
 
 const FIRST = ['Ana', 'Luis', 'Marta', 'Pedro', 'Lucía', 'Javier', 'Carmen', 'Diego', 'Elena', 'Raúl', 'Sara', 'Hugo', 'Paula', 'Álvaro', 'Nuria', 'Iván', 'Laura', 'Sergio', 'Irene', 'Mario', 'Clara', 'Andrés', 'Beatriz', 'Tomás', 'Rocío', 'Daniel', 'Eva', 'Jorge', 'Alicia', 'Pablo', 'Silvia', 'Rubén', 'María José', 'Juan Carlos', 'Guadalupe', 'Ximena', 'Rodrigo', 'Valentina', 'Mateo', 'Camila', 'Santiago', 'Renata', 'Emilio', 'Fernanda', 'Joaquín', 'Patricia', 'Óscar', 'Verónica', 'Ignacio', 'Lorena'];
 const LAST = ['Torres', 'Martín', 'Gómez', 'Ruiz', 'Fernández', 'López', 'Díaz', 'Sánchez', 'Navarro', 'Moreno', 'Jiménez', 'Romero', 'Ortega', 'Castro', 'Serrano', 'Molina', 'Garrido', 'Pascual', 'Blanco', 'Herrera', 'Vidal', 'Peña', 'Cano', 'Ibáñez', 'Reyes', 'Prieto', 'Campos', 'Vargas', 'Lozano', 'Méndez', 'Gil', 'Santos', 'Zurita Rico', 'Cubas Vicencio', 'Hernández Zuviri', 'Zúñiga Verde', 'Garduño', 'De la Fuente', 'Ochoa', 'Salazar', 'Quintero', 'Villanueva', 'Esparza', 'Beltrán'];
@@ -1310,6 +1311,12 @@ function afterSet(type, id, field, value, opts = {}, previousValue) {
   // A new owner (contact, company, deal, ticket or task) gets «Se te ha asignado…» in the bell, unless it is the
   // person making the change, «Sin asignar» or the same owner saved again (Ajustes › Notificaciones › Registro asignado).
   if (field === 'owner' && previousValue !== value) { try { const r = findIn(type, id); if (r) notifyAssigned({ type, id, name: r.name || `${r.first || ''} ${r.last || ''}`.trim(), owner: value, previousOwner: previousValue }); } catch (e) { console.error('[notificaciones] asignación', e); } }
+  // The record's followers hear about a new owner or stage (deal stage, ticket status, lifecycle stage).
+  if (previousValue !== value && (field === 'owner' || (type === 'deals' && field === 'stage') || (type === 'tickets' && field === 'status') || ((type === 'contacts' || type === 'companies') && field === 'lifecycle'))) {
+    const r = findIn(type, id);
+    const stageLabel = type === 'deals' ? dealStageLabel(r && r.pipeline, value) : type === 'tickets' ? ((allTicketStatuses().find(([k]) => k === value) || [value, value])[1]) : value;
+    notifyRecordFollowers(type, id, field === 'owner' ? 'owner' : 'stage', field === 'owner' ? `ahora es ${value || 'Sin asignar'}` : `ahora está en «${stageLabel || value}»`, ACTOR, `follow:${type}:${id}:${field}:${value}:${Math.floor(Date.now() / 60000)}`);
+  }
   // «Sincronizar la etapa entre contactos y empresa»: one hop from the record that changed (never back).
   if ((type === 'contacts' || type === 'companies') && field === 'lifecycle' && previousValue !== value && !opts.lifecycleSync) { try { lifecycleSyncCompany(type, id); } catch (e) { console.error('[ciclo de vida] sincronización', e); } }
   if (!opts.skipAutoCompany && type === 'contacts' && (field === 'email' || field === 'website') && value) { try { autoAssociateCompany(id); } catch (e) { console.error('[empresas automáticas]', e); } }
@@ -2132,9 +2139,22 @@ function insertActivity(ev) {
   list.unshift({ id: ev.id || crypto.randomUUID(), type: ev.type, when: ev.when, who: ev.who, text: ev.text, extra: ev.extra || {} });
   write(key, list);
 }
+// Followers of a record («Seguir» on its page, src/follows.js) hear about real activities and owner / stage
+// changes made by someone else; system entries and property history stay silent.
+const FOLLOW_SILENT = new Set(['system', 'prop']);
+const followName = (r) => (r && (r.name || `${r.first || ''} ${r.last || ''}`.trim())) || '';
+function notifyRecordFollowers(type, id, kind, detail, actor, key) {
+  try {
+    const followers = followersOf(type, id);
+    if (!followers.length) return;
+    const r = findIn(type, id);
+    notifyFollowers({ type, id, name: followName(r) || `#${id}`, followers, kind, detail, actor, key });
+  } catch (e) { console.error('[notificaciones] seguidores', e); }
+}
 export function addActivity(ev) {
   insertActivity(ev);
   try { touchLastActivity(ev); } catch (e) { console.error('[última actividad]', e); }
+  if (ev && ev.type && !FOLLOW_SILENT.has(ev.type)) notifyRecordFollowers(ev.recordType, ev.recordId, ev.type, ev.text, !ev.who || ev.who === 'Tú' ? ACTOR : ev.who, `follow:${ev.recordType}:${ev.recordId}:${ev.type}:${ev.when}`);
   // A meeting scheduled ahead becomes the record's «Próxima actividad» when it is the nearest one.
   if (ev && ev.type === 'meeting' && NEXT_ACTIVITY_TYPES.has(ev.recordType)) { try { recomputeNextActivity(ev.recordType, ev.recordId); } catch (e) { console.error('[próxima actividad]', e); } }
 }
@@ -2206,6 +2226,8 @@ export function setSetting(key, value, { scope } = {}) {
   });
   return true;
 }
+// The follow lists («Seguir» on records) use the same per-user settings when the table is live.
+bindFollowSettings({ live: settingsLive, get: getSetting, set: setSetting });
 
 // ---------- deal line items ("Elementos de pedido" of the Crear negocio panel) ----------
 // Persisted in deal_line_items (supabase/deal_line_items.sql); in local mode in localStorage. There is no

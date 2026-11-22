@@ -1,4 +1,4 @@
-import { ACTIVITY_COMPANY_SETTING } from './activity-associations.js';
+import { ACTIVITY_COMPANY_SETTING, ACTIVITY_RULES_SETTING, ACTIVITY_KINDS, ACTIVITY_RULE_OPTIONS, activityRule } from './activity-associations.js';
 import { supabase } from './supabaseClient.js';
 import { createSettingsStore, managedSetting } from './settings-store.js';
 import { FORECAST_CATEGORIES, stageForecastCategory } from './data.js';
@@ -150,7 +150,7 @@ async function applyAvatar(src) {
   toast(r.uploaded ? 'Imagen de perfil guardada' : r.error ? `Imagen guardada en este navegador; no se pudo subir a Supabase (${r.error})` : 'Imagen de perfil actualizada');
   return r;
 }
-const notif = () => ({ email_assign: true, email_mention: true, email_digest: false, push_tasks: true, push_deals: true, ...load('crm:notif', {}) });
+const notif = () => ({ email_assign: true, email_mention: true, email_digest: false, push_tasks: true, push_deals: true, follow_activity: true, ...load('crm:notif', {}) });
 const account = () => ({ name: 'Megaglass', tz: 'America/Mexico_City', currency: 'MXN', lang: 'Español', fiscalYear: 'Enero', ...load('crm:account', {}) });
 const users = () => load('crm:users', OWNERS.filter((o) => o !== 'Sin asignar').map((o, i) => ({ name: o, email: `${slug(o).replace(/_/g, '.')}@megaglass.us`, team: TEAMS[i % 3], role: i === 0 ? 'Superadministrador' : 'Usuario', status: 'Activo' })));
 const teams = () => load('crm:teams', TEAMS.map((t) => ({ name: t })));
@@ -190,9 +190,13 @@ function paneGeneral() {
     <p class="muted">Estas preferencias solo se aplican a ti.</p><hr class="cd-sep" />${body}`;
 }
 function tabActividades() {
+  const rules = load(ACTIVITY_RULES_SETTING, {});
   return `<h3>Actividades</h3><form class="gform" data-save="activity-associations">
     <label><input type="checkbox" name="company" ${load(ACTIVITY_COMPANY_SETTING, true) ? 'checked' : ''} /> Asociar por defecto las actividades a la empresa principal</label>
-    <p class="muted">Puedes cambiar las asociaciones al registrar cada actividad.</p>
+    <p class="muted">La casilla aplica empresa principal o ninguna a toda la tabla. Puedes ajustar cada regla y cambiar las asociaciones al registrar cada actividad. El contacto destino de llamadas y correos siempre queda asociado.</p>
+    <div style="overflow-x:auto"><table class="table"><thead><tr><th>Tipo de actividad</th>${OBJECTS.slice(0, 4).map(([, label]) => `<th>${label}</th>`).join('')}</tr></thead><tbody>
+    ${Object.entries(ACTIVITY_KINDS).map(([kind, label]) => `<tr><th>${label}</th>${OBJECTS.slice(0, 4).map(([type, title]) => `<td><select name="rule-${type}-${kind}" aria-label="${title}: ${label}">${Object.entries(ACTIVITY_RULE_OPTIONS).map(([value, text]) => `<option value="${value}" ${value === (activityRule(rules, type, kind) || 'all') ? 'selected' : ''}>${text}</option>`).join('')}</select></td>`).join('')}</tr>`).join('')}
+    </tbody></table></div>
     <button class="btn btn--primary" type="submit">Guardar</button></form>`;
 }
 function tabPerfil() {
@@ -274,7 +278,7 @@ function paneNotif() {
   const row = (k, l, d) => `<label class="srow"><span><strong>${l}</strong><small>${d}</small></span><input type="checkbox" class="switch" data-notif="${k}" ${n[k] ? 'checked' : ''} /></label>`;
   return `<h2>Notificaciones</h2><p class="muted">Elige qué avisos recibes y por dónde.</p>
     <h3>Correo</h3>${row('email_assign', 'Registro asignado', 'Cuando te asignan un contacto, negocio o ticket.')}${row('email_mention', 'Menciones', 'Cuando alguien te menciona en una nota.')}${row('email_digest', 'Resumen diario', 'Un correo cada mañana con tu actividad pendiente.')}
-    <h3>En la aplicación</h3>${row('push_tasks', 'Tareas vencidas', 'Aviso cuando una tarea pasa su fecha de vencimiento.')}${row('push_deals', 'Cambios de etapa', 'Cuando un negocio tuyo cambia de etapa.')}`;
+    <h3>En la aplicación</h3>${row('push_tasks', 'Tareas vencidas', 'Aviso cuando una tarea pasa su fecha de vencimiento.')}${row('push_deals', 'Cambios de etapa', 'Cuando un negocio tuyo cambia de etapa.')}${row('follow_activity', 'Registros que sigues', 'Cuando alguien registra una nota, llamada, correo o reunión, o cambia el propietario o la etapa de un registro que sigues («Seguir» en su ficha).')}`;
 }
 
 // ---------- panes: organisation & account ----------
@@ -1496,6 +1500,10 @@ async function saveProperty(type, existingKey) {
 }
 
 // ---------- events ----------
+root.addEventListener('change', (e) => {
+  if (!e.target.matches('form[data-save="activity-associations"] input[name="company"]')) return;
+  e.target.form.querySelectorAll('select[name^="rule-"]').forEach(select => { select.value = e.target.checked ? 'primary' : 'none'; });
+});
 window.addEventListener('hashchange', () => { setSection(location.hash.slice(1)); render(); });
 root.addEventListener('submit', (e) => {
   const form = e.target.closest('form[data-save]');
@@ -1503,7 +1511,12 @@ root.addEventListener('submit', (e) => {
   e.preventDefault();
   const d = Object.fromEntries(new FormData(form).entries());
   const what = form.dataset.save;
-  if (what === 'activity-associations') { save(ACTIVITY_COMPANY_SETTING, d.company === 'on'); toast('Preferencia de actividades guardada'); }
+  if (what === 'activity-associations') {
+    const rules = Object.fromEntries(OBJECTS.slice(0, 4).map(([type]) => [type, Object.fromEntries(Object.keys(ACTIVITY_KINDS).map(kind => [kind, d[`rule-${type}-${kind}`]]))]));
+    save(ACTIVITY_RULES_SETTING, rules);
+    save(ACTIVITY_COMPANY_SETTING, d.company === 'on');
+    toast('Reglas de actividades guardadas');
+  }
   else if (what === 'profile') {
     if (d.phone && d.dial && d.phone.trim().startsWith(d.dial)) d.phone = d.phone.trim().slice(d.dial.length).replace(/^[-\s]+/, '');
     save('crm:profile', { ...profile(), ...d }); toast('Perfil guardado'); render();

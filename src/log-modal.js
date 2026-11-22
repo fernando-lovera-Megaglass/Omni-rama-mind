@@ -1,6 +1,6 @@
 // Shared activity form, usable without booting a record page.
 import { TODAY, getSetting, dbIsLive, allContacts, allCompanies, allDeals, allTickets, ticketStatusIsClosed } from './data.js';
-import { ACTIVITY_COMPANY_SETTING, activityAssociations } from './activity-associations.js';
+import { ACTIVITY_COMPANY_SETTING, ACTIVITY_RULES_SETTING, activityAssociations } from './activity-associations.js';
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const CONFIG = Object.fromEntries(Object.entries({ contacts: 'contacto', companies: 'empresa', deals: 'negocio', tickets: 'ticket', tasks: 'tarea' }).map(([type, singular]) => [type, { singular, title: r => r.name }]));
 const CALL_OUTCOMES = ['Conectado', 'Ocupado', 'Dejó mensaje en directo', 'Dejó mensaje de voz', 'No contesta', 'Número equivocado'];
@@ -18,25 +18,29 @@ function plusBusinessDays(n) {
   }
   return d;
 }
-export function logAssociationsHtml(type, rec) {
+export function logAssociationsHtml(type, rec, kind = 'note', destinationContactId) {
   const cfg = CONFIG[type];
   if (!rec) return '';
   let enabled = getSetting(ACTIVITY_COMPANY_SETTING);
   if (enabled == null && !dbIsLive()) {
     try { enabled = JSON.parse(localStorage.getItem(ACTIVITY_COMPANY_SETTING)); } catch { /* Default enabled. */ }
   }
+  let rules = getSetting(ACTIVITY_RULES_SETTING);
+  if (rules == null && !dbIsLive()) {
+    try { rules = JSON.parse(localStorage.getItem(ACTIVITY_RULES_SETTING)); } catch { /* Legacy defaults. */ }
+  }
   const options = activityAssociations(type, rec, {
     contacts: allContacts(), companies: allCompanies(), deals: allDeals(), tickets: allTickets(),
-  }, (ticket) => ticketStatusIsClosed(ticket.pipeline, ticket.status), enabled !== false);
+  }, (ticket) => ticketStatusIsClosed(ticket.pipeline, ticket.status), { associateCompany: enabled !== false, rules, kind, destinationContactId });
   return `<fieldset><legend>Asociado a</legend>
     <label class="log-follow"><input type="checkbox" checked disabled /> ${esc(cfg.singular)}: ${esc(cfg.title(rec))} (registro actual)</label>
-    ${options.map((r) => `<label class="log-follow"><input type="checkbox" data-log-association="${esc(r.type)}" data-association-id="${esc(r.id)}" ${r.checked ? 'checked' : ''} /> ${esc(CONFIG[r.type].singular)}: ${esc(r.name)}</label>`).join('')}</fieldset>`;
+    ${options.map((r) => `<label class="log-follow"><input type="checkbox" data-log-association="${esc(r.type)}" data-association-id="${esc(r.id)}" ${r.checked ? 'checked' : ''} ${r.required ? 'disabled' : ''} /> ${esc(CONFIG[r.type].singular)}: ${esc(r.name)}</label>`).join('')}</fieldset>`;
 }
 export function selectedActivityAssociations(container) {
   return [...container.querySelectorAll('[data-log-association]:checked')]
     .map((input) => ({ type: input.dataset.logAssociation, id: input.dataset.associationId }));
 }
-export function openLogModal(kind, { type, rec, openModal, $, schedule = false, channel = '', activity = null } = {}) {
+export function openLogModal(kind, { type, rec, openModal, $, schedule = false, channel = '', activity = null, destinationContactId } = {}) {
   const cfg = CONFIG[type];
   const name = cfg.title(rec);
   const base = activity ? new Date(activity.when) : schedule ? new Date(TODAY.getTime() + 2 * 86400000) : new Date();
@@ -72,7 +76,7 @@ export function openLogModal(kind, { type, rec, openModal, $, schedule = false, 
       ${dirRow}
       <label class="field"><span>Texto del mensaje</span><textarea id="log-notes" rows="3" placeholder="Mensaje enviado por ${esc(channel)}"></textarea></label>`;
   }
-  if (!activity) body += logAssociationsHtml(type, rec);
+  if (!activity) body += logAssociationsHtml(type, rec, kind, destinationContactId);
   const verb = activity ? 'Guardar' : schedule ? 'Programar' : 'Registrar';
   const what = kind === 'message' ? 'mensaje' : LOG_KINDS[kind];
   openModal(

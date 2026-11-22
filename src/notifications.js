@@ -31,7 +31,8 @@ export function addNotificationOnce(n) {
 // Preferences of Ajustes › Notificaciones (crm:notif): «Registro asignado» (email_assign) and «Menciones»
 // (email_mention) are on unless switched off.
 export const ACTOR = 'Fernando L.'; // who makes the changes in this browser (the app's user)
-export const notifPrefs = () => { try { return { email_assign: true, email_mention: true, ...(JSON.parse(localStorage.getItem('crm:notif')) || {}) }; } catch { return { email_assign: true, email_mention: true }; } };
+const PREF_DEFAULTS = { email_assign: true, email_mention: true, follow_activity: true };
+export const notifPrefs = () => { try { return { ...PREF_DEFAULTS, ...(JSON.parse(localStorage.getItem('crm:notif')) || {}) }; } catch { return { ...PREF_DEFAULTS }; } };
 const WORD = { contacts: 'el contacto', companies: 'la empresa', deals: 'el negocio', tickets: 'el ticket', tasks: 'la tarea' };
 export const recordHref = (type, id) => `${type}/record/?id=${id}`;
 // To the new owner when someone else assigned the record: nothing for «Sin asignar», for the person who made
@@ -48,6 +49,20 @@ export function notifyMentions({ names = [], type = '', id = '', recordName = ''
   for (const name of new Set(names)) {
     if (!name || name === actor) continue;
     const n = addNotification({ kind: 'mention', to: name, title: `Te mencionaron en ${context} en ${recordName || 'un registro'}`, text: String(excerpt || '').slice(0, 140), href: href || recordHref(type, id) });
+    if (n) out.push(n);
+  }
+  return out;
+}
+// «Registros que sigues» (Ajustes › Notificaciones › follow_activity): the followers of a record (src/follows.js)
+// hear about a real activity logged on it, or its owner / stage changing, by someone else — never the author,
+// and the same event never twice (the key carries the event and the follower).
+const FOLLOW_VERB = { note: 'registró una nota', call: 'registró una llamada', email: 'registró un correo', meeting: 'registró una reunión', task: 'creó una tarea', sms: 'registró un SMS', whatsapp: 'registró un WhatsApp', comment: 'comentó', owner: 'cambió el propietario', stage: 'cambió la etapa' };
+export function notifyFollowers({ type, id, name, followers = [], kind = 'note', detail = '', actor = ACTOR, key = '' }) {
+  if (notifPrefs().follow_activity === false) return [];
+  const out = [];
+  for (const follower of new Set(followers)) {
+    if (!follower || follower === actor) continue;
+    const n = addNotificationOnce({ kind: 'follow', key: key ? `${key}:${follower}` : '', to: follower, title: `Nueva actividad en ${WORD[type] || 'el registro'} «${name || id}»`, text: `${actor} ${FOLLOW_VERB[kind] || 'registró una actividad'}${detail ? `: ${String(detail).replace(/\s+/g, ' ').trim().slice(0, 140)}` : ''}`, href: recordHref(type, id) });
     if (n) out.push(n);
   }
   return out;

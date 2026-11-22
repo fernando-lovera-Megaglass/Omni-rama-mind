@@ -1,6 +1,7 @@
 import { openLogModal as showLogModal, selectedActivityAssociations, readLogActivity, logAssociationsHtml as sharedLogAssociationsHtml } from './log-modal.js';
 import { formatAttachmentSize } from './mail-attachments.js';
 import { TASK_ASSOCIATIONS, taskAssociationLinks, taskLinksTo } from './task-associations.js';
+import { isFollowing as followStoreHas, toggleFollow } from './follows.js';
 import { ready as sequencesReady, scheduled, sequenceById, pauseEnrollment, resumeEnrollment, unenroll, enrollmentsOfContact, unenrollReasonOf, STATUS_LABELS as SEQ_STATUS } from './sequences-data.js';
 import { propertyEditor } from './property-editor.js';
 import { mountCreateDeal } from './create-deal.js';
@@ -185,7 +186,6 @@ if (type === 'tickets' && rec) { const f = cfg.fields.find((x) => x[0] === 'stat
 const $ = (s) => document.getElementById(s);
 const mount = $('record-root');
 const props = propertyMap(type);
-const FOLLOW_KEY = `crm:${type}:follow:${id}`;
 let queueBar = null; // the task-queue bar on top of the page (mounted at the end, refreshed after saves)
 
 // ---------- static layout ----------
@@ -409,7 +409,8 @@ function renderQuick() {
 }
 const loadNotes = () => activitiesFor(type, id);
 const loadHistory = () => historyFor(type, id);
-const isFollowing = () => localStorage.getItem(FOLLOW_KEY) === '1';
+// «Seguir»: the per-user follow store (src/follows.js); its followers get the record's activity in the bell.
+const isFollowing = () => followStoreHas(type, id);
 
 function openModal(title, bodyHtml, footHtml = '<button class="btn btn--ghost" type="button" data-close>Cerrar</button>') {
   $('rec-modal-title').textContent = title;
@@ -1887,8 +1888,7 @@ function runAction(act, data = {}) {
   const name = cfg.title(rec);
   switch (act) {
     case 'follow': {
-      const next = !isFollowing();
-      localStorage.setItem(FOLLOW_KEY, next ? '1' : '0');
+      const next = toggleFollow(type, id);
       $('follow-item').textContent = next ? 'Dejar de seguir' : 'Seguir';
       toast(next ? `Ahora sigues a ${name}. Recibirás notificaciones de su actividad.` : `Has dejado de seguir a ${name}.`);
       break;
