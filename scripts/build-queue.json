@@ -2016,10 +2016,12 @@
     },
     {
       "id": "gap-smoke-activity-actions-fijada",
-      "status": "pending",
+      "status": "done",
       "instruction": "smoke-activity-actions: AssertionError, el texto ya no coincide con /Fijada/ (acción de fijar actividad renombrada o eliminada). Verifica en src/ cómo se llama ahora la acción y si el comportamiento sigue existiendo. OBLIGATORIO: ejecuta node scripts/<smoke>.mjs DESPUÉS de tu cambio e itera hasta que termine con código 0; no des por terminado sin verificarlo. Si el fallo es una limitación del harness jsdom (API de navegador inexistente), agrega el shim en la prueba, no cambies la app para complacer al harness. No despliegues nada a producción; solo código local.",
       "createdAt": "2026-11-22T08:22:54-06:00",
-      "lane": "claude"
+      "lane": "claude",
+      "completedAt": "2026-11-22T08:31:25-0600",
+      "completedBy": "claude"
     },
     {
       "id": "gap-smoke-bulk-acciones",
