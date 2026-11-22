@@ -7,6 +7,7 @@ import { propertyEditor } from './property-editor.js';
 import { focusPhoneInput } from './phone.js';
 import { logTaskAssociations, taskAssociationFields } from './task-associations.js';
 import { loadSavedPreview } from './layout-defaults.js';
+import { isFollowing, toggleFollow } from './follows.js';
 // Generic object list: views, filter menus, search, sort, paging, selection,
 // column editor (full property catalog), advanced filters, CSV export/import, create drawer.
 import { wireMenus, closeMenus, toast, linkHtml, wireLinkTooltips, recordToastAction } from './shell.js';
@@ -557,7 +558,7 @@ export function mountList(cfg) {
               <button class="link-btn" type="button" aria-haspopup="true">Acciones <span class="caret"></span></button>
               <div class="menu__panel menu__panel--right">
                 <a class="menu__item" href="#" id="pv-props-item">Ver todas las propiedades</a>
-                <button class="menu__item" type="button" data-pv="follow">Seguir</button>
+                <button class="menu__item" type="button" data-pv="follow" id="pv-follow-item">Seguir</button>
                 <button class="menu__item" type="button" data-pv="clone">Clonar</button>
                 <button class="menu__item" type="button" data-pv="delete">Eliminar</button>
                 <button class="menu__item" type="button" data-pv="export">Exportar datos</button>
@@ -2108,6 +2109,8 @@ export function mountList(cfg) {
     const mail = r.email || r.domain || '';
     $('pv-mail').innerHTML = mail ? `<a href="${mail.includes('@') ? `mailto:${esc(mail)}` : '#'}">${esc(mail)}</a> <span class="ext">↗</span> <button class="copy" type="button" data-copy="${esc(mail)}" aria-label="Copiar">⧉</button>` : '';
     $('pv-type').textContent = cfg.singular[0].toUpperCase() + cfg.singular.slice(1);
+    // «Seguir» / «Dejar de seguir» from the real per-user follow store (src/follows.js), the same the record uses.
+    if ($('pv-follow-item')) $('pv-follow-item').textContent = isFollowing(cfg.type, r.id) ? 'Dejar de seguir' : 'Seguir';
     // The preview panel layout comes from Configuración › Objetos › Previsualizar personalización when saved there.
     let pvLayout = null;
     pvLayout = loadSavedPreview(cfg.type); // per user in Supabase when signed in, localStorage otherwise
@@ -2277,7 +2280,12 @@ export function mountList(cfg) {
     else if (a === 'copy-link') {
       navigator.clipboard?.writeText(`${location.origin}${location.pathname}record/?id=${r.id}`);
       toast('Enlace copiado');
-    } else if (a === 'follow') toast(`Ahora sigues a ${r.name}`);
+    } else if (a === 'follow') {
+      // Subscribes for real (the record's activity then reaches the bell), exactly like «Seguir» on the record page.
+      const next = toggleFollow(cfg.type, r.id);
+      if ($('pv-follow-item')) $('pv-follow-item').textContent = next ? 'Dejar de seguir' : 'Seguir';
+      toast(next ? `Ahora sigues a ${r.name}. Recibirás notificaciones de su actividad.` : `Has dejado de seguir a ${r.name}.`);
+    }
     else if (a === 'clone') {
       const copy = { ...r, name: `${r.name} (copia)` };
       delete copy.id;
