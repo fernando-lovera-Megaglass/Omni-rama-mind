@@ -51,9 +51,16 @@ const click = (el) => { if (!el) fail('missing element to click'); el.dispatchEv
 const toastText = () => $('toast')?.textContent || '';
 const rowsText = () => [...document.querySelectorAll('.obody tbody tr')].map((r) => r.textContent.replace(/\s+/g, ' ').trim());
 await settle();
-log('section:', document.querySelector('.snav__item.is-active')?.textContent, '| tab:', document.querySelector('.otabs__tabs .is-active')?.textContent, '| sample users table gone:', !document.querySelector('.utable'), '| "Crear usuario" gone:', !document.querySelector('[data-act="new-user"]'));
-log('rows:', rowsText().join(' || '));
-if (document.querySelector('.utable') || document.querySelector('[data-act="new-user"]')) fail('the sample users must be replaced');
+log('section:', document.querySelector('.snav__item.is-active')?.textContent, '| tab:', document.querySelector('.otabs__tabs .is-active')?.textContent, '| users directory:', Boolean(document.querySelector('.utable')), '| "Crear usuario" gone:', !document.querySelector('[data-act="new-user"]'));
+log('directory rows:', rowsText().join(' || '));
+// «Usuarios y equipos» opens on the users directory (the account's users plus every invitation as
+// «Invitación pendiente»); the sample «Crear usuario» is gone and the invitations have their own tab.
+if (!document.querySelector('.utable') || document.querySelector('[data-act="new-user"]')) fail('the users directory replaces the sample users');
+if (!rowsText().some((t) => /fernando-lovera@megaglass.us/.test(t) && /Invitación pendiente/.test(t))) fail('the invitation must appear in the directory as pending');
+click(document.querySelector('[data-utab="invitations"]'));
+await settle();
+log('invitations tab:', document.querySelector('.otabs__tabs .is-active')?.textContent, '| rows:', rowsText().join(' || '));
+if (!/^Invitaciones/.test(document.querySelector('.otabs__tabs .is-active')?.textContent || '') || !$('invite-form')) fail('the invitations tab with its form');
 if (rowsText().length !== 1 || !/fernando-lovera@megaglass.us/.test(rowsText()[0]) || !/Aceptada · tú/.test(rowsText()[0])) fail('the signed-in user shows as accepted');
 if (!document.querySelector('[data-invite-rm="fernando-lovera@megaglass.us"]').disabled) fail('own invitation cannot be revoked');
 // invalid e-mail

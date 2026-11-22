@@ -1,5 +1,11 @@
 # Progreso — Omni CRM
 
+## 2026-11-22 (sesión 6) · smoke-invitations: las invitaciones viven en su propia pestaña
+
+- Diagnóstico: no es regresión. Desde 9997478 / 1895529 (Configuración › Usuarios y equipos con vistas de usuarios), la sección abre en el directorio de usuarios (`.utable` con los usuarios de la cuenta, filtros, licencias y acciones) donde cada invitación aparece como «Invitación pendiente», y la lista de invitaciones con su formulario (`#invite-form`, Reenviar enlace, Revocar) está en la pestaña «Invitaciones (n)». La prueba, escrita cuando la lista sustituía a la tabla de usuarios de muestra, exigía que no hubiera `.utable`.
+- `scripts/smoke-invitations.mjs`: comprueba que el directorio sustituye a los usuarios de muestra (sin «Crear usuario») y lista la invitación como pendiente, pulsa la pestaña «Invitaciones» y sigue con las mismas comprobaciones de antes (aceptada · tú, revocación propia bloqueada, correo inválido, invitar → inserción + enlace mágico, duplicado, reenviar, revocar, mensajes del disparador). Pasa la parte 1; la parte 2 (Supabase en vivo) se omite sin `.env` y token, como está previsto.
+- Solo código local; nada desplegado.
+
 ## 2026-11-22 (sesión 6) · smoke-dedupe: la vista previa del plan cuenta «registros nuevos»
 
 - Diagnóstico: no es regresión. La desduplicación funciona como antes (corrida con política de combinación: 2 creados, 2 actualizados, 1 fallido, 420 → 422 contactos; el existente no se duplica; «Se salta» al elegir saltar). El commit 2853737 (importación multiarchivo con asociaciones) cambió a propósito el texto de «Vista previa del resultado» de `${objeto} nuevos` a «registros nuevos», porque el plan ahora puede abarcar varios objetos; la prueba seguía buscando «1 contactos nuevos · 0 actualizaciones».
