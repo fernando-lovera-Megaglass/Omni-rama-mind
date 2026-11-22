@@ -1,5 +1,12 @@
 # Progreso — Omni CRM
 
+## 2026-11-22 (sesión 6) · «Reordenar botones de actividad» persiste por objeto y por usuario (4 módulos)
+
+- Antes: el orden de Nota/Correo/Llamar/Tarea/Reunión se guardaba con la clave única `crm:quickorder` solo en localStorage: igual para los cuatro objetos y perdido al cambiar de navegador.
+- `src/record.js`: clave por objeto `crm:<objeto>:quickorder`; al guardar, `setSetting(…, { scope: 'user' })` lo lleva a `user_settings` (como la tarjeta «Acerca de») y la copia de localStorage queda como respaldo sin sesión; `quickOrder()` lee primero el ajuste remoto cuando `settingsLive()`, luego la copia local y, mientras no se guarde un orden nuevo, la clave antigua `crm:quickorder` (para no perder el orden que ya tuviera el navegador). «Restablecer» borra las tres.
+- Pruebas: `scripts/smoke-quick-order.mjs` en local (reordenar en un contacto, recargar y verlo; tickets sin cambios; restablecer; la clave antigua se sigue leyendo hasta guardar un orden nuevo por objeto) y con `SMOKE_LIVE=1` (la ficha de un contacto SMOKE reordena → fila `crm:contacts:quickorder` en `user_settings`, ninguna para tickets; con el localStorage de la app vacío un arranque nuevo recupera el orden desde Supabase). Documentado en `docs/smoke-live.md`.
+- Solo código local; nada desplegado.
+
 ## 2026-11-22 (sesión 6) · «Editar tarjeta predeterminada» de las tarjetas de asociación: filtros reales, nombre interno editable y sin botones de adorno (4 módulos)
 
 - `src/record.js`: «⚟ Gestionar filtros» abre un editor dentro del cajón (una fila por condición: propiedad del objeto asociado, condición «es igual a / no es igual a / contiene / tiene valor / no tiene valor», valor; «+ Agregar filtro», quitar); la vista previa del cajón y el contador del botón siguen los filtros al instante. Al guardar, los filtros viajan en el mismo ajuste de la tarjeta (`crm:<objeto>:assoccard:<kind>`, por usuario o para toda la cuenta) y `assocCard` los aplica al listar (`applyCardFilters`, compara el valor crudo y el mostrado: etapas, estados, fechas); el título de la tarjeta muestra el conteo filtrado.

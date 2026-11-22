@@ -371,10 +371,15 @@ const QUICK = [
   ['task', ACT_ICONS.task, 'Tarea'],
   ['meeting', ACT_ICONS.meeting, 'Reunión'],
 ];
-const QUICK_ORDER_KEY = 'crm:quickorder';
+// The order of the quick buttons («Reordenar botones de actividad»): per object and per user in user_settings when
+// signed in (the same store as the «Acerca de» card), with the localStorage copy as the offline fallback. The old
+// single key crm:quickorder (one order for every object, this browser only) is still read until a new order is saved.
+const QUICK_ORDER_KEY = `crm:${type}:quickorder`;
+const LEGACY_QUICK_ORDER_KEY = 'crm:quickorder';
+const validQuickOrder = (v) => (Array.isArray(v) && v.length === QUICK.length && QUICK.every((q) => v.includes(q[0])) ? v : null);
 const quickOrder = () => {
-  const saved = loadJson(QUICK_ORDER_KEY, null);
-  const keys = Array.isArray(saved) && saved.length === QUICK.length ? saved : QUICK.map((q) => q[0]);
+  const saved = validQuickOrder(settingsLive() ? getSetting(QUICK_ORDER_KEY) : null) || validQuickOrder(loadJson(QUICK_ORDER_KEY, null)) || validQuickOrder(loadJson(LEGACY_QUICK_ORDER_KEY, null));
+  const keys = saved || QUICK.map((q) => q[0]);
   return keys.map((k) => QUICK.find((q) => q[0] === k)).filter(Boolean);
 };
 const MORE_ITEMS = [
@@ -2364,12 +2369,16 @@ $('rec-modal').addEventListener('click', async (e) => {
     const waiting = r.run.estado === 'waiting' ? ` · continúa el ${workflowWhenText(r.run.proximaEjecucion)}` : '';
     toast(`Inscrito en «${r.workflow.name}» · ${done} ${done === 1 ? 'acción ejecutada' : 'acciones ejecutadas'}${waiting}`);
   } else if (what === 'reorder') {
-    saveJson(QUICK_ORDER_KEY, [...$('quick-order').querySelectorAll('.col-item')].map((li) => li.dataset.key));
+    const order = [...$('quick-order').querySelectorAll('.col-item')].map((li) => li.dataset.key);
+    saveJson(QUICK_ORDER_KEY, order);
+    setSetting(QUICK_ORDER_KEY, order, { scope: 'user' }); // per user in the account (user_settings) when signed in
     closeModal();
     renderQuick();
     toast('Botones reordenados');
   } else if (what === 'reorder-reset') {
     localStorage.removeItem(QUICK_ORDER_KEY);
+    localStorage.removeItem(LEGACY_QUICK_ORDER_KEY);
+    setSetting(QUICK_ORDER_KEY, null, { scope: 'user' });
     closeModal();
     renderQuick();
     toast('Orden restablecido');
