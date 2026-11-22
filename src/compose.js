@@ -13,6 +13,7 @@ import { openEnrollDialog } from './sequence-enroll.js';
 import { ready as emailsReady, activeAccounts, signatureById, PROVIDERS } from './connected-emails.js';
 import { openConnectWizard } from './connected-emails-ui.js';
 import { sendMail } from './gmail.js';
+import { attachmentMetadata, formatAttachmentSize, validateAttachmentSize } from './mail-attachments.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
 const SIG_KEY = 'crm:signature';
@@ -205,7 +206,7 @@ function render() {
           <button class="menu__item" type="button" data-ai="thanks">✦ Agradecer la reunión</button>
         </div>
         ${signatureFor(sender[2], sig)}
-        ${ctx.attachments.length ? `<div class="compose__files">${ctx.attachments.map((f, i) => `<span class="chip-to">${ACT_ICONS.attach} ${esc(f)} <button type="button" data-rmfile="${i}" aria-label="Quitar">×</button></span>`).join('')}</div>` : ''}
+        ${ctx.attachments.length ? `<div class="compose__files">${ctx.attachments.map((f, i) => `<span class="chip-to">${ACT_ICONS.attach} ${esc(f.name)} (${formatAttachmentSize(f.size)}) <button type="button" data-rmfile="${i}" aria-label="Quitar">×</button></span>`).join('')}</div>` : ''}
       </div>
 
       <div class="compose__toolbar">
@@ -323,11 +324,11 @@ function send(whenLabel) {
   // A real Google account sends through the Gmail API (scheduled sends stay simulated: Gmail has no scheduling).
   if (account && account.real && !whenLabel) { sendViaGmail(account, sender, subject, recipients); return; }
   if (!whenLabel && ctx.templateId) void recordTemplateUse(ctx.templateId);
-  logSent(sender, whenLabel, subject, recipients, {});
+  logSent(sender, whenLabel, subject, recipients, { simulated: true });
   finishSend(sender, whenLabel, recipients);
 }
 function logSent(sender, whenLabel, subject, recipients, extra) {
-  ctx.onSent?.({ type: 'email', when: Date.now(), who: sender[0], text: `${whenLabel ? `Correo programado (${whenLabel})` : 'Correo enviado'} a ${recipients}: "${subject}" · enviado desde ${sender[1]}${extra.via === 'gmail' ? ' por Gmail' : ''}.`, extra: { from: sender[1], subject, ...extra } });
+  ctx.onSent?.({ type: 'email', when: Date.now(), who: sender[0], text: `${extra.simulated ? `Simulación${whenLabel ? ` de programación (${whenLabel})` : ''} · no se envió ningún correo` : 'Correo enviado'} a ${recipients}: "${subject}" · enviado desde ${sender[1]}${extra.via === 'gmail' ? ' por Gmail' : ''}.`, extra: { from: sender[1], subject, attachments: ctx.attachments.map(attachmentMetadata), ...extra } });
 }
 const splitAddresses = (s) => String(s || '').split(/[,;]/).map((x) => x.trim()).filter(Boolean);
 async function sendViaGmail(account, sender, subject, recipients) {
@@ -337,7 +338,7 @@ async function sendViaGmail(account, sender, subject, recipients) {
   const btn = el.querySelector('[data-cm="send"]');
   if (btn) { btn.disabled = true; btn.textContent = 'Enviando…'; }
   try {
-    const r = await sendMail({ accountId: account.id, to: ctx.recipients.map((x) => x.email).filter(Boolean), cc: splitAddresses(ctx.cc), bcc: splitAddresses(ctx.bcc), subject, html: `${ctx.body || ''}${signatureFor(account, loadSig())}`, fromName: sender[0] });
+    const r = await sendMail({ accountId: account.id, to: ctx.recipients.map((x) => x.email).filter(Boolean), cc: splitAddresses(ctx.cc), bcc: splitAddresses(ctx.bcc), subject, html: `${ctx.body || ''}${signatureFor(account, loadSig())}`, fromName: sender[0], attachments: [...ctx.attachments] });
     if (templateId) void recordTemplateUse(templateId);
     if (ctx !== sendingCtx || el.hidden) return;
     logSent(sender, '', subject, recipients, { via: 'gmail', gmailId: r.id || '', threadId: r.threadId || '' });
@@ -366,7 +367,7 @@ function finishSend(sender, whenLabel, recipients, via = '') {
     });
     ctx.onSent?.({ type: 'task', when: Date.now(), who: sender[0], text: `Tarea de seguimiento creada para el ${formatDate(due)}.` });
   }
-  toast(whenLabel ? `Correo programado para ${whenLabel}` : `Correo enviado a ${recipients}${via ? ` por ${via}` : ''}`);
+  toast(via ? `Correo enviado a ${recipients} por ${via}` : 'Simulación registrada: no se envió ningún correo ni se programó un envío real.');
   close();
 }
 
@@ -379,6 +380,7 @@ function close() {
 
 function wire() {
   el.addEventListener('click', (e) => {
+    if (ctx?.sending) return;
     const t = e.target;
     const cm = t.closest('[data-cm]');
     if (cm) {
@@ -472,11 +474,14 @@ function wire() {
     if (e.target.id === 'cmp-text' && !bodyText(e.target.innerHTML) && !e.target.querySelector('img')) ctx.templateId = null;
   });
   el.addEventListener('change', (e) => {
+    if (ctx?.sending) return;
     const cb = e.target.closest('[data-assoc]');
     if (cb) { ctx.assoc[Number(cb.dataset.assoc)].on = cb.checked; syncFields(); render(); return; }
     if (e.target.id === 'cmp-follow') ctx.follow = e.target.checked;
     if (e.target.id === 'cmp-file') {
-      ctx.attachments.push(...[...e.target.files].map((f) => f.name));
+      const files = [...ctx.attachments, ...e.target.files];
+      try { validateAttachmentSize(files); } catch (error) { toast(error.message); e.target.value = ''; return; }
+      ctx.attachments = files;
       syncFields();
       render();
     }

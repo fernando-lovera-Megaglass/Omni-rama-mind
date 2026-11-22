@@ -1,3 +1,4 @@
+import { encodeAttachments } from './mail-attachments.js';
 // Real Gmail (OAuth with Google + Gmail API) through the Supabase Edge Functions in supabase/functions/gmail-*:
 // configuration check (VITE_GOOGLE_CLIENT_ID in the browser; the client secret only lives in Supabase),
 // the connect flow (auth URL → Google → callback → back to Omni), the connected accounts (table
@@ -103,9 +104,10 @@ export async function setStatus(id, action) {
 }
 
 // ---------- send ----------
-export async function sendMail({ accountId, to, cc, bcc, subject, html, text, threadId, inReplyTo, references, fromName } = {}) {
+export async function sendMail({ accountId, to, cc, bcc, subject, html, text, threadId, inReplyTo, references, fromName, attachments = [] } = {}) {
   const list = [].concat(to || []).map((s) => String(s || '').trim()).filter(Boolean);
   if (!list.length) throw new Error('Falta el destinatario.');
-  return invoke('gmail-send', { body: { accountId, to: list, cc: [].concat(cc || []).filter(Boolean), bcc: [].concat(bcc || []).filter(Boolean), subject, html, text, threadId, inReplyTo, references, fromName } });
+  const encodedAttachments = await encodeAttachments(attachments);
+  return invoke('gmail-send', { body: { accountId, to: list, cc: [].concat(cc || []).filter(Boolean), bcc: [].concat(bcc || []).filter(Boolean), subject, html, text, threadId, inReplyTo, references, fromName, attachments: encodedAttachments } });
 }
 export const callFunction = invoke;

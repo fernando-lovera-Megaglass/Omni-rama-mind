@@ -17,6 +17,7 @@ Deno.serve(handle(async (req) => {
   const raw = buildMime({
     from: b.fromName ? `${String(b.fromName).replace(/["<>]/g, '')} <${account.email}>` : account.email,
     to,
+    attachments: b.attachments ?? [],
     cc: list(b.cc),
     bcc: list(b.bcc),
     subject: String(b.subject || '(sin asunto)'),

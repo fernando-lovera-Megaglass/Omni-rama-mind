@@ -182,10 +182,16 @@ await wait(10);
 if (!text(q('#compose .compose__frombtn')).includes('real@gmail.com')) fail(`the real account must be the sender: ${text(q('#compose .compose__frombtn'))}`);
 click(q(`[data-tpl="${usageId}"]`));
 input(q('#cmp-subject'), 'Prueba desde Omni');
+const pdf = new window.File(['%PDF-1.4 test'], 'prueba.pdf', { type: 'application/pdf' });
+Object.defineProperty(q('#cmp-file'), 'files', { value: [pdf] });
+q('#cmp-file').dispatchEvent(new window.Event('change', { bubbles: true }));
+if (!text(q('.compose__files')).includes('prueba.pdf')) fail('attachment chip missing');
+
 click(q('#compose [data-cm="send"]'));
 await wait(20);
 const sendCall = fake.calls.find((c) => c.name === 'gmail-send');
 if (!sendCall || sendCall.body.accountId !== 'acc-1' || sendCall.body.to.join() !== 'ana.ruiz@cristalesnorte.com' || sendCall.body.subject !== 'Prueba desde Omni' || !/<div class="sig/.test(sendCall.body.html)) fail(`gmail-send call: ${JSON.stringify(sendCall && sendCall.body).slice(0, 300)}`);
+if (sendCall.body.attachments?.[0]?.content !== Buffer.from('%PDF-1.4 test').toString('base64') || events[0]?.extra.attachments?.[0]?.size !== pdf.size) fail('attachment payload or timeline metadata missing');
 if (!events.length || events[0].type !== 'email' || events[0].extra.via !== 'gmail' || events[0].extra.gmailId !== 'msg-1' || !events[0].text.includes('enviado desde real@gmail.com por Gmail')) fail(`timeline event: ${JSON.stringify(events[0])}`);
 if (!$('compose').hidden || !toastText().includes('por Gmail')) fail('composer should close with the Gmail toast');
 if (usageData.templateById(usageId).uses !== 1) fail('confirmed Gmail send counts once');

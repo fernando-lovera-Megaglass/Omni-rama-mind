@@ -1,3 +1,4 @@
+import { formatAttachmentSize } from './mail-attachments.js';
 import { TASK_ASSOCIATIONS, taskAssociationLinks } from './task-associations.js';
 import { ready as sequencesReady, scheduled, sequenceById, pauseEnrollment, resumeEnrollment, unenroll, enrollmentsOfContact, unenrollReasonOf, STATUS_LABELS as SEQ_STATUS } from './sequences-data.js';
 import { propertyEditor } from './property-editor.js';
@@ -1545,6 +1546,7 @@ function renderTimeline() {
         </button>
         <div class="timeline__meta"><strong>${esc(ev.who)}</strong> · <span title="${esc(fmtWhen(ev))}">${esc(relativeTimeFine(ev.when))}</span></div>
         ${activityOriginHtml(ev)}<div class="timeline__text">${esc(ev.text)}</div>
+        ${ev.type === 'email' && ev.extra?.attachments?.length ? `<ul aria-label="Adjuntos del correo">${ev.extra.attachments.map((f) => `<li>📎 ${esc(f.name)} · ${formatAttachmentSize(f.size)}</li>`).join('')}</ul>` : ''}
         <div class="timeline__detail"><div class="muted">${esc(fmtWhen(ev))}</div>${extraTags(ev)}${callMedia(ev)}</div>
         ${['system', 'prop', 'created'].includes(ev.type) ? '' : `<div data-comments-key="${esc(evKey(ev))}"></div>`}
       </div>

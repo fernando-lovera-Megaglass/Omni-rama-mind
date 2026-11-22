@@ -193,7 +193,9 @@ export function extractBodies(payload: Part | undefined): { text: string; html: 
 export const htmlToText = (html: string): string => String(html || '').replace(/<style[\s\S]*?<\/style>/gi, '').replace(/<br\s*\/?>/gi, '\n').replace(/<\/(p|div|li|tr|h\d)>/gi, '\n').replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/\n{3,}/g, '\n\n').trim();
 const encodeHeader = (s: string): string => (/^[\x20-\x7e]*$/.test(s) ? s : `=?UTF-8?B?${b64(s)}?=`);
 const wrap76 = (s: string): string => s.replace(/(.{76})/g, '$1\r\n');
-export function buildMime({ from, to, cc = [], bcc = [], subject, html, text, inReplyTo, references }: { from: string; to: string[]; cc?: string[]; bcc?: string[]; subject: string; html?: string; text?: string; inReplyTo?: string; references?: string }): string {
+export function buildMime({ from, to, cc = [], bcc = [], subject, html, text, inReplyTo, references, attachments = [] }:  { from: string; to: string[]; cc?: string[]; bcc?: string[]; subject: string; html?: string; text?: string; inReplyTo?: string; references?: string; attachments?: unknown }): string {
+  const files = validateAttachments(attachments);
+  const mixed = `mixed_${crypto.randomUUID()}`;
   const boundary = `omni_${crypto.randomUUID().replace(/-/g, '')}`;
   const plain = text || htmlToText(html || '');
   const lines = [`From: ${from}`, `To: ${to.join(', ')}`];
@@ -202,10 +204,32 @@ export function buildMime({ from, to, cc = [], bcc = [], subject, html, text, in
   lines.push(`Subject: ${encodeHeader(subject || '(sin asunto)')}`, 'MIME-Version: 1.0', `Date: ${new Date().toUTCString()}`);
   if (inReplyTo) lines.push(`In-Reply-To: ${inReplyTo}`);
   if (references || inReplyTo) lines.push(`References: ${references || inReplyTo}`);
+  if (files.length) lines.push(`Content-Type: multipart/mixed; boundary="${mixed}"`, '', `--${mixed}`);
   if (html) {
     lines.push(`Content-Type: multipart/alternative; boundary="${boundary}"`, '', `--${boundary}`, 'Content-Type: text/plain; charset="UTF-8"', 'Content-Transfer-Encoding: base64', '', wrap76(b64(plain)), `--${boundary}`, 'Content-Type: text/html; charset="UTF-8"', 'Content-Transfer-Encoding: base64', '', wrap76(b64(html)), `--${boundary}--`);
   } else {
     lines.push('Content-Type: text/plain; charset="UTF-8"', 'Content-Transfer-Encoding: base64', '', wrap76(b64(plain)));
   }
+  for (const file of files) {
+    const filename = encodeURIComponent(file.name).replace(/['()*]/g, (c) => `%${c.charCodeAt(0).toString(16)}`);
+    lines.push(`--${mixed}`, `Content-Type: ${file.type}`, `Content-Disposition: attachment; filename*=UTF-8''${filename}`, 'Content-Transfer-Encoding: base64', '', wrap76(file.content));
+  }
+  if (files.length) lines.push(`--${mixed}--`);
   return lines.join('\r\n');
+}
+
+// Keep raw attachment bytes below 20 MiB, leaving room for MIME/base64 overhead.
+// Oversized files are rejected; this route does not upload to Storage.
+type Attachment = { name: string; type: string; size: number; content: string };
+function validateAttachments(value: unknown): Attachment[] {
+  if (!Array.isArray(value)) throw new Error('Lista de adjuntos inválida.');
+  let total = 0;
+  return value.map((file) => {
+    if (!file || typeof file.name !== 'string' || !file.name || /[\r\n\0]/.test(file.name) || typeof file.content !== 'string' || !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(file.content)) throw new Error('Adjunto inválido.');
+    const size = file.content.length / 4 * 3 - (file.content.endsWith('==') ? 2 : file.content.endsWith('=') ? 1 : 0);
+    total += size;
+    if (size !== file.size || total >= 20 * 1024 * 1024) throw new Error('Los adjuntos deben sumar menos de 20 MB y tener un tamaño válido.');
+    const type = typeof file.type === 'string' && /^[a-zA-Z0-9!#$&^_.+-]+\/[a-zA-Z0-9!#$&^_.+-]+$/.test(file.type) ? file.type : 'application/octet-stream';
+    return { name: file.name, type, size, content: file.content };
+  });
 }
