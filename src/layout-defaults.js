@@ -48,15 +48,19 @@ export function cardCatalog(type) {
   if (type === 'deals') cards.dealscore = { label: 'Calificación de negocios', desc: 'Calificación de negocios (valor predeterminado)', zone: 'middle' };
   // The deal's line items (deal_line_items), as added from the "Crear negocio" panel.
   if (type === 'deals') cards.lineitems = { label: 'Elementos de pedido', desc: 'Elementos de pedido del negocio (valor predeterminado)', zone: 'right' };
-  // Document association cards stay unavailable until backed by persistent objects.
-  cards.gdrive = { label: 'Archivos adjuntos de Google Drive', desc: 'Google Drive Attachments (valor predeterminado)', zone: 'right' };
+  // No document-integration cards (Google Drive…) until the integration exists: the original never shows an
+  // empty «sin contenido» card, so the catalog only offers what the record page can render.
   return cards;
 }
+// Card ids of older saved layouts that no longer exist (unsupported association cards «x-…» and the Google Drive
+// card that had no content): dropped when a layout is read, so neither the record page nor the editor shows them.
+const RETIRED_CARDS = new Set(['gdrive']);
+const liveCardIds = (ids) => (Array.isArray(ids) ? ids : []).filter((id) => typeof id === 'string' && !id.startsWith('x-') && !RETIRED_CARDS.has(id));
 
 // Layout of a brand-new team view: the original starts with a slimmer page than the default view.
 export function teamViewLayout(type, name) {
   const cards = cardCatalog(type);
-  const right = (ASSOC_KINDS[type] || []).map((k) => `assoc-${k}`).concat(Object.keys(cards).filter((id) => cards[id].extra), ['gdrive']);
+  const right = (ASSOC_KINDS[type] || []).map((k) => `assoc-${k}`).concat(Object.keys(cards).filter((id) => cards[id].extra));
   return {
     name,
     teams: [],
@@ -133,7 +137,7 @@ export function resetPreview(type) {
 export const VIEW_KEY = (type, name) => `crm:${type}:layout:${name}`;
 export function loadViewLayout(type, name) {
   const saved = readStored(VIEW_KEY(type, name));
-  if (saved && Array.isArray(saved.tabs)) return { ...saved, right: (saved.right || []).filter((id) => !id.startsWith('x-')) };
+  if (saved && Array.isArray(saved.tabs)) return { ...saved, right: liveCardIds(saved.right), left: Array.isArray(saved.left) ? liveCardIds(saved.left) : ['about'] };
   return teamViewLayout(type, name);
 }
 // Team views are shared by the account (scope global).
@@ -206,7 +210,7 @@ export const LAYOUT_KEY = (type) => `crm:${type}:layout`;
 const validLayout = (saved) => Boolean(saved && Array.isArray(saved.tabs) && Array.isArray(saved.right));
 export function loadLayout(type) {
   const saved = readStored(LAYOUT_KEY(type));
-  if (validLayout(saved)) return { ...saved, right: saved.right.filter((id) => !id.startsWith('x-')), left: Array.isArray(saved.left) ? saved.left : ['about'] };
+  if (validLayout(saved)) return { ...saved, right: liveCardIds(saved.right), left: Array.isArray(saved.left) ? liveCardIds(saved.left) : ['about'] };
   return defaultLayout(type);
 }
 
@@ -241,7 +245,7 @@ export function resolveLayout(type, team = currentLayoutTeam()) {
   const view = teamViewFor(type, 'record', team);
   if (view) {
     const saved = readStored(VIEW_KEY(type, view.name));
-    if (validLayout(saved)) return { ...saved, right: saved.right.filter((id) => !id.startsWith('x-')), left: Array.isArray(saved.left) ? saved.left : ['about'], teamView: view.name };
+    if (validLayout(saved)) return { ...saved, right: liveCardIds(saved.right), left: Array.isArray(saved.left) ? liveCardIds(saved.left) : ['about'], teamView: view.name };
   }
   return loadLayout(type);
 }

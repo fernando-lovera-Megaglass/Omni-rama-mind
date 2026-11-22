@@ -1061,7 +1061,7 @@ function leftCardHtml(cardId) {
     const people = [...new Set([rec.owner && rec.owner !== 'Sin asignar' ? rec.owner : '', ...followersOf(type, id)].filter(Boolean))];
     return `<div class="card"><h3 class="card__title">${esc(label)}</h3>${people.length ? `<ul class="collab">${people.map((p, i) => `<li class="collab__row">${ownerHtml(p, 'sm')}<span class="muted">${i === 0 && p === rec.owner ? 'Propietario' : 'Sigue el registro'}</span></li>`).join('')}</ul>` : '<p class="muted">Nadie trabaja este registro todavía: asigna un propietario o pulsa «Seguir».</p>'}</div>`;
   }
-  return `<div class="card"><h3 class="card__title">${esc(label)}</h3><p class="muted">Tarjeta sin contenido.</p></div>`;
+  return ''; // a card this page cannot render is skipped, never painted empty (as the original)
 }
 function middleCardHtml(id) {
   const label = (CATALOG[id] || { label: id }).label;
@@ -1095,7 +1095,7 @@ function middleCardHtml(id) {
         : '<p class="muted">No se han detectado registros duplicados. ✓</p>'}</div>`;
     }
     default:
-      return `<div class="card"><h3 class="card__title">${esc(label)}</h3><p class="muted">Tarjeta sin contenido.</p></div>`;
+      return ''; // a card this page cannot render is skipped, never painted empty (as the original)
   }
 }
 const FILES_KEY = `crm:${type}:files:${id}`;
@@ -1160,7 +1160,7 @@ function rightCardHtml(cardId) {
     const guides = ['Llamada de descubrimiento', 'Presentación de cotización', 'Gestión de objeciones de precio'];
     return `<div class="card"><button class="card__toggle" type="button" data-toggle="guides"><span class="chev">⌄</span> ${esc(label)}</button><ul class="guides">${guides.map((g) => `<li><span class="guides__ico">📘</span><span>${esc(g)}</span><button class="link-btn" type="button" data-guide="${esc(g)}">Abrir</button></li>`).join('')}</ul></div>`;
   }
-  return `<div class="card"><h3 class="card__title">${esc(label)}</h3><p class="muted">Tarjeta sin contenido.</p></div>`;
+  return ''; // a card this page cannot render is skipped, never painted empty (as the original)
 }
 function renderRight() {
   const L = layoutOf();
