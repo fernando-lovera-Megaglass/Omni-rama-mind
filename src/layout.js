@@ -3,6 +3,8 @@
 import { toast, wireMenus, closeMenus } from './shell.js';
 import { cardCatalog, defaultLayout, loadLayout, saveLayout, teamViewLayout, loadViewLayout, saveViewLayout, deleteViewLayout, loadViewsList, saveViewsList, previewCatalog, defaultPreview, loadPreview, savePreview, loadCardProps, saveCardProps, TEAMS, TYPE_META } from './layout-defaults.js';
 import { propertyList } from './properties.js';
+// Initialise the shared settings binding and session before reading any layouts.
+import { dbIdle } from './data.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
 const params = new URLSearchParams(location.search);
@@ -283,7 +285,7 @@ function listFor(zone, si) {
   const tab = layout.tabs.find((t) => t.id === activeTab);
   return tab && tab.sections && tab.sections[si] ? tab.sections[si].cards : null;
 }
-function doSave(exit) {
+async function doSave(exit) {
   if (previewMode) {
     // Preview panel: the default layout feeds the lists' side panel; team views are listed in Configuración.
     if (teamView) {
@@ -299,7 +301,7 @@ function doSave(exit) {
     }
     saved = JSON.stringify(layout);
     toast(teamView ? 'Vista previa de equipo guardada' : 'Panel de vista previa guardado: ya se usa en la lista');
-    if (exit) location.href = backHref;
+    if (exit) { await dbIdle(); location.href = backHref; }
     else render();
     return;
   }
@@ -317,7 +319,7 @@ function doSave(exit) {
   }
   saved = JSON.stringify(layout);
   toast(teamView ? 'Vista de equipo guardada' : 'Diseño guardado');
-  if (exit) location.href = backHref;
+  if (exit) { await dbIdle(); location.href = backHref; }
   else render();
 }
 
