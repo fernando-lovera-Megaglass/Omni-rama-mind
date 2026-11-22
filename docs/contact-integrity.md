@@ -1,14 +1,12 @@
-# Reapertura vigente: principal con más datos (22 de noviembre)
+# Integridad de contactos
 
-Esta revisión sustituye la política histórica de menor ID descrita abajo. El reparador ordena por campos persistidos rellenos (incluido `extra`), fecha `created` más antigua y, como desempate estable, ID menor. El inventario incluye IDs inferior/superior, fechas, puntuación, imágenes previas y conteos de relaciones.
+La política vigente conserva siempre el **menor ID activo** por `lower(btrim(email))` no vacío, conforme a la solicitud. La puntuación de campos solo informa el inventario. Se completan campos vacíos de la canónica y se conservan sus valores ante conflictos de nombres; las copias mantienen sus datos originales y reciben `deleted_at`.
 
-Los grupos con nombres o apellidos contradictorios se listan como ambiguos antes de escribir y abortan **toda** la transacción: cero fusiones confirmadas, incluso de pares seguros. No se declara aceptación parcial. Tras revisar esos grupos, se debe repetir la simulación. Las inscripciones activas/pausadas que colisionan se conservan como historial con estado `unenrolled` y sin próxima ejecución, como `moveEnrollments`; todas se reasocian al principal.
+El bootstrap utiliza un RPC transaccional con bloqueo advisory y de tablas; no recurre a inserts desde el cliente si falta la migración. El índice parcial aplica la misma normalización que la deduplicación, incluidos espacios exteriores.
 
-Resultado local: `scripts/test-contact-integrity.mjs` pasó con 77 pares sintéticos, 77 copias en papelera, cero grupos vivos duplicados, cero referencias a copias y comprobación transaccional de cero huérfanos en negocios/tickets. También prueba principal más completo con ID superior, rollback de ambigüedad e inscripciones coincidentes. La importación de `data.js` emite un aviso de `localStorage` ausente en Node; no impide las aserciones SQL.
+Trabajo exclusivamente local; no se ha reparado ni consultado producción. Las pruebas sintéticas no acreditan la reparación de las 423 filas reportadas.
 
-**Fusiones reales: 0. Pares ambiguos reales: no evaluados.** No se recibió una copia local de los 423 contactos ni se consultó/modificó producción. Los tres ítems quedan `pending`, sin marcas de finalización. Los 77 pares reportados son 154 filas implicadas y 77 copias sobrantes. Los resultados sintéticos no acreditan reparación real. Sin despliegue ni migración remota.
-
-## Registro histórico (política de menor ID sustituida)
+## Registro histórico
 
 ## Revalidación de esta revisión (22 de noviembre)
 

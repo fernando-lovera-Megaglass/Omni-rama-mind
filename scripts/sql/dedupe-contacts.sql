@@ -33,7 +33,7 @@ DO $$ BEGIN
 END $$;
 CREATE TEMP TABLE contact_merge ON COMMIT DROP AS
 SELECT id AS duplicate_id, canonical_id FROM (
-  SELECT id, first_value(id) OVER (PARTITION BY email ORDER BY filled_fields DESC, created ASC NULLS LAST, id) AS canonical_id
+  SELECT id, first_value(id) OVER (PARTITION BY email ORDER BY id) AS canonical_id
   FROM contact_inventory
 ) c WHERE id <> canonical_id;
 SELECT i.*, min(i.id) OVER (PARTITION BY i.email) AS lower_id,
@@ -42,22 +42,8 @@ FROM contact_inventory i WHERE email IN (SELECT email FROM contact_inventory GRO
 ORDER BY email, id;
 SELECT * FROM contact_merge ORDER BY canonical_id, duplicate_id;
 
--- Ambiguous identities require review before any write. Do not silently merge people
--- sharing a mailbox. The complete transaction rolls back, including safe pairs.
-CREATE TEMP TABLE contact_merge_ambiguous ON COMMIT DROP AS
-SELECT m.*, 'conflicting identity' AS review_reason
-FROM contact_merge m JOIN contact_inventory i ON i.id=m.canonical_id
-WHERE i.email IN (
- SELECT email FROM contact_inventory GROUP BY email
- HAVING count(DISTINCT nullif(lower(btrim(before->>'first')),''))>1
-     OR count(DISTINCT nullif(lower(btrim(before->>'last')),''))>1
-);
-SELECT * FROM contact_merge_ambiguous ORDER BY canonical_id, duplicate_id;
-DO $$ BEGIN
- IF EXISTS (SELECT 1 FROM contact_merge_ambiguous) THEN
-   RAISE EXCEPTION 'Ambiguous contact identities: review inventory; 0 merges committed';
- END IF;
-END $$;
+-- Email defines identity for this repair. Keep the smallest active ID even when
+-- names conflict; before images retain all original values for audit/recovery.
 -- Like mergeRecords: retain principal values and fill empty scalar properties.
 -- Full before images above include conflicting values for review and recovery.
 DO $$
