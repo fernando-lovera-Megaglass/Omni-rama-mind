@@ -1,5 +1,12 @@
 # Progreso — Omni CRM
 
+## 2026-11-22 (sesión 6) · Personalización del índice: «Vista predeterminada» y «Mostrar el número de registros» hacen lo que dicen (4 módulos)
+
+- `src/settings.js`: el select «Vista predeterminada» ofrece las vistas estándar reales de cada objeto (`STD_VIEWS` de `std-views.js`, valor `std:<clave>`) en vez de cuatro etiquetas fijas; el ajuste sigue en `crm:settings:obj-<objeto>` (este navegador).
+- `src/list.js`: al entrar en una lista, si la persona aún no ha activado una vista propia (`store.active` vacío), se abre la vista predeterminada de la cuenta (y se añade como pestaña si no estaba abierta); quien ya eligió su vista la conserva. «Mostrar el número de registros en cada etapa del tablero» (`boardCount`) oculta o muestra `.kcol__count` y `.kcol__vcount` del tablero. `objSettingsOf()` centraliza la lectura de esos ajustes (también `showMetrics`).
+- Pruebas: `scripts/smoke-index-settings.mjs` (los 4 selects listan las vistas estándar del objeto; tickets: «Mis tickets» como predeterminada → al entrar en Tickets se abre esa vista, se respeta la vista ya elegida por la persona y se abre como pestaña si no estaba; negocios: desmarcar la casilla quita los contadores del tablero y marcarla los devuelve). Smokes de configuración, vistas, tablero y listas en verde.
+- Solo código local; nada desplegado.
+
 ## 2026-11-22 (sesión 6) · «Restablecer diseño predeterminado» conserva la identidad de la vista de equipo (editor de diseño, 4 módulos)
 
 - Antes: restablecer sustituía todo el layout por `defaultLayout(type)` (nombre «Vista predeterminada», sin equipos, `isDefault: true`); al guardar, `doSave` veía otro nombre, borraba la vista de equipo original y creaba un duplicado «Vista predeterminada» sin equipos.

@@ -837,6 +837,8 @@ export function mountList(cfg) {
 
   // ---------- saved views ----------
   const stdId = (key) => `std:${key}`;
+  // The object's settings of Configuración › Objetos (kept in this browser): default view, board count, metrics…
+  const objSettingsOf = () => { try { return JSON.parse(localStorage.getItem(`crm:settings:obj-${cfg.type}`)) || {}; } catch { return {}; } };
   const standardViews = () =>
     cfg.views.map((v) => ({ id: stdId(v.key), name: v.label, standard: true, base: v.key, share: 'all', owner: 'Sistema', updated: null }));
   const allViews = () => [...standardViews(), ...store.custom];
@@ -956,6 +958,12 @@ export function mountList(cfg) {
       changed = true;
     });
     if (changed) { store.seeded = [...seeded]; setViewStore(cfg.type, store); }
+  }
+  // The account's default view (Configuración › Objetos › Personalización del índice, «Vista predeterminada») opens
+  // first until the person activates a view of their own (store.active is set when they do).
+  if (!store.active) {
+    const wanted = String(objSettingsOf().defaultView || '');
+    if (wanted && viewById(wanted)) { if (!store.open.includes(wanted)) store.open.unshift(wanted); store.active = wanted; }
   }
   if (!store.active || !store.open.includes(store.active)) store.active = store.open[0];
   {
@@ -1402,7 +1410,7 @@ export function mountList(cfg) {
   // or, until they choose, the account switch in Configuración › Objetos › Personalización del índice.
   function metricsShown() {
     if (typeof state.metrics === 'boolean') return state.metrics;
-    try { const s = JSON.parse(localStorage.getItem(`crm:settings:obj-${cfg.type}`)) || {}; if (s.showMetrics === false) return false; } catch { /* ignore */ }
+    if (objSettingsOf().showMetrics === false) return false;
     return cfg.metricsDefault !== false;
   }
   function renderKpis(list) {
@@ -1461,6 +1469,8 @@ export function mountList(cfg) {
               </article>`;
     };
     const cardOf = (r) => (b.card ? b.card(r, ctx) : defaultCard(r));
+    // «Mostrar el número de registros en cada etapa del tablero» (Configuración › Objetos › Personalización del índice).
+    const showCount = objSettingsOf().boardCount !== false;
     boardRows.clear();
     board.innerHTML = groups
       .map(([value, label], gi) => {
@@ -1472,7 +1482,7 @@ export function mountList(cfg) {
           return `
         <section class="kcol kcol--collapsed tip" data-group="${esc(value)}">
           <button class="kcol__expand" type="button" data-kcol-expand="${esc(value)}" aria-label="Expandir etapa ${esc(label)}">
-            <span class="kcol__vlabel">${esc(label)}</span><span class="kcol__vcount">${rows.length}</span>
+            <span class="kcol__vlabel">${esc(label)}</span>${showCount ? `<span class="kcol__vcount">${rows.length}</span>` : ''}
           </button>
           <span class="tip__text">Expandir etapa</span>
         </section>`;
@@ -1480,7 +1490,7 @@ export function mountList(cfg) {
         return `
         <section class="kcol" data-group="${esc(value)}">
           <header class="kcol__head">
-            <h2>${esc(label)} <span class="kcol__count">${rows.length}</span></h2>
+            <h2>${esc(label)}${showCount ? ` <span class="kcol__count">${rows.length}</span>` : ''}</h2>
             ${b.sum ? `<span class="kcol__sum" title="Total de la etapa">${esc(b.sum(rows))}</span>` : ''}
             ${b.weighted ? `<span class="kcol__sum kcol__sum--weighted" title="Cantidad neta (ponderada): importe de la etapa × probabilidad de cierre">${esc(b.weighted(rows))}</span>` : ''}
             <span class="kcol__tools">

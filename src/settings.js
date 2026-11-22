@@ -1035,7 +1035,7 @@ function companyAutoModal() {
     toast(`${n(r.associated)} contactos asociados a empresas existentes · ${n(r.created)} empresas creadas`);
   };
 }
-const objSetting = (type) => setting(`obj-${type}`, { amountMode: AMOUNT_MODES[0], defaultClose: true, closeMode: 'period', closePeriod: 'Este mes', closeDays: 30, followOwn: true, comments: true, notifyOwner: true, dupes: true, assocReq: false, autoAssign: false, defaultView: 'Todos', boardCount: true });
+const objSetting = (type) => setting(`obj-${type}`, { amountMode: AMOUNT_MODES[0], defaultClose: true, closeMode: 'period', closePeriod: 'Este mes', closeDays: 30, followOwn: true, comments: true, notifyOwner: true, dupes: true, assocReq: false, autoAssign: false, defaultView: '', boardCount: true });
 const objRadio = (type, key, value, label, checked, extra = '') => `<label class="oradio"><input type="radio" name="${type}-${key}" data-objsetting="${key}" data-type="${type}" value="${esc(value)}" ${checked ? 'checked' : ''} /><span>${label}</span>${extra}</label>`;
 const objCheck = (type, key, label, desc, checked) => `<label class="ocheck"><input type="checkbox" data-objsetting="${key}" data-type="${type}" ${checked ? 'checked' : ''} /><span><strong>${label}</strong>${desc ? `<small>${desc}</small>` : ''}</span></label>`;
 
@@ -1226,7 +1226,10 @@ const indexBoard = (type) => load(`crm:${type}:boardcard`, null);
 function objectIndexHtml(type) {
   const m = OBJ_META[type];
   const s = objSetting(type);
-  const views = ['Todos', 'Míos', 'Sin asignar', 'Creados este mes'];
+  // The object's real standard views (std-views.js): the list opens the chosen one first (src/list.js) until the
+  // person activates a view of their own.
+  const views = (STD_VIEWS[type] || []).map(([k, l]) => [`std:${k}`, l]);
+  const chosenView = views.some(([v]) => v === s.defaultView) ? s.defaultView : (views[0] || [''])[0];
   const now = (keys) => (keys && keys.length ? keys.map((k) => indexLabel(type, k)).join(', ') : 'Valores predeterminados');
   const row = (title, desc, nowText, act, btn, extra = '') => `<div class="ixrow"><div><strong>${title}</strong><p class="muted">${desc}</p><p class="ixrow__now"><span class="muted">Ahora:</span> ${esc(nowText)}</p>${extra}</div><button class="btn btn--ghost" type="button" data-act="${act}" data-type="${type}">${btn}</button></div>`;
   return `<p class="odesc">Controla el diseño y el contenido de la página de índice de ${m.s}.</p><hr class="cd-sep" />
@@ -1239,7 +1242,7 @@ function objectIndexHtml(type) {
     <h3>Vista de tabla</h3>
     ${row('Columnas predeterminadas', `Elige qué columnas ven los usuarios de forma predeterminada en la vista de tabla de ${m.p.toLowerCase()}. Cada usuario puede ajustar las suyas desde la lista con "Editar columnas". <a href="../${type}/">Más información ↗</a>`, now(indexColumns(type)), 'ix-columns', 'Personalizar las columnas predeterminadas')}
     ${row('Filtros rápidos predeterminados', 'Los filtros rápidos aparecen encima de la tabla y del tablero. Puedes elegir hasta cinco propiedades.', now(indexFilters(type)), 'ix-filters', 'Personalizar los filtros rápidos')}
-    <div class="ixrow"><div><strong>Vista predeterminada</strong><p class="muted">La vista que se abre primero al entrar en ${m.p}.</p><select class="ginput ginput--md" data-objsetting="defaultView" data-type="${type}">${views.map((v) => `<option ${s.defaultView === v ? 'selected' : ''}>${v}</option>`).join('')}</select></div></div>
+    <div class="ixrow"><div><strong>Vista predeterminada</strong><p class="muted">La vista que se abre primero al entrar en ${m.p}.</p><select class="ginput ginput--md" data-objsetting="defaultView" data-type="${type}">${views.map(([v, l]) => `<option value="${esc(v)}" ${chosenView === v ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></div></div>
     <h3>Vista de tablero</h3>
     ${row('Tarjetas del tablero', 'Elige qué propiedades se muestran en cada tarjeta de la vista de tablero (máximo cuatro, en este orden).', indexBoard(type) ? now(indexBoard(type)) : 'Valores predeterminados', 'ix-board', 'Personalizar las tarjetas del tablero')}
     ${objCheck(type, 'boardCount', 'Mostrar el número de registros en cada etapa del tablero', 'Aparece junto al nombre de la etapa.', s.boardCount)}
