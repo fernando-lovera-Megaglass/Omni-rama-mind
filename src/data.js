@@ -743,7 +743,7 @@ export function setField(type, id, field, value, opts = {}) {
     const enriched = companyDomainEnrichment({ ...findIn(type, id), domain: value });
     for (const [key, next] of Object.entries(enriched)) setField(type, id, key, next, opts);
   }
-  const previousValue = (type === 'tickets' && field === 'status') || ((type === 'contacts' || type === 'companies') && field === 'lifecycle') || (type === 'tasks' && field === 'status') || (type === 'deals' && field === 'stage') || field === 'owner' ? findIn(type, id)?.[field] : undefined;
+  const previousValue = (type === 'tickets' && field === 'status') || ((type === 'contacts' || type === 'companies') && field === 'lifecycle') || (type === 'tasks' && ['status', 'due', 'contactId', 'companyId', 'dealId'].includes(field)) || (type === 'deals' && field === 'stage') || field === 'owner' ? findIn(type, id)?.[field] : undefined;
   // The lifecycle rules of Ajustes (only forward, no skipping, owner required past Lead) stop a manual change
   // with the reason; automations check their own rules before writing (opts.lifecycleAuto).
   if ((type === 'contacts' || type === 'companies') && field === 'lifecycle' && !opts.lifecycleAuto) {
@@ -792,7 +792,13 @@ const DELETED_AT_KEY = (type) => K(type, 'deletedat'); // local: id → when it 
 // soft_delete_tickets.sql) the type degrades to a hard delete instead of breaking the list (see fetchTable).
 const softDeleteMissing = new Set();
 export const softDeletes = (type) => SOFT_DELETE.has(type) && !softDeleteMissing.has(type);
+// Deleting tasks also recomputes «Próxima actividad» of the records they counted for.
 export function deleteRecords(type, ids) {
+  const links = type === 'tasks' ? cached('tasks').filter((t) => ids.map(Number).includes(Number(t.id)) || ids.map(Number).includes(Number(t.parentId))).flatMap(taskLinks) : [];
+  deleteRecordsNow(type, ids);
+  links.forEach(([t, rid]) => { try { recomputeNextActivity(t, rid); } catch (e) { console.error('[próxima actividad]', e); } });
+}
+function deleteRecordsNow(type, ids) {
   const doomed = new Set(ids.map(Number));
   if (type === 'tasks') {
     // Match the database cascade in the local and optimistic caches.
@@ -1130,6 +1136,50 @@ const findIn = (type, id) => findRecord(type, id);
 // companies specification). They never break the write that triggered them.
 const COMPANY_LINK_FIELDS = new Set(['companyId', 'assoc_companies', 'assoc_labels_companies']);
 
+// ---------- «Fecha de la próxima actividad» (notes_next_activity_date) ----------
+// The nearest upcoming date among the record's open tasks (due today or later) and its scheduled meetings
+// (future meeting entries on its timeline); empty when there is none. Contacts count their own tasks, companies
+// theirs, deals theirs plus their contact's (as the board does). Recomputed whenever a task or a meeting of the
+// record changes: addRecord / setField / deleteRecords of tasks, addActivity / updateActivity / deleteActivity.
+const NEXT_ACTIVITY_TYPES = new Set(['contacts', 'companies', 'deals']);
+function taskLinks(t) {
+  const out = [];
+  if (!t) return out;
+  if (t.contactId) out.push(['contacts', Number(t.contactId)]);
+  if (t.companyId) out.push(['companies', Number(t.companyId)]);
+  if (t.dealId) out.push(['deals', Number(t.dealId)]);
+  if (t.contactId) allDeals().filter((d) => Number(d.contactId) === Number(t.contactId)).forEach((d) => out.push(['deals', Number(d.id)]));
+  return out;
+}
+const startOfToday = () => { const n = new Date(); return new Date(n.getFullYear(), n.getMonth(), n.getDate()).getTime(); };
+export function nextActivityOf(type, id) {
+  if (!NEXT_ACTIVITY_TYPES.has(type)) return '';
+  const rec = findIn(type, id);
+  if (!rec) return '';
+  const from = startOfToday();
+  const now = Date.now();
+  const mine = (t) => t.status !== 'done' && t.due && (
+    (type === 'contacts' && Number(t.contactId) === Number(id))
+    || (type === 'companies' && Number(t.companyId) === Number(id))
+    || (type === 'deals' && (Number(t.dealId) === Number(id) || (rec.contactId && Number(t.contactId) === Number(rec.contactId)))));
+  const dates = [];
+  allTasks().forEach((t) => { if (mine(t)) { const ts = new Date(t.due).getTime(); if (ts >= from) dates.push(ts); } });
+  activitiesFor(type, id).forEach((a) => { if (a.type === 'meeting') { const ts = new Date(a.when).getTime(); if (ts >= now) dates.push(ts); } });
+  return dates.length ? new Date(Math.min(...dates)).toISOString() : '';
+}
+export function recomputeNextActivity(type, id) {
+  if (!NEXT_ACTIVITY_TYPES.has(type) || !id) return null;
+  const rec = findIn(type, id);
+  if (!rec) return null;
+  const next = nextActivityOf(type, id);
+  const cur = rec.notes_next_activity_date || '';
+  const same = cur && next ? new Date(cur).getTime() === new Date(next).getTime() : !cur && !next;
+  if (!same) setField(type, id, 'notes_next_activity_date', next);
+  return next;
+}
+const recomputeForTask = (t) => taskLinks(t).forEach(([ty, rid]) => { try { recomputeNextActivity(ty, rid); } catch (e) { console.error('[próxima actividad]', e); } });
+const afterMeetingMutation = (p) => p.then((a) => { if (a && a.type === 'meeting' && NEXT_ACTIVITY_TYPES.has(a.recordType)) { try { recomputeNextActivity(a.recordType, a.recordId); } catch (e) { console.error('[próxima actividad]', e); } } return a; });
+
 // ---------- Etapa del ciclo de vida: rules and automations (Ajustes › Objetos › Contactos / Empresas) ----------
 // Records store the stage label; the definition's order is the ladder. «Otro» is outside it: automations never
 // move a record into or out of it and the rules do not apply to it.
@@ -1241,6 +1291,7 @@ function afterAdd(type, rec, opts = {}) {
   if (type === 'contacts' && !opts.skipAutoCompany) { try { autoAssociateCompany(rec); } catch (e) { console.error('[empresas automáticas]', e); } }
   if (type === 'contacts' && (rec.companyId || (rec.assoc_companies || []).length)) { try { syncContactCompanies(rec.id); } catch (e) { console.error('[contact_companies]', e); } }
   if (type === 'tickets') { try { autoAssociateTicketCompany(rec); } catch (e) { console.error('[tickets: empresa del contacto]', e); } }
+  if (type === 'tasks') recomputeForTask(rec); // «Próxima actividad» of its contact / company / deal
   // A record created for another owner (a task for a colleague, a deal assigned on creation) notifies them too;
   // imports and restores do not (origin other than a manual creation).
   if (rec.owner && (type === 'tasks' || !opts.origin || opts.origin === 'Creación manual')) { try { notifyAssigned({ type, id: rec.id, name: rec.name || `${rec.first || ''} ${rec.last || ''}`.trim(), owner: rec.owner, previousOwner: '' }); } catch (e) { console.error('[notificaciones] asignación', e); } }
@@ -1295,6 +1346,13 @@ function afterSet(type, id, field, value, opts = {}, previousValue) {
         if (t.contactId) logSystem('contacts', t.contactId, `Ticket «${t.name}» pasó al estado «${label}».`, { ticket: t.id, status: value });
         if (t.companyId) logSystem('companies', t.companyId, `Ticket «${t.name}» pasó al estado «${label}».`, { ticket: t.id, status: value });
       }
+    }
+    // A task's status, due date or links changed: «Próxima actividad» of the records it counts for (and of the
+    // record it was linked to before).
+    if (type === 'tasks' && ['status', 'due', 'contactId', 'companyId', 'dealId'].includes(field)) {
+      const t = findIn('tasks', id);
+      recomputeForTask(t);
+      if (t && previousValue && ['contactId', 'companyId', 'dealId'].includes(field) && String(previousValue) !== String(value)) recomputeForTask({ ...t, [field]: previousValue });
     }
     // A task completed: on the task's contact and deal; a recurring one spawns its next occurrence (once).
     if (type === 'tasks' && field === 'status' && value === 'done' && previousValue !== 'done') {
@@ -1508,7 +1566,7 @@ function augment(type, r) {
 // leaks into persistence.
 const DECORATED = new WeakMap();
 // Properties the app really drives: a sample value would be acted upon (a fake reminder would fire).
-const REAL_ONLY = new Set(['marketingOptOut', 'marketingOptOutAt', 'marketingOptOutReason', 'reminderAt', 'reminderFiredAt', 'closedLostReason', 'closedWonReason', 'notes_last_contacted', 'hs_additional_domains']);
+const REAL_ONLY = new Set(['marketingOptOut', 'marketingOptOutAt', 'marketingOptOutReason', 'reminderAt', 'reminderFiredAt', 'closedLostReason', 'closedWonReason', 'notes_last_contacted', 'notes_next_activity_date', 'hs_additional_domains']);
 
 // ---------- generators ----------
 function daysAgo(n) {
@@ -1994,9 +2052,9 @@ async function mutateActivity(id, changes, action = 'update') {
   }
   throw new Error('Actividad no encontrada.');
 }
-export const updateActivity = (id, changes) => mutateActivity(id, Object.fromEntries(Object.entries(changes).filter(([key]) => ['text', 'when', 'extra'].includes(key))));
-export const deleteActivity = (id) => mutateActivity(id, {}, 'delete');
-export const restoreActivity = (id) => mutateActivity(id, {}, 'restore');
+export const updateActivity = (id, changes) => afterMeetingMutation(mutateActivity(id, Object.fromEntries(Object.entries(changes).filter(([key]) => ['text', 'when', 'extra'].includes(key)))));
+export const deleteActivity = (id) => afterMeetingMutation(mutateActivity(id, {}, 'delete'));
+export const restoreActivity = (id) => afterMeetingMutation(mutateActivity(id, {}, 'restore'));
 
 // Resolve optimistic and legacy entries before attaching a foreign-key comment.
 export async function activityIdForComment(ev, recordType, recordId, create = true) {
@@ -2077,6 +2135,8 @@ function insertActivity(ev) {
 export function addActivity(ev) {
   insertActivity(ev);
   try { touchLastActivity(ev); } catch (e) { console.error('[última actividad]', e); }
+  // A meeting scheduled ahead becomes the record's «Próxima actividad» when it is the nearest one.
+  if (ev && ev.type === 'meeting' && NEXT_ACTIVITY_TYPES.has(ev.recordType)) { try { recomputeNextActivity(ev.recordType, ev.recordId); } catch (e) { console.error('[próxima actividad]', e); } }
 }
 // Many entries at once (a marketing e-mail sent to hundreds of contacts): one insert per 200 rows.
 export function addActivities(events) {

@@ -74,7 +74,7 @@ const CONFIG = {
       ['owner', 'Propietario del contacto', 'select', ownerOpts], ['lifecycle', 'Etapa del ciclo de vida', 'select', opt(LIFECYCLES)],
       ['source', 'Fuente original', 'select', opt(SOURCES)], ['city', 'Ciudad'], ['created', 'Fecha de creación', 'date-ro'],
     ],
-    highlights: (r) => [['Fecha de creación', formatDate(r.created)], ['Etapa del ciclo de vida', r.lifecycle], ['Última actividad', formatDate(r.lastActivity)], ['Estado del lead', labelOf(Object.entries(STATUSES).map(([k, [l]]) => [k, l]), r.status)]],
+    highlights: (r) => [['Fecha de creación', formatDate(r.created)], ['Etapa del ciclo de vida', r.lifecycle], ['Última actividad', formatDate(r.lastActivity)], ['Próxima actividad', r.notes_next_activity_date ? formatDate(r.notes_next_activity_date) : '--'], ['Estado del lead', labelOf(Object.entries(STATUSES).map(([k, [l]]) => [k, l]), r.status)]],
     assoc: (r) => [
       ['Empresas', r.companyId ? [byId(allCompanies(), r.companyId)].filter(Boolean) : [], 'companies'],
       ['Negocios', allDeals().filter((d) => Number(d.contactId) === Number(r.id)), 'deals'],
@@ -95,7 +95,7 @@ const CONFIG = {
       ['assoc_deals_count', 'Negocios asociados', 'calc', (r) => String(allDeals().filter((d) => Number(d.companyId) === Number(r.id)).length)],
       ['domain', 'Dominio'], ['hs_additional_domains', 'Dominios adicionales'], ['phone', 'Número de teléfono', 'tel'], ['employees', 'Empleados', 'number'], ['revenue', 'Ingresos anuales', 'number'], ['created', 'Fecha de creación', 'date-ro'],
     ],
-    highlights: (r) => [['Fecha de creación', formatDate(r.created)], ['Etapa del ciclo de vida', r.lifecycle], ['Última actividad', formatDate(r.lastActivity)], ['Ingresos anuales', formatMoney(r.revenue)]],
+    highlights: (r) => [['Fecha de creación', formatDate(r.created)], ['Etapa del ciclo de vida', r.lifecycle], ['Última actividad', formatDate(r.lastActivity)], ['Próxima actividad', r.notes_next_activity_date ? formatDate(r.notes_next_activity_date) : '--'], ['Ingresos anuales', formatMoney(r.revenue)]],
     assoc: (r) => [
       // Contacts whose primary company this is, plus the ones associated to it as a secondary company.
       ['Contactos', allContacts().filter((c) => Number(c.companyId) === Number(r.id) || (Array.isArray(c.assoc_companies) && c.assoc_companies.map(Number).includes(Number(r.id)))), 'contacts'],
@@ -112,7 +112,7 @@ const CONFIG = {
       ['owner', 'Propietario del negocio', 'select', ownerOpts], ['company', 'Empresa asociada'], ['priority', 'Prioridad', 'select', opt(PRIORITIES.map(([k, l]) => [k, l]))],
       ['type', 'Tipo de negocio', 'select', opt(['Nuevo negocio', 'Negocio existente'])], ['important', 'Importante', 'select', [['true', 'Sí'], ['', 'No']]], ['pipeline', 'Pipeline', 'ro'], ['created', 'Fecha de creación', 'date-ro'],
     ],
-    highlights: (r) => [['Importe', formatMoney(r.amount, r.deal_currency_code)], ['Fecha de cierre', formatDate(r.closeDate)], ['Probabilidad', `${dealStageProb(r.pipeline, r.stage)} %`], ['Última actividad', formatDate(r.lastActivity)]],
+    highlights: (r) => [['Importe', formatMoney(r.amount, r.deal_currency_code)], ['Fecha de cierre', formatDate(r.closeDate)], ['Probabilidad', `${dealStageProb(r.pipeline, r.stage)} %`], ['Última actividad', formatDate(r.lastActivity)], ['Próxima actividad', r.notes_next_activity_date ? formatDate(r.notes_next_activity_date) : '--']],
     stages: true,
     assoc: (r) => [
       ['Contactos', r.contactId ? [byId(allContacts(), r.contactId)].filter(Boolean) : [], 'contacts'],
