@@ -209,7 +209,7 @@
   },
   "ticket_tags.sql": {
     "status": "pendiente",
-    "nota": "Solo código local; no aplicada a producción. Tabla ticket_tags (misma forma que deal_tags) para las Etiquetas de Ticket; mientras tanto la app usa localStorage crm:ticket_tags."
+    "nota": "Solo código local; no aplicada a producción. Tabla ticket_tags (misma forma que deal_tags) para las Etiquetas de Ticket; mientras tanto la app usa localStorage crm:ticket_tags. Desde el 2026-11-22 nace con la política «team access» (is_team_member) en vez de acceso abierto anon/authenticated, y rls_team.sql la incluye en su lista; exige rls_team.sql aplicada antes."
   },
   "attachments.sql": {
     "status": "aplicada",

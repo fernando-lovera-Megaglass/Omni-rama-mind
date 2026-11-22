@@ -112,7 +112,7 @@ declare
 begin
   foreach t in array array[
     'companies', 'contacts', 'deals', 'tickets', 'tasks', 'activities', 'segments',
-    'activity_comments', 'contact_companies', 'deal_line_items', 'deal_tags',
+    'activity_comments', 'contact_companies', 'deal_line_items', 'deal_tags', 'ticket_tags',
     'pipelines', 'pipeline_stages', 'custom_properties', 'connected_emails',
     'conversations', 'conversation_messages', 'inbox_settings', 'marketing_emails',
     'message_templates', 'message_template_folders',
@@ -185,7 +185,7 @@ do $$
 declare
   t text;
 begin
-  foreach t in array array['companies', 'contacts', 'deals', 'tickets', 'tasks', 'activities', 'segments', 'activity_comments', 'contact_companies', 'deal_line_items', 'deal_tags', 'pipelines', 'pipeline_stages', 'custom_properties', 'connected_emails', 'conversations', 'conversation_messages', 'inbox_settings', 'marketing_emails', 'message_templates', 'message_template_folders', 'sequences', 'sequence_steps', 'sequence_enrollments', 'sequence_folders', 'snippets', 'snippet_folders', 'workflows', 'workflow_actions', 'workflow_enrollments', 'workflow_runs', 'task_queues', 'invitations', 'account_settings', 'user_settings'] loop
+  foreach t in array array['companies', 'contacts', 'deals', 'tickets', 'tasks', 'activities', 'segments', 'activity_comments', 'contact_companies', 'deal_line_items', 'deal_tags', 'ticket_tags', 'pipelines', 'pipeline_stages', 'custom_properties', 'connected_emails', 'conversations', 'conversation_messages', 'inbox_settings', 'marketing_emails', 'message_templates', 'message_template_folders', 'sequences', 'sequence_steps', 'sequence_enrollments', 'sequence_folders', 'snippets', 'snippet_folders', 'workflows', 'workflow_actions', 'workflow_enrollments', 'workflow_runs', 'task_queues', 'invitations', 'account_settings', 'user_settings'] loop
     if to_regclass('public.' || t) is null then continue; end if;
     execute format('drop policy if exists "team access" on public.%I', t);
     execute format('drop policy if exists "anon full access" on public.%I', t);

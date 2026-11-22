@@ -1,5 +1,12 @@
 # Progreso — Omni CRM
 
+## 2026-11-22 (sesión 6) · RLS: `ticket_tags` pasa a acceso por equipo (smoke-rls-team en verde)
+
+- Hallazgo real de seguridad: la migración pendiente `supabase/ticket_tags.sql` seguía creando las políticas abiertas «anon full access» y «authenticated full access» (el patrón previo a `rls_team.sql`), y `rls_team.sql` no la listaba: el día que se aplicara, la tabla quedaría abierta a la clave anónima y a cualquier usuario autenticado, sin pertenencia al equipo.
+- `supabase/ticket_tags.sql`: nace con la política «team access» (`public.is_team_member()`, solo `authenticated`), borra cualquier política abierta de una copia anterior y exige `rls_team.sql` aplicada antes (falla con un mensaje claro si no existe `is_team_member`). `supabase/rls_team.sql`: `ticket_tags` añadida a la lista de tablas compartidas y a la de la vuelta atrás. Dry-run en una transacción revertida contra el proyecto: la migración crea solo «team access» para `authenticated`. Sigue **pendiente** (no aplicada); registro actualizado.
+- `scripts/smoke-rls-team.mjs` termina con código 0 (35 tablas compartidas cubren las 32 con políticas abiertas); smokes de etiquetas de ticket y RLS de ajustes en verde.
+- Solo código local; nada desplegado.
+
 ## 2026-11-22 (sesión 6) · Reporte «Etapa del negocio:» apilada letra por letra en las tarjetas de asociación (4 módulos)
 
 - Diagnóstico confirmado: 23e3a5d puso `overflow-wrap: anywhere` en `.assoc-card__head` y `.assoc-card__row` (filas `display: flex`); la propiedad se hereda, la etiqueta `<span class="muted">Etapa del negocio:</span>` pasaba a tener un min-content de un carácter y flex la encogía hasta apilarla. La misma trampa existía en `.props__value` (valor + lápiz de «Acerca de»), donde la regla `.props dd` también heredaba `anywhere` al contenedor flex.
