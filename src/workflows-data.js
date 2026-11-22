@@ -190,7 +190,8 @@ export const workflowsLive = () => live;
 // analytics count them next to the seeded history; nothing here imports the engine (no cycle).
 let runSource = () => [];
 export const registerRunSource = (fn) => { runSource = typeof fn === 'function' ? fn : () => []; };
-const allEnrollments = () => [...enrollRows, ...runSource()];
+// Historical enrolments migrated to workflow_runs by supabase/workflow-process.sql ('migrated') are listed as runs.
+const allEnrollments = () => [...enrollRows.filter((e) => e.status !== 'migrated'), ...runSource()];
 
 // ---------- reads ----------
 const out = (w) => clone(w);

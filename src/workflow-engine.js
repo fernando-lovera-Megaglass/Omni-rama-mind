@@ -36,7 +36,8 @@ let rows = [];
 let queue = Promise.resolve();
 const enqueue = (fn) => { const write = queue.then(fn); queue = write.catch((e) => reportDbError('workflow_runs', e)); return write; };
 export const pending = () => queue;
-const fromDb = (r) => ({ id: r.id, workflowId: r.workflow_id, recordType: r.record_type || 'contacts', recordId: Number(r.record_id), recordName: r.record_name || '', stepActual: Number(r.step_actual) || 0, estado: r.estado || 'active', proximaEjecucion: r.proxima_ejecucion || null, log: Array.isArray(r.log) ? r.log : [], jumps: Number(r.jumps) || 0, enrolledBy: r.enrolled_by || '', startedAt: r.started_at, updatedAt: r.updated_at || r.started_at, finishedAt: r.finished_at || null });
+const fromDb = (r) => ({ id: r.id, workflowId: r.workflow_id, recordType: r.record_type || 'contacts', recordId: Number(r.record_id), recordName: r.record_name || '', stepActual: Number(r.step_actual) || 0, estado: r.estado || 'active', proximaEjecucion: r.proxima_ejecucion || null, log: Array.isArray(r.log) ? r.log : [], jumps: Number(r.jumps) || 0, enrolledBy: r.enrolled_by || '', startedAt: r.started_at, updatedAt: r.updated_at || r.started_at, finishedAt: r.finished_at || null, claimedUntil: r.claimed_until || null });
+// (claimed_until is the server executor's reservation — supabase/workflow-process.sql — read here, never written)
 const toDb = (x) => ({ id: x.id, workflow_id: x.workflowId, record_type: x.recordType, record_id: Number(x.recordId), record_name: x.recordName, step_actual: x.stepActual, estado: x.estado, proxima_ejecucion: x.proximaEjecucion, log: x.log, jumps: x.jumps, enrolled_by: x.enrolledBy, started_at: x.startedAt, updated_at: x.updatedAt, finished_at: x.finishedAt });
 const saveLocal = () => { localStorage.setItem(LS_KEY, JSON.stringify(rows)); };
 function persist(run) {
@@ -81,8 +82,9 @@ export function actionHistory(workflowId, { limit = 100 } = {}) {
     .sort((a, b) => new Date(b.at) - new Date(a.at))
     .slice(0, limit);
 }
-// The runs due now: waiting ones whose time came, plus 'active' ones left behind by a closed tab.
-export const dueRuns = (now = Date.now()) => rows.filter((r) => !busy.has(r.id) && ((r.estado === 'waiting' && r.proximaEjecucion && new Date(r.proximaEjecucion).getTime() <= now) || (r.estado === 'active' && new Date(r.updatedAt).getTime() <= now - STALE_MS))).map(out);
+// The runs due now: waiting ones whose time came, plus 'active' ones left behind by a closed tab. A run reserved
+// by the server executor (workflow-process, claimed_until still ahead) is left to it.
+export const dueRuns = (now = Date.now()) => rows.filter((r) => !busy.has(r.id) && !(r.claimedUntil && new Date(r.claimedUntil).getTime() > now) && ((r.estado === 'waiting' && r.proximaEjecucion && new Date(r.proximaEjecucion).getTime() <= now) || (r.estado === 'active' && new Date(r.updatedAt).getTime() <= now - STALE_MS))).map(out);
 // The history/analytics of src/workflows-data.js read the runs in the enrolment shape.
 const legacyStatus = { active: 'in_progress', waiting: 'in_progress', completed: 'completed', failed: 'failed', cancelled: 'cancelled' };
 registerRunSource(() => rows.map((r) => ({ id: r.id, workflowId: r.workflowId, objectType: r.recordType, recordId: r.recordId, recordName: r.recordName, status: legacyStatus[r.estado] || 'in_progress', estado: r.estado, stepActual: r.stepActual, nextRunAt: r.proximaEjecucion, actionsRun: r.log.filter((l) => !l.pending).length, log: r.log.map((l) => ({ action: l.type, title: l.title, ok: l.ok, result: l.result, at: l.at })), enrolledAt: r.startedAt, run: true })));

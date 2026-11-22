@@ -108,7 +108,6 @@ const untouchedBefore = await Promise.all([future.id, completed.id, cancelled.id
 
 // ---- tick 1: the frozen run resumes, runs branch Sí (notification), stops at the 1-hour delay ----
 const due = await query('select * from workflow_due($1)', [NOW.toISOString()]);
-if (process.env.DEBUG_DUE) console.log('DUE', JSON.stringify(due), JSON.stringify(await query('select r.id, r.estado, r.proxima_ejecucion, r.updated_at, r.started_at, r.enrolled_by, now() as clock from workflow_runs r where r.id = any($1::uuid[])', [due.map((r) => r.id)])), 'IDS', JSON.stringify({ frozen: frozen.id, future: future.id, completed: completed.id, cancelled: cancelled.id, busyNow: busyNow.id }), 'ENR', JSON.stringify(await query('select id, status, workflow_id from workflow_enrollments')));
 assert.deepEqual(due.map((r) => r.id), [frozen.id], 'only the expired waiting run is due (not the future, terminal, cancelled or freshly active ones)');
 const tasksBefore = (await query('select * from tasks')).length;
 const [r1a, r1b] = await Promise.all([processDue(store, NOW), processDue(store, NOW)]);
@@ -137,8 +136,7 @@ assert.deepEqual(await query('select * from workflow_due($1)', [NOW.toISOString(
 log(`tick 1: run reanudado → rama Sí, notificación, retraso de 1 h → waiting hasta ${run.proxima_ejecucion}; concurrencia 1 sola vez; 4 entradas de cronología; intactos futuro/completado/cancelado/activo reciente`);
 
 // ---- tick 2 (an hour later): the final task is created and the run completes ----
-const LATER = new Date('2026-11-21T16:05:00Z');
-assert.deepEqual((await query('select * from workflow_due($1)', [LATER.toISOString()])).map((r) => r.id), [frozen.id]);
+assert.deepEqual((await query('select * from workflow_due($1)', [LATER.toISOString()])).map((r) => r.id), [frozen.id], 'the run whose hour passed is due; the tab\'s fresh active run is not');
 assert.deepEqual(await processDue(store, LATER), [{ id: frozen.id, status: 'completed' }]);
 run = await snapshot(frozen.id);
 assert.equal(run.estado, 'completed');
@@ -153,8 +151,10 @@ assert.equal(task.name, 'Seguimiento final');
 assert.equal(task.owner, 'Fernando L.');
 assert.equal(Number(task.contact_id), Number(ana.id));
 assert.deepEqual(task.extra, { workflowId: wf.id, runId: frozen.id });
-assert.ok(/Workflow «Bienvenida» completado \(4 acciones ejecutadas\)/.test((await query('select text from activities order by id desc limit 1'))[0].text));
-log('tick 2: retraso de 1 h completado → tarea «Seguimiento final» creada → completed (4 acciones ejecutadas)');
+// (like the app's engine, the closing entry counts every executed step: tasks, delays, branch, notification)
+assert.ok(/Workflow «Bienvenida» completado \(6 acciones ejecutadas\)/.test((await query('select text from activities order by id desc limit 1'))[0].text), (await query('select text from activities order by id desc limit 1'))[0].text);
+log('tick 2: retraso de 1 h completado → tarea «Seguimiento final» creada → completed (6 acciones ejecutadas)');
+await query("update workflow_runs set estado = 'cancelled', updated_at = now() where id = $1", [busyNow.id]); // the tab finished with it; keep it out of the later ticks
 
 // ---- branch No + property change; a cancellation written while processing wins; a missing record fails ----
 const [beto] = await query("insert into contacts(first, last, name, email, owner, lifecycle) values ('Beto', 'Prueba', 'Beto Prueba', 'beto@ejemplo.com', 'Sin asignar', 'Lead') returning *");
@@ -181,7 +181,7 @@ assert.equal(run.log.at(-1).result, 'El contacto ya no existe');
 assert.ok(run.finished_at);
 // a stale 'active' run (tab closed mid-run two minutes ago) is resumed by the executor
 const stale = (await query(`insert into workflow_runs(workflow_id, record_type, record_id, record_name, step_actual, estado, proxima_ejecucion, log, updated_at) values ($1, 'contacts', $2, 'Ana Prueba', 6, 'active', null, '[]', now() - interval '3 minutes') returning *`, [wf.id, ana.id]))[0];
-assert.deepEqual(await processDue(store, NOW), [{ id: stale.id, status: 'completed' }]);
+assert.deepEqual(await processDue(store, new Date()), [{ id: stale.id, status: 'completed' }]);
 // a deleted workflow: its runs are never due
 await query("update workflows set deleted_at = now() where id = $1", [wf.id]);
 await query("update workflow_runs set estado = 'waiting', proxima_ejecucion = '2026-11-03T09:00:00Z' where id = $1", [future.id]);

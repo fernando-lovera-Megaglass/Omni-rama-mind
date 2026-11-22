@@ -1,5 +1,6 @@
-// Opt-in local scheduler for the Edge Functions that run on a timer: sequence-process (secuencias) and
-// marketing-process (correos de marketing programados). One generic loop, one tick per minute, no overlap.
+// Opt-in local scheduler for the Edge Functions that run on a timer: sequence-process (secuencias),
+// marketing-process (correos de marketing programados) and workflow-process (retrasos de workflows). One generic
+// loop, one tick per minute, no overlap.
 // Never reads .env or the linked project's credentials: only a LOCAL Supabase instance over loopback HTTP.
 //   LOCAL_SERVICE_ROLE_KEY=<local key> node scripts/local-scheduler.mjs [--once] [--functions a,b] [--every ms]
 // LOCAL_SUPABASE_URL is optional (default http://127.0.0.1:54321). The SEQUENCE_LOCAL_* variables of
@@ -10,8 +11,8 @@ const base = new URL(process.env.LOCAL_SUPABASE_URL || process.env.SEQUENCE_LOCA
 if (!['127.0.0.1', 'localhost', '[::1]'].includes(base.hostname) || base.protocol !== 'http:') throw new Error('Only local HTTP Supabase is allowed');
 const key = process.env.LOCAL_SERVICE_ROLE_KEY || process.env.SEQUENCE_LOCAL_SERVICE_ROLE_KEY;
 if (!key) throw new Error('Set LOCAL_SERVICE_ROLE_KEY from your local Supabase instance');
-const functions = (flag('--functions') || 'sequence-process,marketing-process').split(',').map((s) => s.trim()).filter((s) => /^[a-z0-9-]+$/.test(s));
-if (!functions.length) throw new Error('No function names given (--functions sequence-process,marketing-process)');
+const functions = (flag('--functions') || 'sequence-process,marketing-process,workflow-process').split(',').map((s) => s.trim()).filter((s) => /^[a-z0-9-]+$/.test(s));
+if (!functions.length) throw new Error('No function names given (--functions sequence-process,marketing-process,workflow-process)');
 const once = args.includes('--once');
 const every = Math.max(5_000, Number(flag('--every')) || 60_000);
 
