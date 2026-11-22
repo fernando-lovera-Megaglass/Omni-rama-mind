@@ -32,6 +32,7 @@ import { createFilterEditor, newCondition, SEGMENT_ASSOC } from './filter-editor
 import { countWithConditions } from './filter-query.js';
 import { supabase as dbClient } from './supabaseClient.js';
 import { ensureAttachments, attachmentsFor } from './attachments.js';
+import { findRecord as findAnyRecord } from './data.js';
 // The preview panel counts the real attachments of a record (Storage + public.attachments); read once per page.
 ensureAttachments().catch(() => {});
 
@@ -2179,7 +2180,10 @@ export function mountList(cfg) {
   const previewActions = createPreviewActions({ type: cfg.type, singular: cfg.singular, refresh: () => renderPreview() });
   function renderPreview() {
     const panel = $('preview');
-    const r = state.previewId ? recordById(state.previewId) : null;
+    // The record on the current page, else anywhere in the cache (a server page can be swapped while the panel is
+    // open). A transient miss never closes the panel: only ×, Escape, «Ver registro» or a deletion do.
+    const r = state.previewId ? recordById(state.previewId) || findAnyRecord(cfg.type, state.previewId) || null : null;
+    if (state.previewId && !r) { console.warn('[vista previa] el registro aún no está cargado', cfg.type, state.previewId); return; }
     const open = Boolean(r);
     panel.classList.toggle('is-open', open);
     panel.setAttribute('aria-hidden', String(!open));

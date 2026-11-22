@@ -1,5 +1,14 @@
 # Progreso — Omni CRM
 
+## 2026-11-22 (sesión 6) · Reporte «Vista previa se oculta»: investigación, blindaje del panel y prueba en los 4 módulos
+
+- Reproducción: con JSDOM sobre el código actual (HEAD, que incluye el commit de fidelidad del panel 247a3cd del otro carril), en contactos, empresas, negocios y tickets, tabla y tablero, y en modo live con paginación del servidor (contactos, negocios, tickets con un usuario SMOKE): el botón ▭ de una fila abre el panel con ese registro, el panel permanece tras cargar actividades y tras un re-render, pulsar el botón de otra fila cambia de registro, pulsar el mismo botón lo deja abierto, y solo ×, Escape y «Ver registro» lo cierran. No se reprodujo el cierre; el DOM, el CSS (`.preview` fijo, `.preview.is-open`, media query ≤1279 px solo quita el padding) y los manejadores globales de clic (solo cierran menús, el buscador global y editores de celda) no lo explican.
+- Sospecha (a) atendida en `src/list.js`: `renderPreview` buscaba el registro solo en las filas de la página actual (`cfg.rows()`); si una página del servidor se sustituía con el panel abierto o un render llegaba antes de que el registro estuviera cargado, el panel se cerraba en silencio. Ahora resuelve también en toda la caché (`findRecord`) y una ausencia transitoria no cierra el panel (lo deja como está y avisa en consola); el panel solo se cierra con ×, Escape, «Ver registro» o al eliminar el registro.
+- Nota: el tablero de negocios usa su propia tarjeta sin botón «Vista previa» (la tarjeta genérica sí lo tiene); queda anotado, fuera del reporte.
+- Pruebas: `scripts/smoke-preview-panel.mjs` (local: 4 módulos, tabla y tablero: abrir, permanecer tras cargar actividades y re-render, cambiar de registro, mismo botón, ×, Escape, «Ver registro»; live con `SMOKE_LIVE=1`: contactos, negocios y tickets con paginación del servidor). Smokes de vista previa, vistas y listas en verde.
+- Si el síntoma persiste en el navegador de la persona, lo siguiente es la consola del navegador en el momento del clic (una excepción dentro de `render()` dejaría la tabla a medias) y el ancho de la ventana.
+- Solo código local; nada desplegado.
+
 ## 2026-11-22 (sesión 6) · smoke-pagers-unified vuelve a pasar: el paginador de las etiquetas de negocio vive en el motor compartido
 
 - Diagnóstico: las etiquetas de negocio sí migraron al paginador compartido en bd34e2d; después, al generalizar las etiquetas para tickets, `src/deal-tags-ui.js` quedó en 13 líneas que enlazan el motor de negocios con la interfaz compartida `src/object-tags-ui.js`, y es esa interfaz la que usa `pagination()` + `bindPagination()` (tamaños 10/25/50/100). La prueba estática seguía buscando esas llamadas en `deal-tags-ui.js`. No es un fallo de la app ni del harness.
