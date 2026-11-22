@@ -1,5 +1,11 @@
 # Progreso — Omni CRM
 
+## 2026-11-22 (sesión 6) · smoke-record «click target must exist»: prueba desactualizada, ya corregida con las columnas plegables (código 0)
+
+- Diagnóstico: el reporte (09:58) se tomó con el árbol de trabajo a medio cambio: `src/record.js` ya no tenía el botón flotante `#side-toggle` (sustituido por los botones `#col-toggle-left/right` en el borde superior de cada columna) y `scripts/smoke-record.mjs` aún hacía `click($('side-toggle'))`, de ahí el `click target must exist in the rendered document`. Reproducido con la versión anterior de la prueba (a37d620) contra la app actual: falla exactamente en ese clic; ninguna otra tarjeta, menú ni cajón de la ficha falta.
+- No es regresión del código: la ficha renderiza todo lo que la prueba recorre (menú «Más», cajón de asociaciones, editor de la tarjeta de propiedades, editor de tarjeta de asociación, columnas plegables, «Acerca de»). La prueba quedó actualizada en 2290a74 (`#col-toggle-right`, `is-right-collapsed`, clave `crm:<tipo>:record:cols`) y termina con código 0 en HEAD; sin cambios en la app.
+- `vite build` OK; rebuild_check en verde. Solo código local; nada desplegado.
+
 ## 2026-11-22 (sesión 6) · Ficha: columnas laterales plegables, centro de 560px mínimo y pestañas que nunca se aprietan (reporte recurrente 19–22 nov)
 
 - Diagnóstico: la ficha era un grid fijo (`340px / 1fr / 320px`, y `360/360` en `.content--record`, con parches por ancho a 1680/1500/1439/1279px) donde el centro recibía solo lo que sobraba: a 1440px quedaban 632px y en un MacBook de 1512px, 704px; la barra de pestañas (`flex: 1; min-width: 140px`) se cortaba con scroll y el único «contraer» era un botón flotante en el borde del centro que ocultaba la derecha con `display: none`, sin animación y con una sola memoria global.
