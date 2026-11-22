@@ -8,45 +8,15 @@ El reparador conserva ahora el contacto con mayor `filled_fields`; en empate con
 
 Las secciones históricas que mencionan selección obligatoria por menor ID quedan sustituidas por la regla anterior.
 
-## Resultado de la revisión anterior (22 de noviembre)
+## Revalidación local del 22 de noviembre
 
-La reparación real sigue **pendiente**, no completada. No se invocó `mgmt-sql.mjs`: esta solicitud limita los cambios a código local. Además, `dedupe-contacts.mjs` rechaza deliberadamente hosts remotos. No se desplegó ni se aplicaron migraciones remotas. Los 423 contactos y 77 grupos son evidencia aportada por el usuario, no una medición de esta revisión.
+`test-contact-integrity.mjs` pasó: 77 pares sintéticos, las seis relaciones requeridas, cero grupos vivos duplicados, cero referencias a copias y conservación de los campos originales excepto `deleted_at`. Incluye selección de una canónica con más datos aunque tenga mayor ID, rollback, FK adicionales, índice único y restauración tras resolver el conflicto de email. Restaurar no revierte el traslado de asociaciones.
 
-Se volvió a ejecutar `test-contact-integrity.mjs` satisfactoriamente (77 pares sintéticos, menor ID, soft delete y relaciones trasladadas). Se amplió y ejecutó `test-bootstrap-concurrency.mjs` con dos conexiones PostgreSQL: espera por bloqueo, una llamada devuelve `true`, la otra `false`, exactamente una siembra en las cinco tablas y cero grupos de emails activos duplicados. PostgreSQL temporal necesitó ejecución fuera del sandbox por su uso de memoria compartida. Ambas pruebas emitieron un aviso de `localStorage` desde la purga del módulo de datos al importarlo en Node, pero terminaron con código 0.
+`test-bootstrap-concurrency.mjs` pasó con dos conexiones a PostgreSQL temporal: se observó espera por bloqueo y exactamente una siembra de 420 contactos. La prueba necesitó memoria compartida fuera del sandbox. Ambas pruebas emitieron un aviso de `localStorage` al importar el módulo en Node y finalizaron con código 0.
 
-Se corrigieron los estados `done` reaparecidos en la cola y el resumen de Codex: los cuatro ítems de duplicación quedan `pending`, sin metadatos de finalización. `bootstrap-demo.sql` y `contact-integrity.sql` continúan pendientes de aplicación. Las pruebas locales no autorizan cerrar la aceptación real.
-
-La política vigente conserva siempre el **menor ID activo** por `lower(btrim(email))` no vacío, conforme a la solicitud. La puntuación de campos solo informa el inventario. Se completan campos vacíos de la canónica y se conservan sus valores ante conflictos de nombres; las copias mantienen sus datos originales y reciben `deleted_at`.
-
-El bootstrap utiliza un RPC transaccional con bloqueo advisory y de tablas; no recurre a inserts desde el cliente si falta la migración. El índice parcial aplica la misma normalización que la deduplicación, incluidos espacios exteriores.
-
-Trabajo exclusivamente local; no se ha reparado ni consultado producción. Las pruebas sintéticas no acreditan la reparación de las 423 filas reportadas.
-
-## Registro histórico
-
-## Revalidación de esta revisión (22 de noviembre)
-
-Se ejecutaron nuevamente `test-contact-integrity.mjs` y `test-bootstrap-concurrency.mjs`: ambas pasaron. La segunda utilizó dos conexiones a PostgreSQL temporal y comprobó espera por bloqueo y exactamente 420 contactos. El estado local del ítem original había vuelto a `done` pese a sus notas de aceptación pendiente; se reabrieron los cuatro ítems relacionados y se corrigió también `build-status-codex.json`. La canónica implementada y requerida en esta solicitud es el menor ID activo. No se consultó ni modificó la base remota: el límite explícito de solo código local impide acreditar reparación real.
-
-# Tercera reapertura: aceptación real pendiente
-
-Verificación de esta intervención: `test-contact-integrity.mjs` pasó en PGlite y `test-bootstrap-concurrency.mjs` pasó con dos sesiones de PostgreSQL desechable (420 contactos, una sola siembra).
-
-Los cuatro ítems relacionados están pendientes, sin completedAt ni completedBy. Esta intervención modifica únicamente código local. No acredita reparación ni aplicación del índice en producción.
-
-La regresión local cubre 77 pares y las seis relaciones requeridas: deals, tickets, contact_companies, activities, tasks y sequence_enrollments. Comprueba cero duplicados vivos, cero referencias a las copias y conservación íntegra de sus campos excepto deleted_at. También se rechazan referencias preexistentes a contactos en papelera. La canónica es la fila activa de menor ID; se completan sus campos vacíos, incluidos nombre y apellido.
-
-Restaurar una copia con el mismo email de una canónica viva contradice el índice único. Se conserva el payload original completo, pero antes de restaurar debe resolverse ese conflicto (por ejemplo, cambiar o vaciar explícitamente su email). La prueba verifica tanto el rechazo del email repetido como la restauración tras resolverlo, sin cambiar los datos reales. Restaurar no deshace el traslado de asociaciones.
+Los cuatro ítems relacionados y el resumen de Codex quedan `pending`, sin metadatos de finalización. No se consultó ni modificó producción. El bootstrap y el índice siguen pendientes de aplicación remota. Las pruebas locales no cumplen la aceptación sobre la base real.
 
 # Reparación local de contactos
-
-## Verificación local del 22 de noviembre
-
-Revisión adicional de relaciones: el reparador incluye tablas particionadas y trata las FK declaradas hacia contactos como referencias incondicionales, incluso cuando la columna se llama `record_id` y existe un discriminador con otro valor. La prueba local cubre ambos casos para evitar que una copia suprimida conserve referencias por un filtro polimórfico incorrecto.
-
-Revalidado en esta intervención: prueba PGlite con 77 pares sintéticos, cero grupos duplicados activos, 77 copias en papelera y cero referencias restantes a esas copias en deals, tickets, activities y contact_companies. La prueba PostgreSQL con dos sesiones independientes observó espera por bloqueo y una sola siembra de 420 contactos. El reparador ahora adquiere el mismo advisory lock que el bootstrap antes de bloquear tablas, evitando órdenes de adquisición incompatibles entre ambos procesos.
-
-El ítem original y su reapertura quedan pendientes en la cola local, sin completedAt: la aceptación de datos reales sigue pendiente. No se ejecutó mgmt-sql.mjs, no se aplicaron migraciones remotas y no se desplegó código. Estos resultados sintéticos no verifican los 423 contactos reportados en producción.
 
 No se ha ejecutado contra Supabase ni producción. No usar `apply-migration.mjs` para estas pruebas: ese comando apunta al proyecto remoto.
 
