@@ -33,17 +33,22 @@ DO $$ BEGIN
 END $$;
 CREATE TEMP TABLE contact_merge ON COMMIT DROP AS
 SELECT id AS duplicate_id, canonical_id FROM (
-  SELECT id, first_value(id) OVER (PARTITION BY email ORDER BY id) AS canonical_id
+  SELECT id, first_value(id) OVER (PARTITION BY email ORDER BY filled_fields DESC, id) AS canonical_id
   FROM contact_inventory
 ) c WHERE id <> canonical_id;
 SELECT i.*, min(i.id) OVER (PARTITION BY i.email) AS lower_id,
  max(i.id) OVER (PARTITION BY i.email) AS higher_id
 FROM contact_inventory i WHERE email IN (SELECT email FROM contact_inventory GROUP BY email HAVING count(*)>1)
 ORDER BY email, id;
-SELECT * FROM contact_merge ORDER BY canonical_id, duplicate_id;
+SELECT m.*, i.email, i.filled_fields AS duplicate_fields,
+ k.filled_fields AS canonical_fields,
+ 'filled_fields DESC, id ASC' AS selection_rule
+FROM contact_merge m JOIN contact_inventory i ON i.id=m.duplicate_id
+JOIN contact_inventory k ON k.id=m.canonical_id
+ORDER BY canonical_id, duplicate_id;
 
--- Email defines identity for this repair. Keep the smallest active ID even when
--- names conflict; before images retain all original values for audit/recovery.
+-- Email defines identity for this repair. Keep the most populated active row;
+-- equal scores use the smallest ID. Before images retain conflicts for recovery.
 -- Like mergeRecords: retain principal values and fill empty scalar properties.
 -- Full before images above include conflicting values for review and recovery.
 DO $$

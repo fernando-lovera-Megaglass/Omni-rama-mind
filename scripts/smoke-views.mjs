@@ -198,7 +198,8 @@ log('after 2 undos columns:', document.querySelectorAll('th.th').length, '| orde
 click(document.querySelector('[data-action="mode-board"]'));
 const cols = [...document.querySelectorAll('.kcol')];
 log('board columns:', cols.map((c) => c.querySelector('h2').textContent.trim()).join(' | '));
-log('cards:', document.querySelectorAll('.kcard').length, '| table hidden:', $('table-wrap').hidden, '| save btn shown:', !$('board-save-btn').hidden);
+log('cards:', document.querySelectorAll('.kcard').length, '| table hidden:', $('table-wrap').hidden, '| no «Guardar» on the board:', !$('board-save-btn') && !document.querySelector('[data-action="board-save"]'));
+if ($('board-save-btn') || document.querySelector('[data-action="board-save"]')) { console.error('[views] FAIL: the board must not show a «Guardar» button'); process.exit(1); }
 const firstCard = document.querySelector('.kcard');
 if (firstCard) {
   log('card lines:', firstCard.querySelector('.kcard__lines').textContent.replace(/\s+/g, ' ').trim().slice(0, 100), '| pill:', firstCard.querySelector('.kcard__pill').textContent.replace(/\s+/g, ' ').trim());

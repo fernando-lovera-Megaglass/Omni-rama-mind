@@ -5189,10 +5189,20 @@ td.cell--hl .cell__pen {
   scrollbar-width: thin;
 }
 
+/* «Cargar N más» at the end of a stage column (the next page also arrives when the column is scrolled down). */
 .kcol__more {
   margin: 0;
+  padding: 8px 10px;
+  border: 1px dashed var(--c-border);
+  border-radius: var(--r-md);
+  background: var(--c-white);
+  color: var(--c-link);
+  font: inherit;
   font-size: var(--fs-xs);
+  font-weight: 600;
+  cursor: pointer;
 }
+.kcol__more:hover { background: var(--c-soft); border-style: solid; }
 
 .kcard {
   background: var(--c-white);

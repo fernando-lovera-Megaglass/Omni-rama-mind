@@ -115,6 +115,7 @@ export function mountList(cfg) {
     metrics: typeof prefs.metrics === 'boolean' ? prefs.metrics : null,
     boardCollapsed: new Set(prefs.boardCollapsed || []),
     boardOrder: prefs.boardOrder || null,
+    boardShown: {}, // cards loaded per stage column beyond the first page («Cargar más» / scroll)
     pipeline: cfg.pipeline ? prefs.pipeline || '' : '',
   };
   let pipelineQuery = '';
@@ -509,7 +510,6 @@ export function mountList(cfg) {
         <span class="pillgroup">
           <button class="pill" type="button" data-action="undo-layout" id="undo-btn" aria-label="Deshacer cambio de columnas" title="Deshacer cambio de columnas" disabled>↶</button>
           <button class="pill" type="button" data-action="view-clone" aria-label="Clonar vista" title="Clonar vista">⧉</button>
-          <button class="pill" type="button" data-action="board-save" id="board-save-btn" hidden>Guardar</button>
         </span>
       </div>
     </div>
@@ -1416,7 +1416,6 @@ export function mountList(cfg) {
     const isBoard = state.mode === 'board' && cfg.board;
     $('table-wrap').hidden = isBoard;
     $('list-pagination').hidden = isBoard;
-    $('board-save-btn').hidden = !isBoard;
     root.querySelectorAll('.seg__btn').forEach((b) => b.classList.toggle('is-active', b.dataset.action === `mode-${state.mode}`));
     board.hidden = !isBoard;
     if (!isBoard) return;
@@ -1455,9 +1454,14 @@ export function mountList(cfg) {
                 </div>
               </article>`;
     };
+    const cardOf = (r) => (b.card ? b.card(r, ctx) : defaultCard(r));
+    boardRows.clear();
     board.innerHTML = groups
       .map(([value, label], gi) => {
         const rows = scoped.filter((r) => String(r[b.key]) === String(value));
+        // Columns paint a page of cards and load the rest from the column itself (button or scroll), never a cut.
+        boardRows.set(String(value), { rows, cardOf });
+        const shown = boardShownOf(value, rows.length);
         if (state.boardCollapsed.has(String(value))) {
           return `
         <section class="kcol kcol--collapsed tip" data-group="${esc(value)}">
@@ -1491,17 +1495,38 @@ export function mountList(cfg) {
           </header>
           <button class="kcol__add" type="button" data-kcol-add="${esc(value)}">+ ${esc(cfg.singular)}</button>
           <div class="kcol__cards">
-            ${rows
-              .slice(0, 60)
-              .map((r) => (b.card ? b.card(r, ctx) : defaultCard(r)))
-              .join('')}
-            ${rows.length > 60 ? `<p class="muted kcol__more">… y ${rows.length - 60} más. Usa los filtros para acotar.</p>` : ''}
+            ${rows.slice(0, shown).map(cardOf).join('')}
+            ${rows.length > shown ? moreButtonHtml(value, shown, rows.length) : ''}
           </div>
           ${b.footer ? `<footer class="kcol__foot" data-foot="${esc(value)}">${b.footer(rows, value, label, state)}</footer>` : ''}
         </section>`;
       })
       .join('');
     wireMenus(board);
+  }
+  // ---- incremental loading per column (as the original: more cards arrive from the column, no filters needed) ----
+  const BOARD_PAGE = 60;
+  const boardRows = new Map(); // stage value → { rows, cardOf } of the last board render
+  const boardShownOf = (value, total) => Math.min(total, Math.max(BOARD_PAGE, state.boardShown[String(value)] || 0));
+  const moreButtonHtml = (value, shown, total) => `<button class="kcol__more" type="button" data-kcol-more="${esc(value)}">Cargar ${Math.min(BOARD_PAGE, total - shown)} más <span class="muted">(${shown} de ${total})</span></button>`;
+  // Appends the next page of cards to the column (no re-render, so the column keeps its scroll position).
+  function loadMoreCards(value) {
+    const entry = boardRows.get(String(value));
+    const col = [...$('kanban').querySelectorAll('.kcol')].find((c) => c.dataset.group === String(value));
+    const cards = col && col.querySelector('.kcol__cards');
+    if (!entry || !cards) return false;
+    const shown = boardShownOf(value, entry.rows.length);
+    if (shown >= entry.rows.length) return false;
+    const next = Math.min(entry.rows.length, shown + BOARD_PAGE);
+    state.boardShown[String(value)] = next;
+    const html = entry.rows.slice(shown, next).map(entry.cardOf).join('');
+    const btn = cards.querySelector('[data-kcol-more]');
+    if (btn) {
+      btn.insertAdjacentHTML('beforebegin', html);
+      if (next >= entry.rows.length) btn.remove();
+      else btn.outerHTML = moreButtonHtml(value, next, entry.rows.length);
+    } else cards.insertAdjacentHTML('beforeend', html);
+    return true;
   }
   // Stage groups may depend on the current state (e.g. the selected deal pipeline).
   const groupsOf = () => (typeof cfg.board.groups === 'function' ? cfg.board.groups(state) : cfg.board.groups);
@@ -1554,8 +1579,17 @@ export function mountList(cfg) {
       if (mv) { closeMenus(); moveStage(mv.dataset.group, Number(mv.dataset.kcolMove)); return; }
       const add = e.target.closest('[data-kcol-add]');
       if (add) { createEntry({ [cfg.board.key]: add.dataset.kcolAdd }); return; }
-
+      const more = e.target.closest('[data-kcol-more]');
+      if (more) { loadMoreCards(more.dataset.kcolMore); return; }
     });
+    // Scrolling to the bottom of a column loads its next page too (scroll does not bubble: capture it).
+    board.addEventListener('scroll', (e) => {
+      const cards = e.target;
+      if (!cards || !cards.classList || !cards.classList.contains('kcol__cards')) return;
+      if (cards.scrollTop + cards.clientHeight < cards.scrollHeight - 120) return;
+      const col = cards.closest('.kcol');
+      if (col) loadMoreCards(col.dataset.group);
+    }, true);
     board.addEventListener('dragstart', (e) => {
       const card = e.target.closest('.kcard');
       if (!card) return;
@@ -3223,10 +3257,6 @@ export function mountList(cfg) {
     } else if (a === 'undo-layout') undoLayout();
     else if (a === 'mode-board') setMode('board');
     else if (a === 'mode-table') setMode('table');
-    else if (a === 'board-save') {
-      setPrefs(cfg.type, { mode: 'board' });
-      toast('Vista de panel guardada');
-    }
     else if (a === 'refresh') {
       render();
       toast('Lista actualizada');
