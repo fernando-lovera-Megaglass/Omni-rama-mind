@@ -1,5 +1,6 @@
 import { boot } from './page.js';
-import { mountList, avatarName, ownerHtml, link } from './list.js';
+import { companyAvatarHtml } from './owner.js';
+import { mountList, ownerHtml, link } from './list.js';
 import { displayPhone } from './phone.js';
 import { allCompanies, allContacts, allDeals, OWNERS, LIFECYCLES, formatDate, formatMoney, formatMoneyShort, formatShortDate, TODAY, lifecycleTag, toHomeCurrency, homeCurrency, parentCompanyOf, childCompaniesOf, additionalDomainsOf } from './data.js';
 import { mountCreateCompany } from './create-company.js';
@@ -74,7 +75,7 @@ const list = mountList({
     { key: 'lifecycle', label: 'Etapa del ciclo de vida', options: LIFECYCLES.map((l) => [l, l]), test: (r, v) => r.lifecycle === v, where: (q, v, h) => q.eq(h.col('lifecycle'), v) },
   ],
   columns: [
-    { key: 'name', label: 'Nombre de la empresa', render: (r) => avatarName(r.id, r.name, `./record/?id=${r.id}`) },
+    { key: 'name', label: 'Nombre de la empresa', render: (r) => `<span class="name">${companyAvatarHtml(r)}${link(`./record/?id=${r.id}`, r.name)}</span>` },
     { key: 'parentCompanyId', label: 'Empresa matriz', default: false, editable: false, serverSort: false, text: (r) => (parentCompanyOf(r) || {}).name || '', sortValue: (r) => (parentCompanyOf(r) || {}).name || '', render: (r) => { const p = parentCompanyOf(r); return p ? link(`./record/?id=${p.id}`, p.name) : '<span class="muted">--</span>'; } },
     { key: 'subsidiaries', label: 'Empresas secundarias', default: false, editable: false, serverSort: false, text: (r) => String(childCompaniesOf(r.id).length), sortValue: (r) => childCompaniesOf(r.id).length },
     { key: 'domain', label: 'Dominio' },

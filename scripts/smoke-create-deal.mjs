@@ -155,7 +155,9 @@ const actC2 = data.activitiesFor('contacts', c2.id)[0];
 const actCo = data.activitiesFor('companies', co2.id)[0];
 const actDeal = data.activitiesFor('deals', made.id)[0];
 log('timeline: contact 1 →', actC1 && actC1.text, '| contact 2 →', actC2 && actC2.text, '| company →', actCo && actCo.text, '| deal →', actDeal && actDeal.text);
-if (!actC1 || !/Fachada de vidrio Torre Prueba/.test(actC1.text) || (actC2 && /Fachada de vidrio Torre Prueba/.test(actC2.text)) || !actCo || !/\(Principal\)/.test(actCo.text) || !actDeal || !/2 elementos de pedido/.test(actDeal.text)) fail('timeline entries follow the checkboxes');
+// (the lifecycle automation of Ajustes may add its own «Etapa del ciclo de vida cambiada…» entry on contact 2: only the association entry follows the checkbox)
+const c2Assoc = data.activitiesFor('contacts', c2.id).some((a) => /^Negocio «Fachada de vidrio Torre Prueba» creado/.test(a.text));
+if (!actC1 || !/Fachada de vidrio Torre Prueba/.test(actC1.text) || c2Assoc || !actCo || !/\(Principal\)/.test(actCo.text) || !actDeal || !/2 elementos de pedido/.test(actDeal.text)) fail('timeline entries follow the checkboxes');
 // the other side: contact 1 (not the deal's contactId) and company 1 (not primary) list the deal
 const c1Now = data.allContacts().find((c) => Number(c.id) === Number(c1.id));
 const co1Now = data.allCompanies().find((c) => Number(c.id) === Number(co1.id));

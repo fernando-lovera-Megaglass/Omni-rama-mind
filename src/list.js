@@ -7,7 +7,7 @@ import { sensitiveValue } from './property-privacy.js';
 // column editor (full property catalog), advanced filters, CSV export/import, create drawer.
 import { wireMenus, closeMenus, toast, linkHtml, wireLinkTooltips, recordToastAction } from './shell.js';
 import { ACT_ICONS, FIELD_ICONS } from './action-icons.js';
-import { ownerHtml } from './owner.js';
+import { ownerHtml, companyAvatarHtml } from './owner.js';
 import { emptyStateHtml } from './empty-state.js';
 import { enhanceOwnerSelects, refreshOwnerSelects } from './owner-select.js';
 import { enhancePhoneInputs, displayPhone } from './phone.js';
@@ -2003,7 +2003,10 @@ export function mountList(cfg) {
     if (cell !== editing) return;
     if (cfg.type === 'deals' && cell.key === 'stage' && !await changeDealStage(r, value)) return;
     if (cell !== editing) return;
-    if (!(cfg.type === 'deals' && cell.key === 'stage')) setField(cfg.type, cell.id, cell.key, value);
+    if (!(cfg.type === 'deals' && cell.key === 'stage')) {
+      // a rule of the lifecycle stage (Ajustes) may refuse the change: show why and keep the cell as it was
+      try { setField(cfg.type, cell.id, cell.key, value); } catch (e) { toast(e.message || String(e)); cell = null; render(); return; }
+    }
     if (cell.key === 'name' && cfg.type === 'contacts') {
       const [first, ...rest] = String(value).split(' ');
       setField(cfg.type, cell.id, 'first', first);
@@ -2085,7 +2088,8 @@ export function mountList(cfg) {
     if (!r) return;
     const name = r.name || `#${r.id}`;
     const av = $('pv-avatar');
-    av.textContent = String(name).split(' ').filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase();
+    if (cfg.type === 'companies') av.outerHTML = companyAvatarHtml(r, 'lg').replace('<span ', '<span id="pv-avatar" ');
+    else av.textContent = String(name).split(' ').filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase();
     $('pv-name').textContent = name;
     $('pv-sub').textContent = cfg.type === 'contacts' ? r.company || '' : cfg.type === 'deals' ? `${formatMoney(r.amount, r.deal_currency_code)} · ${r.company || ''}` : r.industry || r.description || r.type || '';
     const mail = r.email || r.domain || '';

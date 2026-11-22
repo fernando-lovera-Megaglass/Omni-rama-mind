@@ -8,7 +8,7 @@ import { mountCreateTicket } from './create-ticket.js';
 import { changeDealStage } from './deal-close.js';
 import { saveAssociatedActivity } from './activity-associations.js';
 import './filter-chip.js';
-import { validatePropertyValues, companyDomains, mergeRecords, mergeConflicts, mergeFillable } from './data.js';
+import { validatePropertyValues, companyDomainPrefill, companyDomains, mergeRecords, mergeConflicts, mergeFillable } from './data.js';
 import { suggestedKeep } from './duplicates.js';
 import { sensitiveValue } from './property-privacy.js';
 import { mountActivityComments } from './activity-comments.js';
@@ -38,7 +38,7 @@ import { attachSnippetAutocomplete } from './snippet-autocomplete.js';
 import { openEnrollDialog } from './sequence-enroll.js';
 import { workflows } from './workflows-data.js';
 import { enroll as enrollInWorkflow, activeRun as activeWorkflowRun, whenText as workflowWhenText } from './workflow-engine.js';
-import { ownerHtml } from './owner.js';
+import { ownerHtml, companyAvatarHtml } from './owner.js';
 import { enhanceOwnerSelects } from './owner-select.js';
 import { enhancePhoneInputs, focusPhoneInput, displayPhone, phoneHref } from './phone.js';
 import { sendSms, hasTwilio } from './twilio.js';
@@ -626,8 +626,8 @@ function renderAllProps(query = '') {
 function renderHeader() {
   document.title = `${cfg.title(rec)} · ${cfg.label}`;
   const av = $('rec-avatar');
-  av.textContent = initials(cfg.title(rec));
-  av.style.background = colorFor(rec.id);
+  if (type === 'companies') av.outerHTML = companyAvatarHtml(rec, 'lg').replace('<span ', '<span id="rec-avatar" ');
+  else { av.textContent = initials(cfg.title(rec)); av.style.background = colorFor(rec.id); }
   $('rec-name').firstChild.textContent = `${cfg.title(rec)} `;
   $('rec-sub').textContent = cfg.subtitle(rec);
   const mail = cfg.mail(rec);
@@ -786,7 +786,7 @@ function assocCard(title, rows, kind) {
   if (isTask) list.sort((a, b) => Number(a.status === 'done') - Number(b.status === 'done'));
   const head = (r) => isTask
     ? `<input type="checkbox" class="assoc-card__check" data-task-done="${r.id}" ${r.status === 'done' ? 'checked' : ''} aria-label="${r.status === 'done' ? 'Reabrir tarea' : 'Marcar como completada'}" title="${r.status === 'done' ? 'Reabrir tarea' : 'Marcar como completada'}" /><a href="${href(r)}"><strong>${esc(r.name)}</strong></a><span class="assoc-card__due ${r.status === 'done' ? '' : dueClass(r)}">${r.status === 'done' ? 'Completada' : esc(dueText(r))}</span>`
-    : `<span class="assoc__logo">${esc(initials(r.name))}</span><a href="${href(r)}"><strong>${esc(r.name)}</strong></a>`;
+    : `${kind === 'companies' ? companyAvatarHtml(r) : `<span class="assoc__logo">${esc(initials(r.name))}</span>`}<a href="${href(r)}"><strong>${esc(r.name)}</strong></a>`;
   return `
     <div class="card card--assoc" data-kind="${kind}">
       <div class="card__head">
@@ -933,7 +933,7 @@ function previewCard(s, rows, kind) {
     <div class="card card--assoc">
       <div class="card__head"><span class="card__toggle">${esc(s.title)} (${rows.length})</span><span class="link-btn">+ Agregar</span></div>
       ${sorted.length
-        ? sorted.slice(0, 2).map((r, i) => `<div class="assoc-card"><div class="assoc-card__head"><span class="assoc__logo">${esc(initials(r.name))}</span><strong>${esc(r.name)}</strong></div>${lines.map((k) => `<div class="assoc-card__row"><span class="muted">${esc(kindLabel(kind, k))}:</span> ${esc(kindValue(kind, k, r))}</div>`).join('')}${s.quick ? `<span class="tag ${i === 0 ? 'tag--done' : 'tag--none'} assoc-card__label">${i === 0 ? `${KIND_META[kind].s} con ${cfg.singular} principal` : 'Sin etiqueta'}</span>` : ''}</div>`).join('')
+        ? sorted.slice(0, 2).map((r, i) => `<div class="assoc-card"><div class="assoc-card__head">${kind === 'companies' ? companyAvatarHtml(r) : `<span class="assoc__logo">${esc(initials(r.name))}</span>`}<strong>${esc(r.name)}</strong></div>${lines.map((k) => `<div class="assoc-card__row"><span class="muted">${esc(kindLabel(kind, k))}:</span> ${esc(kindValue(kind, k, r))}</div>`).join('')}${s.quick ? `<span class="tag ${i === 0 ? 'tag--done' : 'tag--none'} assoc-card__label">${i === 0 ? `${KIND_META[kind].s} con ${cfg.singular} principal` : 'Sin etiqueta'}</span>` : ''}</div>`).join('')
         : `<div class="assoc-empty"><span class="assoc-empty__art" aria-hidden="true"></span><p class="muted">${esc(emptyText(kind))}</p></div>`}
     </div>`;
 }
@@ -1022,7 +1022,7 @@ function middleCardHtml(id) {
 const FILES_KEY = `crm:${type}:files:${id}`;
 const loadFiles = () => loadJson(FILES_KEY, []);
 // ---------- company hierarchy cards ----------
-const companyItem = (c) => `<div class="hier__item"><span class="assoc__logo">${esc(initials(c.name))}</span><a href="./record/?id=${c.id}">${esc(c.name)}</a>${c.domain ? `<small>${esc(c.domain)}</small>` : ''}</div>`;
+const companyItem = (c) => `<div class="hier__item">${companyAvatarHtml(c)}<a href="./record/?id=${c.id}">${esc(c.name)}</a>${c.domain ? `<small>${esc(c.domain)}</small>` : ''}</div>`;
 let parentQuery = '';
 // "Empresa matriz": the parent company with a search box to assign or change it (never itself or a subsidiary).
 function parentCompanyCard(label) {
@@ -1252,14 +1252,14 @@ function renderAssocDrawer() {
     body = `
       <p class="muted">Elige la etiqueta de asociación de cada ${meta.s.toLowerCase()}. La etiqueta "Principal" solo puede tenerla un registro.</p>
       <ul class="ad-labels">${chosen
-        .map((r) => `<li><span class="ad-labels__name"><span class="avatar avatar--sm avatar--soft">${esc(initials(r.name))}</span>${esc(r.name)}</span>
+        .map((r) => `<li><span class="ad-labels__name">${ad.kind === 'companies' ? companyAvatarHtml(r) : `<span class="avatar avatar--sm avatar--soft">${esc(initials(r.name))}</span>`}${esc(r.name)}</span>
           <select data-adlabel="${r.id}">${ASSOC_LABELS.map((l) => `<option ${(ad.labels[r.id] || 'Sin etiqueta') === l ? 'selected' : ''}>${l}</option>`).join('')}</select></li>`)
         .join('')}</ul>`;
     foot = `<span class="muted">Paso 2 de 2</span><span class="ad-foot__btns"><button class="pill" type="button" data-ad="back">‹ Volver</button><button class="pill pill--primary" type="button" data-ad="save">Guardar</button></span>`;
   } else if (ad.tab === 'new') {
     body = `
       <form id="ad-new-form" class="ad-form">
-        ${meta.fields.map(([k, l]) => `<label class="field"><span>${l}</span><input name="${k}" type="${k === 'amount' ? 'number' : /Date|due/.test(k) ? 'date' : k === 'email' ? 'email' : 'text'}" ${k === 'name' || k === 'first' ? 'required' : ''} /></label>`).join('')}
+        ${meta.fields.map(([k, l]) => `<label class="field"><span>${l}</span><input name="${k}" value="${esc(ad.kind === 'companies' && type === 'contacts' && k === 'domain' ? companyDomainPrefill(rec) : '')}" type="${k === 'amount' ? 'number' : /Date|due/.test(k) ? 'date' : k === 'email' ? 'email' : 'text'}" ${k === 'name' || k === 'first' ? 'required' : ''} /></label>`).join('')}
         <label class="field"><span>Etiqueta de asociación</span><select name="label">${ASSOC_LABELS.map((l) => `<option>${l}</option>`).join('')}</select></label>
       </form>`;
     foot = `<span></span><span class="ad-foot__btns"><button class="pill" type="button" data-ad="close">Cancelar</button><button class="pill pill--primary" type="submit" form="ad-new-form">Crear y asociar</button></span>`;
@@ -1685,7 +1685,10 @@ async function save(key, value, label) {
   const from = rec[key];
   if (type === 'deals' && key === 'stage') {
     if (!await changeDealStage(rec, value)) { renderAll(); return; }
-  } else setField(type, rec.id, key, value);
+  } else {
+    // a rule of the lifecycle stage (Ajustes) may refuse the change: show why and leave the record as it was
+    try { setField(type, rec.id, key, value); } catch (e) { toast(e.message || String(e)); renderAll(); return; }
+  }
   // A reminder set again (after it was shown) must fire again: the checker in src/task-reminders.js watches it.
   if (type === 'tasks' && key === 'reminderAt' && rec.reminderFiredAt) setField(type, rec.id, 'reminderFiredAt', '');
   // A ticket moved to another pipeline takes that pipeline's statuses (first open one if its status is not there).

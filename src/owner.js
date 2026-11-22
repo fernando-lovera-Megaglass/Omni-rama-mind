@@ -51,3 +51,12 @@ export function ownerHtml(name, size = 'xs') {
   if (isUnassigned(name)) return `<span class="owner owner--none">${ownerAvatarHtml('', size)}<span class="owner__name muted">Sin asignar</span></span>`;
   return `<span class="owner">${ownerAvatarHtml(name, size)}<span class="owner__name">${esc(name)}</span></span>`;
 }
+
+// Initials remain visible while loading and immediately when the public image fails.
+export function companyAvatarHtml(company, size = 'sm') {
+  const safeSize = ['xs', 'sm', 'lg'].includes(size) ? size : 'sm';
+  const url = company.domain && (company.logoUrl || company.extra?.logoUrl);
+  const image = typeof url === 'string' && /^https:\/\//i.test(url)
+    ? `<img src="${esc(url)}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:white;border-radius:inherit" onerror="this.remove()" />` : '';
+  return `<span class="avatar avatar--${safeSize} avatar--soft" style="position:relative;overflow:hidden" aria-hidden="true">${esc(ownerInitials(company.name))}${image}</span>`;
+}

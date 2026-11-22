@@ -674,7 +674,8 @@ export async function runImport(id, plan, { onProgress, isCanceled, chunk = 40, 
             if (v === undefined || v === null || v === '') return;
             if (noOverwrite.has(k) && current && current[k] !== undefined && current[k] !== null && current[k] !== '') return;
             if (k === 'hs_additional_emails' || k === 'hs_additional_domains') { if (current && current[k]) v = [...new Set([...String(current[k]).split(';'), ...String(v).split(';')].filter(Boolean))].join(';'); }
-            setField(type, r.matchId, k, v, { skipAutoCompany: plan.batch });
+            // a lifecycle rule (Ajustes) may refuse a stage change: the row keeps its other values
+            try { setField(type, r.matchId, k, v, { skipAutoCompany: plan.batch }); } catch (e) { console.warn(`[importación] fila ${r.rowNumber}: ${e.message || e}`); }
           });
           if (type === 'contacts' && (r.data.first || r.data.last)) { const c2 = ALL[type]().find((c) => Number(c.id) === Number(r.matchId)); if (c2) setField(type, r.matchId, 'name', [c2.first, c2.last].filter(Boolean).join(' ') || c2.name); }
           const prev = current ? String(current.hs_import_ids || '') : '';

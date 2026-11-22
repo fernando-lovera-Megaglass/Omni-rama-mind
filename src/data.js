@@ -738,7 +738,17 @@ export function setField(type, id, field, value, opts = {}) {
   validatePropertyValuesLocal(type, { [field]: value }, id);
   if (type === 'tasks' && field === 'recur') value = normalizeRecur(value); // the editors hand over the freq string
   if (type === 'companies' && field === 'hs_additional_domains') value = normalizeAdditionalDomains(value, findIn(type, id)?.domain);
-  const previousValue = (type === 'tickets' && field === 'status') || (type === 'contacts' && field === 'lifecycle') || (type === 'tasks' && field === 'status') ? findIn(type, id)?.[field] : undefined;
+  if (type === 'companies' && field === 'domain') {
+    const enriched = companyDomainEnrichment({ ...findIn(type, id), domain: value });
+    for (const [key, next] of Object.entries(enriched)) setField(type, id, key, next, opts);
+  }
+  const previousValue = (type === 'tickets' && field === 'status') || ((type === 'contacts' || type === 'companies') && field === 'lifecycle') || (type === 'tasks' && field === 'status') || (type === 'deals' && field === 'stage') ? findIn(type, id)?.[field] : undefined;
+  // The lifecycle rules of Ajustes (only forward, no skipping, owner required past Lead) stop a manual change
+  // with the reason; automations check their own rules before writing (opts.lifecycleAuto).
+  if ((type === 'contacts' || type === 'companies') && field === 'lifecycle' && !opts.lifecycleAuto) {
+    const block = applyLifecycleRules(type, findIn(type, id), value);
+    if (block) throw new Error(`${block}.`);
+  }
   if (dbLive) {
     const rec = (dbRows[type] || []).find((r) => Number(r.id) === Number(id));
     if (rec) rec[field] = value;
@@ -1067,6 +1077,7 @@ export function addRecord(type, fields, opts = {}) {
   // A new task without an explicit reminder gets the default one from Ajustes (none for completed ones).
   if (type === 'tasks' && fields && fields.reminderAt === undefined && fields.status !== 'done') fields = { ...fields, reminderAt: reminderFromDue(fields.due) };
   if (type === 'companies' && fields && fields.hs_additional_domains !== undefined) fields = { ...fields, hs_additional_domains: normalizeAdditionalDomains(fields.hs_additional_domains, fields.domain) };
+  if (type === 'companies') fields = { ...fields, ...companyDomainEnrichment(fields) };
   validatePropertyValuesLocal(type, fields);
   if (dbLive) {
     const id = nextId[type];
@@ -1117,6 +1128,99 @@ const findIn = (type, id) => findRecord(type, id);
 // Rules that run right after a record is created or a field changes (companies by e-mail domain, §2 of the
 // companies specification). They never break the write that triggered them.
 const COMPANY_LINK_FIELDS = new Set(['companyId', 'assoc_companies', 'assoc_labels_companies']);
+
+// ---------- Etapa del ciclo de vida: rules and automations (Ajustes › Objetos › Contactos / Empresas) ----------
+// Records store the stage label; the definition's order is the ladder. «Otro» is outside it: automations never
+// move a record into or out of it and the rules do not apply to it.
+const LC_WORD = { contacts: 'El contacto', companies: 'La empresa' };
+const lcStages = (def) => def.stages.filter((s) => s[0] !== 'other');
+const lcIndex = (def, label) => lcStages(def).findIndex((s) => s[1] === label);
+const lcLabel = (def, id) => (def.stages.find((s) => s[0] === id) || [])[1] || '';
+const lcSync = (def) => ({ onDeal: true, onWon: true, company: true, ...(def.sync || {}) });
+const noOwner = (r) => !r || !r.owner || r.owner === 'Sin asignar';
+// Won in a given pipeline: the built-in «won» key or any stage whose forecast category is won.
+export function dealStageIsWon(pipeline, key) {
+  if (key === 'won') return true;
+  const stage = (typeof stagesFor === 'function' ? stagesFor(pipeline) : []).find((s) => s[0] === key);
+  return Boolean(stage) && stageForecastCategory(stage) === 'won';
+}
+// Why a lifecycle change is not allowed by the definition's rules, or null. `automatic` = made by an automation
+// (deal created or won, contact ↔ company sync): only «lockCustomer» and «requireOwner» apply to those; a manual
+// change is checked against «noBack», «noSkip» and «requireOwner».
+export function applyLifecycleRules(type, record, newStage, { automatic = false, def = lifecycleDef() } = {}) {
+  const rules = def.rules || {};
+  const from = record ? record.lifecycle || '' : '';
+  if (!newStage || from === newStage) return null;
+  const i = lcIndex(def, from);
+  const j = lcIndex(def, newStage);
+  if (j < 0) return null; // «Otro» or a stage the definition does not know: nothing to enforce here
+  const who = `${LC_WORD[type] || 'El registro'}${record && record.name ? ` «${record.name}»` : ''}`;
+  if (automatic) {
+    const ci = lcIndex(def, lcLabel(def, 'customer'));
+    if (rules.lockCustomer && ci >= 0 && i >= ci) return `${who} está en «${from}» y la regla «No cambiar automáticamente la etapa de los clientes» lo mantiene ahí`;
+  } else {
+    if (rules.noBack && i >= 0 && j < i) return `${who} no puede retroceder de «${from}» a «${newStage}»: la regla «Solo permitir avanzar de etapa» está activada`;
+    if (rules.noSkip && i >= 0 && j > i + 1) return `${who} solo puede pasar a la etapa siguiente, «${lcStages(def)[i + 1][1]}», no a «${newStage}»: la regla «Limitar los saltos de etapa» está activada`;
+  }
+  const li = lcIndex(def, lcLabel(def, 'lead'));
+  if (rules.requireOwner && li >= 0 && j > li && noOwner(record)) return `${who} no tiene propietario: la regla «Exigir propietario para avanzar de Lead» no permite pasar a «${newStage}»`;
+  return null;
+}
+// An automation moves a contact / company forward to the stage `stageId` when it is behind (never back, never
+// from «Otro»), within the rules; the record's timeline says why. Returns true when it moved.
+function lifecycleAdvance(type, id, stageId, text, extra = {}, def = lifecycleDef()) {
+  const rec = findIn(type, id);
+  const target = lcLabel(def, stageId);
+  if (!rec || !target) return false;
+  const i = lcIndex(def, rec.lifecycle);
+  const j = lcIndex(def, target);
+  if (j < 0 || (rec.lifecycle && i < 0) || i >= j) return false;
+  if (applyLifecycleRules(type, rec, target, { automatic: true, def })) return false;
+  const from = rec.lifecycle || '';
+  setField(type, id, 'lifecycle', target, { lifecycleAuto: true, lifecycleSync: true });
+  logSystem(type, id, `Etapa del ciclo de vida cambiada a «${target}» ${text}.`, { lifecycle: target, lifecycleFrom: from, ...extra });
+  return true;
+}
+// «Cuando se crea un negocio asociado, pasar a Oportunidad»: the deal's contact and company (or the contact's
+// company when the sync between them is on) advance to Oportunidad when they are behind.
+export function lifecycleOnDeal(d) {
+  const def = lifecycleDef();
+  const s = lcSync(def);
+  if (s.onDeal === false || !d) return [];
+  const moved = [];
+  const contact = d.contactId ? findIn('contacts', d.contactId) : null;
+  const companyId = d.companyId || (s.company !== false && contact ? contact.companyId : null);
+  if (contact && lifecycleAdvance('contacts', contact.id, 'opportunity', `por el negocio «${d.name}»`, { deal: d.id, automation: 'onDeal' }, def)) moved.push(`contacts:${contact.id}`);
+  if (companyId && lifecycleAdvance('companies', companyId, 'opportunity', `por el negocio «${d.name}»`, { deal: d.id, automation: 'onDeal' }, def)) moved.push(`companies:${companyId}`);
+  return moved;
+}
+// «Cuando se gana un negocio asociado, pasar a Cliente».
+export function lifecycleOnWon(d) {
+  const def = lifecycleDef();
+  const s = lcSync(def);
+  if (s.onWon === false || !d) return [];
+  const moved = [];
+  const contact = d.contactId ? findIn('contacts', d.contactId) : null;
+  const companyId = d.companyId || (s.company !== false && contact ? contact.companyId : null);
+  if (contact && lifecycleAdvance('contacts', contact.id, 'customer', `al ganarse el negocio «${d.name}»`, { deal: d.id, automation: 'onWon' }, def)) moved.push(`contacts:${contact.id}`);
+  if (companyId && lifecycleAdvance('companies', companyId, 'customer', `al ganarse el negocio «${d.name}»`, { deal: d.id, automation: 'onWon' }, def)) moved.push(`companies:${companyId}`);
+  return moved;
+}
+// «Sincronizar la etapa entre contactos y empresa»: the one that advanced pulls the other up when it is behind
+// (a contact its primary company; a company its contacts); never back.
+export function lifecycleSyncCompany(type, id) {
+  const def = lifecycleDef();
+  if (lcSync(def).company === false) return [];
+  const rec = findIn(type, id);
+  if (!rec) return [];
+  const stageId = (def.stages.find((x) => x[1] === rec.lifecycle) || [])[0];
+  if (!stageId || stageId === 'other') return [];
+  const moved = [];
+  if (type === 'contacts' && rec.companyId && lifecycleAdvance('companies', rec.companyId, stageId, `para sincronizarla con el contacto «${rec.name}»`, { contact: rec.id, automation: 'company' }, def)) moved.push(`companies:${rec.companyId}`);
+  if (type === 'companies') allContacts().filter((c) => Number(c.companyId) === Number(rec.id)).forEach((c) => { if (lifecycleAdvance('contacts', c.id, stageId, `para sincronizarla con la empresa «${rec.name}»`, { company: rec.id, automation: 'company' }, def)) moved.push(`contacts:${c.id}`); });
+  return moved;
+}
+
 function afterAdd(type, rec, opts = {}) {
   // "Registro creado a partir de…" first, so what the automations add next stays newest on the timeline.
   try {
@@ -1131,6 +1235,8 @@ function afterAdd(type, rec, opts = {}) {
   // A new deal for a contact stops the sequences with «Cancelar la inscripción cuando se crea un negocio»
   // (single hook for the slide-over, the record, workflows and the import; dynamic import: sequences import us).
   if (type === 'deals' && rec.contactId) import('./sequences-data.js').then((m) => m.cancelOnDeal(rec.contactId, rec)).catch((e) => console.error('[secuencias] negocio creado', e));
+  // A new deal moves its contact and company to «Oportunidad» (Ajustes › Etapa del ciclo de vida, when on).
+  if (type === 'deals') { try { lifecycleOnDeal(rec); } catch (e) { console.error('[ciclo de vida] negocio creado', e); } }
   if (type === 'contacts' && !opts.skipAutoCompany) { try { autoAssociateCompany(rec); } catch (e) { console.error('[empresas automáticas]', e); } }
   if (type === 'contacts' && (rec.companyId || (rec.assoc_companies || []).length)) { try { syncContactCompanies(rec.id); } catch (e) { console.error('[contact_companies]', e); } }
   if (type === 'tickets') { try { autoAssociateTicketCompany(rec); } catch (e) { console.error('[tickets: empresa del contacto]', e); } }
@@ -1146,6 +1252,8 @@ function afterSet(type, id, field, value, opts = {}, previousValue) {
       setField(type, id, `hs_lifecyclestage_${stageId}_date`, new Date().toISOString());
     }
   }
+  // «Sincronizar la etapa entre contactos y empresa»: one hop from the record that changed (never back).
+  if ((type === 'contacts' || type === 'companies') && field === 'lifecycle' && previousValue !== value && !opts.lifecycleSync) { try { lifecycleSyncCompany(type, id); } catch (e) { console.error('[ciclo de vida] sincronización', e); } }
   if (!opts.skipAutoCompany && type === 'contacts' && (field === 'email' || field === 'website') && value) { try { autoAssociateCompany(id); } catch (e) { console.error('[empresas automáticas]', e); } }
   if (type === 'contacts' && COMPANY_LINK_FIELDS.has(field)) { try { syncContactCompanies(id); } catch (e) { console.error('[contact_companies]', e); } }
   if (type === 'tickets' && field === 'contactId' && value) { try { autoAssociateTicketCompany(id); } catch (e) { console.error('[tickets: empresa del contacto]', e); } }
@@ -1167,6 +1275,8 @@ function afterSet(type, id, field, value, opts = {}, previousValue) {
           setField('deals', id, 'closeDate', today);
           logSystem('deals', d.id, `Fecha de cierre fijada a «${formatDate(today)}» al cerrar el negocio.`, { closeDate: today, stage: value });
         }
+        // «Cuando se gana un negocio asociado, pasar a Cliente» (Ajustes › Etapa del ciclo de vida, when on).
+        if (previousValue !== value && dealStageIsWon(d.pipeline, value)) { try { lifecycleOnWon(d); } catch (e) { console.error('[ciclo de vida] negocio ganado', e); } }
       }
     }
     // A ticket changing status: on the ticket and on its contact and company.
@@ -1380,7 +1490,7 @@ function augment(type, r) {
   const props = PROP_CACHE[type] || (PROP_CACHE[type] = propertyList(type));
   const marks = new Map();
   for (const p of props) {
-    if (p.custom || REAL_ONLY.has(p.key)) continue; // custom properties and the real-only ones never get sample values
+    if (p.custom || REAL_ONLY.has(p.key) || (type === 'companies' && p.key === 'website')) continue; // custom properties and the real-only ones never get sample values
     if (r[p.key] === undefined || r[p.key] === null) { r[p.key] = sampleValue(p, r, type); marks.set(p.key, String(r[p.key])); }
   }
   DECORATED.set(r, marks);
@@ -2582,4 +2692,17 @@ export function clearDeletedTaskQueue(id) {
   } else {
     for (const r of cached('tasks')) if (r.queueId === id) setField('tasks', r.id, 'queueId', null);
   }
+}
+
+// Public domain enrichment only. Unknown properties are persisted in extra by toDb.
+export function companyDomainEnrichment(company = {}) {
+  const domain = siteDomain(company.domain);
+  return {
+    logoUrl: domain ? `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=128` : '',
+    ...(domain && !String(company.website ?? company.extra?.website ?? '').trim() ? { website: `https://${domain}` } : {}),
+  };
+}
+export function companyDomainPrefill(contact = {}) {
+  const domain = emailDomain(contact.email);
+  return domain && !isFreeEmailDomain(domain) ? domain : '';
 }
