@@ -1734,10 +1734,12 @@
     },
     {
       "id": "gap-ui-tarjeta-gdrive-vacia",
-      "status": "pending",
+      "status": "done",
       "lane": "claude",
       "createdAt": "2026-11-22T02:13:47-06:00",
-      "instruction": "TARJETA MUERTA OFRECIDA Y PREINSTALADA (ficha de los 4 módulos): el catálogo del editor ofrece «Archivos adjuntos de Google Drive» (src/layout-defaults.js:52) y teamViewLayout la incluye POR DEFECTO en toda vista de equipo nueva (layout-defaults.js:59, concat(['gdrive'])), pero rightCardHtml (src/record.js:1129-1156) no tiene caso para 'gdrive' → cae al default y pinta «Tarjeta sin contenido.» en la ficha. Es decir, toda vista de equipo nueva nace con una tarjeta vacía sin función, y el editor la sigue ofreciendo en «Agregar tarjeta». HubSpot nunca muestra una tarjeta «sin contenido»: la de Google Drive muestra estado vacío con acción de conectar, o no está si la integración no existe. Arreglo: quita 'gdrive' del catálogo y de teamViewLayout hasta que exista la integración (la propia línea 51 del archivo admite que «Document association cards stay unavailable until backed by persistent objects»), o dale un estado vacío real con enlace a Configuración › Integraciones. Criterio de aceptación: al crear una vista de equipo nueva no aparece ninguna tarjeta muerta; si la tarjeta sigue en el catálogo, al añadirla muestra un estado vacío decente y nunca el texto «Tarjeta sin contenido.». No despliegues nada a producción; solo código local."
+      "instruction": "TARJETA MUERTA OFRECIDA Y PREINSTALADA (ficha de los 4 módulos): el catálogo del editor ofrece «Archivos adjuntos de Google Drive» (src/layout-defaults.js:52) y teamViewLayout la incluye POR DEFECTO en toda vista de equipo nueva (layout-defaults.js:59, concat(['gdrive'])), pero rightCardHtml (src/record.js:1129-1156) no tiene caso para 'gdrive' → cae al default y pinta «Tarjeta sin contenido.» en la ficha. Es decir, toda vista de equipo nueva nace con una tarjeta vacía sin función, y el editor la sigue ofreciendo en «Agregar tarjeta». HubSpot nunca muestra una tarjeta «sin contenido»: la de Google Drive muestra estado vacío con acción de conectar, o no está si la integración no existe. Arreglo: quita 'gdrive' del catálogo y de teamViewLayout hasta que exista la integración (la propia línea 51 del archivo admite que «Document association cards stay unavailable until backed by persistent objects»), o dale un estado vacío real con enlace a Configuración › Integraciones. Criterio de aceptación: al crear una vista de equipo nueva no aparece ninguna tarjeta muerta; si la tarjeta sigue en el catálogo, al añadirla muestra un estado vacío decente y nunca el texto «Tarjeta sin contenido.». No despliegues nada a producción; solo código local.",
+      "completedAt": "2026-11-22T02:46:22-0600",
+      "completedBy": "claude"
     },
     {
       "id": "gap-ui-preview-props-sin-reordenar",
