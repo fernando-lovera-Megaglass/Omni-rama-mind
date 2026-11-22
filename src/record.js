@@ -204,7 +204,15 @@ let assocHighlightTimer;
 mount.innerHTML = `
   <div class="tq" id="task-queue" hidden></div>
   <div class="record">
-    <section class="record__left">
+    <section class="record__left" id="rec-left-col">
+      <div class="record__colbar record__colbar--left">
+        <span class="record__colbar-title" aria-hidden="true">Información</span>
+        <button class="col-toggle tip" type="button" id="col-toggle-left" data-col="left" aria-expanded="true" aria-controls="rec-left" aria-label="Contraer columna izquierda">
+          <span class="col-toggle__chev" aria-hidden="true">‹</span>
+          <span class="tip__text" id="col-toggle-left-tip">Contraer columna izquierda</span>
+        </button>
+      </div>
+      <div class="record__colbody" id="rec-left">
       <div class="card card--tight">
         <div class="record__top">
           <a class="back" id="back" href="../">‹ ${cfg.label}</a>
@@ -268,6 +276,7 @@ mount.innerHTML = `
         <p class="props__custom"><button class="link-btn" type="button" data-act="all-props-panel">Ver todas las propiedades</button><button class="link-btn" type="button" data-act="customize-props">Personalizar</button></p>
       </div>
       <div id="rec-left-extra"></div>
+      </div>
     </section>
     <div class="slideover" id="allprops-panel" aria-hidden="true">
       <div class="slideover__scrim" data-act="all-props-close"></div>
@@ -282,10 +291,6 @@ mount.innerHTML = `
     </div>
 
     <section class="record__middle">
-      <button class="side-toggle tip" type="button" id="side-toggle" aria-pressed="false" aria-label="Contraer barra lateral">
-        <span class="ico ico--sidebar" aria-hidden="true"></span>
-        <span class="tip__text tip__text--left" id="side-toggle-tip">Contraer barra lateral</span>
-      </button>
       <div class="rtabs" role="tablist" id="rec-tabs"></div>
 
       <div class="tabpane" id="pane-overview">
@@ -345,7 +350,16 @@ mount.innerHTML = `
       </div>
     </section>
 
-    <section class="record__right" id="rec-right"></section>
+    <section class="record__right" id="rec-right-col">
+      <div class="record__colbar record__colbar--right">
+        <button class="col-toggle tip" type="button" id="col-toggle-right" data-col="right" aria-expanded="true" aria-controls="rec-right" aria-label="Contraer columna derecha">
+          <span class="col-toggle__chev" aria-hidden="true">›</span>
+          <span class="tip__text" id="col-toggle-right-tip">Contraer columna derecha</span>
+        </button>
+        <span class="record__colbar-title" aria-hidden="true">Asociaciones</span>
+      </div>
+      <div class="record__colbody" id="rec-right"></div>
+    </section>
   </div>
 
   <aside class="adrawer" id="assoc-drawer" hidden></aside>
@@ -1032,7 +1046,36 @@ function renderTabs() {
   if (!L.tabs.some((t) => t.id === activeTabId)) activeTabId = (L.tabs.find((t) => t.id === 'overview') || L.tabs[0])?.id;
   $('rec-tabs').innerHTML =
     L.tabs.map((t) => `<button class="rtabs__tab${t.id === activeTabId ? ' is-active' : ''}" role="tab" type="button" data-tab="${t.id}">${esc(t.label)}</button>`).join('') +
+    `<div class="menu rtabs__more" hidden><button class="rtabs__tab rtabs__more-btn" type="button" aria-haspopup="true" aria-expanded="false">Más <span class="caret"></span></button><div class="menu__panel menu__panel--right" id="rec-tabs-more"></div></div>` +
     `<button class="rtabs__custom" type="button" data-act="customize">⚙ Personalizar</button>`;
+  wireMenus($('rec-tabs'));
+  fitTabs();
+}
+// The tabs that do not fit in the bar move into the «Más» menu (the active one always stays visible); the bar
+// is measured in the browser, so a harness without layout keeps every tab in place. Only when even the active
+// tab plus «Más» and «Personalizar» overflow does the bar scroll sideways. Tabs are never cut or squeezed.
+function fitTabs() {
+  const bar = $('rec-tabs');
+  const more = bar?.querySelector('.rtabs__more');
+  if (!more) return;
+  const panel = more.querySelector('.menu__panel');
+  const tabs = [...bar.querySelectorAll(':scope > .rtabs__tab')];
+  tabs.forEach((t) => { t.hidden = false; });
+  panel.innerHTML = '';
+  more.hidden = true;
+  bar.classList.remove('is-scroll');
+  if (!bar.clientWidth) return;
+  const fits = () => bar.scrollWidth <= bar.clientWidth + 1;
+  if (fits()) return;
+  more.hidden = false;
+  const folded = [];
+  for (let i = tabs.length - 1; i >= 0 && !fits(); i--) {
+    if (tabs[i].classList.contains('is-active')) continue;
+    tabs[i].hidden = true;
+    folded.unshift(tabs[i]);
+  }
+  panel.innerHTML = folded.map((t) => `<button class="menu__item" type="button" role="tab" data-tab="${esc(t.dataset.tab)}">${esc(t.textContent)}</button>`).join('');
+  bar.classList.toggle('is-scroll', !fits());
 }
 function sectionsHtml(sections, tabId = 'overview') {
   return sections
@@ -2114,10 +2157,7 @@ function runAction(act, data = {}) {
     case 'review-assoc': {
       const right = $('rec-right');
       if (!right) break;
-      if (mount.querySelector('.record')?.classList.contains('is-side-collapsed')) {
-        localStorage.setItem(SIDE_KEY, 'open');
-        applySide();
-      }
+      if (colsState().right === 'collapsed') setCol('right', 'open');
       right.scrollIntoView({ behavior: 'smooth', block: 'start' });
       clearTimeout(assocHighlightTimer);
       right.classList.add('is-reviewing-assoc');
@@ -2561,6 +2601,8 @@ if (!rec) {
       activeTabId = tab.dataset.tab;
       document.querySelectorAll('.rtabs__tab').forEach((t) => t.classList.toggle('is-active', t === tab));
       mount.querySelectorAll('.tabpane').forEach((p) => { p.hidden = p.id !== `pane-${activeTabId}`; });
+      // A tab picked from the «Más» menu comes out of it and takes its place in the bar.
+      if (tab.closest('.rtabs__more')) { closeMenus(); renderTabs(); }
       return;
     }
     const fill = e.target.closest('[data-fill]');
@@ -3002,23 +3044,50 @@ if (rec) {
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && ad) closeAssocDrawer(); });
 }
 
-// Collapse / expand the right-hand column (remembered across record pages).
-const SIDE_KEY = 'crm:record:side';
-function applySide() {
-  const collapsed = localStorage.getItem(SIDE_KEY) === 'collapsed';
-  mount.querySelector('.record').classList.toggle('is-side-collapsed', collapsed);
-  const btn = $('side-toggle');
-  btn.setAttribute('aria-pressed', String(collapsed));
-  btn.setAttribute('aria-label', collapsed ? 'Expandir barra lateral' : 'Contraer barra lateral');
-  $('side-toggle-tip').textContent = collapsed ? 'Expandir barra lateral' : 'Contraer barra lateral';
-  btn.classList.toggle('is-collapsed', collapsed);
+// Collapsible side columns (HubSpot style): a toggle on the top edge of each column folds it into a narrow rail
+// and the centre column takes the room. The choice is remembered per module (crm:<type>:record:cols) so the
+// contacts ficha and the deals ficha can be folded differently. On windows narrower than 1440px there is no room
+// for three columns with a readable centre, so the right column folds by itself the first time (once per module,
+// flag `auto`); from then on the person's own choice wins, and when they open it there the column stacks below.
+const COLS_KEY = `crm:${type}:record:cols`;
+const COL_LABEL = { left: 'columna izquierda', right: 'columna derecha' };
+const NARROW_QUERY = '(max-width: 1439px)';
+const colsState = () => loadJson(COLS_KEY, {}) || {};
+const isNarrowWindow = () => typeof window.matchMedia === 'function' && Boolean(window.matchMedia(NARROW_QUERY)?.matches);
+function applyCols() {
+  const s = colsState();
+  const grid = mount.querySelector('.record');
+  for (const col of ['left', 'right']) {
+    const collapsed = s[col] === 'collapsed';
+    grid.classList.toggle(`is-${col}-collapsed`, collapsed);
+    const section = $(`rec-${col}-col`);
+    section.classList.toggle('is-collapsed', collapsed);
+    const btn = $(`col-toggle-${col}`);
+    const label = `${collapsed ? 'Expandir' : 'Contraer'} ${COL_LABEL[col]}`;
+    btn.setAttribute('aria-expanded', String(!collapsed));
+    btn.setAttribute('aria-label', label);
+    btn.classList.toggle('is-collapsed', collapsed);
+    $(`col-toggle-${col}-tip`).textContent = label;
+    btn.querySelector('.col-toggle__chev').textContent = (col === 'left') === collapsed ? '›' : '‹';
+  }
 }
-$('side-toggle').addEventListener('click', () => {
-  const collapsed = localStorage.getItem(SIDE_KEY) === 'collapsed';
-  localStorage.setItem(SIDE_KEY, collapsed ? 'open' : 'collapsed');
-  applySide();
-});
-applySide();
+function setCol(col, state) {
+  const s = colsState();
+  s[col] = state;
+  saveJson(COLS_KEY, s);
+  applyCols();
+}
+for (const col of ['left', 'right']) {
+  $(`col-toggle-${col}`).addEventListener('click', () => setCol(col, colsState()[col] === 'collapsed' ? 'open' : 'collapsed'));
+}
+// First visit of this module on a narrow window: fold the right column once so the centre keeps its width.
+if (!colsState().right && !colsState().auto && isNarrowWindow()) {
+  saveJson(COLS_KEY, { ...colsState(), right: 'collapsed', auto: 'right' });
+}
+applyCols();
+// The tab bar is measured again whenever its width changes (window resized, a side column folded or opened).
+if (typeof ResizeObserver !== 'undefined') new ResizeObserver(() => fitTabs()).observe($('rec-tabs'));
+else window.addEventListener('resize', fitTabs);
 
 // Task queue bar ("Iniciar N tareas" on the tasks list): shown while a queue is in progress.
 if (rec) {

@@ -169,11 +169,11 @@ log('saved:', mem[`crm:${type}:assoccard:${akind}`], '| card title now:', docume
 click(document.querySelector(`[data-acard="search"][data-kind="${akind}"]`));
 log('inline search shown:', Boolean(document.querySelector(`[data-acard="q"][data-kind="${akind}"]`)));
 
-// collapse the right column
-click($('side-toggle'));
-log('side collapsed:', document.querySelector('.record').classList.contains('is-side-collapsed'), '| tip:', $('side-toggle-tip').textContent, '| stored:', mem['crm:record:side']);
-click($('side-toggle'));
-log('side expanded again:', !document.querySelector('.record').classList.contains('is-side-collapsed'), '| tip:', $('side-toggle-tip').textContent);
+// collapse the right column (toggle on the column's top edge; remembered per module)
+click($('col-toggle-right'));
+log('side collapsed:', document.querySelector('.record').classList.contains('is-right-collapsed'), '| tip:', $('col-toggle-right-tip').textContent, '| stored:', mem[`crm:${type}:record:cols`]);
+click($('col-toggle-right'));
+log('side expanded again:', !document.querySelector('.record').classList.contains('is-right-collapsed'), '| tip:', $('col-toggle-right-tip').textContent);
 
 // collapse
 click(document.querySelector('[data-toggle="about"]'));
