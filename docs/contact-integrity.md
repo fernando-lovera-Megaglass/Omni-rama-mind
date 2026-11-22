@@ -1,3 +1,7 @@
+## Revalidación de esta revisión (22 de noviembre)
+
+Se ejecutaron nuevamente `test-contact-integrity.mjs` y `test-bootstrap-concurrency.mjs`: ambas pasaron. La segunda utilizó dos conexiones a PostgreSQL temporal y comprobó espera por bloqueo y exactamente 420 contactos. El estado local del ítem original había vuelto a `done` pese a sus notas de aceptación pendiente; se reabrieron los cuatro ítems relacionados y se corrigió también `build-status-codex.json`. La canónica implementada y requerida en esta solicitud es el menor ID activo. No se consultó ni modificó la base remota: el límite explícito de solo código local impide acreditar reparación real.
+
 # Tercera reapertura: aceptación real pendiente
 
 Verificación de esta intervención: `test-contact-integrity.mjs` pasó en PGlite y `test-bootstrap-concurrency.mjs` pasó con dos sesiones de PostgreSQL desechable (420 contactos, una sola siembra).
