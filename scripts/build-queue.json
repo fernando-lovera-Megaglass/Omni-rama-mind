@@ -1299,10 +1299,11 @@
     },
     {
       "id": "gap-ui-informes-embudo-ventas",
-      "status": "pending",
+      "status": "done",
       "createdAt": "2026-11-21T13:25:00-06:00",
       "lane": "claude",
-      "instruction": "LÓGICA + UX (Informes › Paneles). HubSpot: el panel de ventas lleva el informe «Embudo de ventas»: barras horizontales por etapa del pipeline elegido con el número de negocios abiertos en cada una, el importe sumado y el % de conversión de una etapa a la siguiente (y el global primera→última), con selector de pipeline. Omni HOY: el Panel de ventas (src/reports.js ~líneas 294-300) tiene línea de ingresos, barras de negocios creados, dona de contactos por estado, tabla por propietario y llamadas — no hay embudo; el constructor de informes personalizados tampoco tiene esa visualización (VIEWS en src/custom-reports.js ~línea 7: table/bars/line/donut/kpi). Pasos: (1) nueva tarjeta «Embudo de ventas» en el panel de ventas: para el pipeline seleccionado (selector arriba a la derecha de la tarjeta, por defecto el primero de dealPipelineDefs()), filas por etapa ABIERTA en orden con: barra proporcional al máximo, etiqueta de la etapa, conteo de negocios abiertos, importe sumado (formatMoney corto, moneda de la cuenta) y, entre etapa y etapa, el % de conversión (negocios en etapa N+1 o posterior ÷ negocios en etapa N o posterior, incluidos los ganados/perdidos en su etapa); (2) es una foto actual del pipeline: no depende del rango de fechas del panel (indicarlo con una nota, como hace HubSpot); (3) opcional: añadir la visualización 'funnel' al constructor de informes (src/custom-reports.js + src/report-builder.js) reusando el mismo componente; (4) estado vacío cuando el pipeline no tiene negocios. Criterio de aceptación: el Panel de ventas muestra el embudo del pipeline FUERZA DE VENTAS con conteos e importes que cuadran con el tablero de negocios, % de conversión entre etapas calculado como se describe, selector que cambia a otro pipeline (p. ej. SACA SUMINISTRO) redibujando el embudo, y la tarjeta sobrevive a «Quitar del panel»/recargar como las demás. No despliegues nada a producción; solo código local."
+      "instruction": "LÓGICA + UX (Informes › Paneles). HubSpot: el panel de ventas lleva el informe «Embudo de ventas»: barras horizontales por etapa del pipeline elegido con el número de negocios abiertos en cada una, el importe sumado y el % de conversión de una etapa a la siguiente (y el global primera→última), con selector de pipeline. Omni HOY: el Panel de ventas (src/reports.js ~líneas 294-300) tiene línea de ingresos, barras de negocios creados, dona de contactos por estado, tabla por propietario y llamadas — no hay embudo; el constructor de informes personalizados tampoco tiene esa visualización (VIEWS en src/custom-reports.js ~línea 7: table/bars/line/donut/kpi). Pasos: (1) nueva tarjeta «Embudo de ventas» en el panel de ventas: para el pipeline seleccionado (selector arriba a la derecha de la tarjeta, por defecto el primero de dealPipelineDefs()), filas por etapa ABIERTA en orden con: barra proporcional al máximo, etiqueta de la etapa, conteo de negocios abiertos, importe sumado (formatMoney corto, moneda de la cuenta) y, entre etapa y etapa, el % de conversión (negocios en etapa N+1 o posterior ÷ negocios en etapa N o posterior, incluidos los ganados/perdidos en su etapa); (2) es una foto actual del pipeline: no depende del rango de fechas del panel (indicarlo con una nota, como hace HubSpot); (3) opcional: añadir la visualización 'funnel' al constructor de informes (src/custom-reports.js + src/report-builder.js) reusando el mismo componente; (4) estado vacío cuando el pipeline no tiene negocios. Criterio de aceptación: el Panel de ventas muestra el embudo del pipeline FUERZA DE VENTAS con conteos e importes que cuadran con el tablero de negocios, % de conversión entre etapas calculado como se describe, selector que cambia a otro pipeline (p. ej. SACA SUMINISTRO) redibujando el embudo, y la tarjeta sobrevive a «Quitar del panel»/recargar como las demás. No despliegues nada a producción; solo código local.",
+      "completedAt": "2026-11-21T21:20:29-0600"
     },
     {
       "id": "gap-ui-tareas-notas",
@@ -1386,12 +1387,10 @@
     },
     {
       "id": "gap-smoke-import-map-en",
-      "status": "done",
+      "status": "pending",
       "instruction": "smoke-import falla en «english fallback auto-map», posible regresión del commit de importación multiarchivo (2853737). Criterio: la prueba pasa. Ejecuta la(s) prueba(s) con node scripts/<smoke>.mjs hasta que pasen. Verifica si es regresión del código o prueba desactualizada por un cambio intencional; corrige lo que corresponda. No despliegues nada a producción; solo código local.",
       "createdAt": "2026-11-21T16:25:45-06:00",
-      "lane": "codex",
-      "completedAt": "2026-11-21T21:15:46-0600",
-      "completedBy": "codex"
+      "lane": "codex"
     },
     {
       "id": "gap-smoke-invitations-reemplazo",
