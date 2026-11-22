@@ -1,5 +1,12 @@
 # Progreso — Omni CRM
 
+## 2026-11-22 (sesión 6) · Sin tarjetas muertas en la ficha: fuera «Archivos adjuntos de Google Drive» (sin integración) y fuera «Tarjeta sin contenido.»
+
+- `src/layout-defaults.js`: el catálogo del editor ya no ofrece la tarjeta de Google Drive (no existe la integración) y `teamViewLayout` ya no la preinstala en las vistas de equipo nuevas. Los diseños guardados que aún la referencian (o tarjetas «x-…» no soportadas) se leen sin ellas (`RETIRED_CARDS` / `liveCardIds` en `loadLayout`, `loadViewLayout` y `resolveLayout`), así que ni la ficha ni el editor las muestran.
+- `src/record.js`: una tarjeta que la página no sabe pintar se omite (izquierda, centro y derecha) en vez de mostrar «Tarjeta sin contenido.», como el original.
+- Pruebas: `scripts/smoke-team-view-cards.mjs` (catálogo y vista de equipo nueva de los 4 módulos sin la tarjeta; todas las tarjetas de una vista nueva se pintan con contenido en la ficha; una vista guardada antigua con «gdrive» y «x-quotes» se pinta sin ellas; el editor no las lista ni las ofrece en «Agregar tarjeta»). Smokes de diseño, vistas de equipo, fichas y vista previa en verde.
+- Solo código local; nada desplegado.
+
 ## 2026-11-22 (sesión 6) · Las vistas de equipo se usan de verdad (ficha y panel de vista previa de los 4 módulos)
 
 - Antes: Configuración › Objetos creaba vistas de equipo y las asignaba a equipos, pero la ficha siempre pintaba `loadLayout(type)` y el panel de vista previa `loadSavedPreview(type)`: asignar una vista a un equipo no cambiaba nada.
