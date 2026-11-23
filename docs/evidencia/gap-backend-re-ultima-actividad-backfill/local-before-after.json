@@ -1,0 +1,966 @@
+{
+  "environment": "PGlite local synthetic fixtures",
+  "before": {
+    "after": [
+      {
+        "id": 1,
+        "ahead": false,
+        "behind": true,
+        "real_max": "2026-03-01T00:00:00+00:00",
+        "real_type": "note",
+        "record_type": "companies",
+        "last_activity": "2026-01-01T00:00:00+00:00",
+        "real_contact_max": "2026-02-01T00:00:00+00:00",
+        "last_activity_type": null,
+        "notes_last_contacted": null
+      },
+      {
+        "id": 2,
+        "ahead": true,
+        "behind": false,
+        "real_max": "2026-03-01T00:00:00+00:00",
+        "real_type": "note",
+        "record_type": "companies",
+        "last_activity": "2027-01-01T00:00:00+00:00",
+        "real_contact_max": "2026-02-01T00:00:00+00:00",
+        "last_activity_type": null,
+        "notes_last_contacted": null
+      },
+      {
+        "id": 4,
+        "ahead": null,
+        "behind": true,
+        "real_max": "2026-03-01T00:00:00+00:00",
+        "real_type": "note",
+        "record_type": "companies",
+        "last_activity": null,
+        "real_contact_max": "2026-02-01T00:00:00+00:00",
+        "last_activity_type": null,
+        "notes_last_contacted": null
+      },
+      {
+        "id": 1,
+        "ahead": false,
+        "behind": true,
+        "real_max": "2026-03-01T00:00:00+00:00",
+        "real_type": "note",
+        "record_type": "contacts",
+        "last_activity": "2026-01-01T00:00:00+00:00",
+        "real_contact_max": "2026-02-01T00:00:00+00:00",
+        "last_activity_type": null,
+        "notes_last_contacted": null
+      },
+      {
+        "id": 2,
+        "ahead": true,
+        "behind": false,
+        "real_max": "2026-03-01T00:00:00+00:00",
+        "real_type": "note",
+        "record_type": "contacts",
+        "last_activity": "2027-01-01T00:00:00+00:00",
+        "real_contact_max": "2026-02-01T00:00:00+00:00",
+        "last_activity_type": null,
+        "notes_last_contacted": null
+      },
+      {
+        "id": 4,
+        "ahead": null,
+        "behind": true,
+        "real_max": "2026-03-01T00:00:00+00:00",
+        "real_type": "note",
+        "record_type": "contacts",
+        "last_activity": null,
+        "real_contact_max": "2026-02-01T00:00:00+00:00",
+        "last_activity_type": null,
+        "notes_last_contacted": null
+      },
+      {
+        "id": 1,
+        "ahead": false,
+        "behind": true,
+        "real_max": "2026-03-01T00:00:00+00:00",
+        "real_type": "note",
+        "record_type": "deals",
+        "last_activity": "2026-01-01T00:00:00+00:00",
+        "real_contact_max": "2026-02-01T00:00:00+00:00",
+        "last_activity_type": null,
+        "notes_last_contacted": null
+      },
+      {
+        "id": 2,
+        "ahead": true,
+        "behind": false,
+        "real_max": "2026-03-01T00:00:00+00:00",
+        "real_type": "note",
+        "record_type": "deals",
+        "last_activity": "2027-01-01T00:00:00+00:00",
+        "real_contact_max": "2026-02-01T00:00:00+00:00",
+        "last_activity_type": null,
+        "notes_last_contacted": null
+      },
+      {
+        "id": 4,
+        "ahead": null,
+        "behind": true,
+        "real_max": "2026-03-01T00:00:00+00:00",
+        "real_type": "note",
+        "record_type": "deals",
+        "last_activity": null,
+        "real_contact_max": "2026-02-01T00:00:00+00:00",
+        "last_activity_type": null,
+        "notes_last_contacted": null
+      },
+      {
+        "id": 1,
+        "ahead": false,
+        "behind": true,
+        "real_max": "2026-03-01T00:00:00+00:00",
+        "real_type": "note",
+        "record_type": "tickets",
+        "last_activity": "2026-01-01T00:00:00+00:00",
+        "real_contact_max": "2026-02-01T00:00:00+00:00",
+        "last_activity_type": null,
+        "notes_last_contacted": null
+      },
+      {
+        "id": 2,
+        "ahead": true,
+        "behind": false,
+        "real_max": "2026-03-01T00:00:00+00:00",
+        "real_type": "note",
+        "record_type": "tickets",
+        "last_activity": "2027-01-01T00:00:00+00:00",
+        "real_contact_max": "2026-02-01T00:00:00+00:00",
+        "last_activity_type": null,
+        "notes_last_contacted": null
+      },
+      {
+        "id": 4,
+        "ahead": null,
+        "behind": true,
+        "real_max": "2026-03-01T00:00:00+00:00",
+        "real_type": "note",
+        "record_type": "tickets",
+        "last_activity": null,
+        "real_contact_max": "2026-02-01T00:00:00+00:00",
+        "last_activity_type": null,
+        "notes_last_contacted": null
+      }
+    ],
+    "before": [
+      {
+        "id": 1,
+        "ahead": false,
+        "behind": true,
+        "real_max": "2026-03-01T00:00:00+00:00",
+        "real_type": "note",
+        "record_type": "companies",
+        "last_activity": "2026-01-01T00:00:00+00:00",
+        "real_contact_max": "2026-02-01T00:00:00+00:00",
+        "last_activity_type": null,
+        "notes_last_contacted": null
+      },
+      {
+        "id": 2,
+        "ahead": true,
+        "behind": false,
+        "real_max": "2026-03-01T00:00:00+00:00",
+        "real_type": "note",
+        "record_type": "companies",
+        "last_activity": "2027-01-01T00:00:00+00:00",
+        "real_contact_max": "2026-02-01T00:00:00+00:00",
+        "last_activity_type": null,
+        "notes_last_contacted": null
+      },
+      {
+        "id": 4,
+        "ahead": null,
+        "behind": true,
+        "real_max": "2026-03-01T00:00:00+00:00",
+        "real_type": "note",
+        "record_type": "companies",
+        "last_activity": null,
+        "real_contact_max": "2026-02-01T00:00:00+00:00",
+        "last_activity_type": null,
+        "notes_last_contacted": null
+      },
+      {
+        "id": 1,
+        "ahead": false,
+        "behind": true,
+        "real_max": "2026-03-01T00:00:00+00:00",
+        "real_type": "note",
+        "record_type": "contacts",
+        "last_activity": "2026-01-01T00:00:00+00:00",
+        "real_contact_max": "2026-02-01T00:00:00+00:00",
+        "last_activity_type": null,
+        "notes_last_contacted": null
+      },
+      {
+        "id": 2,
+        "ahead": true,
+        "behind": false,
+        "real_max": "2026-03-01T00:00:00+00:00",
+        "real_type": "note",
+        "record_type": "contacts",
+        "last_activity": "2027-01-01T00:00:00+00:00",
+        "real_contact_max": "2026-02-01T00:00:00+00:00",
+        "last_activity_type": null,
+        "notes_last_contacted": null
+      },
+      {
+        "id": 4,
+        "ahead": null,
+        "behind": true,
+        "real_max": "2026-03-01T00:00:00+00:00",
+        "real_type": "note",
+        "record_type": "contacts",
+        "last_activity": null,
+        "real_contact_max": "2026-02-01T00:00:00+00:00",
+        "last_activity_type": null,
+        "notes_last_contacted": null
+      },
+      {
+        "id": 1,
+        "ahead": false,
+        "behind": true,
+        "real_max": "2026-03-01T00:00:00+00:00",
+        "real_type": "note",
+        "record_type": "deals",
+        "last_activity": "2026-01-01T00:00:00+00:00",
+        "real_contact_max": "2026-02-01T00:00:00+00:00",
+        "last_activity_type": null,
+        "notes_last_contacted": null
+      },
+      {
+        "id": 2,
+        "ahead": true,
+        "behind": false,
+        "real_max": "2026-03-01T00:00:00+00:00",
+        "real_type": "note",
+        "record_type": "deals",
+        "last_activity": "2027-01-01T00:00:00+00:00",
+        "real_contact_max": "2026-02-01T00:00:00+00:00",
+        "last_activity_type": null,
+        "notes_last_contacted": null
+      },
+      {
+        "id": 4,
+        "ahead": null,
+        "behind": true,
+        "real_max": "2026-03-01T00:00:00+00:00",
+        "real_type": "note",
+        "record_type": "deals",
+        "last_activity": null,
+        "real_contact_max": "2026-02-01T00:00:00+00:00",
+        "last_activity_type": null,
+        "notes_last_contacted": null
+      },
+      {
+        "id": 1,
+        "ahead": false,
+        "behind": true,
+        "real_max": "2026-03-01T00:00:00+00:00",
+        "real_type": "note",
+        "record_type": "tickets",
+        "last_activity": "2026-01-01T00:00:00+00:00",
+        "real_contact_max": "2026-02-01T00:00:00+00:00",
+        "last_activity_type": null,
+        "notes_last_contacted": null
+      },
+      {
+        "id": 2,
+        "ahead": true,
+        "behind": false,
+        "real_max": "2026-03-01T00:00:00+00:00",
+        "real_type": "note",
+        "record_type": "tickets",
+        "last_activity": "2027-01-01T00:00:00+00:00",
+        "real_contact_max": "2026-02-01T00:00:00+00:00",
+        "last_activity_type": null,
+        "notes_last_contacted": null
+      },
+      {
+        "id": 4,
+        "ahead": null,
+        "behind": true,
+        "real_max": "2026-03-01T00:00:00+00:00",
+        "real_type": "note",
+        "record_type": "tickets",
+        "last_activity": null,
+        "real_contact_max": "2026-02-01T00:00:00+00:00",
+        "last_activity_type": null,
+        "notes_last_contacted": null
+      }
+    ],
+    "counts": [
+      {
+        "ahead": 1,
+        "behind": 2,
+        "record_type": "companies",
+        "with_engagement": 3
+      },
+      {
+        "ahead": 1,
+        "behind": 2,
+        "record_type": "contacts",
+        "with_engagement": 3
+      },
+      {
+        "ahead": 1,
+        "behind": 2,
+        "record_type": "deals",
+        "with_engagement": 3
+      },
+      {
+        "ahead": 1,
+        "behind": 2,
+        "record_type": "tickets",
+        "with_engagement": 3
+      }
+    ],
+    "applied": false
+  },
+  "after": {
+    "after": [
+      {
+        "id": 1,
+        "ahead": false,
+        "behind": false,
+        "real_max": "2026-03-01T00:00:00+00:00",
+        "real_type": "note",
+        "record_type": "companies",
+        "last_activity": "2026-03-01T00:00:00+00:00",
+        "real_contact_max": "2026-02-01T00:00:00+00:00",
+        "last_activity_type": "note",
+        "notes_last_contacted": null
+      },
+      {
+        "id": 2,
+        "ahead": false,
+        "behind": false,
+        "real_max": "2026-03-01T00:00:00+00:00",
+        "real_type": "note",
+        "record_type": "companies",
+        "last_activity": "2026-03-01T00:00:00+00:00",
+        "real_contact_max": "2026-02-01T00:00:00+00:00",
+        "last_activity_type": "note",
+        "notes_last_contacted": null
+      },
+      {
+        "id": 4,
+        "ahead": false,
+        "behind": false,
+        "real_max": "2026-03-01T00:00:00+00:00",
+        "real_type": "note",
+        "record_type": "companies",
+        "last_activity": "2026-03-01T00:00:00+00:00",
+        "real_contact_max": "2026-02-01T00:00:00+00:00",
+        "last_activity_type": "note",
+        "notes_last_contacted": null
+      },
+      {
+        "id": 1,
+        "ahead": false,
+        "behind": false,
+        "real_max": "2026-03-01T00:00:00+00:00",
+        "real_type": "note",
+        "record_type": "contacts",
+        "last_activity": "2026-03-01T00:00:00+00:00",
+        "real_contact_max": "2026-02-01T00:00:00+00:00",
+        "last_activity_type": "note",
+        "notes_last_contacted": "2026-02-01T00:00:00+00:00"
+      },
+      {
+        "id": 2,
+        "ahead": false,
+        "behind": false,
+        "real_max": "2026-03-01T00:00:00+00:00",
+        "real_type": "note",
+        "record_type": "contacts",
+        "last_activity": "2026-03-01T00:00:00+00:00",
+        "real_contact_max": "2026-02-01T00:00:00+00:00",
+        "last_activity_type": "note",
+        "notes_last_contacted": "2026-02-01T00:00:00+00:00"
+      },
+      {
+        "id": 4,
+        "ahead": false,
+        "behind": false,
+        "real_max": "2026-03-01T00:00:00+00:00",
+        "real_type": "note",
+        "record_type": "contacts",
+        "last_activity": "2026-03-01T00:00:00+00:00",
+        "real_contact_max": "2026-02-01T00:00:00+00:00",
+        "last_activity_type": "note",
+        "notes_last_contacted": "2026-02-01T00:00:00+00:00"
+      },
+      {
+        "id": 1,
+        "ahead": false,
+        "behind": false,
+        "real_max": "2026-03-01T00:00:00+00:00",
+        "real_type": "note",
+        "record_type": "deals",
+        "last_activity": "2026-03-01T00:00:00+00:00",
+        "real_contact_max": "2026-02-01T00:00:00+00:00",
+        "last_activity_type": "note",
+        "notes_last_contacted": null
+      },
+      {
+        "id": 2,
+        "ahead": false,
+        "behind": false,
+        "real_max": "2026-03-01T00:00:00+00:00",
+        "real_type": "note",
+        "record_type": "deals",
+        "last_activity": "2026-03-01T00:00:00+00:00",
+        "real_contact_max": "2026-02-01T00:00:00+00:00",
+        "last_activity_type": "note",
+        "notes_last_contacted": null
+      },
+      {
+        "id": 4,
+        "ahead": false,
+        "behind": false,
+        "real_max": "2026-03-01T00:00:00+00:00",
+        "real_type": "note",
+        "record_type": "deals",
+        "last_activity": "2026-03-01T00:00:00+00:00",
+        "real_contact_max": "2026-02-01T00:00:00+00:00",
+        "last_activity_type": "note",
+        "notes_last_contacted": null
+      },
+      {
+        "id": 1,
+        "ahead": false,
+        "behind": false,
+        "real_max": "2026-03-01T00:00:00+00:00",
+        "real_type": "note",
+        "record_type": "tickets",
+        "last_activity": "2026-03-01T00:00:00+00:00",
+        "real_contact_max": "2026-02-01T00:00:00+00:00",
+        "last_activity_type": "note",
+        "notes_last_contacted": null
+      },
+      {
+        "id": 2,
+        "ahead": false,
+        "behind": false,
+        "real_max": "2026-03-01T00:00:00+00:00",
+        "real_type": "note",
+        "record_type": "tickets",
+        "last_activity": "2026-03-01T00:00:00+00:00",
+        "real_contact_max": "2026-02-01T00:00:00+00:00",
+        "last_activity_type": "note",
+        "notes_last_contacted": null
+      },
+      {
+        "id": 4,
+        "ahead": false,
+        "behind": false,
+        "real_max": "2026-03-01T00:00:00+00:00",
+        "real_type": "note",
+        "record_type": "tickets",
+        "last_activity": "2026-03-01T00:00:00+00:00",
+        "real_contact_max": "2026-02-01T00:00:00+00:00",
+        "last_activity_type": "note",
+        "notes_last_contacted": null
+      }
+    ],
+    "before": [
+      {
+        "id": 1,
+        "ahead": false,
+        "behind": true,
+        "real_max": "2026-03-01T00:00:00+00:00",
+        "real_type": "note",
+        "record_type": "companies",
+        "last_activity": "2026-01-01T00:00:00+00:00",
+        "real_contact_max": "2026-02-01T00:00:00+00:00",
+        "last_activity_type": null,
+        "notes_last_contacted": null
+      },
+      {
+        "id": 2,
+        "ahead": true,
+        "behind": false,
+        "real_max": "2026-03-01T00:00:00+00:00",
+        "real_type": "note",
+        "record_type": "companies",
+        "last_activity": "2027-01-01T00:00:00+00:00",
+        "real_contact_max": "2026-02-01T00:00:00+00:00",
+        "last_activity_type": null,
+        "notes_last_contacted": null
+      },
+      {
+        "id": 4,
+        "ahead": null,
+        "behind": true,
+        "real_max": "2026-03-01T00:00:00+00:00",
+        "real_type": "note",
+        "record_type": "companies",
+        "last_activity": null,
+        "real_contact_max": "2026-02-01T00:00:00+00:00",
+        "last_activity_type": null,
+        "notes_last_contacted": null
+      },
+      {
+        "id": 1,
+        "ahead": false,
+        "behind": true,
+        "real_max": "2026-03-01T00:00:00+00:00",
+        "real_type": "note",
+        "record_type": "contacts",
+        "last_activity": "2026-01-01T00:00:00+00:00",
+        "real_contact_max": "2026-02-01T00:00:00+00:00",
+        "last_activity_type": null,
+        "notes_last_contacted": null
+      },
+      {
+        "id": 2,
+        "ahead": true,
+        "behind": false,
+        "real_max": "2026-03-01T00:00:00+00:00",
+        "real_type": "note",
+        "record_type": "contacts",
+        "last_activity": "2027-01-01T00:00:00+00:00",
+        "real_contact_max": "2026-02-01T00:00:00+00:00",
+        "last_activity_type": null,
+        "notes_last_contacted": null
+      },
+      {
+        "id": 4,
+        "ahead": null,
+        "behind": true,
+        "real_max": "2026-03-01T00:00:00+00:00",
+        "real_type": "note",
+        "record_type": "contacts",
+        "last_activity": null,
+        "real_contact_max": "2026-02-01T00:00:00+00:00",
+        "last_activity_type": null,
+        "notes_last_contacted": null
+      },
+      {
+        "id": 1,
+        "ahead": false,
+        "behind": true,
+        "real_max": "2026-03-01T00:00:00+00:00",
+        "real_type": "note",
+        "record_type": "deals",
+        "last_activity": "2026-01-01T00:00:00+00:00",
+        "real_contact_max": "2026-02-01T00:00:00+00:00",
+        "last_activity_type": null,
+        "notes_last_contacted": null
+      },
+      {
+        "id": 2,
+        "ahead": true,
+        "behind": false,
+        "real_max": "2026-03-01T00:00:00+00:00",
+        "real_type": "note",
+        "record_type": "deals",
+        "last_activity": "2027-01-01T00:00:00+00:00",
+        "real_contact_max": "2026-02-01T00:00:00+00:00",
+        "last_activity_type": null,
+        "notes_last_contacted": null
+      },
+      {
+        "id": 4,
+        "ahead": null,
+        "behind": true,
+        "real_max": "2026-03-01T00:00:00+00:00",
+        "real_type": "note",
+        "record_type": "deals",
+        "last_activity": null,
+        "real_contact_max": "2026-02-01T00:00:00+00:00",
+        "last_activity_type": null,
+        "notes_last_contacted": null
+      },
+      {
+        "id": 1,
+        "ahead": false,
+        "behind": true,
+        "real_max": "2026-03-01T00:00:00+00:00",
+        "real_type": "note",
+        "record_type": "tickets",
+        "last_activity": "2026-01-01T00:00:00+00:00",
+        "real_contact_max": "2026-02-01T00:00:00+00:00",
+        "last_activity_type": null,
+        "notes_last_contacted": null
+      },
+      {
+        "id": 2,
+        "ahead": true,
+        "behind": false,
+        "real_max": "2026-03-01T00:00:00+00:00",
+        "real_type": "note",
+        "record_type": "tickets",
+        "last_activity": "2027-01-01T00:00:00+00:00",
+        "real_contact_max": "2026-02-01T00:00:00+00:00",
+        "last_activity_type": null,
+        "notes_last_contacted": null
+      },
+      {
+        "id": 4,
+        "ahead": null,
+        "behind": true,
+        "real_max": "2026-03-01T00:00:00+00:00",
+        "real_type": "note",
+        "record_type": "tickets",
+        "last_activity": null,
+        "real_contact_max": "2026-02-01T00:00:00+00:00",
+        "last_activity_type": null,
+        "notes_last_contacted": null
+      }
+    ],
+    "counts": [
+      {
+        "ahead": 0,
+        "behind": 0,
+        "record_type": "companies",
+        "with_engagement": 3
+      },
+      {
+        "ahead": 0,
+        "behind": 0,
+        "record_type": "contacts",
+        "with_engagement": 3
+      },
+      {
+        "ahead": 0,
+        "behind": 0,
+        "record_type": "deals",
+        "with_engagement": 3
+      },
+      {
+        "ahead": 0,
+        "behind": 0,
+        "record_type": "tickets",
+        "with_engagement": 3
+      }
+    ],
+    "applied": true
+  },
+  "idempotent": {
+    "after": [
+      {
+        "id": 1,
+        "ahead": false,
+        "behind": false,
+        "real_max": "2026-03-01T00:00:00+00:00",
+        "real_type": "note",
+        "record_type": "companies",
+        "last_activity": "2026-03-01T00:00:00+00:00",
+        "real_contact_max": "2026-02-01T00:00:00+00:00",
+        "last_activity_type": "note",
+        "notes_last_contacted": null
+      },
+      {
+        "id": 2,
+        "ahead": false,
+        "behind": false,
+        "real_max": "2026-03-01T00:00:00+00:00",
+        "real_type": "note",
+        "record_type": "companies",
+        "last_activity": "2026-03-01T00:00:00+00:00",
+        "real_contact_max": "2026-02-01T00:00:00+00:00",
+        "last_activity_type": "note",
+        "notes_last_contacted": null
+      },
+      {
+        "id": 4,
+        "ahead": false,
+        "behind": false,
+        "real_max": "2026-03-01T00:00:00+00:00",
+        "real_type": "note",
+        "record_type": "companies",
+        "last_activity": "2026-03-01T00:00:00+00:00",
+        "real_contact_max": "2026-02-01T00:00:00+00:00",
+        "last_activity_type": "note",
+        "notes_last_contacted": null
+      },
+      {
+        "id": 1,
+        "ahead": false,
+        "behind": false,
+        "real_max": "2026-03-01T00:00:00+00:00",
+        "real_type": "note",
+        "record_type": "contacts",
+        "last_activity": "2026-03-01T00:00:00+00:00",
+        "real_contact_max": "2026-02-01T00:00:00+00:00",
+        "last_activity_type": "note",
+        "notes_last_contacted": "2026-02-01T00:00:00+00:00"
+      },
+      {
+        "id": 2,
+        "ahead": false,
+        "behind": false,
+        "real_max": "2026-03-01T00:00:00+00:00",
+        "real_type": "note",
+        "record_type": "contacts",
+        "last_activity": "2026-03-01T00:00:00+00:00",
+        "real_contact_max": "2026-02-01T00:00:00+00:00",
+        "last_activity_type": "note",
+        "notes_last_contacted": "2026-02-01T00:00:00+00:00"
+      },
+      {
+        "id": 4,
+        "ahead": false,
+        "behind": false,
+        "real_max": "2026-03-01T00:00:00+00:00",
+        "real_type": "note",
+        "record_type": "contacts",
+        "last_activity": "2026-03-01T00:00:00+00:00",
+        "real_contact_max": "2026-02-01T00:00:00+00:00",
+        "last_activity_type": "note",
+        "notes_last_contacted": "2026-02-01T00:00:00+00:00"
+      },
+      {
+        "id": 1,
+        "ahead": false,
+        "behind": false,
+        "real_max": "2026-03-01T00:00:00+00:00",
+        "real_type": "note",
+        "record_type": "deals",
+        "last_activity": "2026-03-01T00:00:00+00:00",
+        "real_contact_max": "2026-02-01T00:00:00+00:00",
+        "last_activity_type": "note",
+        "notes_last_contacted": null
+      },
+      {
+        "id": 2,
+        "ahead": false,
+        "behind": false,
+        "real_max": "2026-03-01T00:00:00+00:00",
+        "real_type": "note",
+        "record_type": "deals",
+        "last_activity": "2026-03-01T00:00:00+00:00",
+        "real_contact_max": "2026-02-01T00:00:00+00:00",
+        "last_activity_type": "note",
+        "notes_last_contacted": null
+      },
+      {
+        "id": 4,
+        "ahead": false,
+        "behind": false,
+        "real_max": "2026-03-01T00:00:00+00:00",
+        "real_type": "note",
+        "record_type": "deals",
+        "last_activity": "2026-03-01T00:00:00+00:00",
+        "real_contact_max": "2026-02-01T00:00:00+00:00",
+        "last_activity_type": "note",
+        "notes_last_contacted": null
+      },
+      {
+        "id": 1,
+        "ahead": false,
+        "behind": false,
+        "real_max": "2026-03-01T00:00:00+00:00",
+        "real_type": "note",
+        "record_type": "tickets",
+        "last_activity": "2026-03-01T00:00:00+00:00",
+        "real_contact_max": "2026-02-01T00:00:00+00:00",
+        "last_activity_type": "note",
+        "notes_last_contacted": null
+      },
+      {
+        "id": 2,
+        "ahead": false,
+        "behind": false,
+        "real_max": "2026-03-01T00:00:00+00:00",
+        "real_type": "note",
+        "record_type": "tickets",
+        "last_activity": "2026-03-01T00:00:00+00:00",
+        "real_contact_max": "2026-02-01T00:00:00+00:00",
+        "last_activity_type": "note",
+        "notes_last_contacted": null
+      },
+      {
+        "id": 4,
+        "ahead": false,
+        "behind": false,
+        "real_max": "2026-03-01T00:00:00+00:00",
+        "real_type": "note",
+        "record_type": "tickets",
+        "last_activity": "2026-03-01T00:00:00+00:00",
+        "real_contact_max": "2026-02-01T00:00:00+00:00",
+        "last_activity_type": "note",
+        "notes_last_contacted": null
+      }
+    ],
+    "before": [
+      {
+        "id": 1,
+        "ahead": false,
+        "behind": false,
+        "real_max": "2026-03-01T00:00:00+00:00",
+        "real_type": "note",
+        "record_type": "companies",
+        "last_activity": "2026-03-01T00:00:00+00:00",
+        "real_contact_max": "2026-02-01T00:00:00+00:00",
+        "last_activity_type": "note",
+        "notes_last_contacted": null
+      },
+      {
+        "id": 2,
+        "ahead": false,
+        "behind": false,
+        "real_max": "2026-03-01T00:00:00+00:00",
+        "real_type": "note",
+        "record_type": "companies",
+        "last_activity": "2026-03-01T00:00:00+00:00",
+        "real_contact_max": "2026-02-01T00:00:00+00:00",
+        "last_activity_type": "note",
+        "notes_last_contacted": null
+      },
+      {
+        "id": 4,
+        "ahead": false,
+        "behind": false,
+        "real_max": "2026-03-01T00:00:00+00:00",
+        "real_type": "note",
+        "record_type": "companies",
+        "last_activity": "2026-03-01T00:00:00+00:00",
+        "real_contact_max": "2026-02-01T00:00:00+00:00",
+        "last_activity_type": "note",
+        "notes_last_contacted": null
+      },
+      {
+        "id": 1,
+        "ahead": false,
+        "behind": false,
+        "real_max": "2026-03-01T00:00:00+00:00",
+        "real_type": "note",
+        "record_type": "contacts",
+        "last_activity": "2026-03-01T00:00:00+00:00",
+        "real_contact_max": "2026-02-01T00:00:00+00:00",
+        "last_activity_type": "note",
+        "notes_last_contacted": "2026-02-01T00:00:00+00:00"
+      },
+      {
+        "id": 2,
+        "ahead": false,
+        "behind": false,
+        "real_max": "2026-03-01T00:00:00+00:00",
+        "real_type": "note",
+        "record_type": "contacts",
+        "last_activity": "2026-03-01T00:00:00+00:00",
+        "real_contact_max": "2026-02-01T00:00:00+00:00",
+        "last_activity_type": "note",
+        "notes_last_contacted": "2026-02-01T00:00:00+00:00"
+      },
+      {
+        "id": 4,
+        "ahead": false,
+        "behind": false,
+        "real_max": "2026-03-01T00:00:00+00:00",
+        "real_type": "note",
+        "record_type": "contacts",
+        "last_activity": "2026-03-01T00:00:00+00:00",
+        "real_contact_max": "2026-02-01T00:00:00+00:00",
+        "last_activity_type": "note",
+        "notes_last_contacted": "2026-02-01T00:00:00+00:00"
+      },
+      {
+        "id": 1,
+        "ahead": false,
+        "behind": false,
+        "real_max": "2026-03-01T00:00:00+00:00",
+        "real_type": "note",
+        "record_type": "deals",
+        "last_activity": "2026-03-01T00:00:00+00:00",
+        "real_contact_max": "2026-02-01T00:00:00+00:00",
+        "last_activity_type": "note",
+        "notes_last_contacted": null
+      },
+      {
+        "id": 2,
+        "ahead": false,
+        "behind": false,
+        "real_max": "2026-03-01T00:00:00+00:00",
+        "real_type": "note",
+        "record_type": "deals",
+        "last_activity": "2026-03-01T00:00:00+00:00",
+        "real_contact_max": "2026-02-01T00:00:00+00:00",
+        "last_activity_type": "note",
+        "notes_last_contacted": null
+      },
+      {
+        "id": 4,
+        "ahead": false,
+        "behind": false,
+        "real_max": "2026-03-01T00:00:00+00:00",
+        "real_type": "note",
+        "record_type": "deals",
+        "last_activity": "2026-03-01T00:00:00+00:00",
+        "real_contact_max": "2026-02-01T00:00:00+00:00",
+        "last_activity_type": "note",
+        "notes_last_contacted": null
+      },
+      {
+        "id": 1,
+        "ahead": false,
+        "behind": false,
+        "real_max": "2026-03-01T00:00:00+00:00",
+        "real_type": "note",
+        "record_type": "tickets",
+        "last_activity": "2026-03-01T00:00:00+00:00",
+        "real_contact_max": "2026-02-01T00:00:00+00:00",
+        "last_activity_type": "note",
+        "notes_last_contacted": null
+      },
+      {
+        "id": 2,
+        "ahead": false,
+        "behind": false,
+        "real_max": "2026-03-01T00:00:00+00:00",
+        "real_type": "note",
+        "record_type": "tickets",
+        "last_activity": "2026-03-01T00:00:00+00:00",
+        "real_contact_max": "2026-02-01T00:00:00+00:00",
+        "last_activity_type": "note",
+        "notes_last_contacted": null
+      },
+      {
+        "id": 4,
+        "ahead": false,
+        "behind": false,
+        "real_max": "2026-03-01T00:00:00+00:00",
+        "real_type": "note",
+        "record_type": "tickets",
+        "last_activity": "2026-03-01T00:00:00+00:00",
+        "real_contact_max": "2026-02-01T00:00:00+00:00",
+        "last_activity_type": "note",
+        "notes_last_contacted": null
+      }
+    ],
+    "counts": [
+      {
+        "ahead": 0,
+        "behind": 0,
+        "record_type": "companies",
+        "with_engagement": 3
+      },
+      {
+        "ahead": 0,
+        "behind": 0,
+        "record_type": "contacts",
+        "with_engagement": 3
+      },
+      {
+        "ahead": 0,
+        "behind": 0,
+        "record_type": "deals",
+        "with_engagement": 3
+      },
+      {
+        "ahead": 0,
+        "behind": 0,
+        "record_type": "tickets",
+        "with_engagement": 3
+      }
+    ],
+    "applied": true
+  }
+}

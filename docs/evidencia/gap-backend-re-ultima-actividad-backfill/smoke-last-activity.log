@@ -1,0 +1,9 @@
+[last-activity] system entry and property change: lastActivity stays 2025-01-15
+[last-activity] note: lastActivity 2026-11-23 | num_notes 1 | contacted unchanged 0
+[last-activity] call: notes_last_contacted 2026-11-23 | contacted 1
+[last-activity] past-dated activity ignored; marketing moves lastActivity only
+[last-activity] inbox (Gmail path): received e-mail → lastActivity and last contact today
+[last-activity] companies / deals / tickets / tasks: lastActivity follows the timeline
+[last-activity] list: «Última actividad» cell = (column hidden) | sortValue today: true
+[last-activity] record: highlight «Última actividad» = 23 nov 2026
+[last-activity] OK
