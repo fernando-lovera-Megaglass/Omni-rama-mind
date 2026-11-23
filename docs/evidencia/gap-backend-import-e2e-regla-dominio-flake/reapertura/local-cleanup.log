@@ -1,0 +1,2 @@
+limpieza extra verificada: {"contacts":0,"companies":0,"deals":0,"tickets":0,"tasks":0,"activities":0,"associations":0,"orphan_company_activities":0}; imports=123
+[import-cleanup] PASS: delayed activity drained, undo IDs cleaned, trash preserved, post-commit activity rejected

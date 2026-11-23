@@ -273,5 +273,9 @@
   "import_jobs.sql": {
     "status": "aplicada",
     "at": "2026-11-23T02:07:32-0600"
+  },
+  "sequence-cron.sql": {
+    "status": "aplicada",
+    "at": "2026-11-23T03:53:15-0600"
   }
 }

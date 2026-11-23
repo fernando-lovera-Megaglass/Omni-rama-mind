@@ -1,0 +1,23 @@
+{
+  "at": "2026-11-23T10:09:24.836Z",
+  "results": [
+    {
+      "orphan_company_activities": 0,
+      "historical_activities": 0,
+      "preserved_trash": [
+        {
+          "id": 47,
+          "domain": "smoke-mws26j9p-aluminios-centro.com",
+          "deleted_at": "2026-11-23 06:32:34.297625+00"
+        },
+        {
+          "id": 56,
+          "domain": "smoke-mwsuhpme-aluminios-centro.com",
+          "deleted_at": "2026-11-23 06:32:34.297625+00"
+        }
+      ],
+      "other_smoke_companies": 0,
+      "smoke_contacts": 0
+    }
+  ]
+}

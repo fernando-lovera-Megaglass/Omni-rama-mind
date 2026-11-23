@@ -62,14 +62,21 @@ export async function startLiveSession(tag, supabase) {
   return { email, uid, stamp };
 }
 export async function removeLiveUser({ email, uid }) {
-  await sql(`delete from public.user_settings where user_id = ${lit(uid)}; delete from public.team_members where user_id = ${lit(uid)}; delete from auth.users where id = ${lit(uid)}; delete from public.invitations where lower(email::text) = ${lit(email.toLowerCase())};`);
+  await sql(`do $$ begin
+    if to_regclass('public.import_jobs') is not null then
+      delete from public.import_jobs where user_id = ${lit(uid)};
+    end if;
+  end $$;
+  delete from public.user_settings where user_id = ${lit(uid)}; delete from public.team_members where user_id = ${lit(uid)}; delete from auth.users where id = ${lit(uid)}; delete from public.invitations where lower(email::text) = ${lit(email.toLowerCase())};`);
 }
 // Every «SMOKE …» record of the run (and their associations, activities, tasks and line items), then the user.
-export async function cleanupLive(session) {
-  const like = lit('SMOKE %');
-  await sql(`delete from public.contact_companies cc using public.contacts c where cc.contact_id = c.id and (c.name like ${like} or c.email like 'smoke.%@ejemplo.com');
+export async function cleanupLive(session, { stampScoped = false } = {}) {
+  if (stampScoped && !session?.stamp) return;
+  const like = lit(stampScoped ? `SMOKE %${session.stamp}%` : 'SMOKE %');
+  const emailLike = lit(stampScoped ? `smoke.${session.stamp}.%` : 'smoke.%@ejemplo.com');
+  await sql(`delete from public.contact_companies cc using public.contacts c where cc.contact_id = c.id and (c.name like ${like} or c.email like ${emailLike});
     delete from public.contact_companies cc using public.companies c where cc.company_id = c.id and c.name like ${like};
-    delete from public.activities a using public.contacts c where a.record_type = 'contacts' and a.record_id = c.id and (c.name like ${like} or c.email like 'smoke.%@ejemplo.com');
+    delete from public.activities a using public.contacts c where a.record_type = 'contacts' and a.record_id = c.id and (c.name like ${like} or c.email like ${emailLike});
     delete from public.activities a using public.companies c where a.record_type = 'companies' and a.record_id = c.id and c.name like ${like};
     delete from public.activities a using public.deals d where a.record_type = 'deals' and a.record_id = d.id and d.name like ${like};
     delete from public.activities a using public.tickets t where a.record_type = 'tickets' and a.record_id = t.id and t.name like ${like};
@@ -79,7 +86,7 @@ export async function cleanupLive(session) {
     delete from public.deals where name like ${like};
     delete from public.tickets where name like ${like};
     delete from public.companies where name like ${like};
-    delete from public.contacts where name like ${like} or email like 'smoke.%@ejemplo.com';`);
+    delete from public.contacts where name like ${like} or email like ${emailLike};`);
   // Saved views of the run (the table may not exist yet: crm_views.sql pending).
   try { await sql(`delete from public.crm_views where name like ${like}`); } catch { /* no table */ }
   if (session) await removeLiveUser(session);
@@ -87,7 +94,7 @@ export async function cleanupLive(session) {
 
 // Runs `scenario` in live mode and exits; returns at once when SMOKE_LIVE is not set so the smoke goes on as
 // usual. The scenario gets the live-booted data.js module, the SQL runner and the session (uid, stamp).
-export async function liveSmoke(tag, scenario) {
+export async function liveSmoke(tag, scenario, cleanupOptions = {}) {
   if (!isLive()) return;
   const log = (...a) => console.log(`[${tag}:live]`, ...a);
   if (!loadEnv() || !hasMgmtToken()) { console.error(`[${tag}:live] FAIL: faltan app/.env (VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY) o app/.supabase-mgmt-token`); process.exit(2); }
@@ -115,7 +122,7 @@ export async function liveSmoke(tag, scenario) {
     failed = e;
     console.error(`[${tag}:live] FAIL: ${e && e.message ? e.message : e}`);
   } finally {
-    try { await cleanupLive(session); log('limpieza: registros SMOKE y usuario eliminados'); } catch (e) { failed ||= e; console.error(`[${tag}:live] limpieza incompleta: ${e.message}`); }
+    try { await cleanupLive(session, cleanupOptions); log('limpieza: registros SMOKE y usuario eliminados'); } catch (e) { failed ||= e; console.error(`[${tag}:live] limpieza incompleta: ${e.message}`); }
     try { await supabase.auth.signOut(); } catch { /* no session */ }
   }
   process.exit(failed ? 1 : 0);

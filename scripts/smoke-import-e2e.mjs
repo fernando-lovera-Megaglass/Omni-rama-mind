@@ -420,7 +420,7 @@ await liveSmoke('import-e2e', async ({ data, sql, one, check, log, session, stam
   } finally {
     await cleanupImportSmoke({ sql, data, E, stamp, log });
   }
-});
+}, { stampScoped: true });
 
 // ---------------------------------------------------------------------------------------------------------------
 // local mode: JSDOM + localStorage
