@@ -83,6 +83,16 @@ assert.equal((await db.query('SELECT deleted_at FROM contacts WHERE id=370')).ro
 await db.exec('INSERT INTO deals(contact_id) VALUES (99999)');
 await assert.rejects(db.exec(`BEGIN; ${repair} COMMIT;`), /Orphans/);
 await db.exec('ROLLBACK; DELETE FROM deals WHERE contact_id=99999');
+// Undeclared and polymorphic links must receive the same orphan checks as FKs.
+for (const [insert, cleanup] of [
+ ['INSERT INTO calls VALUES (\'99999\')', "DELETE FROM calls WHERE contact_id='99999'"],
+ ["INSERT INTO activities VALUES (99999,'contacts',99999)", 'DELETE FROM activities WHERE id=99999'],
+ ["INSERT INTO workflow_enrollments VALUES ('contacts',99999)", 'DELETE FROM workflow_enrollments WHERE record_id=99999'],
+]) {
+ await db.exec(insert);
+ await assert.rejects(db.exec(`BEGIN; ${repair} COMMIT;`), /Orphans/);
+ await db.exec(`ROLLBACK; ${cleanup}`);
+}
 // Existing references to previously trashed contacts must also fail acceptance.
 await db.exec('INSERT INTO tasks(contact_id) VALUES (50)');
 await assert.rejects(db.exec(`BEGIN; ${repair} COMMIT;`), /References to trashed contacts/);

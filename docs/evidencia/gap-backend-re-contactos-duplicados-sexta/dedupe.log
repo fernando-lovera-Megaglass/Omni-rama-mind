@@ -1,0 +1,19 @@
+[dedupe] normalizeEmail: ana@ejemplo.com ana@ejemplo.com ana@ejemplo.com
+[dedupe] analysis: {"key":"email","against":420,"existing":2,"inFile":["nueva.persona@ejemplo.com:4+5+7"],"inFileRows":2,"newCount":2,"withoutKey":1}
+[dedupe] row 2 → Ana Ruiz | changes: first,last,phone,jobTitle | row 3 → Diego Serrano | secondary: true
+[dedupe] create_update: 2:update 3:update 4:create 5:skip(DUPLICATE_UNIQUE_PROPERTY_VALUE) 6:create 7:skip(DUPLICATE_ROW_CONTENT) | summary: {"rows":6,"toCreate":2,"toUpdate":2,"skipped":2,"merged":0,"duplicatesExisting":2,"duplicatesInFile":2,"withoutKey":1,"errors":2}
+[dedupe] create (skip duplicates): 2:skip(CREATE_ONLY_IMPORT) 3:skip(CREATE_ONLY_IMPORT) 4:create 5:skip(DUPLICATE_UNIQUE_PROPERTY_VALUE) 6:create 7:skip(DUPLICATE_ROW_CONTENT)
+[dedupe] update only: 2:update 3:update 4:skip(UPDATE_ONLY_IMPORT) 5:skip(DUPLICATE_UNIQUE_PROPERTY_VALUE) 6:skip(UPDATE_ONLY_IMPORT) 7:skip(DUPLICATE_ROW_CONTENT)
+[dedupe] policy last: 2:update 3:update 4:skip(DUPLICATE_UNIQUE_PROPERTY_VALUE) 5:create 6:create 7:skip(DUPLICATE_ROW_CONTENT)
+[dedupe] policy merge: 2:update 3:update 4:create 5:merged 6:create 7:skip(DUPLICATE_ROW_CONTENT) | merged row 4 data: {"first":"Nueva","last":"Persona","email":"nueva.persona@ejemplo.com","jobTitle":"Ventas","phone":"+525522222222"} | mergedRows: [ 5 ]
+[dedupe] registered: {"duplicates":2,"fileDuplicates":2,"merged":1,"filePolicy":"merge"}
+[dedupe] run: {"created":2,"updated":2,"failed":1,"state":"DONE"} | contacts 420 → 422 | merged contact: 1 Nueva Persona · +525522222222 · Ventas | updated known phone: +525511111111
+[dedupe] second pass existing: 3 | new: 1
+[dedupe] wizard panel: Duplicados por correo electrónico | 1 fila coincide con un contacto existente | 1 fila repite un valor ya usado en el archivo (1 valor) | 1 contacto nuevo sin coincidencia
+[dedupe] match table: 2ana.ruiz@cristalesnorte.comMayus EspaciosNombre, Apellidos, CargoActualiza
+[dedupe] plan before: Vista previa del resultado: 3 filas · 1 registros nuevos · 1 actualizaciones · 1 filas no se importarán · 1 errores
+[dedupe] after "saltar": Vista previa del resultado: 3 filas · 1 registros nuevos · 0 actualizaciones · 2 filas no se importarán · 2 errores | action cell: Se salta
+[dedupe] after "combinar": Vista previa del resultado: 3 filas · 1 registros nuevos · 0 actualizaciones · 1 filas no se importarán · 1 filas combinadas · 1 errores | repeated list: wiz.nuevo@ejemplo.com en las filas 3, 4 → se combinan en una
+[dedupe] review: Completada | Filas del archivo3 | Contactos nuevos1 | Contactos actualizados0 | Asociaciones nuevas1 | Duplicados saltados1+ 1 repetidos en el archivo (combinados) | Errores1
+[dedupe] wizard contact: 1 Wiz Nuevo · Compras
+[dedupe] OK

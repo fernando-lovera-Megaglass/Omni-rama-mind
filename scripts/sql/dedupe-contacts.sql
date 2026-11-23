@@ -151,6 +151,9 @@ BEGIN
     EXECUTE format('SELECT count(*) FROM %I.%I t JOIN public.contacts c ON t.%I::text=c.id::text WHERE c.deleted_at IS NOT NULL%s',
       r.schema_name, r.table_name, r.column_name, r.predicate) INTO remaining;
     IF remaining <> 0 THEN RAISE EXCEPTION 'References to trashed contacts in %, rolling back', r.table_name; END IF;
+    EXECUTE format('SELECT count(*) FROM %I.%I t LEFT JOIN public.contacts c ON t.%I::text=c.id::text WHERE t.%I IS NOT NULL AND c.id IS NULL%s',
+      r.schema_name, r.table_name, r.column_name, r.column_name, r.predicate) INTO remaining;
+    IF remaining <> 0 THEN RAISE EXCEPTION 'Orphans in %.%, rolling back', r.schema_name, r.table_name; END IF;
   END LOOP;
 END $$;
 UPDATE public.contacts c SET deleted_at = now() FROM contact_merge m WHERE c.id=m.duplicate_id;
