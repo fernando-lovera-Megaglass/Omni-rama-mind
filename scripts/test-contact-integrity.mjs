@@ -30,10 +30,13 @@ INSERT INTO calls VALUES ('301');
 INSERT INTO activities VALUES (1,'contacts',301),(2,'deals',301);
 INSERT INTO workflow_enrollments VALUES ('contacts',302),('companies',302);
 INSERT INTO contact_companies(contact_id,company_id,is_primary) VALUES (1,1,false),(301,1,true),(302,1,false);`);
-await db.exec("UPDATE contacts SET first='Canonical' WHERE id=1");
+await db.exec("UPDATE contacts SET first='Canonical',phone='555',city='Madrid' WHERE id=1");
 // Bootstrap protection installs even while live duplicate emails still exist.
 await db.exec(sql('../supabase/bootstrap-demo.sql'));
 const repair = sql('./sql/dedupe-contacts.sql');
+await db.exec(`UPDATE deals SET extra=jsonb_build_object('assoc_contacts',jsonb_build_array(301,'302',1),'assoc_labels_contacts',jsonb_build_object('301','Principal'));
+ UPDATE tickets SET extra='{"assoc_contacts":[302]}'::jsonb;
+ UPDATE contacts SET extra=jsonb_build_object('assoc_deals',(SELECT jsonb_agg(id) FROM deals)) WHERE id=301;`);
 await db.exec(`BEGIN; ${repair} ROLLBACK;`);
 assert.equal((await db.query('SELECT count(*)::int n FROM contacts WHERE deleted_at IS NOT NULL')).rows[0].n, 0);
 await db.exec(`BEGIN; ${repair} COMMIT;`);
@@ -49,6 +52,17 @@ assert.deepEqual((await db.query('SELECT record_id::int FROM workflow_enrollment
 assert.equal((await db.query('SELECT count(*)::int n FROM contact_companies')).rows[0].n, 1);
 assert.equal((await db.query('SELECT is_primary FROM contact_companies')).rows[0].is_primary, true);
 await db.exec(`BEGIN; ${repair} COMMIT;`);
+assert.match((await db.query("SELECT indexdef FROM pg_indexes WHERE indexname='contacts_email_idx'")).rows[0].indexdef,/CREATE UNIQUE INDEX.*lower\(email\).*deleted_at IS NULL/);
+await assert.rejects(db.exec("INSERT INTO contacts(email) VALUES ('ANA@example.com')"), /unique constraint/);
+await db.exec('DROP INDEX contacts_email_idx');
+assert.deepEqual((await db.query("SELECT extra->'assoc_contacts' a FROM deals")).rows[0].a,[1]);
+assert.deepEqual((await db.query("SELECT extra->'assoc_labels_contacts' a FROM deals")).rows[0].a,{'1':'Principal'});
+assert.deepEqual((await db.query("SELECT extra->'assoc_contacts' a FROM tickets")).rows[0].a,[1]);
+assert.deepEqual((await db.query("SELECT extra->'assoc_deals' a FROM contacts WHERE id=1")).rows[0].a,
+ (await db.query('SELECT id FROM deals')).rows.map(r=>r.id));
+await db.exec("UPDATE tickets SET extra='{\"assoc_contacts\":[999999]}'::jsonb");
+await assert.rejects(db.exec(`BEGIN; ${repair} COMMIT;`), /Orphans in JSON/);
+await db.exec("ROLLBACK; UPDATE tickets SET extra='{\"assoc_contacts\":[1]}'::jsonb");
 // The richer copy wins even with a higher ID; empty values are filled.
 await db.exec(`INSERT INTO contacts(id,email,first,phone,city,extra) VALUES
  (50,'rich@example.com','Ana','555','','{"custom":"retained"}'),
@@ -66,6 +80,7 @@ assert.equal(rich.extra.custom, 'retained');
 assert.ok((await db.query('SELECT deleted_at FROM contacts WHERE id=50')).rows[0].deleted_at);
 assert.equal((await db.query('SELECT count(*)::int n FROM deals WHERE contact_id=50')).rows[0].n, 0);
 assert.equal((await db.query('SELECT count(*)::int n FROM tickets WHERE contact_id=350')).rows[0].n, 1);
+await db.exec('DROP INDEX contacts_email_idx');
 // Email is the identity key even when names conflict: retain canonical values.
 await db.exec(`INSERT INTO contacts(id,email,first) VALUES
  (60,'identity@example.com','Original'),(360,' IDENTITY@example.com ','Other');`);
@@ -73,6 +88,7 @@ await db.exec(`BEGIN; ${repair} COMMIT;`);
 assert.equal((await db.query('SELECT first FROM contacts WHERE id=60')).rows[0].first, 'Original');
 assert.ok((await db.query('SELECT deleted_at FROM contacts WHERE id=360')).rows[0].deleted_at);
 assert.equal((await db.query('SELECT first FROM contacts WHERE id=360')).rows[0].first, 'Other');
+await db.exec('DROP INDEX contacts_email_idx');
 // Activity wins ties even when the active copy has a higher id.
 await db.exec(`INSERT INTO contacts(id,email) VALUES (70,'activity@example.com'),(370,'activity@example.com');
  INSERT INTO activities VALUES (370,'contacts',370);`);
@@ -97,6 +113,7 @@ for (const [insert, cleanup] of [
 await db.exec('INSERT INTO tasks(contact_id) VALUES (50)');
 await assert.rejects(db.exec(`BEGIN; ${repair} COMMIT;`), /References to trashed contacts/);
 await db.exec('ROLLBACK; DELETE FROM tasks WHERE contact_id=50');
+await db.exec('DROP INDEX contacts_email_idx');
 // Regression for 77 pairs with all six required relationship types.
 await db.exec(`
  INSERT INTO contacts(id,email)

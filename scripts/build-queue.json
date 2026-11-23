@@ -2,6 +2,43 @@
   "project": "/Users/fernandolovera/Documents/Craft Anything/app-hubspot-com",
   "queue": [
     {
+      "id": "gap-backend-re-contactos-duplicados-septima",
+      "lane": "codex",
+      "status": "review",
+      "createdAt": "2026-11-23T01:25:00-06:00",
+      "instruction": "RE-APERTURA de gap-backend-re-contactos-duplicados-sexta (en review, evidencia docs/evidencia/gap-backend-re-contactos-duplicados-sexta/: la fusión NUNCA se ejecutó contra la base viva, «fusiones remotas ejecutadas = 0», pendiente de autorización). Sigue fallando: medición en vivo 23-nov-2026 ~01:15 CST vía scripts/mgmt-sql.mjs — 423 contactos activos, 385 con email, 308 emails distintos, 77 grupos duplicados (SELECT lower(email) ... GROUP BY 1 HAVING count(*)>1), 154 filas involucradas, 0 en papelera. Agravante: contacts_email_idx existe pero NO es único (pg_indexes: CREATE INDEX contacts_email_idx ON contacts (lower(email)) WHERE deleted_at IS NULL), así que el dedupe depende solo de la app y cualquier alta concurrente recrea duplicados. Corrección: con la autorización explícita ya solicitada por la sexta evidencia, ejecutar la fusión transaccional contra la base real (trasladando TODAS las referencias, incluidas las JSON extra.assoc_deals / extra.assoc_contacts de deals, tickets y demás objetos, que el reparador SQL actual no cubre), conservar las copias suprimidas en papelera, y después recrear contacts_email_idx como UNIQUE (misma expresión lower(email) parcial). Criterio de aceptación: 0 grupos duplicados en vivo, índice único verificado en pg_indexes, 0 referencias colgadas (contact_companies, deals.contact_id, tickets.contact_id, extra.assoc_*), y smoke-dedupe + test-contact-integrity en verde. No despliegues nada a producción; solo código local.",
+      "workedAt": "2026-11-23T01:44:04-0600",
+      "workedBy": "codex"
+    },
+    {
+      "id": "gap-backend-re-account-settings-rls-vivo-segunda",
+      "lane": "codex",
+      "status": "pending",
+      "createdAt": "2026-11-23T01:25:00-06:00",
+      "instruction": "RE-APERTURA de gap-backend-re-account-settings-rls-vivo (en review, además SIN carpeta de evidencia docs/evidencia/gap-backend-re-account-settings-rls-vivo/, lo que incumple el proceso). Sigue fallando en vivo 23-nov-2026: (1) pg_policies de account_settings muestra solo account_settings_read (SELECT) y account_settings_admin (ALL, exige JWT app_metadata role=admin que el usuario real no tiene — su rol vive en team_members.role, que la política no consulta); (2) account_settings sigue con 0 filas; (3) supabase/account-settings-team.sql sigue pendiente remota en applied-migrations.json. Consecuencia vigente: «Aplicar a todos los usuarios de la cuenta», vistas de equipo y layouts compartidos (src/layout-defaults.js, src/settings-store.js scope≠user) son rechazados por RLS o se pierden al recargar. Corrección: aplicar supabase/account-settings-team.sql contra la base real (escritura con is_team_member() y scope='account', lectura autenticada), verificar la política nueva en pg_policies, registrar fecha real en applied-migrations.json, dejar evidencia en docs/evidencia/<id>/ y hacer pasar SMOKE_LIVE=1 node scripts/smoke-record-customize.mjs. Criterio de aceptación: el smoke live pasa y una escritura de miembro no-admin persiste en account_settings. No despliegues nada a producción; solo código local."
+    },
+    {
+      "id": "gap-backend-re-companies-domain-sin-indice",
+      "lane": "codex",
+      "status": "pending",
+      "createdAt": "2026-11-23T01:25:00-06:00",
+      "instruction": "RE-APERTURA de gap-backend-companies-domain-sin-indice (en review; su propia evidencia docs/evidencia/gap-backend-companies-domain-sin-indice/ admite «Aplicación y aceptación en producción pendientes»: solo se aplicó en PGlite local). Sigue fallando en vivo 23-nov-2026: pg_indexes no muestra NINGÚN índice sobre companies.domain (verificado vía scripts/mgmt-sql.mjs; solo existen los índices por defecto). El dedupe empresa↔dominio del importador (src/import-engine.js, regla de dominio) hace barridos sin índice en la base real. Corrección: aplicar supabase/company-domain-index.sql (CREATE INDEX IF NOT EXISTS companies_domain_idx ON public.companies (lower(domain)) WHERE deleted_at IS NULL) contra la base viva, verificar su presencia con pg_indexes, registrar la aplicación real con fecha en applied-migrations.json (hoy figura como pendiente remoto con verificación local separada). Criterio de aceptación: el índice aparece en pg_indexes de producción y EXPLAIN lo usa en SELECT ... WHERE lower(domain)=lower($1) AND deleted_at IS NULL. No despliegues nada a producción; solo código local."
+    },
+    {
+      "id": "gap-backend-re-bootstrap-demo-rpc-ausente",
+      "lane": "codex",
+      "status": "pending",
+      "createdAt": "2026-11-23T01:25:00-06:00",
+      "instruction": "RE-APERTURA de gap-backend-bootstrap-demo-rpc-ausente (en review; evidencia docs/evidencia/gap-backend-bootstrap-demo-rpc-ausente/ declara «Aceptación remota pendiente; no cerrar»). Sigue fallando en vivo 23-nov-2026: el catálogo pg_proc del proyecto no contiene bootstrap_demo_v1 (listado completo vía scripts/mgmt-sql.mjs: solo commit_app_sync, marketing_*, sequence_*, workflow_*, handle_new_user, require_invitation, is_team_*, etc.). Mientras la RPC no exista en producción, el bootstrap de ejemplo falla en cada arranque con PGRST202 y src/data.js solo lo tolera (getDemoBootstrapStatus()=failed) — el ítem UI hermano gap-ui-bootstrap-demo-aviso-explicito sigue pending, así que el usuario no ve ningún aviso todavía. Corrección: aplicar ÚNICAMENTE supabase/bootstrap-demo.sql en la base real (nunca schema.sql ni vaciar tablas existentes), verificar con la consulta pg_proc de la evidencia, registrar la aplicación en applied-migrations.json. Criterio de aceptación: bootstrap_demo_v1 aparece en pg_proc y una llamada autenticada devuelve false (base ya poblada) sin error. No despliegues nada a producción; solo código local."
+    },
+    {
+      "id": "gap-backend-import-historial-sin-servidor",
+      "lane": "codex",
+      "status": "pending",
+      "createdAt": "2026-11-23T01:25:00-06:00",
+      "instruction": "El monitor de importaciones (Integración de datos) no tiene respaldo en Supabase: el historial vive solo en localStorage (crm:imports y crm:imports:detail:<id>, src/import-engine.js línea ~573 y src/integration.js IMPORTS_KEY), y la base no tiene ninguna tabla de importaciones (listado information_schema 23-nov-2026: no existe import_jobs ni equivalente). Consecuencias: los conteos de nuevos/actualizados/asociaciones/errores del monitor no se pueden auditar contra la base (esta auditoría no pudo cruzarlos), el historial desaparece al cambiar de navegador/dispositivo o limpiar el sitio, y «Deshacer importación» depende de un ledger local que se pierde con él. Corrección: crear tabla import_jobs (id, user_id, objeto, nombre, fuente/sistema, estado, conteos new/updated/associations/errors, undo ledger jsonb, created_at) con RLS por equipo, escribirla desde import-engine.js en cada transición de estado y al terminar, y que integration.js lea el historial desde Supabase con fallback al localStorage existente (migrando las entradas locales al primer guardado exitoso). Mantener intacto el formato de filas que el monitor ya renderiza. Criterio de aceptación: tras una importación real, SELECT en import_jobs devuelve la fila con conteos que coinciden con los registros escritos, y el monitor muestra el mismo historial en una sesión nueva sin localStorage. No despliegues nada a producción; solo código local."
+    },
+    {
       "id": "gap-ui-bootstrap-demo-aviso-explicito",
       "status": "pending",
       "lane": "claude",

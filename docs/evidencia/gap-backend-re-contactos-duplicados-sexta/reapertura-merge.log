@@ -1,0 +1,7 @@
+[record-merge] buscador: duplicado probable primero, filtra por nombre/correo, sin resultados
+[record-merge] comparación: filas last, owner, lifecycle, city; principal sugerido = duplicado (más campos); cambiado a la ficha; ciudad elegida del duplicado; aviso de papelera
+[record-merge] confirmado: duplicado en papelera; negocio y tarea → Ana Fusión; ciudad Madrid (elegida), Lead/propietario conservados, teléfono y cargo completados; cronología con la fusión y la nota movida; inscripción movida | 1 registro fusionado en «Ana Fusión» · 3 propiedades completadas
+[record-merge] segundo duplicado comparado; el fusionado se restaura desde la papelera
+[record-merge] contactos: assoc_contacts de negocio y ticket apuntan al conservado (etiqueta «Principal» conservada, sin duplicados); el conservado hereda assoc_deals
+[record-merge] empresas: assoc_companies de ticket y contacto apuntan a la conservada (deduplicado, etiqueta conservada)
+[record-merge] OK

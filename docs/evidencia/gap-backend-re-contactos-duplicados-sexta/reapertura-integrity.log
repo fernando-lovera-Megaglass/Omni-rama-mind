@@ -1,0 +1,7 @@
+[papelera] purga ReferenceError: localStorage is not defined
+    at schedulePurge (file:///Users/fernandolovera/Documents/Craft%20Anything/app-hubspot-com/app/src/data.js:3162:25)
+    at file:///Users/fernandolovera/Documents/Craft%20Anything/app-hubspot-com/app/src/data.js:3171:1
+    at ModuleJob.run (node:internal/modules/esm/module_job:561:25)
+    at async node:internal/modules/esm/loader:647:26
+    at async file:///Users/fernandolovera/Documents/Craft%20Anything/app-hubspot-com/app/scripts/test-contact-integrity.mjs:7:34
+PASS: rollback, dedupe, references, bridge collision, unique email, atomic bootstrap, repeat calls, identity sequence

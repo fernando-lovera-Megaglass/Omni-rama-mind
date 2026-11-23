@@ -1,0 +1,9 @@
+[
+  {
+    "total": 423,
+    "active": 423,
+    "trash": 0,
+    "duplicate_groups": 77,
+    "email_index": "CREATE INDEX contacts_email_idx ON public.contacts USING btree (lower(email)) WHERE (deleted_at IS NULL)"
+  }
+]

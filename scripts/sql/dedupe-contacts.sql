@@ -67,7 +67,12 @@ BEGIN
   END LOOP;
   patch := coalesce(target->'extra','{}');
   FOR e IN SELECT * FROM jsonb_each(coalesce(source->'extra','{}')) LOOP
-    IF (patch->e.key IS NULL OR patch->e.key IN ('null'::jsonb,'""'::jsonb))
+    IF e.key LIKE 'assoc\_%' ESCAPE '\' AND jsonb_typeof(e.value)='array' THEN
+      patch := jsonb_set(patch,ARRAY[e.key], (SELECT coalesce(jsonb_agg(value),'[]') FROM (SELECT DISTINCT value FROM jsonb_array_elements(coalesce(patch->e.key,'[]') || e.value)) a));
+    ELSIF e.key LIKE 'assoc_labels_%' AND jsonb_typeof(e.value)='object' THEN
+      patch := jsonb_set(patch,ARRAY[e.key],e.value || coalesce(patch->e.key,'{}'));
+      target := jsonb_set(target,ARRAY['extra'],patch);
+    ELSIF (patch->e.key IS NULL OR patch->e.key IN ('null'::jsonb,'""'::jsonb))
        AND jsonb_typeof(e.value) NOT IN ('object','array','null') THEN
       patch := jsonb_set(patch,ARRAY[e.key],e.value);
     END IF;
@@ -156,6 +161,61 @@ BEGIN
     IF remaining <> 0 THEN RAISE EXCEPTION 'Orphans in %.%, rolling back', r.schema_name, r.table_name; END IF;
   END LOOP;
 END $$;
+CREATE TEMP TABLE contact_json_audit (table_name text, record_id text, before_extra jsonb, after_extra jsonb) ON COMMIT DROP;
+-- Transfer JSON edges on every public object, retaining originals on suppressed contacts.
+DO $$
+DECLARE r record; row_data record; edge record; mapped jsonb; item jsonb;
+        payload jsonb; labels jsonb; dest text; target_table regclass; valid boolean;
+BEGIN
+ FOR r IN SELECT table_name FROM information_schema.columns
+   WHERE table_schema='public' AND column_name='extra' AND data_type='jsonb'
+   AND EXISTS (SELECT 1 FROM information_schema.columns c WHERE c.table_schema='public'
+     AND c.table_name=columns.table_name AND c.column_name='id') LOOP
+  FOR row_data IN EXECUTE format('SELECT id, extra FROM public.%I WHERE extra IS NOT NULL',r.table_name) LOOP
+   IF r.table_name='contacts' AND EXISTS(SELECT 1 FROM contact_merge WHERE duplicate_id::text=row_data.id::text) THEN CONTINUE; END IF;
+   payload := row_data.extra;
+   FOR edge IN SELECT * FROM jsonb_each(payload) WHERE key LIKE 'assoc_%' AND key NOT LIKE 'assoc_labels_%' LOOP
+    IF jsonb_typeof(edge.value) <> 'array' THEN RAISE EXCEPTION 'Malformed association %.%',r.table_name,edge.key; END IF;
+    target_table := to_regclass('public.' || quote_ident(substr(edge.key,7)));
+    IF target_table IS NULL THEN RAISE EXCEPTION 'Unknown association target %',edge.key; END IF;
+    mapped := '[]';
+    FOR item IN SELECT value FROM jsonb_array_elements(edge.value) LOOP
+     IF jsonb_typeof(item) NOT IN ('string','number') THEN RAISE EXCEPTION 'Malformed association ID'; END IF;
+     IF edge.key='assoc_contacts' THEN
+      SELECT canonical_id::text INTO dest FROM contact_merge WHERE duplicate_id::text=item#>>'{}';
+      IF dest IS NOT NULL THEN item := CASE WHEN jsonb_typeof(item)='string' THEN to_jsonb(dest) ELSE to_jsonb(dest::bigint) END; END IF;
+     END IF;
+     EXECUTE format('SELECT EXISTS(SELECT 1 FROM %s t WHERE t.id::text=$1 AND (to_jsonb(t)->>''deleted_at'') IS NULL %s)',target_table,
+       CASE WHEN edge.key='assoc_contacts' THEN 'AND NOT EXISTS(SELECT 1 FROM contact_merge m WHERE m.duplicate_id=t.id)' ELSE '' END)
+       INTO valid USING item#>>'{}';
+     IF NOT valid THEN RAISE EXCEPTION 'Orphans in JSON %.%',r.table_name,edge.key; END IF;
+     IF NOT EXISTS(SELECT 1 FROM jsonb_array_elements(mapped) v WHERE v#>>'{}'=item#>>'{}') THEN mapped := mapped || jsonb_build_array(item); END IF;
+    END LOOP;
+    payload := jsonb_set(payload,ARRAY[edge.key],mapped);
+   END LOOP;
+   IF payload ? 'assoc_labels_contacts' THEN
+    labels := payload->'assoc_labels_contacts';
+    IF jsonb_typeof(labels)<>'object' THEN RAISE EXCEPTION 'Malformed contact labels'; END IF;
+    FOR edge IN SELECT * FROM jsonb_each(labels) LOOP
+     SELECT canonical_id::text INTO dest FROM contact_merge WHERE duplicate_id::text=edge.key;
+     IF dest IS NOT NULL THEN
+      labels := (labels-edge.key) || jsonb_build_object(dest,coalesce(labels->dest,edge.value));
+     END IF;
+    END LOOP;
+    FOR edge IN SELECT * FROM jsonb_each(labels) LOOP
+     IF NOT EXISTS(SELECT 1 FROM contacts c WHERE c.id::text=edge.key AND c.deleted_at IS NULL)
+       OR EXISTS(SELECT 1 FROM contact_merge m WHERE m.duplicate_id::text=edge.key)
+       THEN RAISE EXCEPTION 'Orphans in JSON contact labels'; END IF;
+    END LOOP;
+    payload := jsonb_set(payload,ARRAY['assoc_labels_contacts'],labels);
+   END IF;
+   IF payload IS DISTINCT FROM row_data.extra THEN
+    INSERT INTO contact_json_audit VALUES (r.table_name,row_data.id::text,row_data.extra,payload);
+    EXECUTE format('UPDATE public.%I SET extra=$1 WHERE id=$2',r.table_name) USING payload,row_data.id;
+   END IF;
+  END LOOP;
+ END LOOP;
+END $$;
 UPDATE public.contacts c SET deleted_at = now() FROM contact_merge m WHERE c.id=m.duplicate_id;
 SELECT count(*) AS duplicate_groups FROM (
   SELECT lower(btrim(email)) FROM public.contacts WHERE deleted_at IS NULL AND btrim(email) <> ''
@@ -183,12 +243,29 @@ BEGIN
 END $$;
 SELECT count(*) AS merged_copies, count(DISTINCT canonical_id) AS merged_groups FROM contact_merge;
 
+-- Normalize future email-less writes so the exact partial unique index permits them.
+CREATE OR REPLACE FUNCTION public.contacts_empty_email_to_null() RETURNS trigger
+LANGUAGE plpgsql SET search_path=pg_catalog,public AS $$
+BEGIN
+ IF btrim(NEW.email)='' THEN NEW.email := NULL; END IF;
+ RETURN NEW;
+END $$;
+DROP TRIGGER IF EXISTS contacts_empty_email_to_null ON public.contacts;
+CREATE TRIGGER contacts_empty_email_to_null BEFORE INSERT OR UPDATE OF email
+ ON public.contacts FOR EACH ROW EXECUTE FUNCTION public.contacts_empty_email_to_null();
+-- Blank emails represent no identity; NULL permits multiple email-less contacts.
+UPDATE public.contacts SET email=NULL WHERE deleted_at IS NULL AND btrim(email)='';
+DROP INDEX IF EXISTS public.contacts_email_idx;
+CREATE UNIQUE INDEX contacts_email_idx ON public.contacts (lower(email)) WHERE deleted_at IS NULL;
+
 -- Single final result also retains before images through the Management API.
 SELECT jsonb_build_object(
  'merged_copies', (SELECT count(*) FROM contact_merge),
  'merged_groups', (SELECT count(DISTINCT canonical_id) FROM contact_merge),
  'before_images', (SELECT jsonb_agg(i.before) FROM contact_inventory i WHERE i.id IN
    (SELECT duplicate_id FROM contact_merge UNION SELECT canonical_id FROM contact_merge)),
+ 'json_changes', (SELECT jsonb_agg(to_jsonb(a)) FROM contact_json_audit a),
+ 'email_index', (SELECT indexdef FROM pg_indexes WHERE schemaname='public' AND indexname='contacts_email_idx'),
  'merge_map', (SELECT jsonb_agg(to_jsonb(m)) FROM contact_merge m),
  'duplicate_groups', (SELECT count(*) FROM (SELECT lower(email) FROM contacts
     WHERE email IS NOT NULL AND email<>'' AND deleted_at IS NULL GROUP BY 1 HAVING count(*)>1) d)
