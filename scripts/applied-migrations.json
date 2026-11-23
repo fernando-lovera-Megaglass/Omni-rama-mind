@@ -258,5 +258,16 @@
   "app-sync.sql": {
     "status": "aplicada",
     "at": "2026-11-22T10:21:27-0600"
+  },
+  "company-domain-index.sql": {
+    "status": "pendiente",
+    "nota": "Solo código local por instrucción del usuario; no aplicada ni verificada en producción. Independiente de contact-integrity.sql.",
+    "localVerification": {
+      "at": "2026-11-23T00:26:51.027921-06:00",
+      "environment": "PGlite desechable local, eliminado al finalizar",
+      "status": "aplicada_y_verificada_localmente",
+      "test": "node scripts/test-company-domain-index.mjs",
+      "result": "Aplicada dos veces con apply-migration.mjs --local; pg_indexes confirma índice parcial no único; EXPLAIN natural usa Index Scan using companies_domain_idx sobre 10004 filas."
+    }
   }
 }
