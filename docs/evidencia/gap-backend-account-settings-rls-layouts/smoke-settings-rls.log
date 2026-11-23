@@ -1,0 +1,1 @@
+PASS: SQL idempotency, personal RLS, legacy admin restriction, upgraded role-less shared CRUD, cross-user reads, anon rejection

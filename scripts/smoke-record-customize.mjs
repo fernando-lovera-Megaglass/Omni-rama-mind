@@ -14,7 +14,7 @@ const log = (...a) => console.log('[record-customize]', ...a);
 const fail = (msg) => { console.error(`[record-customize] FAIL: ${msg}`); process.exit(1); };
 
 // ---- modo live (SMOKE_LIVE=1, docs/smoke-live.md): the «Acerca de» customisation stored per user in Supabase ----
-await liveSmoke('record-customize', async ({ data, one, check, log, stamp, session }) => {
+await liveSmoke('record-customize', async ({ data, one, check, log, stamp, session, supabase }) => {
   await requireColumns('user_settings', ['user_id', 'scope', 'key', 'value']); // user_settings.sql (current version)
   await requireTable('account_settings');
   check(data.settingsLive(), 'la app arrancó con los ajustes en localStorage (fetchUserSettings falló: ¿user_settings sin scope?)');
@@ -62,8 +62,16 @@ await liveSmoke('record-customize', async ({ data, one, check, log, stamp, sessi
   // Use an isolated key so this check cannot overwrite account-wide card preferences.
   const sharedKey = `crm:contacts:layout:SMOKE_${stamp}`;
   try {
+    const { data: auth, error: authError } = await supabase.auth.getSession();
+    check(!authError && auth.session, 'sesión autenticada disponible');
+    const claims = JSON.parse(Buffer.from(auth.session.access_token.split('.')[1], 'base64url').toString());
+    check(claims.sub === session.uid && claims.app_metadata?.role !== 'admin', 'la prueba exige un JWT propio sin rol admin');
+    const member = await one(`select active from public.team_members where user_id = ${lit(session.uid)}`);
+    check(member?.active === true, 'el usuario de prueba pertenece al equipo activo');
     check(data.setSetting(sharedKey, layout, { scope: 'global' }) === true, 'acepta diseño compartido');
     await data.dbIdle();
+    const { data: visible, error: readError } = await supabase.from('account_settings').select('scope,value').eq('key', sharedKey).single();
+    check(!readError && visible?.scope === 'account' && JSON.stringify(visible.value.right) === JSON.stringify(layout.right), 'la sesión sin JWT admin debe recuperar el diseño compartido desde Supabase');
     const shared = await one(`select value from public.account_settings where key = ${lit(sharedKey)}`);
     check(shared && JSON.stringify(shared.value.right) === JSON.stringify(layout.right), 'diseño compartido debe persistir en account_settings; un rechazo RLS no es esperado');
     data.setSetting(sharedKey, null, { scope: 'global' });
