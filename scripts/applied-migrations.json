@@ -269,5 +269,9 @@
       "test": "node scripts/test-company-domain-index.mjs",
       "result": "Aplicada dos veces con apply-migration.mjs --local; pg_indexes confirma índice parcial no único; EXPLAIN natural usa Index Scan using companies_domain_idx sobre 10004 filas."
     }
+  },
+  "import_jobs.sql": {
+    "status": "aplicada",
+    "at": "2026-11-23T02:07:32-0600"
   }
 }

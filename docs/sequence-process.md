@@ -1,6 +1,6 @@
 # Ejecutor local de secuencias
 
-Implementación local, sin despliegue ni migraciones aplicadas a producción.
+Cambios de esta ronda exclusivamente locales. Estado remoto reportado y pasos pendientes abajo.
 
 ## Smoke test aislado
 
@@ -38,100 +38,99 @@ ni la anon key ni una sesión normal de usuario pueden ejecutarla.
 
 ## Activación en producción (runbook)
 
-Estado a 2026-11-21: la función `sequence-process` **no está desplegada** (no aparece en
-`npx supabase functions list`), `supabase/sequence-process.sql` sigue **pendiente** en
-`scripts/applied-migrations.json` (la tabla `sequence_step_runs` no existe en la base) y
-hay 26 inscripciones `active` congeladas con `next_step_at` vencido desde el 9-11 de
-noviembre. Nada de lo que sigue se ha ejecutado: son los pasos, en orden, para que lo
-haga quien tenga acceso al proyecto. Cada paso deja comprobación.
+Estado reportado por el usuario el **23-nov-2026 ~03:15 CST**, no consultado de nuevo
+ni modificado durante esta tarea: función sin desplegar, sin pg_cron, 26 inscripciones
+activas vencidas (mínima 9-nov 06:00 UTC), `sequence_step_runs` existe con cero filas.
+`sequence-process.sql` figura aplicada y sus RPC fueron verificadas el 22-nov.
+Los cierres anteriores acreditaban código local, no ejecución en producción.
 
-Herramientas locales ya listas (sin credenciales dentro, sin tocar `.env`):
+### Preparación autorizada por el operador
 
-- `scripts/remote-scheduler.mjs`: invocador del proyecto remoto con opt-in explícito por
-  variables de entorno (`SEQUENCE_REMOTE_URL` + `SEQUENCE_REMOTE_SERVICE_ROLE_KEY`).
-  Exige https y una clave service role (JWT con rol `service_role` o `sb_secret_…`);
-  rechaza claves publishable/anon y nunca imprime la clave. `--dry-run` no invoca nada:
-  lista por PostgREST las inscripciones activas vencidas que la función procesaría.
-  `--once` invoca una vez; sin opciones, un tic por minuto sin solapar.
-- `scripts/sequence-backfill.mjs`: genera el plan y el SQL que reprograma las
-  inscripciones activas congeladas (escalonadas a futuro, una cada 5 min, solo días
-  laborables UTC) sin tocar terminales (`replied`, `meeting`, `bounced`,
-  `unsubscribed`, `finished`, `unenrolled`), pausadas, activas con fecha futura ni
-  activas esperando tarea. Lee las filas con `--from-db` (SELECT de solo lectura con el
-  token de gestión) o `--from-json`. Solo escribe en la base con `--apply --yes` y si
-  la migración figura como aplicada. Cada UPDATE lleva su guarda: repetirlo no cambia nada.
-- Pruebas: `npm run test:sequence-remote` (scheduler contra un Supabase falso en
-  loopback y backfill sobre PGlite con las 26 congeladas).
+Estos pasos quedan pendientes; este cambio NO despliega ni aplica SQL remoto.
+Revisar primero remitentes Gmail activos y el historial del primer correo de cada
+inscripción antigua para evitar reenvíos. No asignar un remitente arbitrario.
 
-Pasos (desde `app/`, con `npx supabase login` y el proyecto enlazado):
+1. Desplegar la versión local, que incorpora GET autenticado de salud sin procesar pasos:
+   `npx supabase functions deploy sequence-process --project-ref xysgvxnieigpaxtmxiui`.
+   Mantener las credenciales OAuth de Gmail configuradas. La clave debe ser el JWT
+   `service_role` que coincide exactamente con `SUPABASE_SERVICE_ROLE_KEY` de la función;
+   una clave nueva `sb_secret_…` distinta no supera esta autenticación.
+2. Aplicar `supabase/sequence-cron.sql` como postgres en SQL Editor. Instala pg_cron,
+   pg_net y Vault y crea/reemplaza un único trabajo `omni-sequence-process`, cada minuto,
+   **inactivo**. Reaplicar pausa también un trabajo existente. Si la plataforma exige
+   habilitar Cron desde Integrations primero, hacerlo y volver a aplicar la migración.
+3. Crear los secretos `sequence_project_url` y `sequence_service_role_key` en Vault
+   desde el panel de Supabase, con URL `https://xysgvxnieigpaxtmxiui.supabase.co` y el JWT
+   anterior. Actualizarlos por nombre si existen. No poner claves en archivos versionados.
+   Exportar en la terminal `SEQUENCE_REMOTE_URL` y `SEQUENCE_REMOTE_SERVICE_ROLE_KEY`
+   con esos mismos valores; disponer de `.supabase-mgmt-token` para Management API.
+   El activador compara secretos dentro de SQL y solo recibe booleanos.
 
-1. **Revisar el histórico** antes de activar nada: qué inscripciones activas tienen ya
-   un primer correo enviado por la interfaz y cuáles carecen de remitente.
-   ```sh
-   node scripts/mgmt-sql.mjs "select status, count(*), min(next_step_at), max(next_step_at) from public.sequence_enrollments group by 1 order by 1"
-   node scripts/mgmt-sql.mjs "select id, contact_name, current_step, next_step_at, sender_account_id from public.sequence_enrollments where status = 'active' order by next_step_at"
-   ```
-2. **Aplicar la migración** (crea `sequence_step_runs`, `extra`, el índice y las RPC;
-   es repetible). Queda anotada en `scripts/applied-migrations.json`.
-   ```sh
-   node scripts/apply-migration.mjs supabase/sequence-process.sql
-   node scripts/mgmt-sql.mjs "select to_regclass('public.sequence_step_runs') as tabla, to_regprocedure('public.sequence_due(timestamptz)') as rpc"
-   ```
-   Alternativa sin token de gestión: pegar el archivo en el SQL Editor y anotar la
-   entrada a mano en `scripts/applied-migrations.json`.
-3. **Asignar remitente** a las inscripciones activas que vayan a seguir: un
-   `sender_account_id` de `connected_accounts` (Gmail activo) elegido por propietario
-   y correo, nunca una cuenta arbitraria. Las que no deban continuar, cancelarlas
-   (`status = 'unenrolled'`) en lugar de dejarlas sin remitente: sin remitente, el
-   primer paso de correo de esa inscripción quedará en `sequence_step_runs` con `error`.
-   ```sh
-   node scripts/mgmt-sql.mjs "select id, email, status from public.connected_accounts where provider = 'gmail'"
-   node scripts/mgmt-sql.mjs "update public.sequence_enrollments set sender_account_id = '<uuid de la cuenta>' where status = 'active' and enrolled_by = '<propietario>' and sender_account_id is null"
-   ```
-4. **Desplegar la función** (usa `_shared/gmail.ts`; `SUPABASE_URL` y
-   `SUPABASE_SERVICE_ROLE_KEY` los inyecta Supabase; los secretos de Gmail ya existen
-   para `gmail-send`: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`).
-   ```sh
-   npx supabase functions deploy sequence-process
-   npx supabase functions list
-   npx supabase secrets list
-   ```
-   Si la pasarela rechazara la clave `sb_secret_…` con JWT obligatorio, usar la clave
-   `service_role` heredada (JWT) del panel Project Settings › API, o fijar
-   `[functions.sequence-process] verify_jwt = false` en `supabase/config.toml` y volver
-   a desplegar: la función comprueba por sí misma el service role.
-5. **Comprobar conectividad sin ejecutar nada** (la clave se exporta solo en esa
-   terminal; no va a `.env` ni a ningún archivo):
-   ```sh
-   export SEQUENCE_REMOTE_URL=https://<ref>.supabase.co
-   export SEQUENCE_REMOTE_SERVICE_ROLE_KEY=<clave service role>
-   node scripts/remote-scheduler.mjs --dry-run
-   ```
-   Debe listar las inscripciones activas vencidas (hoy, 26).
-6. **Reprogramar las congeladas** para que no salgan todas en el primer tic:
-   ```sh
-   node scripts/sequence-backfill.mjs --from-db --out /tmp/sequence-backfill.sql
-   ```
-   Revisar el plan impreso y el SQL; luego aplicarlo con
-   `node scripts/sequence-backfill.mjs --from-db --apply --yes` (o pegar el SQL en el
-   SQL Editor). Verificar con la consulta del paso 1: ninguna `active` con fecha pasada.
-   `--start 2026-11-24T09:00:00Z --spacing 10` ajustan inicio y ritmo.
-7. **Primera invocación controlada** y verificación:
-   ```sh
-   node scripts/remote-scheduler.mjs --once
-   node scripts/mgmt-sql.mjs "select status, count(*) from public.sequence_step_runs group by 1"
-   node scripts/mgmt-sql.mjs "select enrollment_id, step_number, status, last_error from public.sequence_step_runs where status <> 'done' order by updated_at desc limit 20"
-   ```
-   Con el escalonado del paso 6 el primer tic procesará solo lo ya vencido (nada o
-   muy poco). Un `error` con `Missing sender_account_id` señala el paso 3.
-8. **Dejar el invocador en marcha** en una máquina que permanezca encendida:
-   `node scripts/remote-scheduler.mjs` (un tic por minuto; `--functions
-   sequence-process,marketing-process` cubre también los correos de marketing
-   programados). Sin opciones de cron en el proyecto, este proceso es el único
-   invocador: si se detiene, las secuencias vuelven a congelarse (sin pérdida: se
-   retoman al relanzarlo). Alternativa sin proceso propio, pendiente de decidir:
-   `pg_cron` + `pg_net` llamando a la función cada minuto con la clave guardada en
-   Vault.
+### Un comando de activación, después de preparar y autorizar
+
+```sh
+node scripts/sequence-activate.mjs --yes
+```
+
+Sin `--yes` o sin el opt-in de entorno no actúa. Verifica que el proyecto coincida
+con el destino SQL, exige GET de salud autenticado de la versión local y falla con
+el comando exacto de despliegue si falta. Verifica cron y Vault, pausa el trabajo,
+ejecuta `sequence-backfill.mjs --from-db --apply --yes` y comprueba por SQL que no
+quedan activas vencidas. El backfill escalona las congeladas desde al menos 15 minutos
+a futuro, una cada 5 minutos, días laborables UTC; conserva terminales, pausadas,
+futuras y espera de tareas. Finalmente habilita el cron y confirma la fila activa.
+Si falla después de la pausa, el cron queda pausado: corregir la causa y repetir.
+Una petición que ya estaba en vuelo no se cancela al pausar.
+
+El conteo de reprogramadas es dinámico (26 en la medición reportada), no una
+constante. Repetir no vuelve a desplazar las fechas futuras. La reprogramación no
+crea filas ficticias en `sequence_step_runs` ni demuestra entrega de correos.
+
+### Verificación de aceptación pendiente en producción
+
+Tras alcanzar la primera fecha reprogramada, y luego durante todo el escalonado:
+
+```sql
+select count(*) as congeladas from public.sequence_enrollments
+where status = 'active' and next_step_at < now() - interval '1 day'; -- debe ser 0
+select count(*) as futuras from public.sequence_enrollments
+where status = 'active' and next_step_at > now(); -- 26 inmediatamente tras backfill si nada cambió
+select jobid, jobname, schedule, active from cron.job
+where jobname = 'omni-sequence-process'; -- una fila activa, cada minuto
+select status, count(*) from public.sequence_step_runs group by status;
+select enrollment_id, step_number, status, last_error
+from public.sequence_step_runs order by updated_at desc limit 30;
+select d.status, d.start_time, d.return_message from cron.job_run_details d
+join cron.job j using (jobid) where j.jobname = 'omni-sequence-process'
+order by d.start_time desc limit 10;
+select id, status_code, timed_out, error_msg, content from net._http_response
+order by created desc limit 10;
+```
+
+`cron.job_run_details` exitoso solo demuestra que se encoló HTTP. Correlacionar su
+request ID (return_message) con `net._http_response` y revisar logs de la función:
+HTTP 2xx con `ok: true`, pasos `done` y avance real (los manuales dejan además `extra.waiting_task` en la inscripción).
+Las respuestas de pg_net son temporales. No aceptar cero pasos tras su vencimiento,
+ni considerar `error` como entrega. El cron vive en PostgreSQL y no depende de una
+terminal. Los scripts local/remote-scheduler quedan para diagnóstico, no como servicio
+persistente de producción. No mantener ambos invocadores encendidos.
+
+### Rollback y pausa
+
+```sql
+select cron.alter_job(jobid, active := false) from cron.job
+where jobname = 'omni-sequence-process';
+-- Para quitar solo este trabajo, de forma repetible:
+select cron.unschedule(jobid) from cron.job where jobname = 'omni-sequence-process';
+```
+
+No desinstalar extensiones compartidas. Los secretos exclusivos se pueden eliminar
+manualmente desde Vault después de quitar el trabajo. El rollback no desenvía correos,
+no borra tareas/recibos y no restaura fechas vencidas. Conservar `sequence_step_runs`.
+Para reanudar, reaplicar la migración si se quitó el trabajo y repetir el activador.
+
+Diseño basado en la [guía oficial de Supabase para programar Edge Functions](https://supabase.com/docs/guides/functions/schedule-functions)
+y [Cron](https://supabase.com/docs/guides/cron/quickstart).
 
 ## Semántica y operación
 

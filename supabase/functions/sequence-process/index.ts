@@ -3,8 +3,9 @@ import { processDue } from './processor.mjs';
 import { createStore } from './store.mjs';
 
 Deno.serve(handle(async (req) => {
-  if (req.method !== 'POST') return fail('Usa POST', 405);
   if (req.headers.get('Authorization') !== `Bearer ${requireEnv('SUPABASE_SERVICE_ROLE_KEY')}`) return fail('Service role required', 401);
+  if (req.method === 'GET') return json({ ok: true, service: 'sequence-process', activationVersion: 1 });
+  if (req.method !== 'POST') return fail('Usa POST', 405);
   const db = serviceClient();
   const results = await processDue(createStore(db), async (enrollment, step, payload) => {
     if (!enrollment.sender_account_id) throw new Error('Missing sender_account_id; configure enrollment sender');
