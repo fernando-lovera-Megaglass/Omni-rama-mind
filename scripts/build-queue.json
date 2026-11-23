@@ -31,9 +31,11 @@
     {
       "id": "gap-backend-re-bootstrap-demo-rpc-ausente",
       "lane": "codex",
-      "status": "pending",
+      "status": "review",
       "createdAt": "2026-11-23T01:25:00-06:00",
-      "instruction": "RE-APERTURA de gap-backend-bootstrap-demo-rpc-ausente (en review; evidencia docs/evidencia/gap-backend-bootstrap-demo-rpc-ausente/ declara «Aceptación remota pendiente; no cerrar»). Sigue fallando en vivo 23-nov-2026: el catálogo pg_proc del proyecto no contiene bootstrap_demo_v1 (listado completo vía scripts/mgmt-sql.mjs: solo commit_app_sync, marketing_*, sequence_*, workflow_*, handle_new_user, require_invitation, is_team_*, etc.). Mientras la RPC no exista en producción, el bootstrap de ejemplo falla en cada arranque con PGRST202 y src/data.js solo lo tolera (getDemoBootstrapStatus()=failed) — el ítem UI hermano gap-ui-bootstrap-demo-aviso-explicito sigue pending, así que el usuario no ve ningún aviso todavía. Corrección: aplicar ÚNICAMENTE supabase/bootstrap-demo.sql en la base real (nunca schema.sql ni vaciar tablas existentes), verificar con la consulta pg_proc de la evidencia, registrar la aplicación en applied-migrations.json. Criterio de aceptación: bootstrap_demo_v1 aparece en pg_proc y una llamada autenticada devuelve false (base ya poblada) sin error. No despliegues nada a producción; solo código local."
+      "instruction": "RE-APERTURA de gap-backend-bootstrap-demo-rpc-ausente (en review; evidencia docs/evidencia/gap-backend-bootstrap-demo-rpc-ausente/ declara «Aceptación remota pendiente; no cerrar»). Sigue fallando en vivo 23-nov-2026: el catálogo pg_proc del proyecto no contiene bootstrap_demo_v1 (listado completo vía scripts/mgmt-sql.mjs: solo commit_app_sync, marketing_*, sequence_*, workflow_*, handle_new_user, require_invitation, is_team_*, etc.). Mientras la RPC no exista en producción, el bootstrap de ejemplo falla en cada arranque con PGRST202 y src/data.js solo lo tolera (getDemoBootstrapStatus()=failed) — el ítem UI hermano gap-ui-bootstrap-demo-aviso-explicito sigue pending, así que el usuario no ve ningún aviso todavía. Corrección: aplicar ÚNICAMENTE supabase/bootstrap-demo.sql en la base real (nunca schema.sql ni vaciar tablas existentes), verificar con la consulta pg_proc de la evidencia, registrar la aplicación en applied-migrations.json. Criterio de aceptación: bootstrap_demo_v1 aparece en pg_proc y una llamada autenticada devuelve false (base ya poblada) sin error. No despliegues nada a producción; solo código local.",
+      "workedAt": "2026-11-23T01:55:54-0600",
+      "workedBy": "codex"
     },
     {
       "id": "gap-backend-import-historial-sin-servidor",

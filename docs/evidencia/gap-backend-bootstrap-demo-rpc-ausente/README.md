@@ -2,6 +2,21 @@
 
 Fecha: 2026-11-23 (America/Mexico_City). **Aceptación remota pendiente; no cerrar.**
 
+## Reapertura del 23-nov-2026
+
+Se revisó `supabase/bootstrap-demo.sql`: instala únicamente la función y sus permisos dentro de una transacción; no ejecuta schema.sql ni borra tablas. La definición retorna false antes de procesar el payload cuando alguna de las cinco tablas contiene filas. No se requiere otro cambio de código para instalarla.
+
+La solicitud vuelve a exigir aplicación real, pero termina con «No despliegues nada a producción; solo código local». Se solicitó aclaración explícita para esa excepción; mientras esté pendiente no se ejecuta SQL remoto ni se registra una aplicación ficticia en applied-migrations.json. La ausencia actual en pg_proc procede del reporte del usuario, no de una consulta realizada en esta reapertura. Los criterios de aceptación remotos siguen pendientes.
+
+Verificación repetida en esta reapertura:
+
+- `scripts/smoke-bootstrap-failure.mjs`: PASS con Node real del runtime de Kimi. Los errores simulados PGRST202, red y respuesta inválida son esperados.
+- `npm run build --script-shell=/tmp/omni-build-shell.sh`: PASS, Vite 5.4.21, 254 módulos, 1.96 s; PATH seleccionó el runtime real. Los intentos iniciales de node/npm con el wrapper fallaron por EPERM al registrar leases fuera del workspace.
+- No se repitió PostgreSQL local: no hubo cambios de SQL ni de lógica. La prueba local previa no sustituye la aceptación remota.
+- Playwright está instalado. El carril UI debe verificar el aviso y el arranque autenticado cuando implemente el ítem hermano existente; no se creó un duplicado ni se editaron UI o cola.
+
+Único cambio de esta reapertura: esta evidencia. No se aplicaron migraciones, no se desplegó la app y no se marcó la tarea como hecha.
+
 ## Cambio backend
 
 `src/data.js` ahora trata el bootstrap de ejemplo como una operación opcional: si la RPC devuelve un error, una respuesta inválida o lanza una excepción, no llega al catch que apaga `dbLive`. Conserva los datos remotos ya leídos (incluidas tablas parcialmente pobladas) y las escrituras siguen dirigidas a Supabase. No añade inserts cliente, no crea registros demo locales ni elimina funciones. El modo demo deliberado sin variables Supabase sigue existiendo. Otros errores de carga no relacionados con esta RPC conservan su comportamiento anterior.
