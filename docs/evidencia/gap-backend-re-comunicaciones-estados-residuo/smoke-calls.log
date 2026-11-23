@@ -1,0 +1,13 @@
+[llamadas] página: cabecera, vista, filtros y tabla con las llamadas OK
+[llamadas] tabla: ordenación, columnas y búsqueda OK
+[llamadas] chips: apertura, selección, reinicio y cuatro filtros OK
+[llamadas] conteo del pie OK
+[llamadas] búsqueda y estado vacío OK
+[llamadas] ficha: edición persistida, tabla, cronología, enlace, cierre y transcripción OK
+[llamadas] menú «Llamar»: números, agregar número y meta OK
+[llamadas] menú «Llamar» sin números: registro manual OK
+[llamadas] menú «Llamar» con Twilio: números activos, «Llamada desde» y casilla de grabación OK
+[llamadas] marcador: pestañas, teclado y botón de llamar OK
+[llamadas] marcador: búsqueda de contactos OK
+[llamadas] marcador: casilla de grabación OK
+[llamadas] OK

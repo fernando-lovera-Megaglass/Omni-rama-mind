@@ -1,0 +1,5 @@
+[calls-status] chip entre Dirección y Actividad asignada; 10 resultados (Twilio + manuales: Cancelada, Conectado, Dejó mensaje de voz, En cola, En curso, Fallida, Iniciada, Ocupado, Sin respuesta, Sonando)
+[calls-status] «Sin respuesta»: 2 filas, chip is-set «Resultado de la llamada: Sin respuesta», pie «2 llamadas»
+[calls-status] tras load(): filtro conservado (3 filas, «3 llamadas»), opciones reconstruidas
+[calls-status] «Fallida» → vacío con mensaje; «Todos» → 6 filas
+[calls-status] OK
