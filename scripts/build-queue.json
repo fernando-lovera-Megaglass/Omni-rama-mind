@@ -2,6 +2,13 @@
   "project": "/Users/fernandolovera/Documents/Craft Anything/app-hubspot-com",
   "queue": [
     {
+      "id": "gap-ui-bootstrap-demo-aviso-explicito",
+      "status": "pending",
+      "lane": "claude",
+      "createdAt": "2026-11-23T00:21:14-06:00",
+      "instruction": "Mostrar aviso persistente al terminar el arranque si getDemoBootstrapStatus() exportado por src/data.js devuelve state=failed. Usar su message: falló la siembra de ejemplo; conexión Supabase conservada, no modo demo local. Ofrecer recarga/reintento sin hacer inserts cliente. El estado queda disponible después del top-level await. Probar con Playwright RPC bootstrap_demo_v1 ausente y error de red: aviso visible y nuevas altas dirigidas a Supabase. Backend relacionado: gap-backend-bootstrap-demo-rpc-ausente. No cerrar hasta verificar UI."
+    },
+    {
       "id": "gap-ui-workflows-fidelidad-hubspot",
       "status": "review",
       "lane": "claude",
@@ -2296,9 +2303,11 @@
     {
       "id": "gap-backend-bootstrap-demo-rpc-ausente",
       "lane": "codex",
-      "status": "pending",
+      "status": "review",
       "createdAt": "2026-11-23T00:01:48-06:00",
-      "instruction": "PÉRDIDA SILENCIOSA EN BASE VACÍA (ALTA). src/data.js:2886-2893 (seedAll) llama supabase.rpc('bootstrap_demo_v1', { payload }) y el comentario dice «Never fall back to client-side inserts when the RPC/migration is unavailable» — pero la función NO EXISTE en la base: select proname from pg_proc where proname like 'bootstrap%' → solo existe is_team_member; y applied-migrations.json marca supabase/bootstrap-demo.sql como 'pendiente' («Solo código local; no aplicada en remoto»). Camino del fallo: initFromSupabase (src/data.js:3126-3131) llama seedAll() cuando contacts y companies están vacías → la RPC falla → el catch de 3136 apaga dbLive y la app trabaja en modo demo localStorage SIN aviso: todo lo que el usuario cree ahí no persiste en Supabase. Es además la mitad nunca aplicada del fix de idempotencia de seeds que los ítems de duplicados daban por hecho (el advisory lock vive dentro de bootstrap-demo.sql). Corrección: (1) aplicar supabase/bootstrap-demo.sql con la cuenta de servicio y verificar select proname from pg_proc → bootstrap_demo_v1 presente; (2) registrar la aplicación con fecha en applied-migrations.json; (3) probar el camino de base vacía (o documentar con SQL por qué no se puede) y confirmar que dos arranques concurrentes producen una sola siembra; (4) si la RPC sigue sin poder aplicarse, seedAll debe degradar con aviso explícito en UI, no con silencio. Criterio de aceptación: bootstrap_demo_v1 existe en pg_proc, applied-migrations.json lo refleja, y un arranque contra base vacía siembra una sola vez sin duplicados. No despliegues nada a producción; solo código local."
+      "instruction": "PÉRDIDA SILENCIOSA EN BASE VACÍA (ALTA). src/data.js:2886-2893 (seedAll) llama supabase.rpc('bootstrap_demo_v1', { payload }) y el comentario dice «Never fall back to client-side inserts when the RPC/migration is unavailable» — pero la función NO EXISTE en la base: select proname from pg_proc where proname like 'bootstrap%' → solo existe is_team_member; y applied-migrations.json marca supabase/bootstrap-demo.sql como 'pendiente' («Solo código local; no aplicada en remoto»). Camino del fallo: initFromSupabase (src/data.js:3126-3131) llama seedAll() cuando contacts y companies están vacías → la RPC falla → el catch de 3136 apaga dbLive y la app trabaja en modo demo localStorage SIN aviso: todo lo que el usuario cree ahí no persiste en Supabase. Es además la mitad nunca aplicada del fix de idempotencia de seeds que los ítems de duplicados daban por hecho (el advisory lock vive dentro de bootstrap-demo.sql). Corrección: (1) aplicar supabase/bootstrap-demo.sql con la cuenta de servicio y verificar select proname from pg_proc → bootstrap_demo_v1 presente; (2) registrar la aplicación con fecha en applied-migrations.json; (3) probar el camino de base vacía (o documentar con SQL por qué no se puede) y confirmar que dos arranques concurrentes producen una sola siembra; (4) si la RPC sigue sin poder aplicarse, seedAll debe degradar con aviso explícito en UI, no con silencio. Criterio de aceptación: bootstrap_demo_v1 existe en pg_proc, applied-migrations.json lo refleja, y un arranque contra base vacía siembra una sola vez sin duplicados. No despliegues nada a producción; solo código local.",
+      "workedAt": "2026-11-23T00:23:04-0600",
+      "workedBy": "codex"
     },
     {
       "id": "gap-backend-companies-domain-sin-indice",

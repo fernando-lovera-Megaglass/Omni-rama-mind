@@ -19,6 +19,8 @@ try {
     await admin.query(readFileSync(new URL(`../supabase/${file}`,import.meta.url),'utf8'));
   }
   const payload=JSON.stringify(buildDemoSeedPayload());
+  assert.equal((await admin.query("SELECT count(*)::int n FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='public' AND p.proname='bootstrap_demo_v1'")).rows[0].n, 1);
+  console.log('PASS: bootstrap_demo_v1 exists in local pg_proc after migration');
   await a.query('BEGIN');
   assert.equal((await a.query('SELECT bootstrap_demo_v1($1) seeded',[payload])).rows[0].seeded,true);
   // Second backend must wait on the first transaction's advisory lock.

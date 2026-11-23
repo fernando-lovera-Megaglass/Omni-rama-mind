@@ -202,7 +202,14 @@
   },
   "bootstrap-demo.sql": {
     "status": "pendiente",
-    "nota": "Bootstrap atómico con advisory lock, independiente del índice de email. Solo código local; no aplicada en remoto."
+    "nota": "Bootstrap atómico con advisory lock, independiente del índice de email. Solo código local; no aplicada en remoto.",
+    "localVerification": {
+      "at": "2026-11-23T00:22:20-06:00",
+      "environment": "PostgreSQL 18 desechable local; eliminado al finalizar",
+      "status": "aplicada_y_verificada_localmente",
+      "test": "scripts/test-bootstrap-concurrency.mjs",
+      "result": "pg_proc: public.bootstrap_demo_v1 presente; dos sesiones concurrentes, una siembra, 420 contactos sin duplicados de email. No aplicada ni verificada en remoto."
+    }
   },
   "message-template-usage.sql": {
     "appliedAt": "2026-11-21T18:29:00-06:00"

@@ -1,4 +1,6 @@
 import { matchesSearch } from './search-match.js';
+import { bootstrapDemo } from './demo-bootstrap.js';
+export { getDemoBootstrapStatus } from './demo-bootstrap.js';
 // Sample data for the app (placeholder people and companies, not real records).
 // When VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are set, records live in
 // Supabase and all edits go to the database. Without them, edits, additions
@@ -2888,8 +2890,7 @@ async function seedAll() {
   // The database checks emptiness while holding table locks and inserts all tables atomically.
   // Never fall back to client-side inserts when the RPC/migration is unavailable.
   const payload = buildDemoSeedPayload();
-  const { error } = await supabase.rpc('bootstrap_demo_v1', { payload });
-  if (error) throw error;
+  return bootstrapDemo(supabase, payload);
 }
 
 // Which pages load light: the four record lists download their own table one page at a time (src/server-list.js)
@@ -3124,10 +3125,12 @@ async function initFromSupabase() {
       }
     }
     if (!known('contacts') && !known('companies')) {
-      await seedAll();
-      const refetched = await Promise.all(Object.keys(BUILDERS).map((type) => fetchTable(type)));
-      Object.keys(BUILDERS).forEach((type, i) => { dbRows[type] = refetched[i]; });
-      lazyTypes.clear();
+      const bootstrap = await seedAll();
+      if (bootstrap.state !== 'failed') {
+        const refetched = await Promise.all(Object.keys(BUILDERS).map((type) => fetchTable(type)));
+        Object.keys(BUILDERS).forEach((type, i) => { dbRows[type] = refetched[i]; });
+        lazyTypes.clear();
+      }
     }
     for (const type of Object.keys(BUILDERS)) {
       nextId[type] = Math.max(nextId[type] || 0, dbRows[type].reduce((m, r) => Math.max(m, Number(r.id) || 0), 0) + 1);
