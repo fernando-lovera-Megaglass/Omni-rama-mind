@@ -1,0 +1,2 @@
+[import_jobs] Se conserva el historial local: offline
+PASS import_jobs: SQL migration, counts, fresh session, ledger, idempotence, retries, team RLS

@@ -11,6 +11,9 @@ import { currentUser } from './auth.js';
 import { listInvitations } from './invitations.js';
 import { buildOwnerIndex, resolveIndexedOwner } from './import-owners.js';
 
+import { supabase } from './supabaseClient.js';
+import { createImportJobs } from './import-jobs.js';
+
 export const ME = 'Fernando L.';
 export const IMPORTS_KEY = 'crm:imports';
 export const DETAIL_KEY = (id) => `crm:imports:detail:${id}`;
@@ -570,12 +573,7 @@ export function analyzeDuplicates(table, mapping, options = {}) {
 }
 
 // ---------- history, limits and states ----------
-// The history (crm:imports) and each import's detail (crm:imports:detail:<id>: timeline, errors, failed rows,
-// created ids for «Deshacer») live in this browser and, when signed in, in the person's settings in Supabase
-// (user_settings, scope user), so the monitor, the review page and «Deshacer» are the same in every browser.
-// This browser's copy is always current (it is written first); the remote copy is written a moment later (one
-// write per key every 250 ms while an import runs, at once on every state change) and read where the local
-// copy is missing. Two copies of the history are merged by id; the entry that got further wins.
+// Supabase import_jobs is authoritative; browser/settings copies remain offline fallback.
 const localRead = (k, fb) => { try { return JSON.parse(localStorage.getItem(k)) ?? fb; } catch { return fb; } };
 const localWrite = (k, v) => localStorage.setItem(k, JSON.stringify(v));
 const remoteRead = (k) => (settingsLive() ? getSetting(k) : null);
@@ -594,7 +592,19 @@ function remoteWrite(k, v, { now = false } = {}) {
 // Sends whatever is still waiting (the review page and the undo call it after a terminal state).
 export function flushImportSync() {
   for (const [k, t] of [...remoteTimers]) { clearTimeout(t); remoteTimers.delete(k); const v = localRead(k, null); if (v !== null) setSetting(k, shrinkForRemote(k, v)); }
+  return importJobs.flush();
 }
+const importJobs = createImportJobs(supabase, globalThis.localStorage);
+await importJobs.init(remoteRead(IMPORTS_KEY) || [], id => remoteRead(DETAIL_KEY(id)));
+// Hydrate once before monitor/review consumers render, including the undo ledger.
+if (importJobs.rows.size) {
+  const merged = new Map(localRead(IMPORTS_KEY, []).map(r => [Number(r.id), r]));
+  for (const [id, row] of importJobs.rows) { if (importJobs.hasPending(id)) continue; merged.set(id, row); localWrite(DETAIL_KEY(id), importJobs.details.get(id)); }
+  localWrite(IMPORTS_KEY, [...merged.values()]);
+}
+const persistJob = (id) => importJobs.save(localRead(IMPORTS_KEY, []).find(r => Number(r.id) === Number(id)), importDetail(id));
+export const importSyncStatus = () => ({ error: importJobs.error });
+
 const TERMINAL = new Set(['DONE', 'FAILED', 'CANCELED']);
 const rank = (r) => (r.undone ? 3 : TERMINAL.has(r.state) ? 2 : r.state === 'PROCESSING' ? 1 : 0);
 const newer = (a, b) => (rank(a) !== rank(b) ? (rank(a) > rank(b) ? a : b) : String(b.updatedAt || b.finishedAt || b.when) > String(a.updatedAt || a.finishedAt || a.when) ? b : a);
@@ -616,6 +626,7 @@ export function updateImport(id, patch) {
   if (i < 0) return null;
   list[i] = { ...list[i], ...patch, updatedAt: new Date().toISOString() };
   saveHistory(list);
+  persistJob(id);
   return list[i];
 }
 export function setState(id, state, note) {
@@ -686,6 +697,7 @@ export function registerImport({ name, table, plan, options }) {
   };
   saveHistory([entry, ...list]);
   saveDetail(id, { createdIds: {}, timeline: [{ state: entry.state, at: entry.when, note: deferred ? 'Hay 3 importaciones en proceso; esta empezará cuando termine una.' : '' }], headers: table.headers, mapping: options.mapping || [], errors: plan.errors, failedRows: plan.records.filter((r) => r.action === 'skip').map((r) => ({ row: r.rowNumber, code: r.code, cells: r.cells })), summary: plan.summary });
+  persistJob(id);
   return entry;
 }
 
@@ -715,18 +727,18 @@ export async function runImport(id, plan, { onProgress, isCanceled, chunk = 40, 
     if (!plan.batch) setState(id, 'PROCESSING');
     const todo = plan.records.filter((r) => r.action === 'create' || r.action === 'update'); // merged rows travel inside the row they were merged into
     for (let i = 0; i < todo.length; i += chunk) {
-      if (isCanceled && isCanceled()) { setState(id, 'CANCELED', `Cancelada por el usuario tras ${result.created + result.updated} registros.`); updateImport(id, { newRecords: result.created, updated: result.updated, associations: result.associations }); return { ...result, state: 'CANCELED' }; }
+      if (isCanceled && isCanceled()) { setState(id, 'CANCELED', `Cancelada por el usuario tras ${result.created + result.updated} registros.`); updateImport(id, { newRecords: result.created, updated: result.updated, associations: result.associations }); await flushImportSync(); return { ...result, state: 'CANCELED' }; }
       for (const r of todo.slice(i, i + chunk)) {
         const stamp = { hs_import_ids: String(id) };
         if (marketing) stamp.hs_marketable_status = 'Contacto de marketing';
         if (r.action === 'create') {
-          if (r.data.companyId) result.associations += 1;
           const defaults = newRecordDefaults(type, r.data);
           const data = { ...defaults, ...r.data, ...stamp };
           Object.keys(data).forEach((k) => { if (data[k] === undefined) delete data[k]; });
           const rec = await addRecord(type, data, { origin: 'Importación', waitForSave: true, skipAutoCompany: plan.batch });
           r.importedId = rec.id;
           result.created += 1;
+          if (r.data.companyId) result.associations += 1;
           result.createdIds.push(rec.id);
           ledger(type, rec.id);
           // a company found or created from the e-mail domain (companies specification §2) counts as an association
@@ -762,11 +774,12 @@ export async function runImport(id, plan, { onProgress, isCanceled, chunk = 40, 
     await dbIdle(); // Persist automatic associations before exposing completion.
     if (!plan.batch) setState(id, 'DONE');
     if (plan.createSegment) createSegment(type, id, plan.segmentName);
-    flushImportSync();
+    await flushImportSync();
     return { ...result, state: 'DONE' };
   } catch (e) {
     setState(id, 'FAILED', e && e.message ? e.message : 'Error inesperado');
-    updateImport(id, { newRecords: result.created, updated: result.updated });
+    updateImport(id, { newRecords: result.created, updated: result.updated, associations: result.associations, errors: plan.errors.length + 1 });
+    await flushImportSync();
     return { ...result, state: 'FAILED', error: e };
   }
 }
@@ -946,5 +959,5 @@ export async function runBatchImport(id, batch, hooks = {}) {
     await dbIdle();
     setState(id, 'DONE');
     return { state: 'DONE', byObject };
-  } catch (error) { publish(); setState(id, 'FAILED', error.message); return { state: 'FAILED', error }; }
+  } catch (error) { publish(); setState(id, 'FAILED', error.message); return { state: 'FAILED', error }; } finally { await flushImportSync(); }
 }

@@ -1,0 +1,5 @@
+[integration-history] sin importaciones: estado vacío «Aún no has importado datos» con «Importar datos» → ./import/, 0 filas, nada inyectado en crm:imports
+[integration-history] importación real 1795421141977: creados 2, errores 1, estado DONE
+[integration-history] tras la importación: 1 fila «historial_prueba.csv» → ./import/?id=1795421141977; errores 1 → mismo destino; sin modales estáticos ni nombres ficticios
+[integration-history] filtros (usuario, sistema), búsqueda y editor de columnas funcionan sobre la importación real
+[integration-history] OK

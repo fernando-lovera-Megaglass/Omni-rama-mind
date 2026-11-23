@@ -1,6 +1,6 @@
 // Gestión de datos › Integración de datos: the four ways to bring data in (file import, app sync, transfer,
 // Data Hub) and the monitor of imports and synchronisations (file imports, app syncs, Data Studio syncs).
-import { undoInfo, confirmUndoImport } from './import-engine.js';
+import { undoInfo, confirmUndoImport, importHistory } from './import-engine.js';
 import { boot } from './page.js';
 import { wireMenus, closeMenus, toast } from './shell.js';
 import { OWNERS, TODAY, formatDate, tzAbbr, initials, colorFor, strip } from './data.js';
@@ -23,7 +23,7 @@ const fmtWhen = (iso) => { const d = new Date(iso); return `${formatDate(iso)} $
 const IMPORTS_KEY = 'crm:imports';
 const COLS_KEY = 'crm:imports:columns';
 // Only the account's real imports (the wizard's history, src/import-engine.js): no sample rows, ever.
-const imports = () => { const list = load(IMPORTS_KEY, null); return Array.isArray(list) ? list.filter((r) => r && !r.sample) : []; };
+const imports = () => { const list = importHistory(); return Array.isArray(list) ? list.filter((r) => r && !r.sample) : []; };
 const saveImports = (list) => save(IMPORTS_KEY, list);
 let appRows = [];
 let appLoading = true;
