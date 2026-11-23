@@ -22,9 +22,11 @@
     {
       "id": "gap-backend-re-companies-domain-sin-indice",
       "lane": "codex",
-      "status": "pending",
+      "status": "review",
       "createdAt": "2026-11-23T01:25:00-06:00",
-      "instruction": "RE-APERTURA de gap-backend-companies-domain-sin-indice (en review; su propia evidencia docs/evidencia/gap-backend-companies-domain-sin-indice/ admite «Aplicación y aceptación en producción pendientes»: solo se aplicó en PGlite local). Sigue fallando en vivo 23-nov-2026: pg_indexes no muestra NINGÚN índice sobre companies.domain (verificado vía scripts/mgmt-sql.mjs; solo existen los índices por defecto). El dedupe empresa↔dominio del importador (src/import-engine.js, regla de dominio) hace barridos sin índice en la base real. Corrección: aplicar supabase/company-domain-index.sql (CREATE INDEX IF NOT EXISTS companies_domain_idx ON public.companies (lower(domain)) WHERE deleted_at IS NULL) contra la base viva, verificar su presencia con pg_indexes, registrar la aplicación real con fecha en applied-migrations.json (hoy figura como pendiente remoto con verificación local separada). Criterio de aceptación: el índice aparece en pg_indexes de producción y EXPLAIN lo usa en SELECT ... WHERE lower(domain)=lower($1) AND deleted_at IS NULL. No despliegues nada a producción; solo código local."
+      "instruction": "RE-APERTURA de gap-backend-companies-domain-sin-indice (en review; su propia evidencia docs/evidencia/gap-backend-companies-domain-sin-indice/ admite «Aplicación y aceptación en producción pendientes»: solo se aplicó en PGlite local). Sigue fallando en vivo 23-nov-2026: pg_indexes no muestra NINGÚN índice sobre companies.domain (verificado vía scripts/mgmt-sql.mjs; solo existen los índices por defecto). El dedupe empresa↔dominio del importador (src/import-engine.js, regla de dominio) hace barridos sin índice en la base real. Corrección: aplicar supabase/company-domain-index.sql (CREATE INDEX IF NOT EXISTS companies_domain_idx ON public.companies (lower(domain)) WHERE deleted_at IS NULL) contra la base viva, verificar su presencia con pg_indexes, registrar la aplicación real con fecha en applied-migrations.json (hoy figura como pendiente remoto con verificación local separada). Criterio de aceptación: el índice aparece en pg_indexes de producción y EXPLAIN lo usa en SELECT ... WHERE lower(domain)=lower($1) AND deleted_at IS NULL. No despliegues nada a producción; solo código local.",
+      "workedAt": "2026-11-23T01:51:13-0600",
+      "workedBy": "codex"
     },
     {
       "id": "gap-backend-re-bootstrap-demo-rpc-ausente",

@@ -1,5 +1,41 @@
 # Índice de dominio de empresas — 23-nov-2026
 
+## Reapertura: comprobación real del 23-nov-2026, 01:50 America/Mexico_City
+
+**No resuelta: criterio de aceptación de producción incumplido.** Se consultó el proyecto `xysgvxnieigpaxtmxiui` mediante `scripts/mgmt-sql.mjs`, en transacciones `BEGIN READ ONLY … COMMIT`. No se aplicó DDL ni se desplegó la aplicación. La instrucción solicita aplicar SQL en vivo y también indica «No despliegues nada a producción; solo código local»; se solicitó aclaración explícita antes de efectuar esa mutación. No se marca la migración como aplicada ni se cierra la cola.
+
+Catálogo real: `SELECT indexname, indexdef FROM pg_indexes WHERE schemaname='public' AND tablename='companies' ORDER BY indexname` devolvió únicamente:
+
+- `companies_deleted_at_idx`: btree (deleted_at), parcial WHERE deleted_at IS NOT NULL.
+- `companies_parent_company_id_idx`: btree (parent_company_id).
+- `companies_pkey`: UNIQUE btree (id).
+- `companies_user_id_idx`: btree (user_id).
+
+No existe `companies_domain_idx` ni otro índice sobre domain. Consulta real de diagnóstico, con literal sintético y sin leer registros de clientes:
+
+```sql
+EXPLAIN SELECT id FROM public.companies
+WHERE lower(domain)=lower('omni-index-check.invalid') AND deleted_at IS NULL;
+```
+
+```text
+Seq Scan on companies  (cost=0.00..3.60 rows=1 width=8)
+  Filter: ((deleted_at IS NULL) AND (lower(domain) = 'omni-index-check.invalid'::text))
+```
+
+Verificaciones repetidas en esta reapertura, todas con salida 0:
+
+- `node scripts/test-company-domain-index.mjs`: aplicación local doble, catálogo, EXPLAIN natural con índice, duplicados, mayúsculas y papelera: PASS.
+- `node scripts/smoke-company-auto.mjs`: OK.
+- `node scripts/smoke-import.mjs`: OK.
+- `npm run build --script-shell=/tmp/omni-build-shell.sh`: Vite 5.4.21, 254 módulos, 2.09 s.
+
+Se utilizó Node de `/Applications/Kimi.app/Contents/Resources/resources/runtime/tool-node/bin/node` porque el wrapper de comandos falló con EPERM al registrar su lease. El build usó el shell temporal ya existente. No se modificó código de UI. Existe Playwright; no se cambió comportamiento de pantallas, por lo que no se solicita ejecución UI ni gap visual.
+
+Pendiente: autorización que resuelva la contradicción, aplicación de `supabase/company-domain-index.sql`, nueva comprobación de catálogo y EXPLAIN parametrizado en producción, y registro fechado de la aplicación real en `scripts/applied-migrations.json`. La verificación PGlite siguiente no sustituye esos pasos. Si el plan natural remoto sigue prefiriendo Seq Scan por tamaño de tabla, debe documentarse sin presentarlo como aceptación satisfecha ni forzar el plan silenciosamente.
+
+## Evidencia local anterior
+
 Implementación local lista. Aplicación y aceptación en producción pendientes, por instrucción explícita «No despliegues nada a producción; solo código local». No se llamó a la API de Supabase ni se cerró la tarea en build-queue.json.
 
 ## Cambios
