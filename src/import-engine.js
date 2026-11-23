@@ -4,7 +4,7 @@
 // de-duplication (e-mail, domain or record ID), the three import modes, associations by company, the error
 // catalogue with its impact, the import states (STARTED → PROCESSING → DONE / FAILED / CANCELED, DEFERRED when
 // three are running), the limits and the downloads.
-import { ALL, deleteRecords, addRecord, setField, OWNERS, TODAY, getViewStore, setViewStore, strip, dealPipelines, stagesFor, ticketPipelines, ticketStatusesFor, TICKET_STATUSES, TASK_STATUSES, DEAL_STAGES, companyDomains, settingsLive, getSetting, setSetting } from './data.js';
+import { dbIdle, ALL, deleteRecords, addRecord, setField, OWNERS, TODAY, getViewStore, setViewStore, strip, dealPipelines, stagesFor, ticketPipelines, ticketStatusesFor, TICKET_STATUSES, TASK_STATUSES, DEAL_STAGES, companyDomains, settingsLive, getSetting, setSetting } from './data.js';
 import { propertyList, customProperties, saveCustomProperties } from './properties.js';
 import { addSegment } from './segments-data.js';
 import { currentUser } from './auth.js';
@@ -759,6 +759,7 @@ export async function runImport(id, plan, { onProgress, isCanceled, chunk = 40, 
       if (i + chunk < todo.length) await wait(pause);
     }
     if (!plan.batch) updateImport(id, { newRecords: result.created, updated: result.updated, associations: result.associations, errors: plan.errors.length });
+    await dbIdle(); // Persist automatic associations before exposing completion.
     if (!plan.batch) setState(id, 'DONE');
     if (plan.createSegment) createSegment(type, id, plan.segmentName);
     flushImportSync();
@@ -942,6 +943,7 @@ export async function runBatchImport(id, batch, hooks = {}) {
     if (batch.options.createSegment) for (const type of Object.keys(byObject)) createSegment(type, id, `Importación ${id}: ${objectDef(type).label}`);
     saveDetail(id, { ...importDetail(id), errors, files: batch.parts.map((f) => ({ name: f.table.fileName, object: f.object })), byObject });
     publish();
+    await dbIdle();
     setState(id, 'DONE');
     return { state: 'DONE', byObject };
   } catch (error) { publish(); setState(id, 'FAILED', error.message); return { state: 'FAILED', error }; }

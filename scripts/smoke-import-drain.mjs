@@ -1,0 +1,38 @@
+// Deterministic regression: delayed/nested writes must finish before dbIdle / DONE.
+import assert from 'node:assert/strict';
+import { registerHooks } from 'node:module';
+import { JSDOM } from 'jsdom';
+const dataUrl = new URL('../src/data.js', import.meta.url).href;
+registerHooks({ load(url, context, next) {
+  const result = next(url, context);
+  if (url === dataUrl) return { ...result, source: `${result.source}\nexport { dbWrite as queueForSmoke };` };
+  return result;
+} });
+const dom = new JSDOM('<!doctype html><body></body>', { url: 'http://localhost/reports/' });
+for (const key of ['window', 'document', 'location', 'history', 'HTMLElement', 'CustomEvent', 'localStorage']) globalThis[key] = dom.window[key];
+const data = await import(dataUrl);
+const E = await import('../src/import-engine.js');
+let release;
+let nestedFinished = false;
+const gate = new Promise(resolve => { release = resolve; });
+data.queueForSmoke(() => { data.queueForSmoke(async () => { await gate; nestedFinished = true; }); });
+let idleFinished = false;
+const idle = data.dbIdle().then(() => { idleFinished = true; });
+await new Promise(resolve => setTimeout(resolve, 20));
+assert.equal(idleFinished, false, 'dbIdle must wait for writes enqueued by another write');
+release();
+await idle;
+assert.equal(nestedFinished, true);
+const table = await E.parseFile({ name: 'drain.csv', text: async () => 'Nombre,Correo electrónico\nDrain,drain@drain.example' });
+const plan = E.planImport(table, E.autoMap(table.headers, 'es', 'contacts'), { object: 'contacts' });
+const entry = E.registerImport({ name: 'Drain regression', table, plan, options: {} });
+let releaseImport;
+const importGate = new Promise(resolve => { releaseImport = resolve; });
+data.queueForSmoke(() => importGate);
+const run = E.runImport(entry.id, plan);
+await new Promise(resolve => setTimeout(resolve, 20));
+assert.equal(E.importHistory().find(e => e.id === entry.id).state, 'PROCESSING', 'DONE must wait for pending writes');
+releaseImport();
+assert.equal((await run).state, 'DONE');
+console.log('[import-drain] PASS: nested queue drained; DONE waits for pending persistence');
+process.exit(0);

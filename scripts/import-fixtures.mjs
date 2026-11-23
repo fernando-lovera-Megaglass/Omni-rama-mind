@@ -35,7 +35,7 @@ export function contactsFixture({ existing = [], companies = [], stamp = '', own
   const headers = ['Nombre', 'Apellidos', 'Correo electrónico', 'Número de teléfono', 'Empresa', 'Cargo', 'Propietario del contacto', 'Etapa del ciclo de vida', 'Fecha de nacimiento', 'Ingresos anuales', 'País/Región', customLabel, 'Estado del lead'];
   const rows = [];
   const expect = { rowCodes: {}, propertyErrors: {}, updates: [], ownerOf: {}, revenueOf: {}, birthOf: {}, companyRows: [], noCompanyRows: [], customOf: {}, emailOf: {}, phoneOf: {} };
-  const email = (i) => (stamp ? `smoke.${stamp}.${i}@ejemplo.com` : `${slug(FIRST[i % FIRST.length])}.${slug(LAST[(i * 7) % LAST.length])}${i}@ejemplo.com`);
+  const email = (i) => (stamp ? `smoke.${stamp}.${i}@smoke-${stamp}-auto.test` : `${slug(FIRST[i % FIRST.length])}.${slug(LAST[(i * 7) % LAST.length])}${i}@ejemplo.com`);
   const first = (i) => `${stamp ? 'SMOKE ' : ''}${FIRST[i % FIRST.length]}`;
   const last = (i) => LAST[(i * 7) % LAST.length];
   const phones = (i) => [`+52 55 1234 ${String(5600 + i).padStart(4, '0')}`, `55-1234-${String(5600 + i).padStart(4, '0')}`, `(305) 555-${String(100 + i).padStart(4, '0')}`, `+34 600 000 ${String(100 + i).padStart(3, '0')}`][i % 4];
@@ -241,7 +241,7 @@ export function tasksFixture({ stamp = '' } = {}) {
 // ---------------------------------------------------------------------------------------------------------------
 export function contactsAssocFixture({ companies = [], ambiguousName = '', stamp = '' } = {}) {
   const p = stamp ? 'SMOKE ' : '';
-  const email = (n) => (stamp ? `smoke.${stamp}.a${n}@ejemplo.com` : `asoc.${n}@ejemplo.com`);
+  const email = (n) => (stamp ? `smoke.${stamp}.a${n}@smoke-${stamp}-auto.test` : `asoc.${n}@ejemplo.com`);
   const [A, B] = companies;
   const headers = ['Nombre', 'Apellidos', 'Correo electrónico', 'Nombre de dominio de la empresa', 'Cargo'];
   const rows = [

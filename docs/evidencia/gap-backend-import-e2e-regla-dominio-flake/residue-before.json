@@ -1,0 +1,37 @@
+[
+  {
+    "id": 59,
+    "name": "SMOKE Empresa Base mwsw0awg",
+    "domain": "smoke-mwsw0awg-base.test",
+    "deleted_at": null,
+    "imports": null
+  },
+  {
+    "id": 57,
+    "name": "SMOKE Empresa A mwsw0awg",
+    "domain": "smoke-mwsw0awg-a.test",
+    "deleted_at": null,
+    "imports": null
+  },
+  {
+    "id": 56,
+    "name": "smoke-mwsuhpme-aluminios-centro.com",
+    "domain": "smoke-mwsuhpme-aluminios-centro.com",
+    "deleted_at": null,
+    "imports": "1795413053517"
+  },
+  {
+    "id": 58,
+    "name": "SMOKE Empresa B mwsw0awg",
+    "domain": "smoke-mwsw0awg-b.test",
+    "deleted_at": null,
+    "imports": null
+  },
+  {
+    "id": 47,
+    "name": "smoke-mws26j9p-aluminios-centro.com",
+    "domain": "smoke-mws26j9p-aluminios-centro.com",
+    "deleted_at": null,
+    "imports": "1795365487574"
+  }
+]

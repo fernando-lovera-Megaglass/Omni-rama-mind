@@ -1,0 +1,19 @@
+[1123/003522.725130:ERROR:electron/shell/common/mac/codesign_util.cc:79] task_name_for_pid: (os/kern) failure (5)
+node:internal/modules/run_main:122
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: dbIdle must wait for writes enqueued by another write
+
+true !== false
+
+    at file:///Users/fernandolovera/Documents/Craft%20Anything/app-hubspot-com/app/scripts/.smoke-import-drain-baseline.mjs:22:8 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: true,
+  expected: false,
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v24.21.0

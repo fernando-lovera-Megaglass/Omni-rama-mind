@@ -11,6 +11,7 @@ import { JSDOM } from 'jsdom';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import { liveSmoke, lit } from './smoke-live.mjs';
+import { cleanupImportSmoke } from './import-smoke-cleanup.mjs';
 import { contactsFixture, contactsXlsx, companiesFixture, toCsv, toTsv, dealsFixture, ticketsFixture, tasksFixture, contactsAssocFixture } from './import-fixtures.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -41,7 +42,7 @@ async function scenario({ data, E, P, check, log, live = false, stamp = '', one 
   const uniq = (list, key) => { const seen = new Map(); list.forEach((r) => { const k = String(r[key] || '').toLowerCase(); if (k) seen.set(k, (seen.get(k) || 0) + 1); }); return list.filter((r) => r[key] && seen.get(String(r[key]).toLowerCase()) === 1); };
   let existing; let companies; let existingCompany;
   if (live) {
-    existing = [1, 2, 3].map((i) => data.addRecord('contacts', { first: 'SMOKE', last: `Existente ${i} ${stamp}`, name: `SMOKE Existente ${i} ${stamp}`, email: `smoke.${stamp}.ex${i}@ejemplo.com`, jobTitle: 'Cargo original', owner: 'Sin asignar', lifecycle: 'Lead', status: 'new', source: 'Formulario' }, { skipAutoCompany: true }));
+    existing = [1, 2, 3].map((i) => data.addRecord('contacts', { first: 'SMOKE', last: `Existente ${i} ${stamp}`, name: `SMOKE Existente ${i} ${stamp}`, email: `smoke.${stamp}.ex${i}@smoke-${stamp}-auto.test`, jobTitle: 'Cargo original', owner: 'Sin asignar', lifecycle: 'Lead', status: 'new', source: 'Formulario' }, { skipAutoCompany: true }));
     companies = ['a', 'b'].map((s) => data.addRecord('companies', { name: `SMOKE Empresa ${s.toUpperCase()} ${stamp}`, domain: `smoke-${stamp}-${s}.test`, owner: 'Sin asignar', lifecycle: 'Lead' }));
     existingCompany = data.addRecord('companies', { name: `SMOKE Empresa Base ${stamp}`, domain: `smoke-${stamp}-base.test`, city: 'Ciudad vieja', owner: 'Sin asignar', lifecycle: 'Lead' });
   } else {
@@ -114,7 +115,7 @@ async function scenario({ data, E, P, check, log, live = false, stamp = '', one 
     const id = W.state.importId;
     check(id && String(id).length >= 13, `${type}: the import id is unique in time (${id})`);
     const entry = await waitDone(id, live ? 240000 : 30000);
-    await data.dbIdle();
+    // DONE itself must guarantee that the import's association writes have drained.
     check(entry && entry.state === 'DONE', `${type}: the import finished (${entry && entry.state}: ${E.importDetail(id)?.timeline.at(-1)?.note || ''})`);
     await wait(50);
     W.renderReview();
@@ -218,9 +219,11 @@ async function scenario({ data, E, P, check, log, live = false, stamp = '', one 
   });
   fxA.expect.companyRows.forEach(({ row, companyId, name }) => { const c = byEmail(fxA.expect.emailOf[row])[0]; check(Number(c.companyId) === Number(companyId) && c.company === name, `contacts: row ${row} associated to «${name}» by name or domain`); });
   const autoLinked = fxA.expect.noCompanyRows.map((row) => byEmail(fxA.expect.emailOf[row])[0]);
+  log('domain diagnostics: ' + JSON.stringify(fxA.expect.noCompanyRows.map((row, i) => { const c = autoLinked[i]; const rule = data.companyDomainFor(c); return { row, id: c.id, email: c.email, companyId: c.companyId, rule, candidates: data.companiesByDomain(rule.domain).map(k => ({ id: k.id, domain: k.domain, existedBefore: companiesBefore.has(Number(k.id)) })) }; })));
+  if (live) log('domain SQL: ' + JSON.stringify(await sql(`select id, email, company_id from public.contacts where id in (${autoLinked.map(c => c.id).join(',')})`)));
   check(autoLinked.every((c) => c.companyId && !companiesBefore.has(Number(c.companyId)) || companies.some((k) => Number(k.id) === Number(c.companyId))), 'contacts: rows without a known company were linked by the e-mail-domain rule');
   const autoCompanies = (A.detail.createdIds.companies || []).map(Number);
-  check(autoCompanies.length === 1 && data.findRecord('companies', autoCompanies[0])?.domain === 'ejemplo.com', `contacts: the rule created one company (ejemplo.com) and the ledger has it (${autoCompanies.length})`);
+  check(autoCompanies.length === 1 && data.findRecord('companies', autoCompanies[0])?.domain === (live ? `smoke-${stamp}-auto.test` : 'ejemplo.com'), `contacts: the rule created one company (ejemplo.com) and the ledger has it (${autoCompanies.length})`);
   const changedLinks = fxA.expect.updates.filter((u) => u.companyId && Number(existingBefore.find((c) => c.email === u.email)?.companyId) !== Number(u.companyId)).length;
   check(A.entry.associations === fxA.expect.created + changedLinks, `contacts: ${A.entry.associations} associations = ${fxA.expect.created} created rows + ${changedLinks} updated links`);
   // updates: the existing contacts changed and were not duplicated
@@ -415,14 +418,7 @@ await liveSmoke('import-e2e', async ({ data, sql, one, check, log, session, stam
   try {
     await scenario({ data, E, P, check, log, live: true, stamp, one, sql, session });
   } finally {
-    try {
-      await sql(`delete from public.contact_companies cc using public.companies c where cc.company_id = c.id and c.extra->>'hs_created_from_email' like 'smoke.%@ejemplo.com';
-        delete from public.activities a using public.companies c where a.record_type = 'companies' and a.record_id = c.id and c.extra->>'hs_created_from_email' like 'smoke.%@ejemplo.com';
-        delete from public.companies where extra->>'hs_created_from_email' like 'smoke.%@ejemplo.com';
-        delete from public.contacts where email like ${lit(`smoke.${stamp}.%`)};
-        delete from public.custom_properties where name = 'imp_zona_comercial';`);
-      log('limpieza extra: empresas creadas por la regla de dominio, contactos del lote y la propiedad «Zona comercial» eliminados');
-    } catch (e) { console.error(`[import-e2e:live] limpieza extra incompleta: ${e.message}`); }
+    await cleanupImportSmoke({ sql, data, E, stamp, log });
   }
 });
 

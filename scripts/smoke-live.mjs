@@ -115,7 +115,7 @@ export async function liveSmoke(tag, scenario) {
     failed = e;
     console.error(`[${tag}:live] FAIL: ${e && e.message ? e.message : e}`);
   } finally {
-    try { await cleanupLive(session); log('limpieza: registros SMOKE y usuario eliminados'); } catch (e) { console.error(`[${tag}:live] limpieza incompleta: ${e.message}`); }
+    try { await cleanupLive(session); log('limpieza: registros SMOKE y usuario eliminados'); } catch (e) { failed ||= e; console.error(`[${tag}:live] limpieza incompleta: ${e.message}`); }
     try { await supabase.auth.signOut(); } catch { /* no session */ }
   }
   process.exit(failed ? 1 : 0);

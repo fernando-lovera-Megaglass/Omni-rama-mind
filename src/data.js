@@ -728,7 +728,13 @@ export function setPageRows(type, rows) {
 let writeQueue = Promise.resolve();
 // Resolves once every queued write has reached (or been refused by) the database: the live smokes wait for it
 // before checking the rows with SQL.
-export const dbIdle = () => writeQueue.then(() => true, () => true);
+export async function dbIdle() {
+  // A queued write can enqueue more work (associations / automations).
+  // Drain to a stable tail instead of waiting only for the initial snapshot.
+  let tail;
+  do { tail = writeQueue; await tail; } while (tail !== writeQueue);
+  return true;
+}
 function dbWrite(fn) {
   const pending = writeQueue.then(fn);
   writeQueue = pending.catch((e) => reportDbError('escritura', e));

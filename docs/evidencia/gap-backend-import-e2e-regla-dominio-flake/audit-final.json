@@ -1,0 +1,20 @@
+[
+  {
+    "active_smoke_companies": 0,
+    "active_smoke_contacts": 0,
+    "other_physical_smoke_companies": 0,
+    "physical_smoke_contacts": 0,
+    "historical_trash": [
+      {
+        "id": 47,
+        "domain": "smoke-mws26j9p-aluminios-centro.com",
+        "deleted_at": "2026-11-23T06:32:34.297625+00:00"
+      },
+      {
+        "id": 56,
+        "domain": "smoke-mwsuhpme-aluminios-centro.com",
+        "deleted_at": "2026-11-23T06:32:34.297625+00:00"
+      }
+    ]
+  }
+]
