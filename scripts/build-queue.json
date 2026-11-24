@@ -2727,9 +2727,11 @@
     {
       "id": "gap-backend-re-companies-domain-sin-indice-tercera",
       "lane": "codex",
-      "status": "pending",
+      "status": "review",
       "createdAt": "2026-11-24T05:27:49-06:00",
-      "instruction": "RE-APERTURA de gap-backend-re-companies-domain-sin-indice-segunda (en review). Sigue fallando en vivo, verificado 24-nov-2026 ~05:20 CST vía scripts/mgmt-sql.mjs: pg_indexes de companies muestra solo companies_pkey, companies_user_id_idx, companies_deleted_at_idx y companies_parent_company_id_idx — NINGÚN índice sobre domain. El dedupe empresa↔dominio del importador (src/import-engine.js, uniqueKey 'domain' y regla de dominio en runBatchImport) y la auto-asociación contacto↔empresa por dominio del correo (src/data.js companiesByDomain) hacen barridos sin índice en la base real. Corrección: aplicar supabase/company-domain-index.sql (CREATE INDEX IF NOT EXISTS companies_domain_idx ON public.companies (lower(domain)) WHERE deleted_at IS NULL) contra la base viva, verificar su presencia con pg_indexes y registrar la aplicación real con fecha en applied-migrations.json (hoy consta como pendiente). Criterio de aceptación: pg_indexes lista companies_domain_idx y una importación de empresas con dominios repetidos deduplica sin barrido completo. No despliegues nada a producción; solo código local."
+      "instruction": "RE-APERTURA de gap-backend-re-companies-domain-sin-indice-segunda (en review). Sigue fallando en vivo, verificado 24-nov-2026 ~05:20 CST vía scripts/mgmt-sql.mjs: pg_indexes de companies muestra solo companies_pkey, companies_user_id_idx, companies_deleted_at_idx y companies_parent_company_id_idx — NINGÚN índice sobre domain. El dedupe empresa↔dominio del importador (src/import-engine.js, uniqueKey 'domain' y regla de dominio en runBatchImport) y la auto-asociación contacto↔empresa por dominio del correo (src/data.js companiesByDomain) hacen barridos sin índice en la base real. Corrección: aplicar supabase/company-domain-index.sql (CREATE INDEX IF NOT EXISTS companies_domain_idx ON public.companies (lower(domain)) WHERE deleted_at IS NULL) contra la base viva, verificar su presencia con pg_indexes y registrar la aplicación real con fecha en applied-migrations.json (hoy consta como pendiente). Criterio de aceptación: pg_indexes lista companies_domain_idx y una importación de empresas con dominios repetidos deduplica sin barrido completo. No despliegues nada a producción; solo código local.",
+      "workedAt": "2026-11-24T05:37:00-0600",
+      "workedBy": "codex"
     },
     {
       "id": "gap-backend-re-account-settings-rls-vivo-cuarta",

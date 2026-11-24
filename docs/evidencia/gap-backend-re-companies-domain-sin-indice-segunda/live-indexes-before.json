@@ -1,0 +1,22 @@
+[
+  {
+    "verified_at": "2026-11-24 11:36:27.922152+00",
+    "indexname": "companies_deleted_at_idx",
+    "indexdef": "CREATE INDEX companies_deleted_at_idx ON public.companies USING btree (deleted_at) WHERE (deleted_at IS NOT NULL)"
+  },
+  {
+    "verified_at": "2026-11-24 11:36:27.922152+00",
+    "indexname": "companies_parent_company_id_idx",
+    "indexdef": "CREATE INDEX companies_parent_company_id_idx ON public.companies USING btree (parent_company_id)"
+  },
+  {
+    "verified_at": "2026-11-24 11:36:27.922152+00",
+    "indexname": "companies_pkey",
+    "indexdef": "CREATE UNIQUE INDEX companies_pkey ON public.companies USING btree (id)"
+  },
+  {
+    "verified_at": "2026-11-24 11:36:27.922152+00",
+    "indexname": "companies_user_id_idx",
+    "indexdef": "CREATE INDEX companies_user_id_idx ON public.companies USING btree (user_id)"
+  }
+]

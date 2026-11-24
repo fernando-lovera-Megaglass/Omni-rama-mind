@@ -1,0 +1,6 @@
+[migración local] company-domain-index.sql aplicada en PGlite; registro remoto sin cambios.
+[migración local] company-domain-index.sql aplicada en PGlite; registro remoto sin cambios.
+[{"indexdef":"CREATE INDEX companies_domain_idx ON public.companies USING btree (lower(domain)) WHERE (deleted_at IS NULL)"}]
+Index Scan using companies_domain_idx on companies  (cost=0.29..57.94 rows=50 width=4)
+  Index Cond: (lower(domain) = 'target.example'::text)
+PASS: idempotence, pg_indexes, natural EXPLAIN, case folding, duplicates and trash exclusion
