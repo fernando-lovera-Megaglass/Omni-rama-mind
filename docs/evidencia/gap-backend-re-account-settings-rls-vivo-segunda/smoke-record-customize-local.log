@@ -1,0 +1,6 @@
+[record-customize] contacts: quitada «summary», «Colaboradores» a la izquierda, reordenadas la tarjeta derecha y la central, sección «Resumen general», pestaña «Ventas» → la ficha lo aplica y sigue intacto tras recargar
+[record-customize] «Acerca de»: quitar «Cargo» desde la ficha persiste tras recargar; el lápiz del editor lo devuelve (mismo ajuste crm:contacts:cardprops)
+[record-customize] companies: quitada «summary», «Colaboradores» a la izquierda, reordenadas la tarjeta derecha y la central, sección «Resumen general», pestaña «Ventas» → la ficha lo aplica y sigue intacto tras recargar
+[record-customize] tarjeta de asociación: compatibilidad local, propiedades, título, filtro rápido y orden guardados; recarga y restablecimiento correctos
+[record-customize] ajustes por usuario: diseño, propiedades de la tarjeta y panel de vista previa pasan por el store (user_settings) con copia local; restablecer limpia ambos; las vistas de equipo son de la cuenta
+[record-customize] OK

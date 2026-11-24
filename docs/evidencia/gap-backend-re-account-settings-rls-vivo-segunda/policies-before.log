@@ -1,0 +1,16 @@
+[
+  {
+    "policyname": "account_settings_admin",
+    "cmd": "ALL",
+    "roles": "{authenticated}",
+    "qual": "(((auth.jwt() -> 'app_metadata'::text) ->> 'role'::text) = 'admin'::text)",
+    "with_check": "(((auth.jwt() -> 'app_metadata'::text) ->> 'role'::text) = 'admin'::text)"
+  },
+  {
+    "policyname": "account_settings_read",
+    "cmd": "SELECT",
+    "roles": "{authenticated}",
+    "qual": "true",
+    "with_check": null
+  }
+]

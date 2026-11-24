@@ -13,7 +13,7 @@ try {
   const before = await page.locator('#rec-props .props__row dt').allTextContents();
   log('props antes:', before.length, JSON.stringify(before.slice(0, 4)));
 
-  await page.locator('[data-act="customize-props"]').first().click();
+  await page.locator('.props__custom [data-act="customize-props"], .card [data-act="customize-props"].icon-btn').first().click();
   await page.waitForTimeout(700);
   log('modal abierto:', await page.locator('.drawer.is-open').count());
   const firstCheck = page.locator('[data-cardkey]').first();
@@ -31,7 +31,7 @@ try {
   log('props tras RECARGAR:', afterReload.length, afterReload.length === after.length ? 'PERSISTE' : 'NO PERSISTE');
 
   // revertir con Restablecer
-  await page.locator('[data-act="customize-props"]').first().click();
+  await page.locator('.props__custom [data-act="customize-props"], .card [data-act="customize-props"].icon-btn').first().click();
   await page.waitForTimeout(600);
   await page.locator('[data-confirm="card-reset"]').click({ force: true });
   await page.waitForTimeout(700);

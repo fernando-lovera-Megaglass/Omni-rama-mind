@@ -1,0 +1,5 @@
+[
+  {
+    "team_membership_function": "CREATE OR REPLACE FUNCTION public.is_team_member()\n RETURNS boolean\n LANGUAGE sql\n STABLE SECURITY DEFINER\n SET search_path TO 'public'\nAS $function$\n  select exists (select 1 from public.team_members m where m.user_id = auth.uid() and m.active);\n$function$\n"
+  }
+]
