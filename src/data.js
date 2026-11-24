@@ -1421,7 +1421,11 @@ export function addRecord(type, fields, opts = {}) {
         throw error;
       }
     });
-    if (opts.waitForSave) return pending.then(() => afterAdd(type, rec, opts));
+    if (opts.waitForSave) return pending.then(async () => {
+      afterAdd(type, rec, opts);
+      await dbIdle();
+      return rec;
+    });
     return afterAdd(type, rec, opts);
   }
   const extra = getExtra(type);
@@ -1594,7 +1598,8 @@ function afterAdd(type, rec, opts = {}) {
   if (type === 'deals' && rec.contactId) import('./sequences-data.js').then((m) => m.cancelOnDeal(rec.contactId, rec)).catch((e) => console.error('[secuencias] negocio creado', e));
   // A new deal moves its contact and company to «Oportunidad» (Ajustes › Etapa del ciclo de vida, when on).
   if (type === 'deals') { try { lifecycleOnDeal(rec); } catch (e) { console.error('[ciclo de vida] negocio creado', e); } }
-  if (type === 'contacts' && !opts.skipAutoCompany) { try { autoAssociateCompany(rec); } catch (e) { console.error('[empresas automáticas]', e); } }
+  if (type === 'contacts' && !rec.companyId && String(rec.company || '').trim()) resolveContactCompanyName(rec);
+  else if (type === 'contacts' && !opts.skipAutoCompany) { try { autoAssociateCompany(rec); } catch (e) { console.error('[empresas automáticas]', e); } }
   if (type === 'contacts' && (rec.companyId || (rec.assoc_companies || []).length)) { try { syncContactCompanies(rec.id); } catch (e) { console.error('[contact_companies]', e); } }
   if (type === 'tickets') { try { autoAssociateTicketCompany(rec); } catch (e) { console.error('[tickets: empresa del contacto]', e); } }
   if (type === 'tasks') recomputeForTask(rec); // «Próxima actividad» of its contact / company / deal
@@ -1624,6 +1629,7 @@ function afterSet(type, id, field, value, opts = {}, previousValue) {
   }
   // «Sincronizar la etapa entre contactos y empresa»: one hop from the record that changed (never back).
   if ((type === 'contacts' || type === 'companies') && field === 'lifecycle' && previousValue !== value && !opts.lifecycleSync) { try { lifecycleSyncCompany(type, id); } catch (e) { console.error('[ciclo de vida] sincronización', e); } }
+  if (type === 'contacts' && field === 'company' && value) resolveContactCompanyName(id);
   if (!opts.skipAutoCompany && type === 'contacts' && (field === 'email' || field === 'website') && value) { try { autoAssociateCompany(id); } catch (e) { console.error('[empresas automáticas]', e); } }
   if (type === 'contacts' && COMPANY_LINK_FIELDS.has(field)) { try { syncContactCompanies(id); } catch (e) { console.error('[contact_companies]', e); } }
   if (type === 'tickets' && field === 'contactId' && value) { try { autoAssociateTicketCompany(id); } catch (e) { console.error('[tickets: empresa del contacto]', e); } }
@@ -2197,6 +2203,54 @@ export function companiesByDomain(domain) {
   if (!d) return [];
   return allCompanies().filter((c) => companyDomains(c).includes(d)).sort((a, b) => Number(siteDomain(b.domain) === d) - Number(siteDomain(a.domain) === d) || Number(a.id) - Number(b.id));
 }
+// Explicit company text is an association request, independent of the optional email automation.
+// Remote lookup reads the current database, not the possibly partial companies list cache.
+const pendingNamedCompanies = new Set();
+function resolveContactCompanyName(contactOrId) {
+  const contact = typeof contactOrId === 'object' ? contactOrId : findIn('contacts', contactOrId);
+  const name = String(contact?.company || '').trim();
+  if (!contact || contact.companyId || !name) return;
+  const resolve = (companies) => {
+    companies = [...companies, ...pendingNamedCompanies];
+    const current = findIn('contacts', contact.id);
+    // A later edit or explicit association supersedes an outstanding lookup.
+    if (!current || current.companyId || String(current.company || '').trim() !== name) return;
+    const candidate = siteDomain(name) || companyDomainFor(current).domain;
+    const domain = candidate && !isFreeEmailDomain(candidate) && !excludedDomains().includes(candidate) ? candidate : null;
+    let company = companies.filter((c) => String(c.name || '').trim().toLowerCase() === name.toLowerCase())
+      .sort((a, b) => Number(a.id) - Number(b.id))[0];
+    if (!company && domain) company = companies.filter((c) => companyDomains(c).includes(domain))
+      .sort((a, b) => Number(siteDomain(b.domain) === domain) - Number(siteDomain(a.domain) === domain) || Number(a.id) - Number(b.id))[0];
+    const created = !company;
+    if (!company) company = addRecord('companies', {
+      name, domain: domain || '', owner: current.owner || 'Sin asignar', lifecycle: current.lifecycle || 'Lead',
+    });
+    if (created && dbLive) pendingNamedCompanies.add(company);
+    if (dbLive && !created && !findIn('companies', company.id)) {
+      (dbRows.companies ||= []).push(augment('companies', { ...company }));
+      bump();
+    }
+    const link = () => {
+      pendingNamedCompanies.delete(company);
+      const latest = findIn('contacts', contact.id);
+      if (!latest || latest.companyId || String(latest.company || '').trim() !== name) return;
+      // The company insert (including an id-conflict retry) has finished before linking.
+      if (!findIn('companies', company.id)) return;
+      setField('contacts', contact.id, 'companyId', company.id);
+      setField('contacts', contact.id, 'company', company.name);
+      contact.companyId = company.id;
+      contact.company = company.name;
+    };
+    if (dbLive) dbWrite(link);
+    else link();
+  };
+  if (!dbLive) return resolve(allCompanies());
+  dbWrite(async () => {
+    // fetchTable paginates and excludes recycled companies; names are compared literally (no ILIKE wildcards).
+    const companies = await fetchTable('companies');
+    resolve(companies);
+  });
+}
 // `matched`: the domain that matched (the company's main one or one of its additional domains).
 function linkContactToCompany(contact, company, via, created, matched = '') {
   setField('contacts', contact.id, 'companyId', company.id);
@@ -2213,6 +2267,7 @@ export function autoAssociateCompany(contactOrId, { create = true, dryRun = fals
   const contact = contactOrId && typeof contactOrId === 'object' ? contactOrId : findRecord('contacts', contactOrId);
   if (!contact) return { action: 'skipped', reason: 'not_found' };
   if (contact.companyId) return { action: 'skipped', reason: 'already_associated' };
+  if (String(contact.company || '').trim()) return { action: 'skipped', reason: 'explicit_company' };
   const { domain, via, reason } = companyDomainFor(contact);
   if (!domain) return { action: 'skipped', reason };
   if (excludedDomains().includes(domain)) return { action: 'skipped', reason: 'excluded', domain };
