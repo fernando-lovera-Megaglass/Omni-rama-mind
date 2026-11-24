@@ -1,0 +1,37 @@
+[
+  {
+    "tablename": "tasks",
+    "indexname": "tasks_parent_id_idx",
+    "indexdef": "CREATE INDEX tasks_parent_id_idx ON public.tasks USING btree (parent_id)"
+  },
+  {
+    "tablename": "tasks",
+    "indexname": "tasks_pkey",
+    "indexdef": "CREATE UNIQUE INDEX tasks_pkey ON public.tasks USING btree (id)"
+  },
+  {
+    "tablename": "tasks",
+    "indexname": "tasks_queue_id_idx",
+    "indexdef": "CREATE INDEX tasks_queue_id_idx ON public.tasks USING btree (queue_id)"
+  },
+  {
+    "tablename": "tasks",
+    "indexname": "tasks_user_id_idx",
+    "indexdef": "CREATE INDEX tasks_user_id_idx ON public.tasks USING btree (user_id)"
+  },
+  {
+    "tablename": "tickets",
+    "indexname": "tickets_deleted_at_idx",
+    "indexdef": "CREATE INDEX tickets_deleted_at_idx ON public.tickets USING btree (deleted_at) WHERE (deleted_at IS NOT NULL)"
+  },
+  {
+    "tablename": "tickets",
+    "indexname": "tickets_pkey",
+    "indexdef": "CREATE UNIQUE INDEX tickets_pkey ON public.tickets USING btree (id)"
+  },
+  {
+    "tablename": "tickets",
+    "indexname": "tickets_user_id_idx",
+    "indexdef": "CREATE INDEX tickets_user_id_idx ON public.tickets USING btree (user_id)"
+  }
+]

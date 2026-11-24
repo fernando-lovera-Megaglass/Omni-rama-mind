@@ -1,0 +1,6 @@
+[ticket-rules] settings: tabs ok; «Cotizaciones Proyectos» → noBack, required «Propietario del ticket» and task automation on «Cerrado»
+[ticket-rules] board: without owner → Para pasar a "Cerrado" completa: Propietario del ticket
+[ticket-rules] board: with owner → «Cerrado»; task «Seguimiento: Cristal roto en entrega (Cerrado)» for Fernando L.
+[ticket-rules] board: noBack and lockClosed refuse with their messages
+[ticket-rules] tasks list: follow-up task listed
+[ticket-rules] OK

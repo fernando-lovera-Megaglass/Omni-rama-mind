@@ -1,0 +1,47 @@
+{
+  "at": "2026-11-24T06:36:55.791Z",
+  "mode": "read_only",
+  "columns": [
+    {
+      "table_name": "tasks",
+      "column_name": "contact_id",
+      "data_type": "bigint"
+    },
+    {
+      "table_name": "tickets",
+      "column_name": "contact_id",
+      "data_type": "bigint"
+    },
+    {
+      "table_name": "tickets",
+      "column_name": "deleted_at",
+      "data_type": "timestamp with time zone"
+    }
+  ],
+  "counts": [
+    {
+      "tablename": "tickets",
+      "rows": 84
+    },
+    {
+      "tablename": "tasks",
+      "rows": 64
+    }
+  ],
+  "tickets": [
+    {
+      "QUERY PLAN": "Seq Scan on tickets  (cost=0.00..10.05 rows=1 width=276)"
+    },
+    {
+      "QUERY PLAN": "  Filter: ((deleted_at IS NULL) AND (contact_id = 42))"
+    }
+  ],
+  "tasks": [
+    {
+      "QUERY PLAN": "Seq Scan on tasks  (cost=0.00..3.80 rows=1 width=154)"
+    },
+    {
+      "QUERY PLAN": "  Filter: (contact_id = 42)"
+    }
+  ]
+}

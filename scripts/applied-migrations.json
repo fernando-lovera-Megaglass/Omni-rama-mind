@@ -286,5 +286,20 @@
   "sequence-cron.sql": {
     "status": "aplicada",
     "at": "2026-11-23T03:53:15-0600"
+  },
+  "contact-id-indexes.sql": {
+    "status": "pendiente",
+    "nota": "Migración preparada y probada localmente. Aplicación remota pendiente de aclarar la instrucción final «solo código local», que contradice la petición de aplicar en la base real.",
+    "localVerification": {
+      "at": "2026-11-24T06:36:58.702Z",
+      "test": "node scripts/test-contact-id-indexes.mjs",
+      "result": "PASS: aplicación doble idempotente, pg_indexes y EXPLAIN parametrizado con Index Scan natural en ambas tablas."
+    },
+    "productionVerification": {
+      "at": "2026-11-24T06:36:55.791Z",
+      "mode": "read_only",
+      "status": "indices_ausentes",
+      "evidence": "docs/evidencia/gap-backend-indices-contact-id-tickets-tasks/"
+    }
   }
 }

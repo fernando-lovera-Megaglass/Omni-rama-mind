@@ -1,0 +1,19 @@
+[
+  {
+    "tablename": "tasks",
+    "indexname": "tasks_contact_id_idx",
+    "indexdef": "CREATE INDEX tasks_contact_id_idx ON public.tasks USING btree (contact_id)"
+  },
+  {
+    "tablename": "tickets",
+    "indexname": "tickets_contact_id_idx",
+    "indexdef": "CREATE INDEX tickets_contact_id_idx ON public.tickets USING btree (contact_id) WHERE (deleted_at IS NULL)"
+  }
+]
+SELECT * FROM public.tickets WHERE contact_id=$1 AND deleted_at IS NULL 
+Index Scan using tickets_contact_id_idx on tickets  (cost=0.29..8.36 rows=3 width=20)
+  Index Cond: (contact_id = '42'::bigint)
+SELECT * FROM public.tasks WHERE contact_id=$1 
+Index Scan using tasks_contact_id_idx on tasks  (cost=0.29..8.32 rows=2 width=12)
+  Index Cond: (contact_id = '42'::bigint)
+PASS: idempotence, both index definitions, natural parameterized Index Scan, duplicate associations, trash exclusion and tasks without deleted_at.
