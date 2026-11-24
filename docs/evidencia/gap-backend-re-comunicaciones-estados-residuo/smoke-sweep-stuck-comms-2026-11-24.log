@@ -1,0 +1,13 @@
+{
+  "environment": "local PGlite synthetic fixtures",
+  "after": {
+    "queued_sms": 0,
+    "stuck_calls": 0
+  },
+  "before": {
+    "queued_sms": 2,
+    "stuck_calls": 40
+  },
+  "cutoff": "2026-11-24T05:21:59.561+00:00"
+}
+OK: cutoff, terminal/recent exclusions, error classification, metadata, missing columns, idempotence.

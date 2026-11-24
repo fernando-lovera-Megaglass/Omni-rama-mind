@@ -1,0 +1,59 @@
+{
+  "measured_at": "2026-11-24T06:21:50.296Z",
+  "database": {
+    "call_sid": "CA4a9837b1b89177070751a52c9a608cdb",
+    "connection_id": "dc39be96-7f5d-4f05-a29d-81c02987a328",
+    "status": "no-answer",
+    "created_at": "2026-11-23 19:13:53.330074+00"
+  },
+  "provider": {
+    "status": "completed",
+    "duration": "28",
+    "start_time": "Mon, 23 Nov 2026 19:13:53 +0000",
+    "end_time": "Mon, 23 Nov 2026 19:14:21 +0000"
+  },
+  "application": {
+    "voice_url": "https://xysgvxnieigpaxtmxiui.supabase.co/functions/v1/twilio-voice",
+    "status_callback": null
+  },
+  "functions": [
+    {
+      "slug": "twilio-voice",
+      "version": 4,
+      "verify_jwt": false,
+      "updated_at": 1795030083263
+    },
+    {
+      "slug": "twilio-call-status",
+      "version": 5,
+      "verify_jwt": false,
+      "updated_at": 1795028861597
+    }
+  ],
+  "events": [
+    {
+      "url": "https://xysgvxnieigpaxtmxiui.supabase.co/functions/v1/twilio-voice",
+      "response_code": 200,
+      "dial_has_status_callback": true,
+      "dial_has_action": false,
+      "noun_has_status_callback": false
+    }
+  ],
+  "events_has_next_page": false,
+  "logs": {
+    "result": [
+      {
+        "event_message": "POST | 200 | https://xysgvxnieigpaxtmxiui.supabase.co/functions/v1/twilio-voice",
+        "timestamp": "2026-11-23T19:13:53.387000"
+      }
+    ]
+  },
+  "counts": [
+    {
+      "measured_at": "2026-11-24 06:21:50.355361+00",
+      "stuck_calls": 0,
+      "all_old_transient_calls": 0,
+      "all_old_queued_messages": 0
+    }
+  ]
+}

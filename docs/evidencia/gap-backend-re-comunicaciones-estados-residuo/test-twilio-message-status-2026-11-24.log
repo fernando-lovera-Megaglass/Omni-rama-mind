@@ -1,0 +1,1 @@
+PASS: send, SID persistence, signed callbacks, errors with provider code, early/duplicate/out-of-order callbacks, account/SID isolation, database failures and retry (local mocks; no SMS sent).

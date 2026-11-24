@@ -1,0 +1,9 @@
+PASS: failed updates return 500 and log errors, successful retries return 200, real HMAC signatures, unsigned/forged rejection, SID validation, parent/Dial resolution, legitimate status/recording callbacks, unsafe URL rejection at write and both readers, redirect blocking
+{"event":"call_transcription_failed","call_log_id":"log","timestamp":"2026-11-24T06:21:59.708Z","code":"recording_url","message":"URL de grabación inválida"}
+{"event":"call_transcription_failed","call_log_id":"log","timestamp":"2026-11-24T06:21:59.708Z","code":"recording_url","message":"URL de grabación inválida"}
+{"event":"call_transcription_failed","call_log_id":"log","timestamp":"2026-11-24T06:21:59.708Z","code":"recording_url","message":"URL de grabación inválida"}
+{"event":"call_transcription_failed","call_log_id":"log","timestamp":"2026-11-24T06:21:59.708Z","code":"recording_url","message":"URL de grabación inválida"}
+{"event":"call_transcription_failed","call_log_id":"log","timestamp":"2026-11-24T06:21:59.708Z","code":"recording_url","message":"URL de grabación inválida"}
+{"event":"call_transcription_failed","call_log_id":"log","timestamp":"2026-11-24T06:21:59.708Z","code":"recording_url","message":"URL de grabación inválida"}
+{"event":"call_transcription_failed","call_log_id":"log","timestamp":"2026-11-24T06:21:59.708Z","code":"recording_url","message":"URL de grabación inválida"}
+{"event":"call_transcription_failed","call_log_id":"log","timestamp":"2026-11-24T06:21:59.708Z","code":"recording_url","message":"URL de grabación inválida"}

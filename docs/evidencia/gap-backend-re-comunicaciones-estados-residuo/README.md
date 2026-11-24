@@ -1,3 +1,67 @@
+# Reapertura: ejecución y diagnóstico — 24-nov-2026
+
+## Resultado y límites de aceptación
+
+Barrido ejecutado en producción por instrucción explícita del usuario: `node scripts/sweep-stuck-comms.mjs --apply` (Node nativo v24.16.0). Transacción completada el **2026-11-24 00:20:30.735972 CST / 06:20:30.735972 UTC**. No se desplegó ninguna función ni se cambió configuración de Twilio. No se modificó UI ni scripts/build-queue.json. El orquestador decide el cierre.
+
+| Medición real | Llamadas ringing/initiated >1 h | SMS queued >1 h |
+| --- | ---: | ---: |
+| Antes, dentro de transacción | 39 | 2 |
+| Después, dentro de transacción | 0 | 0 |
+| Independiente, 00:21:50 CST | 0 | 0 |
+
+La consulta independiente también midió **0 llamadas queued/initiated/ringing/in-progress >1 h** y **0 mensajes queued >1 h de cualquier canal**. [Diagnóstico y medición real](live-diagnosis-2026-11-24.json).
+
+Salida exacta de --apply (exit 0):
+
+```json
+[{"evidence":{"after":{"queued_sms":0,"stuck_calls":0},"before":{"queued_sms":2,"stuck_calls":39},"cutoff":"2026-11-24T05:20:30.735972+00:00"}}]
+```
+
+El timestamp de ejecución es cutoff +1 hora, establecido por PostgreSQL dentro de la transacción. Cada fila conserva extra.residue_sweep.at. La nota fija «barrido de residuo 23-nov» del script identifica el lote original, NO la fecha real de aplicación; la fecha real está arriba y en los metadatos por fila. No se volvió a ejecutar el barrido para fabricar otro reporte.
+
+## Causa raíz comprobada
+
+Llamada `CA4a9837b1b89177070751a52c9a608cdb`, creada 23-nov 19:13:53 UTC:
+
+- Twilio REST devuelve completed, duración 28 s, final 19:14:21 UTC.
+- Events de esa llamada devuelve una única petición a twilio-voice, HTTP 200, sin página adicional. El TwiML realmente servido tenía statusCallback en **Dial**, sin action en Dial y sin statusCallback en **Number**. El diagnóstico guarda solo indicadores del XML, sin teléfonos.
+- Logs de Supabase alrededor de la llamada muestran POST 200 a twilio-voice y ninguna invocación a twilio-call-status. También se inspeccionaron logs de función entre 19:10 y 19:25 UTC: boot/shutdown, sin error de firma registrado en esa ventana.
+- TwiML App apunta a la URL correcta de twilio-voice; status_callback de la App es null. La función productora desplegada es **twilio-voice v4**; el consumidor es **twilio-call-status v5**, ambos verify_jwt=false.
+- Se leyó también el bundle desplegado de twilio-voice: confirma los atributos incorrectos en Dial en las ramas entrante y saliente. No se incluye el bundle de dependencias en la evidencia.
+
+La causa demostrada está en la generación de TwiML desplegada: v5 del consumidor no puede procesar eventos que el productor no solicita. No hay evidencia de rechazo de firma para esta llamada; no se afirma que las firmas en producción estén validadas de extremo a extremo. Las pruebas locales sí verifican HMAC válido, rechazo de firmas falsas, URL con query y resolución padre/hijo.
+
+Referencias oficiales: [Number statusCallback](https://www.twilio.com/docs/voice/twiml/number), [Dial action](https://www.twilio.com/docs/voice/twiml/dial), [Events de llamadas](https://www.twilio.com/docs/voice/api/call-event-resource), [consulta de logs Supabase](https://supabase.com/docs/guides/observability/advanced-log-filtering).
+
+## Corrección local y reproducibilidad
+
+La corrección necesaria **ya estaba presente en el checkout antes de esta reapertura** en supabase/functions/twilio-voice/index.ts: callback en Number/Client, método POST, eventos initiated/ringing/answered/completed y action de Dial. El consumidor local resuelve ParentCallSid y DialCallStatus. Se validó ese código con las pruebas existentes; no se introduce una segunda implementación ni se atribuye su autoría a esta ejecución.
+
+Se añadió `scripts/diagnose-stuck-call.mjs <CallSid>`: diagnóstico de solo lectura mediante Management API y Twilio REST, consulta configuración, eventos, logs y contadores; salida sin tokens, teléfonos ni cuerpos de llamadas. Se ejecutó contra la llamada indicada y produjo el JSON enlazado. No hace llamadas, envía SMS, configura webhooks ni escribe en la base.
+
+**Aceptación completa pendiente:** no existe una llamada/SMS nueva posterior al barrido que pruebe el callback terminal. El código corregido no se desplegó por prohibición explícita del usuario. El criterio real requiere activar posteriormente la corrección autorizada y una comunicación controlada nueva; el barrido no sustituye esa prueba. No se solicita cierre.
+
+El barrido dejó la llamada estudiada en no-answer con provider_verified=false, aunque el diagnóstico posterior demuestra completed en Twilio. Esa clasificación administrativa NO debe interpretarse como resultado real del proveedor. No se hizo una reconciliación adicional fuera del barrido pedido; se deja identificada la discrepancia para reconciliación posterior.
+
+## Pruebas de esta reapertura
+
+Todas con exit 0, Node v24.16.0:
+
+- [npm run build](build-2026-11-24.log).
+- [smoke-sweep-stuck-comms](smoke-sweep-stuck-comms-2026-11-24.log).
+- [test-twilio-voice](test-twilio-voice-2026-11-24.log).
+- [test-twilio-call-status](test-twilio-call-status-2026-11-24.log).
+- [test-twilio-message-status](test-twilio-message-status-2026-11-24.log).
+- [smoke-calls](smoke-calls-2026-11-24.log).
+- [smoke-calls-status-filter](smoke-calls-status-filter-2026-11-24.log).
+
+Existe Playwright. Aviso al carril UI: correr pantallas de llamadas/mensajes y filtros tras el barrido; comprobar presentación de estados terminales. No se necesita cambio visual, por lo que no se añadió gap-ui.
+
+---
+
+## Evidencia anterior conservada (23-nov; sus pendientes de barrido quedan sustituidos por lo anterior)
+
 # gap-backend-re-comunicaciones-estados-residuo
 
 Fecha: 23-nov-2026. Entrega de código local; sin despliegues, llamadas, SMS ni escrituras remotas. No se modificó UI ni build-queue.json. El orquestador determina el cierre.
