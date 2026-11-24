@@ -1,0 +1,2 @@
+PASS: generic addRecord without waitForSave has SQL primary link; exact orphan query 1 before repair, 0 after repair of local contact 421.
+PASS: local + SQL-backed create/edit, exact name, domain, explicit id, concurrent saves, blank text; repair 421 idempotent. No network.

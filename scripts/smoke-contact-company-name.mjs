@@ -86,10 +86,19 @@ assert.ok(same[0].companyId);
 assert.equal((await db.query("SELECT count(*)::int n FROM companies WHERE lower(name)='concurrent sa'")).rows[0].n,1);
 const blank = await data.addRecord('contacts', { company: '   ', email: 'blank@gmail.com' }, { waitForSave: true });
 assert.equal((await joined(blank.id)).length,0);
+assert.equal((await db.query('SELECT company FROM contacts WHERE id=$1', [blank.id])).rows[0].company, '');
+// Generic list form uses the synchronous addRecord path, without waitForSave.
+const manual = data.addRecord('contacts', { first: 'Manual', last: 'Genérico', name: 'Manual Genérico', company: 'Empresa formulario genérico', source: 'Creación manual' });
+await data.dbIdle();
+assert.deepEqual(await joined(manual.id), [{ company_id: manual.companyId, name: 'Empresa formulario genérico', is_primary: true }]);
+const orphanCount = async () => (await db.query("SELECT count(*)::int n FROM contacts WHERE coalesce(company,'')<>'' AND company_id IS NULL")).rows[0].n;
+assert.equal(await orphanCount(), 0);
 // Repair twice, preserving secondary links, and repeat with an existing matching company.
 const repair = sql('./sql/repair-contact-421-company.sql');
 await db.exec("INSERT INTO contacts(id,name,company) VALUES (421,'Juan Prueba','Vidrios y Cristales Prueba')");
+assert.equal(await orphanCount(), 1);
 await db.exec(repair);
+assert.equal(await orphanCount(), 0);
 const repaired = await joined(421);
 assert.equal(repaired.length,1);
 assert.equal(repaired[0].is_primary,true);
@@ -100,5 +109,6 @@ await db.exec(repair);
 assert.deepEqual(await joined(421),repaired);
 assert.equal((await db.query("SELECT count(*)::int n FROM companies WHERE lower(name)='vidrios y cristales prueba'")).rows[0].n,1);
 assert.deepEqual(errors,[]);
+console.log('PASS: generic addRecord without waitForSave has SQL primary link; exact orphan query 1 before repair, 0 after repair of local contact 421.');
 await db.close();
 console.log('PASS: local + SQL-backed create/edit, exact name, domain, explicit id, concurrent saves, blank text; repair 421 idempotent. No network.');

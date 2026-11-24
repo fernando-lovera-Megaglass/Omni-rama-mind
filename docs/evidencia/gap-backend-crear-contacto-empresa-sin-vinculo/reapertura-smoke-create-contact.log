@@ -1,0 +1,15 @@
+[create-contact] add button: Agregar contactos | is a menu? false | panel hidden before: true
+[create-contact] after click: open? true | location: /contacts/ | title: Crear contacto
+[create-contact] fields: email, first, last, jobTitle, owner, state, country, phone, mobilephone, hs_buying_role, asesor_de_ventas, nombre_del_proyecto, cell_phone
+[create-contact] labels: Correo | Nombre * | Apellidos * | Propietario del contacto | Estado o región | País/región | Rol de compra | email type: email
+[create-contact] owner options: Fernando L., Sofía R., Diego G., Laura M., Sin asignar | default: Fernando L. | roles: --, Persona que toma la decisión, Influenciador, Usuario final, Otro
+[create-contact] buttons disabled at start: true true | hint: Comienza por escribir el nombre del Contacto, su correo o ambos.
+[create-contact] after Nombre+Apellidos: disabled? false false
+[create-contact] duplicates for "Ana Ruiz": 5 | Ana Ruizana.ruiz@cristalesnorte.com | Ana Ruizana.ruiz+seed401@cerramientosbajio.com | link: ./record/?id=1
+[create-contact] no matches → No se han encontrado contactos parecidos.
+[create-contact] after "Crear y agregar otro": record Prueba Panel · Fernando L. · Influenciador · Creación manual | panel open? true | first cleared? true | toast: Contacto creado · Ver contacto | total: 421 (was 420)
+[create-contact] duplicate e-mail → Ya existe un contacto con ese correoPrueba Panel prueba.panel@ejemplo.comAbrir el existenteCambiar el correo | link: ./record/?id=1001 | total: 421
+[create-contact] after Crear: panel open? false | total: 422 | saved: true
+[create-contact] Escape closes: true | total unchanged: true
+[create-contact] generic form: contact 1003 → primary company 1002
+[create-contact] OK

@@ -315,5 +315,9 @@
     "evidence": "docs/evidencia/gap-backend-tickets-empresa-sin-backfill/",
     "updated": 74,
     "remaining": 0
+  },
+  "deal-close-date-guard.sql": {
+    "status": "aplicada",
+    "at": "2026-11-24T05:54:22-0600"
   }
 }

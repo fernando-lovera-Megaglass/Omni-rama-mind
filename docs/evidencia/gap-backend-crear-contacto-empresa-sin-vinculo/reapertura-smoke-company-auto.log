@@ -1,0 +1,26 @@
+[company-auto] helpers: vidrios-del-norte.com info.ejemplo.com Vidrios Del Norte | free gmail: true | enabled by default: true
+[company-auto] created company: 1 Vidrios Del Norte · vidrios-del-norte.com · Fernando L. | contact companyId: 1001 1001 | company text: Vidrios Del Norte
+[company-auto] timeline contact: Empresa "Vidrios Del Norte" creada y asociada automáticamente por el dominio del correo (vidrios-del-norte.com). | company: Empresa creada automáticamente a partir del contacto Ana Prueba (ana@vidrios-del-norte.com).
+[company-auto] same domain → 1001 | subdomain → 1002 Ventas | companies now: 2 new
+[company-auto] gmail without website → none | gmail with website → 1 Cristales Norte (expected Cristales Norte) | gmail with unknown website → none website_no_company
+[company-auto] preset association kept: true
+[company-auto] excluded domain → none | reason: excluded
+[company-auto] switch off → none | reason: disabled
+[company-auto] after e-mail change → 1001 Vidrios Del Norte
+[company-auto] dry run: {"checked":50,"associated":0,"created":1,"skipped":{"free_email":48,"no_email":0,"excluded":1}}
+[company-auto] real run: {"checked":50,"associated":0,"created":1,"skipped":{"free_email":48,"no_email":0,"excluded":1}} | hugo → Apagado Sa | ivy → none
+[company-auto] import: {"created":4,"associations":3,"autoCompanies":2} | companies importada-sa.com: 1 | rows → Tres:Cristales Norte, Dos:Importada Sa, Uno:Importada Sa
+[company-auto] settings section: Objetos | checkbox: true | checked: false | apply button while off: false
+[company-auto] after turning on: setting true | modal: true | 0 se asociarían a empresas que ya existen. 1 empresas nuevas se crearían a partir de sus dominios. 49 usan un correo gra
+[company-auto] after apply: jo → Pendiente Sa | apply button now: true
+[company-auto] apply button modal: true | run disabled (nothing to do): true
+[company-auto] excluded list: gmail.com, hotmail.com, outlook.com, yahoo.com, excluido.com, prueba-excluida.com
+[company-auto] additional domains stored: "filial.com;marca-dos.es" | companyDomains: grupo-vidriero.com, filial.com, marca-dos.es
+[company-auto] contact @filial.com → Grupo Vidriero | companies created: 0 | note: Empresa "Grupo Vidriero" asociada automáticamente por el dominio del correo (filial.com).
+[company-auto] after edit: "marca-tres.com;filial.com"
+[company-auto] findByDomain(filial.com) → Grupo Vidriero (matched filial.com) | findSimilar(marca-tres) → Grupo Vidriero
+[company-auto] panel with a used additional domain: cc-dups cc-dups--warn | Ya existe una empresa con ese dominiofilial.com ya pertenece a Grupo Vidriero grupo-vidriero.com · dominio adicional filial.comAbrir la exis
+[company-auto] panel after fixing: otra-filial.com + nueva-marca.com | open: false
+[company-auto] import by additional domain: {"created":2,"autoCompanies":1} | cinco → Grupo Vidriero | seis → Grupo Vidriero | companies now: 0 new
+[company-auto] duplicate group: Grupo Vidriero + Filial Suelta · keys domain | companiesByDomain(filial.com)[0]: Filial Suelta
+[company-auto] OK

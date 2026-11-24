@@ -125,4 +125,17 @@ if (panel().classList.contains('is-open') || total() !== before + 2) fail('Escap
 click(addBtn);
 click(document.querySelector('#cc-panel .slideover__close'));
 if (panel().classList.contains('is-open')) fail('X should close');
+// The generic drawer remains a separate entry point with free-text Empresa principal.
+const genericForm = $('create-form');
+genericForm.elements.first.value = 'Manual';
+genericForm.elements.last.value = 'Genérico';
+genericForm.elements.company.value = 'Empresa genérica de prueba';
+genericForm.dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true }));
+await data.dbIdle();
+await wait(20);
+const generic = data.allContacts().find(c => c.name === 'Manual Genérico');
+if (!generic?.companyId) fail('generic form must resolve free-text company');
+const genericCompany = data.allCompanies().find(c => c.id === generic.companyId);
+if (genericCompany?.name !== 'Empresa genérica de prueba' || !data.contactCompanyLinks(generic).some(l => l.companyId === generic.companyId && l.isPrimary)) fail('generic form primary company link');
+log('generic form: contact', generic.id, '→ primary company', generic.companyId);
 console.log('[create-contact] OK');

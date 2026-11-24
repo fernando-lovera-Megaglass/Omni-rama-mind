@@ -2763,9 +2763,11 @@
     {
       "id": "gap-backend-re-crear-contacto-empresa-sin-vinculo",
       "lane": "codex",
-      "status": "pending",
+      "status": "review",
       "createdAt": "2026-11-24T05:27:49-06:00",
-      "instruction": "RE-APERTURA de gap-backend-crear-contacto-empresa-sin-vinculo (en review). Sigue fallando en vivo, verificado 24-nov-2026 ~05:25 CST vía scripts/mgmt-sql.mjs: el contact id 421 'Juan Prueba' (source 'Creación manual') conserva company='Vidrios y Cristales Prueba' con company_id NULL y cero filas en contact_companies (count(*) de contacts con coalesce(company,'')<>'' AND company_id IS NULL → 1, igual que en el reporte original). El camino sigue abierto: el formulario genérico (src/list.js:616, cfg.createFields de src/contacts.js:120-129) guarda 'Empresa principal' como texto libre con addRecord('contacts', …) sin crear ni vincular la empresa — la asociación contacto↔empresa se pierde en cada alta manual. Corrección: al guardar un contacto con empresa en texto, resolver o crear la empresa (dedupe por nombre/dominio) y escribir contact_companies con is_primary + contacts.company_id; reparar el contacto 421; verificar que la consulta anterior da 0 y que una alta manual nueva crea el vínculo real. No despliegues nada a producción; solo código local."
+      "instruction": "RE-APERTURA de gap-backend-crear-contacto-empresa-sin-vinculo (en review). Sigue fallando en vivo, verificado 24-nov-2026 ~05:25 CST vía scripts/mgmt-sql.mjs: el contact id 421 'Juan Prueba' (source 'Creación manual') conserva company='Vidrios y Cristales Prueba' con company_id NULL y cero filas en contact_companies (count(*) de contacts con coalesce(company,'')<>'' AND company_id IS NULL → 1, igual que en el reporte original). El camino sigue abierto: el formulario genérico (src/list.js:616, cfg.createFields de src/contacts.js:120-129) guarda 'Empresa principal' como texto libre con addRecord('contacts', …) sin crear ni vincular la empresa — la asociación contacto↔empresa se pierde en cada alta manual. Corrección: al guardar un contacto con empresa en texto, resolver o crear la empresa (dedupe por nombre/dominio) y escribir contact_companies con is_primary + contacts.company_id; reparar el contacto 421; verificar que la consulta anterior da 0 y que una alta manual nueva crea el vínculo real. No despliegues nada a producción; solo código local.",
+      "workedAt": "2026-11-24T05:57:29-0600",
+      "workedBy": "codex"
     }
   ]
 }

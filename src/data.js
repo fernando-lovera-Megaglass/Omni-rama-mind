@@ -1398,6 +1398,8 @@ export function reminderFromDue(due, option = defaultReminderOption()) {
 
 // opts.origin: where the record comes from ("Creación manual", "Importación"…), for the timeline entry.
 export function addRecord(type, fields, opts = {}) {
+  // An empty free-text company is absence of an association, including whitespace-only form input.
+  if (type === 'contacts' && typeof fields?.company === 'string') fields = { ...fields, company: fields.company.trim() };
   if (type === 'deals') fields = { ...fields, ...dealClosePatch(fields) };
   // A new task without an explicit reminder gets the default one from Ajustes (none for completed ones).
   if (type === 'tasks' && fields && fields.reminderAt === undefined && fields.status !== 'done') fields = { ...fields, reminderAt: reminderFromDue(fields.due) };
@@ -2225,7 +2227,11 @@ function resolveContactCompanyName(contactOrId) {
     const current = findIn('contacts', contact.id);
     // A later edit or explicit association supersedes an outstanding lookup.
     if (!current || current.companyId || String(current.company || '').trim() !== name) return;
-    const candidate = siteDomain(name) || companyDomainFor(current).domain;
+    // List records include display-only sample values. Never dedupe real companies by those domains.
+    const candidate = siteDomain(name) || companyDomainFor({
+      email: isDecorated('contacts', current, 'email') ? '' : current.email,
+      website: isDecorated('contacts', current, 'website') ? '' : current.website,
+    }).domain;
     const domain = candidate && !isFreeEmailDomain(candidate) && !excludedDomains().includes(candidate) ? candidate : null;
     let company = companies.filter((c) => String(c.name || '').trim().toLowerCase() === name.toLowerCase())
       .sort((a, b) => Number(a.id) - Number(b.id))[0];

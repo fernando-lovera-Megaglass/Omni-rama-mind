@@ -1,5 +1,22 @@
 # gap-backend-crear-contacto-empresa-sin-vinculo
 
+## Reapertura 24-nov-2026 — validación local
+
+La resolución por nombre/dominio y el SQL de reparación ya estaban presentes en este checkout al comenzar. La evidencia anterior no acreditaba aplicación en producción. Se respeta la instrucción actual «No despliegues nada a producción; solo código local»: no se ejecutó `mgmt-sql.mjs`, no se modificó la base remota y no se afirma que el contacto 421 vivo esté reparado. La reparación y el conteo siguientes corresponden exclusivamente a PostgreSQL local PGlite. El estado vivo reportado por el usuario continúa pendiente de reparación fuera del alcance local.
+
+Cambios nuevos en backend: `addRecord('contacts', ...)` normaliza los espacios del texto de empresa, evitando almacenar una empresa formada solo por espacios. La resolución ignora correos y sitios web de ejemplo añadidos por `augment()`; usa los datos reales para dedupe por dominio. La nueva prueba falló antes de este último cambio: un alta sin correo se asociaba incorrectamente con `Concurrent SA` por un dominio de ejemplo compartido. Después de corregirlo crea la empresa solicitada y su asociación primaria.
+
+Pruebas de reapertura (sin red):
+
+- `node scripts/smoke-contact-company-name.mjs`: PASS. Ejecuta los hooks reales de datos con un adaptador SQL local. Incluye el camino sin `waitForSave` del formulario genérico y verifica mediante JOIN `contacts.company_id`, empresa y `contact_companies.is_primary=true`. La consulta exacta `SELECT count(*) FROM contacts WHERE coalesce(company,'')<>'' AND company_id IS NULL` da **1 antes y 0 después** de ejecutar el SQL de reparación sobre una reproducción local del contacto 421. Reparación repetida sin duplicados. Log: `reapertura-company-name.log`.
+- `node scripts/smoke-create-contact.mjs`: PASS. Además del panel habitual, envía el formulario genérico real `#create-form` de `src/list.js` con `cfg.createFields` de contactos en JSDOM y comprueba empresa e identificación de asociación primaria en modo localStorage. Log: `reapertura-smoke-create-contact.log`. Esta prueba DOM y la prueba SQL son complementarias; no constituyen una prueba del formulario contra Supabase vivo.
+- `node scripts/smoke-company-auto.mjs` y `node scripts/smoke-import-multifile.mjs`: PASS; logs `reapertura-smoke-company-auto.log` y `reapertura-smoke-import-multifile.log`.
+- `npm run build`: PASS, 1.51 s; log `reapertura-build.log`.
+
+No se modificaron archivos de UI, ni la cola, ni el estado de cierre. No hace falta cambio visual. **Carril UI:** existe Playwright; ejecutar `tests/contactos.spec.js` y validar el alta genérica con empresa nueva/existente y sus fichas, ya que cambian los datos visibles. No se ejecutó Playwright en esta reapertura. Persisten las limitaciones de concurrencia entre sesiones y de escrituras no transaccionales descritas abajo. El orquestador debe mantener separadas la validación local y cualquier aplicación o verificación posterior en vivo.
+
+## Evidencia de la implementación anterior
+
 Fecha: 2026-11-24. Implementación local; revisión y cierre corresponden al orquestador.
 
 ## Cambio
