@@ -1,0 +1,32 @@
+{
+  "policies": [
+    {
+      "policyname": "account_settings_admin",
+      "cmd": "ALL",
+      "roles": "{authenticated}",
+      "qual": "(((auth.jwt() -> 'app_metadata'::text) ->> 'role'::text) = 'admin'::text)",
+      "with_check": "(((auth.jwt() -> 'app_metadata'::text) ->> 'role'::text) = 'admin'::text)"
+    },
+    {
+      "policyname": "account_settings_read",
+      "cmd": "SELECT",
+      "roles": "{authenticated}",
+      "qual": "true",
+      "with_check": null
+    }
+  ],
+  "state": [
+    {
+      "checked_at": "2026-11-24 11:41:21.444159+00",
+      "settings_rows": 0
+    }
+  ],
+  "membership": [
+    {
+      "user_id": "8a54b581-dfc4-4949-aa01-9279548a73db",
+      "team_role": "admin",
+      "active": true,
+      "jwt_app_role": null
+    }
+  ]
+}

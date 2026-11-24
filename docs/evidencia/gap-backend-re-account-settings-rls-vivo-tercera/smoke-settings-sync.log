@@ -1,0 +1,2 @@
+PASS: independent browser stores, personal isolation, shared account, authenticated writes, offline retry
+PASS: index account defaults, fresh browsers, local fallback, remote precedence and reset

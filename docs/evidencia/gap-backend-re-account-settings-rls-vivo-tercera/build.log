@@ -1,0 +1,117 @@
+[1124/054110.790809:ERROR:electron/shell/common/mac/codesign_util.cc:79] task_name_for_pid: (os/kern) failure (5)
+
+> login-page-rebuild@1.0.0 build
+> vite build
+
+vite v5.4.21 building for production...
+transforming...
+✓ 255 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/marketing/preferences/index.html             0.89 kB │ gzip:   0.42 kB
+dist/layout/index.html                            1.72 kB │ gzip:   0.73 kB
+dist/views/index.html                             1.80 kB │ gzip:   0.73 kB
+dist/sequences/create/index.html                  1.83 kB │ gzip:   0.65 kB
+dist/automation/create/index.html                 2.04 kB │ gzip:   0.78 kB
+dist/automation/editor/index.html                 2.18 kB │ gzip:   0.71 kB
+dist/segments/editor/index.html                   2.19 kB │ gzip:   0.75 kB
+dist/segments/index.html                          2.32 kB │ gzip:   0.86 kB
+dist/data/import/index.html                       2.36 kB │ gzip:   0.78 kB
+dist/sequences/index.html                         2.39 kB │ gzip:   0.88 kB
+dist/calls/index.html                             2.47 kB │ gzip:   0.89 kB
+dist/snippets/index.html                          2.47 kB │ gzip:   0.89 kB
+dist/marketing/email/index.html                   2.52 kB │ gzip:   0.81 kB
+dist/data/index.html                              2.67 kB │ gzip:   0.94 kB
+dist/automation/index.html                        2.90 kB │ gzip:   0.97 kB
+dist/inbox/index.html                             3.19 kB │ gzip:   1.03 kB
+dist/templates/index.html                         3.26 kB │ gzip:   1.03 kB
+dist/settings/index.html                          3.95 kB │ gzip:   1.17 kB
+dist/reports/index.html                           3.96 kB │ gzip:   1.21 kB
+dist/contacts/index.html                          4.35 kB │ gzip:   1.23 kB
+dist/companies/index.html                         4.35 kB │ gzip:   1.23 kB
+dist/tasks/index.html                             4.51 kB │ gzip:   1.25 kB
+dist/deals/index.html                             4.59 kB │ gzip:   1.27 kB
+dist/tickets/index.html                           4.68 kB │ gzip:   1.29 kB
+dist/tasks/record/index.html                      4.73 kB │ gzip:   1.16 kB
+dist/deals/record/index.html                      4.73 kB │ gzip:   1.16 kB
+dist/tickets/record/index.html                    4.73 kB │ gzip:   1.16 kB
+dist/contacts/record/index.html                   4.74 kB │ gzip:   1.16 kB
+dist/companies/record/index.html                  4.74 kB │ gzip:   1.16 kB
+dist/index.html                                   5.21 kB │ gzip:   2.34 kB
+dist/assets/main-BQn0Asw6.css                     5.98 kB │ gzip:   1.78 kB
+dist/assets/app-DuDrSU6s.css                    311.43 kB │ gzip:  51.93 kB
+dist/assets/tslib.es6-Ci5FaxOL.js                 0.66 kB │ gzip:   0.38 kB
+dist/assets/activity-outcomes-CBe9EHlM.js         0.71 kB │ gzip:   0.45 kB
+dist/assets/modulepreload-polyfill-B5Qt9EMX.js    0.71 kB │ gzip:   0.40 kB
+dist/assets/crm-associations-C88h8jF-.js          0.85 kB │ gzip:   0.45 kB
+dist/assets/invitations-CsMV2vwT.js               1.39 kB │ gzip:   0.78 kB
+dist/assets/marketing-preferences-DNqABC9t.js     1.66 kB │ gzip:   0.95 kB
+dist/assets/twilio-DS7xwCcp.js                    1.71 kB │ gzip:   0.81 kB
+dist/assets/empty-state-BdB7uNqI.js               1.72 kB │ gzip:   0.91 kB
+dist/assets/pagination-D8P4FI-z.js                1.74 kB │ gzip:   0.81 kB
+dist/assets/std-views-CzOTUGZx.js                 1.92 kB │ gzip:   0.86 kB
+dist/assets/deal-tags-DSvrKENr.js                 2.24 kB │ gzip:   1.05 kB
+dist/assets/activity-associations-C0hziPtI.js     2.25 kB │ gzip:   1.11 kB
+dist/assets/rich-text-CdH-H_DM.js                 2.75 kB │ gzip:   1.31 kB
+dist/assets/ticket-rules-C2pyjyiE.js              3.13 kB │ gzip:   1.66 kB
+dist/assets/filter-chip-CG7UYDdj.js               3.59 kB │ gzip:   1.51 kB
+dist/assets/snippet-autocomplete-U57PIptn.js      3.74 kB │ gzip:   1.79 kB
+dist/assets/owner-select-Do9F1_G0.js              4.09 kB │ gzip:   1.72 kB
+dist/assets/mention-autocomplete-CI2vF6Vq.js      4.20 kB │ gzip:   1.99 kB
+dist/assets/gmail-CAlRVM4f.js                     4.67 kB │ gzip:   2.26 kB
+dist/assets/task-reminders-B9U2z9aS.js            5.20 kB │ gzip:   2.36 kB
+dist/assets/main-DdRxEPU_.js                      5.54 kB │ gzip:   2.34 kB
+dist/assets/snippets-data-Bu5UOrdO.js             5.78 kB │ gzip:   2.27 kB
+dist/assets/object-tags-EWyuQAxR.js               6.24 kB │ gzip:   2.97 kB
+dist/assets/segments-data-nhtiAic5.js             7.22 kB │ gzip:   2.99 kB
+dist/assets/scheduled-emails-BhbvPmy9.js          7.67 kB │ gzip:   3.04 kB
+dist/assets/tickets-BSNvA1ly.js                   7.82 kB │ gzip:   3.16 kB
+dist/assets/action-icons-CTIYO4_e.js              8.10 kB │ gzip:   2.59 kB
+dist/assets/connected-emails-oxhKJ9zm.js          8.24 kB │ gzip:   3.14 kB
+dist/assets/create-contact-DdBjT7yh.js            8.52 kB │ gzip:   3.54 kB
+dist/assets/task-queue-CDKgOeX5.js                9.23 kB │ gzip:   3.80 kB
+dist/assets/contacts-BfEe7NGZ.js                  9.32 kB │ gzip:   3.83 kB
+dist/assets/templates-data-BqF5hnv-.js            9.48 kB │ gzip:   3.49 kB
+dist/assets/automation-create-7os-Rwkl.js         9.49 kB │ gzip:   3.73 kB
+dist/assets/views-D66sas92.js                    10.75 kB │ gzip:   3.98 kB
+dist/assets/notifications-D0EAYxtP.js            11.14 kB │ gzip:   4.65 kB
+dist/assets/create-ticket-GZlj8Sxg.js            11.30 kB │ gzip:   4.13 kB
+dist/assets/tasks-R1FkVRu8.js                    12.29 kB │ gzip:   4.73 kB
+dist/assets/tokens-Bad1wCrL.js                   13.09 kB │ gzip:   5.00 kB
+dist/assets/sequence-enroll-BhCjcorD.js          13.36 kB │ gzip:   5.16 kB
+dist/assets/create-deal-Cuw3fV-e.js              14.12 kB │ gzip:   5.05 kB
+dist/assets/deals-BzpODzcH.js                    14.40 kB │ gzip:   5.25 kB
+dist/assets/workflow-engine-8QUjyCQN.js          14.74 kB │ gzip:   5.93 kB
+dist/assets/companies-DmaZ4E_k.js                15.36 kB │ gzip:   5.81 kB
+dist/assets/snippets-C9OtqD-y.js                 16.38 kB │ gzip:   5.81 kB
+dist/assets/segments-CXGn3uy-.js                 17.17 kB │ gzip:   5.59 kB
+dist/assets/segments-editor-2S_v5xSQ.js          17.29 kB │ gzip:   5.88 kB
+dist/assets/sequences-create-BCYFcBRn.js         17.70 kB │ gzip:   5.92 kB
+dist/assets/data-h4PVOjvt.js                     17.95 kB │ gzip:   6.71 kB
+dist/assets/page-oPRIy6uw.js                     21.52 kB │ gzip:   8.00 kB
+dist/assets/sequences-U89lKHHR.js                22.12 kB │ gzip:   7.70 kB
+dist/assets/filter-editor-RnLWgTDw.js            24.10 kB │ gzip:   8.31 kB
+dist/assets/calls-B5N1Y-TM.js                    24.32 kB │ gzip:   8.74 kB
+dist/assets/templates-zx3h5n4-.js                24.64 kB │ gzip:   8.33 kB
+dist/assets/layout-C46zUYgg.js                   24.84 kB │ gzip:   7.76 kB
+dist/assets/automation-ME8lUbsr.js               25.12 kB │ gzip:   7.86 kB
+dist/assets/call-Bl3Ka7TG.js                     26.34 kB │ gzip:   8.87 kB
+dist/assets/shell-BxjRZYho.js                    27.00 kB │ gzip:   9.54 kB
+dist/assets/inbox-BwTXexzJ.js                    30.81 kB │ gzip:  10.00 kB
+dist/assets/attachments-CeksPO3D.js              31.26 kB │ gzip:  11.25 kB
+dist/assets/workflows-data-BdQF-Ezw.js           31.52 kB │ gzip:  10.39 kB
+dist/assets/sequences-data-W2y3BNSZ.js           33.10 kB │ gzip:  11.19 kB
+dist/assets/reports-UM3988Ww.js                  38.35 kB │ gzip:  13.39 kB
+dist/assets/automation-editor-CmrRmyhT.js        39.75 kB │ gzip:  12.41 kB
+dist/assets/data-import-h4yfmOUt.js              41.28 kB │ gzip:  13.54 kB
+dist/assets/marketing-email-DzmKP1dz.js          46.05 kB │ gzip:  15.37 kB
+dist/assets/import-engine-ChgPZnio.js            51.50 kB │ gzip:  18.62 kB
+dist/assets/compose-bD9kwC4V.js                  61.26 kB │ gzip:  18.28 kB
+dist/assets/record-BFkU0sjH.js                  144.90 kB │ gzip:  43.80 kB
+dist/assets/list-DhetJt1b.js                    145.06 kB │ gzip:  44.28 kB
+dist/assets/data-BSFRRgac.js                    180.75 kB │ gzip:  54.72 kB
+dist/assets/twilio-CV6ySOy-.js                  195.68 kB │ gzip:  51.12 kB
+dist/assets/auth--Q6S8JBs.js                    230.18 kB │ gzip:  61.15 kB
+dist/assets/settings-DfFABAJr.js                254.46 kB │ gzip:  73.96 kB
+dist/assets/xlsx-OBRp1OTM.js                    428.98 kB │ gzip: 143.08 kB
+✓ built in 1.41s

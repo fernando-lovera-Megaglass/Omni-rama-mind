@@ -2736,9 +2736,11 @@
     {
       "id": "gap-backend-re-account-settings-rls-vivo-cuarta",
       "lane": "codex",
-      "status": "pending",
+      "status": "review",
       "createdAt": "2026-11-24T05:27:49-06:00",
-      "instruction": "RE-APERTURA de gap-backend-re-account-settings-rls-vivo-tercera (en review). Sigue fallando en vivo, verificado 24-nov-2026 ~05:25 CST vía scripts/mgmt-sql.mjs: (1) pg_policies de account_settings muestra únicamente account_settings_read (SELECT) y account_settings_admin (ALL, exige JWT app_metadata role=admin que el usuario real no tiene — su rol vive en team_members.role); la política de equipo de supabase/account-settings-team.sql (escritura con is_team_member() y scope='account') NO está aplicada; (2) la tabla sigue con 0 filas. Consecuencia vigente: «Aplicar a todos los usuarios de la cuenta», vistas de equipo y layouts compartidos (src/layout-defaults.js, src/settings-store.js scope≠user) son rechazados por RLS o se pierden al recargar — la personalización de fichas no persiste entre usuarios. Corrección: aplicar supabase/account-settings-team.sql contra la base real, verificar la política nueva en pg_policies, registrar fecha real en applied-migrations.json y escribir+leer una fila de scope='account' con un usuario no-admin como prueba de aceptación. No despliegues nada a producción; solo código local."
+      "instruction": "RE-APERTURA de gap-backend-re-account-settings-rls-vivo-tercera (en review). Sigue fallando en vivo, verificado 24-nov-2026 ~05:25 CST vía scripts/mgmt-sql.mjs: (1) pg_policies de account_settings muestra únicamente account_settings_read (SELECT) y account_settings_admin (ALL, exige JWT app_metadata role=admin que el usuario real no tiene — su rol vive en team_members.role); la política de equipo de supabase/account-settings-team.sql (escritura con is_team_member() y scope='account') NO está aplicada; (2) la tabla sigue con 0 filas. Consecuencia vigente: «Aplicar a todos los usuarios de la cuenta», vistas de equipo y layouts compartidos (src/layout-defaults.js, src/settings-store.js scope≠user) son rechazados por RLS o se pierden al recargar — la personalización de fichas no persiste entre usuarios. Corrección: aplicar supabase/account-settings-team.sql contra la base real, verificar la política nueva en pg_policies, registrar fecha real en applied-migrations.json y escribir+leer una fila de scope='account' con un usuario no-admin como prueba de aceptación. No despliegues nada a producción; solo código local.",
+      "workedAt": "2026-11-24T05:41:56-0600",
+      "workedBy": "codex"
     },
     {
       "id": "gap-backend-re-tickets-empresa-sin-backfill",
