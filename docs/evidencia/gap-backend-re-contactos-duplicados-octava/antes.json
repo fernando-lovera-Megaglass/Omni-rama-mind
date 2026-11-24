@@ -1,0 +1,9 @@
+[
+  {
+    "measured_at": "2026-11-24 11:31:33.71238+00",
+    "active_contacts": 423,
+    "trashed_contacts": 0,
+    "duplicate_groups": 77,
+    "email_index": "CREATE INDEX contacts_email_idx ON public.contacts USING btree (lower(email)) WHERE (deleted_at IS NULL)"
+  }
+]

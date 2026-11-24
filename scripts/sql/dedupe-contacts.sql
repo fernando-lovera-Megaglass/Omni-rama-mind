@@ -256,7 +256,8 @@ CREATE TRIGGER contacts_empty_email_to_null BEFORE INSERT OR UPDATE OF email
 -- Blank emails represent no identity; NULL permits multiple email-less contacts.
 UPDATE public.contacts SET email=NULL WHERE deleted_at IS NULL AND btrim(email)='';
 DROP INDEX IF EXISTS public.contacts_email_idx;
-CREATE UNIQUE INDEX contacts_email_idx ON public.contacts (lower(email)) WHERE deleted_at IS NULL;
+CREATE UNIQUE INDEX contacts_email_idx ON public.contacts (lower(email))
+ WHERE deleted_at IS NULL AND coalesce(email,'')<>'';
 
 -- Single final result also retains before images through the Management API.
 SELECT jsonb_build_object(

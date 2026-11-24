@@ -53,6 +53,10 @@ assert.equal((await db.query('SELECT count(*)::int n FROM contact_companies')).r
 assert.equal((await db.query('SELECT is_primary FROM contact_companies')).rows[0].is_primary, true);
 await db.exec(`BEGIN; ${repair} COMMIT;`);
 assert.match((await db.query("SELECT indexdef FROM pg_indexes WHERE indexname='contacts_email_idx'")).rows[0].indexdef,/CREATE UNIQUE INDEX.*lower\(email\).*deleted_at IS NULL/);
+assert.match((await db.query("SELECT indexdef FROM pg_indexes WHERE indexname='contacts_email_idx'")).rows[0].indexdef,/COALESCE\(email, ''::text\) <> ''::text/);
+// The index itself permits empty emails, independently of trigger normalization.
+await db.exec(`BEGIN; ALTER TABLE contacts DISABLE TRIGGER contacts_empty_email_to_null;
+ INSERT INTO contacts(id,email) VALUES (90001,''),(90002,''),(90003,NULL),(90004,NULL); ROLLBACK;`);
 await assert.rejects(db.exec("INSERT INTO contacts(email) VALUES ('ANA@example.com')"), /unique constraint/);
 await db.exec('DROP INDEX contacts_email_idx');
 assert.deepEqual((await db.query("SELECT extra->'assoc_contacts' a FROM deals")).rows[0].a,[1]);

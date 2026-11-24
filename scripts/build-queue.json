@@ -2714,6 +2714,50 @@
       "status": "pending",
       "createdAt": "2026-11-24T02:15:00-06:00",
       "instruction": "LOS CHIPS DE FILTRO DEL MONITOR DE IMPORTACIONES USAN NOMBRES INTERNOS DE PROPIEDAD Y «ESTE AÑO» NO ES ESTE AÑO (Gestión de datos › Integración de datos, pestaña «Importaciones de archivos»; verificado 24-nov a 1440px). En src/integration.js ~líneas 168-171 los chips se titulan «Creado por ID de usuario» y «Fecha y hora de creación del objeto» — nombres de propiedad de la API, no las etiquetas de HubSpot («Creado por» y «Fecha de creación»). Además la opción «Este año» (DATES ~línea 54) filtra los últimos 365 días ((TODAY - when)/86400000 > 365, ~línea 130) en vez del año natural; el 24-nov-2026 una importación de enero-2026 debería aparecer con «Este año» y no aparece. Distinto de gap-ui-monitor-columnas-bilingues (cabeceras de tabla) y de gap-ui-monitor-filtros-apilados (apilado en filas). Corrección: renombrar los chips y hacer que «Este año» compare por año calendario (getFullYear). Criterio de aceptación: captura antes/después con Playwright junto a la referencia de HubSpot (docs/referencia-hubspot/ si existe), sin texto encimado/cortado/apretado a 1440px y 1280px, botones funcionando y `npx playwright test` en verde; deja la tarea en \"review\" con evidencia en docs/evidencia/<id>/. No despliegues nada a producción; solo código local."
+    },
+    {
+      "id": "gap-backend-re-contactos-duplicados-novena",
+      "lane": "codex",
+      "status": "review",
+      "createdAt": "2026-11-24T05:27:49-06:00",
+      "instruction": "RE-APERTURA de gap-backend-re-contactos-duplicados-octava (en review). Sigue fallando en vivo, verificado 24-nov-2026 ~05:25 CST vía scripts/mgmt-sql.mjs: 423 contactos activos, 77 grupos de email duplicado (SELECT lower(email) ... WHERE deleted_at IS NULL AND coalesce(email,'')<>'' GROUP BY 1 HAVING count(*)>1 → 77 grupos, 154 filas; ejemplos: ximena.garduno@ventanasandina.com, santiago.prieto@cerramientoscastilla.com, diego.serrano@disenorio.com, santiago.ruiz@hogariberica.com ×2) — cifras idénticas a la octava medición: la fusión autorizada NUNCA se ejecutó contra la base viva. Agravante vigente: contacts_email_idx sigue siendo NO único (pg_indexes: CREATE INDEX contacts_email_idx ON contacts (lower(email)) WHERE deleted_at IS NULL), así que cualquier alta concurrente recrea duplicados. Corrección: ejecutar la fusión transaccional contra la base real (trasladando asociaciones, actividades y custom properties al registro superviviente, papelera suave del resto) y convertir contacts_email_idx en UNIQUE parcial sobre lower(email) WHERE deleted_at IS NULL AND coalesce(email,'')<>'' tras limpiar; verificar con el mismo SELECT (debe dar 0 grupos) y registrar fecha real en applied-migrations.json. No despliegues nada a producción; solo código local.",
+      "workedAt": "2026-11-24T05:32:19-0600",
+      "workedBy": "codex"
+    },
+    {
+      "id": "gap-backend-re-companies-domain-sin-indice-tercera",
+      "lane": "codex",
+      "status": "pending",
+      "createdAt": "2026-11-24T05:27:49-06:00",
+      "instruction": "RE-APERTURA de gap-backend-re-companies-domain-sin-indice-segunda (en review). Sigue fallando en vivo, verificado 24-nov-2026 ~05:20 CST vía scripts/mgmt-sql.mjs: pg_indexes de companies muestra solo companies_pkey, companies_user_id_idx, companies_deleted_at_idx y companies_parent_company_id_idx — NINGÚN índice sobre domain. El dedupe empresa↔dominio del importador (src/import-engine.js, uniqueKey 'domain' y regla de dominio en runBatchImport) y la auto-asociación contacto↔empresa por dominio del correo (src/data.js companiesByDomain) hacen barridos sin índice en la base real. Corrección: aplicar supabase/company-domain-index.sql (CREATE INDEX IF NOT EXISTS companies_domain_idx ON public.companies (lower(domain)) WHERE deleted_at IS NULL) contra la base viva, verificar su presencia con pg_indexes y registrar la aplicación real con fecha en applied-migrations.json (hoy consta como pendiente). Criterio de aceptación: pg_indexes lista companies_domain_idx y una importación de empresas con dominios repetidos deduplica sin barrido completo. No despliegues nada a producción; solo código local."
+    },
+    {
+      "id": "gap-backend-re-account-settings-rls-vivo-cuarta",
+      "lane": "codex",
+      "status": "pending",
+      "createdAt": "2026-11-24T05:27:49-06:00",
+      "instruction": "RE-APERTURA de gap-backend-re-account-settings-rls-vivo-tercera (en review). Sigue fallando en vivo, verificado 24-nov-2026 ~05:25 CST vía scripts/mgmt-sql.mjs: (1) pg_policies de account_settings muestra únicamente account_settings_read (SELECT) y account_settings_admin (ALL, exige JWT app_metadata role=admin que el usuario real no tiene — su rol vive en team_members.role); la política de equipo de supabase/account-settings-team.sql (escritura con is_team_member() y scope='account') NO está aplicada; (2) la tabla sigue con 0 filas. Consecuencia vigente: «Aplicar a todos los usuarios de la cuenta», vistas de equipo y layouts compartidos (src/layout-defaults.js, src/settings-store.js scope≠user) son rechazados por RLS o se pierden al recargar — la personalización de fichas no persiste entre usuarios. Corrección: aplicar supabase/account-settings-team.sql contra la base real, verificar la política nueva en pg_policies, registrar fecha real en applied-migrations.json y escribir+leer una fila de scope='account' con un usuario no-admin como prueba de aceptación. No despliegues nada a producción; solo código local."
+    },
+    {
+      "id": "gap-backend-re-tickets-empresa-sin-backfill",
+      "lane": "codex",
+      "status": "pending",
+      "createdAt": "2026-11-24T05:27:49-06:00",
+      "instruction": "RE-APERTURA de gap-backend-tickets-empresa-sin-backfill (en review). Sigue fallando en vivo, verificado 24-nov-2026 ~05:25 CST vía scripts/mgmt-sql.mjs: 74 tickets vivos con contact_id cuyo contacto SÍ tiene empresa principal en contact_companies siguen con extra->>'companyId' y extra->'assoc_companies' vacíos (misma consulta y mismo conteo 74 que el reporte original — el backfill nunca se ejecutó contra la base real; solo existe scripts/backfill-ticket-company.mjs sin aplicar). Consecuencia visible: la tarjeta Empresas de la ficha de ticket (src/record.js:154 lee solo lo persistido) muestra cero empresas en esos 74 tickets. Corrección: ejecutar el backfill transaccional contra la base viva poblando extra->>'companyId' y extra->'assoc_companies' desde la empresa principal del contacto (contact_companies.is_primary), verificar con la misma consulta (debe dar 0) y documentar fecha real de ejecución. No despliegues nada a producción; solo código local."
+    },
+    {
+      "id": "gap-backend-re-deals-perdidos-fecha-cierre-futura",
+      "lane": "codex",
+      "status": "pending",
+      "createdAt": "2026-11-24T05:27:49-06:00",
+      "instruction": "RE-APERTURA de gap-backend-deals-perdidos-fecha-cierre-futura (en review). Sigue fallando y EMPEORÓ en vivo, verificado 24-nov-2026 ~05:25 CST vía scripts/mgmt-sql.mjs: 20 negocios vivos en etapas con probabilidad 0 tienen close_date FUTURA (antes 14; consulta: deals d con deleted_at null, close_date > now()+interval '2 days' y EXISTS pipeline_stages ps con ps.clave=d.stage AND ps.probabilidad=0 → 20; ejemplos: id 87 'Mampara de baño Interiores Sierra' lost 2027-03-05, id 136 lost 2027-03-02, id 24 lost 2027-02-14, id 73 lost 2027-02-11, id 122 lost 2027-02-08). Un negocio perdido con fecha de cierre futura contradice la semántica de cierre y distorsiona previsión y reportes; el incremento 14→20 sugiere que el camino que fija close_date al transitar a perdido (gap-ui-negocios-fecha-cierre-automatica, done) no cubre algún alta o cambio de etapa vigente. Corrección: script de normalización (close_date = fecha real de transición a etapa probabilidad 0, o updated_at si no consta) aplicado contra la base real + revisar y cerrar el camino que sigue admitiendo close_date futura en etapa perdida; verificar con la misma consulta (debe dar 0). No despliegues nada a producción; solo código local."
+    },
+    {
+      "id": "gap-backend-re-crear-contacto-empresa-sin-vinculo",
+      "lane": "codex",
+      "status": "pending",
+      "createdAt": "2026-11-24T05:27:49-06:00",
+      "instruction": "RE-APERTURA de gap-backend-crear-contacto-empresa-sin-vinculo (en review). Sigue fallando en vivo, verificado 24-nov-2026 ~05:25 CST vía scripts/mgmt-sql.mjs: el contact id 421 'Juan Prueba' (source 'Creación manual') conserva company='Vidrios y Cristales Prueba' con company_id NULL y cero filas en contact_companies (count(*) de contacts con coalesce(company,'')<>'' AND company_id IS NULL → 1, igual que en el reporte original). El camino sigue abierto: el formulario genérico (src/list.js:616, cfg.createFields de src/contacts.js:120-129) guarda 'Empresa principal' como texto libre con addRecord('contacts', …) sin crear ni vincular la empresa — la asociación contacto↔empresa se pierde en cada alta manual. Corrección: al guardar un contacto con empresa en texto, resolver o crear la empresa (dedupe por nombre/dominio) y escribir contact_companies con is_primary + contacts.company_id; reparar el contacto 421; verificar que la consulta anterior da 0 y que una alta manual nueva crea el vínculo real. No despliegues nada a producción; solo código local."
     }
   ]
 }
