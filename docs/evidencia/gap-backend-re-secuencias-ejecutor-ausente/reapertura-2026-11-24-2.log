@@ -1,0 +1,13 @@
+[1124/034029.500707:ERROR:electron/shell/common/mac/codesign_util.cc:79] task_name_for_pid: (os/kern) failure (5)
+
+> login-page-rebuild@1.0.0 test:sequence-process
+> node scripts/smoke-sequence-process.mjs && node scripts/smoke-sequences.mjs
+
+PASS: real local SQL migration/RPCs; due advance; final/manual task; terminal/future unchanged; concurrent claims; errors; cancellation; business days; permissions. Gmail mocked, no external calls.
+[secuencias] list: counter, tabs, Acciones, banner, search/owner, folders collapse, clone/delete/papelera, move
+[secuencias] analysis: 48 enrolments, 48 contacts, cards, chips, chart (week/day); scheduled 30; automate
+[secuencias] create: pre-built → title, 5/7/40 %/2, 5 steps, chips, placeholder, pause, RESPUESTA, delays, add/delete, Completado, created + edited
+[secuencias] enrol: Nuria Prieto in «[Prueba] Reactivación de clientes» — preview resolved, placeholder, task + timeline + scheduled; re-enrol with warning
+[secuencias] all manual types: real task completion hook, Friday to Monday, reopen idempotency
+[secuencias] OK
+[secuencias] pause/resume persistence, position and business day OK

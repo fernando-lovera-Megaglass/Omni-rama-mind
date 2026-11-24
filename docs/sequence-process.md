@@ -38,11 +38,13 @@ ni la anon key ni una sesión normal de usuario pueden ejecutarla.
 
 ## Activación en producción (runbook)
 
-Estado reportado por el usuario el **23-nov-2026 ~03:15 CST**, no consultado de nuevo
-ni modificado durante esta tarea: función sin desplegar, sin pg_cron, 26 inscripciones
-activas vencidas (mínima 9-nov 06:00 UTC), `sequence_step_runs` existe con cero filas.
-`sequence-process.sql` figura aplicada y sus RPC fueron verificadas el 22-nov.
+Estado reportado por el usuario el **24-nov-2026 ~03:15 CST**, no consultado de nuevo
+ni modificado durante esta reapertura: 26 inscripciones activas, todas vencidas
+(mínima 9-nov 06:00 UTC), cero filas en `sequence_step_runs`; el cron
+`omni-sequence-process` existe cada minuto, pero está inactivo y sin corridas.
 Los cierres anteriores acreditaban código local, no ejecución en producción.
+La instrucción vigente es «No despliegues nada a producción; solo código local»:
+los pasos remotos siguientes siguen pendientes y no se ejecutan en esta entrega.
 
 ### Preparación autorizada por el operador
 
@@ -74,7 +76,7 @@ node scripts/sequence-activate.mjs --yes
 
 Sin `--yes` o sin el opt-in de entorno no actúa. Verifica que el proyecto coincida
 con el destino SQL, exige GET de salud autenticado de la versión local y falla con
-el comando exacto de despliegue si falta. Verifica cron y Vault, pausa el trabajo,
+el comando exacto de despliegue si falta. Verifica Cron, Vault y la presencia de pg_net (función HTTP y tabla de respuestas), pausa el trabajo,
 ejecuta `sequence-backfill.mjs --from-db --apply --yes` y comprueba por SQL que no
 quedan activas vencidas. El backfill escalona las congeladas desde al menos 15 minutos
 a futuro, una cada 5 minutos, días laborables UTC; conserva terminales, pausadas,
@@ -114,6 +116,17 @@ Las respuestas de pg_net son temporales. No aceptar cero pasos tras su vencimien
 ni considerar `error` como entrega. El cron vive en PostgreSQL y no depende de una
 terminal. Los scripts local/remote-scheduler quedan para diagnóstico, no como servicio
 persistente de producción. No mantener ambos invocadores encendidos.
+
+Para el criterio adicional de una **inscripción nueva**, registrar su ID, hora de
+creación, `current_step`, `next_step_at` y estado inicial tras la activación.
+Usar un contacto de prueba del operador y una secuencia automática cuya fecha
+venza durante la observación. Sin POST manual al procesador ni cambio manual del
+paso, esperar al cron y capturar para ese mismo ID un recibo `done`, el incremento
+de `current_step` y el siguiente plazo (o `finished` si era el último paso).
+Guardar también las corridas y respuestas HTTP de ese intervalo. Un recibo de una
+inscripción antigua, una reprogramación o un paso manual esperando tarea no
+sustituyen esta comprobación. Esta prueba crea datos y puede enviar correo: queda
+pendiente junto con la activación, fuera del alcance exclusivamente local actual.
 
 ### Rollback y pausa
 

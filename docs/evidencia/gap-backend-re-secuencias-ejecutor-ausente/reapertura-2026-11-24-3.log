@@ -1,0 +1,13 @@
+[1124/034029.500691:ERROR:electron/shell/common/mac/codesign_util.cc:79] task_name_for_pid: (os/kern) failure (5)
+
+> login-page-rebuild@1.0.0 test:sequence-remote
+> node scripts/smoke-remote-scheduler.mjs && node scripts/smoke-sequence-backfill.mjs
+
+[remote-scheduler-smoke] rechaza: sin variables, clave publishable, JWT anon, http remoto, URL inválida (0 peticiones)
+[remote-scheduler-smoke] dry-run: 1 lectura PostgREST (status=eq.active, next_step_at=lte.ahora), 3 filas listadas, ninguna función invocada, clave no impresa
+[remote-scheduler-smoke] --once: 1 POST /functions/v1/sequence-process con Bearer service role; JWT service_role aceptado; --functions sequence-process,marketing-process; ok:false → código 1
+[remote-scheduler-smoke] OK
+[backfill-smoke] plan: 26 a reprogramar desde 2026-11-23T15:15:00.000Z cada 5 min; sin tocar {"terminal":{"replied":1,"meeting":1,"bounced":1,"unsubscribed":1,"finished":1,"unenrolled":1},"paused":1,"activeFuture":1,"activeWaiting":1,"other":{}}
+[backfill-smoke] SQL: 26 updates aplicados → 0 vencidas (sequence_due vacío), terminales/pausada/futura/esperando intactas, segunda ejecución sin cambios
+[backfill-smoke] CLI: --from-json/--start/--spacing/--sql/--out generan el mismo plan; --apply exige --yes y la migración aplicada
+[backfill-smoke] OK

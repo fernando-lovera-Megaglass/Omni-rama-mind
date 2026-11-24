@@ -1,5 +1,58 @@
 # Evidencia — gap-backend-re-secuencias-ejecutor-ausente
 
+## Reapertura — 24-nov-2026: solo local; aceptación productiva NO cumplida
+
+La última instrucción del usuario limita esta entrega a código local. No se
+realizó despliegue, configuración de Vault, SQL remoto, activación, backfill remoto
+ni inscripción real. No se ejecutó `sequence-activate.mjs --yes` contra producción.
+El estado reportado a las ~03:15 CST (26 activas vencidas, cero recibos y cron
+inactivo sin corridas) es evidencia aportada por el usuario, no una medición nueva.
+
+### Cambio local de esta reapertura
+
+El preflight del activador comprobaba Cron y Vault, pero omitía pg_net. Ahora
+exige la extensión, la función `net.http_post` y la tabla `net._http_response`
+antes de modificar cron o reprogramar inscripciones. La prueba inyectada cubre
+pg_net ausente y Vault ausente, sin SQL remoto ni acceso a credenciales.
+Esta validación comprueba disponibilidad de objetos, no la salud del worker HTTP.
+El runbook se actualizó al reporte del 24-nov y añade la comprobación de una
+inscripción nueva sin invocación manual del ejecutor.
+
+### Validación de esta reapertura
+
+Todos los comandos terminaron con código 0:
+
+| Comando | Resultado / registro |
+| --- | --- |
+| `npm run build` | PASS, 1.84 s; `reapertura-2026-11-24-0.log` |
+| `node scripts/smoke-sequence-activate.mjs` | PASS; opt-in, preflight, ausencia de pg_net sin mutaciones, orden y fallos; salida registrada en la sesión |
+| `node scripts/smoke-sequence-cron.mjs` | PASS; `reapertura-2026-11-24-1.log` |
+| `npm run test:sequence-process` | PASS; `reapertura-2026-11-24-2.log` |
+| `npm run test:sequence-remote` | PASS sobre loopback/PGlite; `reapertura-2026-11-24-3.log` |
+
+Se utilizó el runtime local indicado en la evidencia previa para evitar el wrapper.
+Los dobles de Cron/pg_net no acreditan funcionamiento de esas extensiones reales.
+Existe Playwright: el carril UI debe comprobar Programado y tareas tras la futura
+activación, pues el avance cambia datos visibles. No se editaron archivos visuales
+ni se identificó un cambio visual que requiera agregar un gap para Claude.
+
+### Criterios remotos pendientes
+
+- Cero inscripciones activas vencidas por más de un día: **no medido**.
+- `sequence_step_runs` con pasos `done`: **no medido**.
+- Cron activo, corridas exitosas y pg_net sin errores: **no medido**.
+- Una inscripción nueva que avance sola por cron: **no ejecutado**.
+
+El bloqueo productivo reportado sigue pendiente: los cambios locales no activan
+el cron. El despliegue, configuración, activación y observación del runbook
+requieren una instrucción posterior que permita actuar en producción.
+No se modificó `scripts/build-queue.json` ni se marcó la tarea como terminada.
+Se conservaron las modificaciones previas de cola y archivos de estado.
+
+---
+
+## Evidencia histórica — 23-nov-2026
+
 Fecha: 23-nov-2026. Entrega de código local; aceptación productiva pendiente.
 
 ## Cambios

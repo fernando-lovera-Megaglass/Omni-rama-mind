@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { main, VERIFY } from './sequence-activate.mjs';
 import { PROJECT } from './mgmt-sql.mjs';
 const env = { SEQUENCE_REMOTE_URL: `https://${PROJECT}.supabase.co`, SEQUENCE_REMOTE_SERVICE_ROLE_KEY: 'sb_secret_fake' };
-async function scenario({ argv = ['--yes'], environment = env, health = true, cron = true, vault = true, overdue = 0, backfillFails = false } = {}) {
+async function scenario({ argv = ['--yes'], environment = env, health = true, cron = true, vault = true, vaultExtension = true, net = true, overdue = 0, backfillFails = false } = {}) {
   const calls = [];
   const deps = {
     log() {},
@@ -12,7 +12,11 @@ async function scenario({ argv = ['--yes'], environment = env, health = true, cr
     },
     async sql(query) {
       calls.push(query);
-      if (query.includes('to_regclass')) return [{ cron, vault: true }];
+      if (query.includes('to_regclass')) {
+        assert.ok(query.includes("to_regprocedure('net.http_post(text,jsonb,jsonb,jsonb,integer)')"));
+        assert.ok(query.includes("to_regclass('net._http_response')"));
+        return [{ cron, vault: vaultExtension, net }];
+      }
       if (query.includes('url_ok')) return [{ url_ok: vault, key_ok: vault }];
       if (query === VERIFY) return [{ overdue, stale: overdue, future: 26 }];
       if (query.includes('alter_job')) return [{}];
@@ -33,10 +37,14 @@ for (const options of [{ argv: [] }, { environment: {} }, { environment: { ...en
 const missing = await scenario({ health: false });
 assert.match(missing.error.message, /npx supabase functions deploy sequence-process --project-ref/);
 assert.deepEqual(missing.calls, ['health']);
-for (const options of [{ cron: false }, { vault: false }, { overdue: 1 }, { backfillFails: true }]) {
+for (const options of [{ cron: false }, { vaultExtension: false }, { net: false }, { vault: false }, { overdue: 1 }, { backfillFails: true }]) {
   const r = await scenario(options); assert.ok(r.error);
   assert.ok(!r.calls.some(q => q.includes('active := true')));
 }
+const noNet = await scenario({ net: false });
+assert.match(noNet.error.message, /pg_net/);
+assert.ok(!noNet.calls.includes('backfill'));
+assert.ok(!noNet.calls.some(q => q.includes('alter_job')));
 const success = await scenario(); assert.ifError(success.error); assert.equal(success.result.rescheduled, 26);
 assert.ok(success.calls.findIndex(q => q.includes('active := false')) < success.calls.indexOf('backfill'));
 assert.ok(success.calls.indexOf(VERIFY) < success.calls.findIndex(q => q.includes('active := true')));

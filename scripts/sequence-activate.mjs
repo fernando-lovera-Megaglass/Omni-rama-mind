@@ -26,8 +26,12 @@ export async function main(argv = process.argv.slice(2), env = process.env, {
   if (!response.ok || health.service !== 'sequence-process' || health.activationVersion !== 1 || health.ok !== true) {
     throw new Error(`Función ausente, antigua o no autenticada (HTTP ${response.status}). Despliega la versión local: ${deploy}. Usa el JWT service_role que coincide con SUPABASE_SERVICE_ROLE_KEY de la función.`);
   }
-  const [extensions] = await sql("select to_regclass('cron.job') is not null as cron, to_regclass('vault.decrypted_secrets') is not null as vault");
-  if (!extensions?.cron || !extensions?.vault) throw new Error('Aplica supabase/sequence-cron.sql como postgres; consulta docs/sequence-process.md');
+  const [extensions] = await sql(`select to_regclass('cron.job') is not null as cron,
+    to_regclass('vault.decrypted_secrets') is not null as vault,
+    (exists (select 1 from pg_extension where extname = 'pg_net')
+      and to_regprocedure('net.http_post(text,jsonb,jsonb,jsonb,integer)') is not null
+      and to_regclass('net._http_response') is not null) as net`);
+  if (!extensions?.cron || !extensions?.vault || !extensions?.net) throw new Error('Falta Cron, Vault o pg_net (HTTP y respuestas). Aplica supabase/sequence-cron.sql como postgres; consulta docs/sequence-process.md');
   const jobs = await sql(`select jobid, active, schedule, command from cron.job where jobname = '${JOB}'`);
   if (jobs.length !== 1 || jobs[0].schedule !== '* * * * *' || !jobs[0].command.includes('/functions/v1/sequence-process') || !jobs[0].command.includes('net.http_post')) throw new Error('Cron ausente o inesperado: aplica supabase/sequence-cron.sql');
   // Compare secrets inside SQL; never return decrypted values or server error bodies.
