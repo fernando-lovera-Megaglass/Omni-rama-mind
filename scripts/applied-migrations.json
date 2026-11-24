@@ -263,11 +263,20 @@
     "status": "pendiente",
     "nota": "Solo código local por instrucción del usuario; no aplicada ni verificada en producción. Independiente de contact-integrity.sql.",
     "localVerification": {
-      "at": "2026-11-23T00:26:51.027921-06:00",
+      "at": "2026-11-24T00:31:35.061150-06:00",
       "environment": "PGlite desechable local, eliminado al finalizar",
       "status": "aplicada_y_verificada_localmente",
       "test": "node scripts/test-company-domain-index.mjs",
       "result": "Aplicada dos veces con apply-migration.mjs --local; pg_indexes confirma índice parcial no único; EXPLAIN natural usa Index Scan using companies_domain_idx sobre 10004 filas."
+    },
+    "productionVerification": {
+      "at": "2026-11-24T00:31:35.061597-06:00",
+      "mode": "read_only",
+      "project": "xysgvxnieigpaxtmxiui",
+      "status": "indice_ausente",
+      "explain": "Seq Scan on companies",
+      "evidence": "docs/evidencia/gap-backend-re-companies-domain-sin-indice/",
+      "pendingReason": "La instrucción final limita el trabajo a código local. Pendiente aclaración para aplicar la migración en producción; no se ejecutó DDL remoto."
     }
   },
   "import_jobs.sql": {
