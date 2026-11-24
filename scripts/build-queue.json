@@ -2745,9 +2745,11 @@
     {
       "id": "gap-backend-re-tickets-empresa-sin-backfill",
       "lane": "codex",
-      "status": "pending",
+      "status": "review",
       "createdAt": "2026-11-24T05:27:49-06:00",
-      "instruction": "RE-APERTURA de gap-backend-tickets-empresa-sin-backfill (en review). Sigue fallando en vivo, verificado 24-nov-2026 ~05:25 CST vía scripts/mgmt-sql.mjs: 74 tickets vivos con contact_id cuyo contacto SÍ tiene empresa principal en contact_companies siguen con extra->>'companyId' y extra->'assoc_companies' vacíos (misma consulta y mismo conteo 74 que el reporte original — el backfill nunca se ejecutó contra la base real; solo existe scripts/backfill-ticket-company.mjs sin aplicar). Consecuencia visible: la tarjeta Empresas de la ficha de ticket (src/record.js:154 lee solo lo persistido) muestra cero empresas en esos 74 tickets. Corrección: ejecutar el backfill transaccional contra la base viva poblando extra->>'companyId' y extra->'assoc_companies' desde la empresa principal del contacto (contact_companies.is_primary), verificar con la misma consulta (debe dar 0) y documentar fecha real de ejecución. No despliegues nada a producción; solo código local."
+      "instruction": "RE-APERTURA de gap-backend-tickets-empresa-sin-backfill (en review). Sigue fallando en vivo, verificado 24-nov-2026 ~05:25 CST vía scripts/mgmt-sql.mjs: 74 tickets vivos con contact_id cuyo contacto SÍ tiene empresa principal en contact_companies siguen con extra->>'companyId' y extra->'assoc_companies' vacíos (misma consulta y mismo conteo 74 que el reporte original — el backfill nunca se ejecutó contra la base real; solo existe scripts/backfill-ticket-company.mjs sin aplicar). Consecuencia visible: la tarjeta Empresas de la ficha de ticket (src/record.js:154 lee solo lo persistido) muestra cero empresas en esos 74 tickets. Corrección: ejecutar el backfill transaccional contra la base viva poblando extra->>'companyId' y extra->'assoc_companies' desde la empresa principal del contacto (contact_companies.is_primary), verificar con la misma consulta (debe dar 0) y documentar fecha real de ejecución. No despliegues nada a producción; solo código local.",
+      "workedAt": "2026-11-24T05:46:42-0600",
+      "workedBy": "codex"
     },
     {
       "id": "gap-backend-re-deals-perdidos-fecha-cierre-futura",

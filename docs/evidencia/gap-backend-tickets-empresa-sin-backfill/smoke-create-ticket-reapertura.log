@@ -1,0 +1,7 @@
+[create-ticket] open in place: Crear ticket | path /tickets/
+[create-ticket] fields ok; statuses of Cotizaciones SACA → Sin Contactar
+[create-ticket] contact picked beyond the first 30: Silvia Ruiz (silvia.ruiz@cerramientosbajio.com)
+[create-ticket] created: Cristal templado roto en obra → Cotizaciones SACA / sin_contactar | contact Silvia Ruiz | company Cerramientos Bajío | list rows 25
+[create-ticket] board: card in column sin_contactar
+[create-ticket] chosen company wins; Crear y agregar otro keeps the panel; Escape closes
+[create-ticket] OK

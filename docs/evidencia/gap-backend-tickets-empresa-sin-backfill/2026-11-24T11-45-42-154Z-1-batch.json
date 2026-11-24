@@ -1,0 +1,1637 @@
+{
+  "phase": "batch",
+  "result": {
+    "rows": [
+      {
+        "id": 1,
+        "after": {
+          "company": "Cristales Norte",
+          "companyId": 1,
+          "assoc_contacts": [
+            1
+          ],
+          "assoc_companies": [
+            1
+          ],
+          "assoc_labels_companies": {
+            "1": "Principal"
+          }
+        },
+        "before": {
+          "assoc_contacts": [
+            1
+          ],
+          "assoc_companies": []
+        }
+      },
+      {
+        "id": 2,
+        "after": {
+          "company": "Ventanas Andina",
+          "companyId": 22,
+          "assoc_contacts": [
+            8
+          ],
+          "assoc_companies": [
+            22
+          ],
+          "assoc_labels_companies": {
+            "22": "Principal"
+          }
+        },
+        "before": {
+          "assoc_contacts": [
+            8
+          ],
+          "assoc_companies": []
+        }
+      },
+      {
+        "id": 3,
+        "after": {
+          "company": "Hogar Sol S.L.",
+          "companyId": 7,
+          "assoc_contacts": [
+            15
+          ],
+          "assoc_companies": [
+            7
+          ],
+          "assoc_labels_companies": {
+            "7": "Principal"
+          }
+        },
+        "before": {
+          "assoc_contacts": [
+            15
+          ],
+          "assoc_companies": []
+        }
+      },
+      {
+        "id": 4,
+        "after": {
+          "company": "Fachadas Prado S.L.",
+          "companyId": 28,
+          "assoc_contacts": [
+            22
+          ],
+          "assoc_companies": [
+            28
+          ],
+          "assoc_labels_companies": {
+            "28": "Principal"
+          }
+        },
+        "before": {
+          "assoc_contacts": [
+            22
+          ],
+          "assoc_companies": []
+        }
+      },
+      {
+        "id": 5,
+        "after": {
+          "company": "Cerramientos Bajío",
+          "companyId": 13,
+          "assoc_contacts": [
+            29
+          ],
+          "assoc_companies": [
+            13
+          ],
+          "assoc_labels_companies": {
+            "13": "Principal"
+          }
+        },
+        "before": {
+          "assoc_contacts": [
+            29
+          ],
+          "assoc_companies": []
+        }
+      },
+      {
+        "id": 7,
+        "after": {
+          "company": "Cristales Alba",
+          "companyId": 19,
+          "assoc_contacts": [
+            43
+          ],
+          "assoc_companies": [
+            19
+          ],
+          "assoc_labels_companies": {
+            "19": "Principal"
+          }
+        },
+        "before": {
+          "assoc_contacts": [
+            43
+          ],
+          "assoc_companies": []
+        }
+      },
+      {
+        "id": 8,
+        "after": {
+          "company": "Ventanas Monterrey",
+          "companyId": 4,
+          "assoc_contacts": [
+            50
+          ],
+          "assoc_companies": [
+            4
+          ],
+          "assoc_labels_companies": {
+            "4": "Principal"
+          }
+        },
+        "before": {
+          "assoc_contacts": [
+            50
+          ],
+          "assoc_companies": []
+        }
+      },
+      {
+        "id": 9,
+        "after": {
+          "company": "Hogar Ibérica",
+          "companyId": 25,
+          "assoc_contacts": [
+            57
+          ],
+          "assoc_companies": [
+            25
+          ],
+          "assoc_labels_companies": {
+            "25": "Principal"
+          }
+        },
+        "before": {
+          "assoc_contacts": [
+            57
+          ],
+          "assoc_companies": []
+        }
+      },
+      {
+        "id": 10,
+        "after": {
+          "company": "Fachadas del Sur",
+          "companyId": 10,
+          "assoc_contacts": [
+            64
+          ],
+          "assoc_companies": [
+            10
+          ],
+          "assoc_labels_companies": {
+            "10": "Principal"
+          }
+        },
+        "before": {
+          "assoc_contacts": [
+            64
+          ],
+          "assoc_companies": []
+        }
+      },
+      {
+        "id": 11,
+        "after": {
+          "company": "Cerramientos Castilla",
+          "companyId": 31,
+          "assoc_contacts": [
+            71
+          ],
+          "assoc_companies": [
+            31
+          ],
+          "assoc_labels_companies": {
+            "31": "Principal"
+          }
+        },
+        "before": {
+          "assoc_contacts": [
+            71
+          ],
+          "assoc_companies": []
+        }
+      },
+      {
+        "id": 12,
+        "after": {
+          "company": "Diseño Río",
+          "companyId": 16,
+          "assoc_contacts": [
+            78
+          ],
+          "assoc_companies": [
+            16
+          ],
+          "assoc_labels_companies": {
+            "16": "Principal"
+          }
+        },
+        "before": {
+          "assoc_contacts": [
+            78
+          ],
+          "assoc_companies": []
+        }
+      },
+      {
+        "id": 13,
+        "after": {
+          "company": "Cristales Norte",
+          "companyId": 1,
+          "assoc_contacts": [
+            85
+          ],
+          "assoc_companies": [
+            1
+          ],
+          "assoc_labels_companies": {
+            "1": "Principal"
+          }
+        },
+        "before": {
+          "assoc_contacts": [
+            85
+          ],
+          "assoc_companies": []
+        }
+      },
+      {
+        "id": 14,
+        "after": {
+          "company": "Ventanas Andina",
+          "companyId": 22,
+          "assoc_contacts": [
+            92
+          ],
+          "assoc_companies": [
+            22
+          ],
+          "assoc_labels_companies": {
+            "22": "Principal"
+          }
+        },
+        "before": {
+          "assoc_contacts": [
+            92
+          ],
+          "assoc_companies": []
+        }
+      },
+      {
+        "id": 16,
+        "after": {
+          "company": "Fachadas Prado S.L.",
+          "companyId": 28,
+          "assoc_contacts": [
+            106
+          ],
+          "assoc_companies": [
+            28
+          ],
+          "assoc_labels_companies": {
+            "28": "Principal"
+          }
+        },
+        "before": {
+          "assoc_contacts": [
+            106
+          ],
+          "assoc_companies": []
+        }
+      },
+      {
+        "id": 17,
+        "after": {
+          "company": "Cerramientos Bajío",
+          "companyId": 13,
+          "assoc_contacts": [
+            113
+          ],
+          "assoc_companies": [
+            13
+          ],
+          "assoc_labels_companies": {
+            "13": "Principal"
+          }
+        },
+        "before": {
+          "assoc_contacts": [
+            113
+          ],
+          "assoc_companies": []
+        }
+      },
+      {
+        "id": 18,
+        "after": {
+          "company": "Diseño Levante",
+          "companyId": 34,
+          "assoc_contacts": [
+            120
+          ],
+          "assoc_companies": [
+            34
+          ],
+          "assoc_labels_companies": {
+            "34": "Principal"
+          }
+        },
+        "before": {
+          "assoc_contacts": [
+            120
+          ],
+          "assoc_companies": []
+        }
+      },
+      {
+        "id": 19,
+        "after": {
+          "company": "Cristales Alba",
+          "companyId": 19,
+          "assoc_contacts": [
+            127
+          ],
+          "assoc_companies": [
+            19
+          ],
+          "assoc_labels_companies": {
+            "19": "Principal"
+          }
+        },
+        "before": {
+          "assoc_contacts": [
+            127
+          ],
+          "assoc_companies": []
+        }
+      },
+      {
+        "id": 20,
+        "after": {
+          "company": "Ventanas Monterrey",
+          "companyId": 4,
+          "assoc_contacts": [
+            134
+          ],
+          "assoc_companies": [
+            4
+          ],
+          "assoc_labels_companies": {
+            "4": "Principal"
+          }
+        },
+        "before": {
+          "assoc_contacts": [
+            134
+          ],
+          "assoc_companies": []
+        }
+      },
+      {
+        "id": 21,
+        "after": {
+          "company": "Hogar Ibérica",
+          "companyId": 25,
+          "assoc_contacts": [
+            141
+          ],
+          "assoc_companies": [
+            25
+          ],
+          "assoc_labels_companies": {
+            "25": "Principal"
+          }
+        },
+        "before": {
+          "assoc_contacts": [
+            141
+          ],
+          "assoc_companies": []
+        }
+      },
+      {
+        "id": 22,
+        "after": {
+          "company": "Fachadas del Sur",
+          "companyId": 10,
+          "assoc_contacts": [
+            148
+          ],
+          "assoc_companies": [
+            10
+          ],
+          "assoc_labels_companies": {
+            "10": "Principal"
+          }
+        },
+        "before": {
+          "assoc_contacts": [
+            148
+          ],
+          "assoc_companies": []
+        }
+      },
+      {
+        "id": 23,
+        "after": {
+          "company": "Cerramientos Castilla",
+          "companyId": 31,
+          "assoc_contacts": [
+            155
+          ],
+          "assoc_companies": [
+            31
+          ],
+          "assoc_labels_companies": {
+            "31": "Principal"
+          }
+        },
+        "before": {
+          "assoc_contacts": [
+            155
+          ],
+          "assoc_companies": []
+        }
+      },
+      {
+        "id": 25,
+        "after": {
+          "company": "Cristales Norte",
+          "companyId": 1,
+          "assoc_contacts": [
+            169
+          ],
+          "assoc_companies": [
+            1
+          ],
+          "assoc_labels_companies": {
+            "1": "Principal"
+          }
+        },
+        "before": {
+          "assoc_contacts": [
+            169
+          ],
+          "assoc_companies": []
+        }
+      },
+      {
+        "id": 26,
+        "after": {
+          "company": "Ventanas Andina",
+          "companyId": 22,
+          "assoc_contacts": [
+            176
+          ],
+          "assoc_companies": [
+            22
+          ],
+          "assoc_labels_companies": {
+            "22": "Principal"
+          }
+        },
+        "before": {
+          "assoc_contacts": [
+            176
+          ],
+          "assoc_companies": []
+        }
+      },
+      {
+        "id": 27,
+        "after": {
+          "company": "Hogar Sol S.L.",
+          "companyId": 7,
+          "assoc_contacts": [
+            183
+          ],
+          "assoc_companies": [
+            7
+          ],
+          "assoc_labels_companies": {
+            "7": "Principal"
+          }
+        },
+        "before": {
+          "assoc_contacts": [
+            183
+          ],
+          "assoc_companies": []
+        }
+      },
+      {
+        "id": 28,
+        "after": {
+          "company": "Fachadas Prado S.L.",
+          "companyId": 28,
+          "assoc_contacts": [
+            190
+          ],
+          "assoc_companies": [
+            28
+          ],
+          "assoc_labels_companies": {
+            "28": "Principal"
+          }
+        },
+        "before": {
+          "assoc_contacts": [
+            190
+          ],
+          "assoc_companies": []
+        }
+      },
+      {
+        "id": 29,
+        "after": {
+          "company": "Cerramientos Bajío",
+          "companyId": 13,
+          "assoc_contacts": [
+            197
+          ],
+          "assoc_companies": [
+            13
+          ],
+          "assoc_labels_companies": {
+            "13": "Principal"
+          }
+        },
+        "before": {
+          "assoc_contacts": [
+            197
+          ],
+          "assoc_companies": []
+        }
+      },
+      {
+        "id": 30,
+        "after": {
+          "company": "Diseño Levante",
+          "companyId": 34,
+          "assoc_contacts": [
+            204
+          ],
+          "assoc_companies": [
+            34
+          ],
+          "assoc_labels_companies": {
+            "34": "Principal"
+          }
+        },
+        "before": {
+          "assoc_contacts": [
+            204
+          ],
+          "assoc_companies": []
+        }
+      },
+      {
+        "id": 31,
+        "after": {
+          "company": "Cristales Alba",
+          "companyId": 19,
+          "assoc_contacts": [
+            211
+          ],
+          "assoc_companies": [
+            19
+          ],
+          "assoc_labels_companies": {
+            "19": "Principal"
+          }
+        },
+        "before": {
+          "assoc_contacts": [
+            211
+          ],
+          "assoc_companies": []
+        }
+      },
+      {
+        "id": 32,
+        "after": {
+          "company": "Ventanas Monterrey",
+          "companyId": 4,
+          "assoc_contacts": [
+            218
+          ],
+          "assoc_companies": [
+            4
+          ],
+          "assoc_labels_companies": {
+            "4": "Principal"
+          }
+        },
+        "before": {
+          "assoc_contacts": [
+            218
+          ],
+          "assoc_companies": []
+        }
+      },
+      {
+        "id": 34,
+        "after": {
+          "company": "Fachadas del Sur",
+          "companyId": 10,
+          "assoc_contacts": [
+            232
+          ],
+          "assoc_companies": [
+            10
+          ],
+          "assoc_labels_companies": {
+            "10": "Principal"
+          }
+        },
+        "before": {
+          "assoc_contacts": [
+            232
+          ],
+          "assoc_companies": []
+        }
+      },
+      {
+        "id": 35,
+        "after": {
+          "company": "Cerramientos Castilla",
+          "companyId": 31,
+          "assoc_contacts": [
+            239
+          ],
+          "assoc_companies": [
+            31
+          ],
+          "assoc_labels_companies": {
+            "31": "Principal"
+          }
+        },
+        "before": {
+          "assoc_contacts": [
+            239
+          ],
+          "assoc_companies": []
+        }
+      },
+      {
+        "id": 36,
+        "after": {
+          "company": "Diseño Río",
+          "companyId": 16,
+          "assoc_contacts": [
+            246
+          ],
+          "assoc_companies": [
+            16
+          ],
+          "assoc_labels_companies": {
+            "16": "Principal"
+          }
+        },
+        "before": {
+          "assoc_contacts": [
+            246
+          ],
+          "assoc_companies": []
+        }
+      },
+      {
+        "id": 37,
+        "after": {
+          "company": "Cristales Norte",
+          "companyId": 1,
+          "assoc_contacts": [
+            253
+          ],
+          "assoc_companies": [
+            1
+          ],
+          "assoc_labels_companies": {
+            "1": "Principal"
+          }
+        },
+        "before": {
+          "assoc_contacts": [
+            253
+          ],
+          "assoc_companies": []
+        }
+      },
+      {
+        "id": 38,
+        "after": {
+          "company": "Ventanas Andina",
+          "companyId": 22,
+          "assoc_contacts": [
+            260
+          ],
+          "assoc_companies": [
+            22
+          ],
+          "assoc_labels_companies": {
+            "22": "Principal"
+          }
+        },
+        "before": {
+          "assoc_contacts": [
+            260
+          ],
+          "assoc_companies": []
+        }
+      },
+      {
+        "id": 39,
+        "after": {
+          "company": "Hogar Sol S.L.",
+          "companyId": 7,
+          "assoc_contacts": [
+            267
+          ],
+          "assoc_companies": [
+            7
+          ],
+          "assoc_labels_companies": {
+            "7": "Principal"
+          }
+        },
+        "before": {
+          "assoc_contacts": [
+            267
+          ],
+          "assoc_companies": []
+        }
+      },
+      {
+        "id": 40,
+        "after": {
+          "company": "Fachadas Prado S.L.",
+          "companyId": 28,
+          "assoc_contacts": [
+            274
+          ],
+          "assoc_companies": [
+            28
+          ],
+          "assoc_labels_companies": {
+            "28": "Principal"
+          }
+        },
+        "before": {
+          "assoc_contacts": [
+            274
+          ],
+          "assoc_companies": []
+        }
+      },
+      {
+        "id": 41,
+        "after": {
+          "company": "Cerramientos Bajío",
+          "companyId": 13,
+          "assoc_contacts": [
+            281
+          ],
+          "assoc_companies": [
+            13
+          ],
+          "assoc_labels_companies": {
+            "13": "Principal"
+          }
+        },
+        "before": {
+          "assoc_contacts": [
+            281
+          ],
+          "assoc_companies": []
+        }
+      },
+      {
+        "id": 43,
+        "after": {
+          "company": "Cristales Alba",
+          "companyId": 19,
+          "assoc_contacts": [
+            295
+          ],
+          "assoc_companies": [
+            19
+          ],
+          "assoc_labels_companies": {
+            "19": "Principal"
+          }
+        },
+        "before": {
+          "assoc_contacts": [
+            295
+          ],
+          "assoc_companies": []
+        }
+      },
+      {
+        "id": 44,
+        "after": {
+          "company": "Ventanas Monterrey",
+          "companyId": 4,
+          "assoc_contacts": [
+            302
+          ],
+          "assoc_companies": [
+            4
+          ],
+          "assoc_labels_companies": {
+            "4": "Principal"
+          }
+        },
+        "before": {
+          "assoc_contacts": [
+            302
+          ],
+          "assoc_companies": []
+        }
+      },
+      {
+        "id": 45,
+        "after": {
+          "company": "Hogar Ibérica",
+          "companyId": 25,
+          "assoc_contacts": [
+            309
+          ],
+          "assoc_companies": [
+            25
+          ],
+          "assoc_labels_companies": {
+            "25": "Principal"
+          }
+        },
+        "before": {
+          "assoc_contacts": [
+            309
+          ],
+          "assoc_companies": []
+        }
+      },
+      {
+        "id": 46,
+        "after": {
+          "company": "Fachadas del Sur",
+          "companyId": 10,
+          "assoc_contacts": [
+            316
+          ],
+          "assoc_companies": [
+            10
+          ],
+          "assoc_labels_companies": {
+            "10": "Principal"
+          }
+        },
+        "before": {
+          "assoc_contacts": [
+            316
+          ],
+          "assoc_companies": []
+        }
+      },
+      {
+        "id": 47,
+        "after": {
+          "company": "Cerramientos Castilla",
+          "companyId": 31,
+          "assoc_contacts": [
+            323
+          ],
+          "assoc_companies": [
+            31
+          ],
+          "assoc_labels_companies": {
+            "31": "Principal"
+          }
+        },
+        "before": {
+          "assoc_contacts": [
+            323
+          ],
+          "assoc_companies": []
+        }
+      },
+      {
+        "id": 48,
+        "after": {
+          "company": "Diseño Río",
+          "companyId": 16,
+          "assoc_contacts": [
+            330
+          ],
+          "assoc_companies": [
+            16
+          ],
+          "assoc_labels_companies": {
+            "16": "Principal"
+          }
+        },
+        "before": {
+          "assoc_contacts": [
+            330
+          ],
+          "assoc_companies": []
+        }
+      },
+      {
+        "id": 49,
+        "after": {
+          "company": "Cristales Norte",
+          "companyId": 1,
+          "assoc_contacts": [
+            337
+          ],
+          "assoc_companies": [
+            1
+          ],
+          "assoc_labels_companies": {
+            "1": "Principal"
+          }
+        },
+        "before": {
+          "assoc_contacts": [
+            337
+          ],
+          "assoc_companies": []
+        }
+      },
+      {
+        "id": 50,
+        "after": {
+          "company": "Ventanas Andina",
+          "companyId": 22,
+          "assoc_contacts": [
+            344
+          ],
+          "assoc_companies": [
+            22
+          ],
+          "assoc_labels_companies": {
+            "22": "Principal"
+          }
+        },
+        "before": {
+          "assoc_contacts": [
+            344
+          ],
+          "assoc_companies": []
+        }
+      },
+      {
+        "id": 52,
+        "after": {
+          "company": "Fachadas Prado S.L.",
+          "companyId": 28,
+          "assoc_contacts": [
+            358
+          ],
+          "assoc_companies": [
+            28
+          ],
+          "assoc_labels_companies": {
+            "28": "Principal"
+          }
+        },
+        "before": {
+          "assoc_contacts": [
+            358
+          ],
+          "assoc_companies": []
+        }
+      },
+      {
+        "id": 53,
+        "after": {
+          "company": "Cerramientos Bajío",
+          "companyId": 13,
+          "assoc_contacts": [
+            365
+          ],
+          "assoc_companies": [
+            13
+          ],
+          "assoc_labels_companies": {
+            "13": "Principal"
+          }
+        },
+        "before": {
+          "assoc_contacts": [
+            365
+          ],
+          "assoc_companies": []
+        }
+      },
+      {
+        "id": 54,
+        "after": {
+          "company": "Diseño Levante",
+          "companyId": 34,
+          "assoc_contacts": [
+            372
+          ],
+          "assoc_companies": [
+            34
+          ],
+          "assoc_labels_companies": {
+            "34": "Principal"
+          }
+        },
+        "before": {
+          "assoc_contacts": [
+            372
+          ],
+          "assoc_companies": []
+        }
+      },
+      {
+        "id": 55,
+        "after": {
+          "company": "Cristales Alba",
+          "companyId": 19,
+          "assoc_contacts": [
+            379
+          ],
+          "assoc_companies": [
+            19
+          ],
+          "assoc_labels_companies": {
+            "19": "Principal"
+          }
+        },
+        "before": {
+          "assoc_contacts": [
+            379
+          ],
+          "assoc_companies": []
+        }
+      },
+      {
+        "id": 56,
+        "after": {
+          "company": "Ventanas Monterrey",
+          "companyId": 4,
+          "assoc_contacts": [
+            386
+          ],
+          "assoc_companies": [
+            4
+          ],
+          "assoc_labels_companies": {
+            "4": "Principal"
+          }
+        },
+        "before": {
+          "assoc_contacts": [
+            386
+          ],
+          "assoc_companies": []
+        }
+      },
+      {
+        "id": 57,
+        "after": {
+          "company": "Hogar Ibérica",
+          "companyId": 25,
+          "assoc_contacts": [
+            393
+          ],
+          "assoc_companies": [
+            25
+          ],
+          "assoc_labels_companies": {
+            "25": "Principal"
+          }
+        },
+        "before": {
+          "assoc_contacts": [
+            393
+          ],
+          "assoc_companies": []
+        }
+      },
+      {
+        "id": 58,
+        "after": {
+          "company": "Fachadas del Sur",
+          "companyId": 10,
+          "assoc_contacts": [
+            400
+          ],
+          "assoc_companies": [
+            10
+          ],
+          "assoc_labels_companies": {
+            "10": "Principal"
+          }
+        },
+        "before": {
+          "assoc_contacts": [
+            400
+          ],
+          "assoc_companies": []
+        }
+      },
+      {
+        "id": 59,
+        "after": {
+          "company": "Cerramientos Castilla",
+          "companyId": 31,
+          "assoc_contacts": [
+            407
+          ],
+          "assoc_companies": [
+            31
+          ],
+          "assoc_labels_companies": {
+            "31": "Principal"
+          }
+        },
+        "before": {
+          "assoc_contacts": [
+            407
+          ],
+          "assoc_companies": []
+        }
+      },
+      {
+        "id": 61,
+        "after": {
+          "company": "Cristales Norte",
+          "companyId": 1,
+          "assoc_contacts": [
+            1
+          ],
+          "assoc_companies": [
+            1
+          ],
+          "assoc_labels_companies": {
+            "1": "Principal"
+          }
+        },
+        "before": {
+          "assoc_contacts": [
+            1
+          ],
+          "assoc_companies": []
+        }
+      },
+      {
+        "id": 62,
+        "after": {
+          "company": "Ventanas Andina",
+          "companyId": 22,
+          "assoc_contacts": [
+            8
+          ],
+          "assoc_companies": [
+            22
+          ],
+          "assoc_labels_companies": {
+            "22": "Principal"
+          }
+        },
+        "before": {
+          "assoc_contacts": [
+            8
+          ],
+          "assoc_companies": []
+        }
+      },
+      {
+        "id": 63,
+        "after": {
+          "company": "Hogar Sol S.L.",
+          "companyId": 7,
+          "assoc_contacts": [
+            15
+          ],
+          "assoc_companies": [
+            7
+          ],
+          "assoc_labels_companies": {
+            "7": "Principal"
+          }
+        },
+        "before": {
+          "assoc_contacts": [
+            15
+          ],
+          "assoc_companies": []
+        }
+      },
+      {
+        "id": 64,
+        "after": {
+          "company": "Fachadas Prado S.L.",
+          "companyId": 28,
+          "assoc_contacts": [
+            22
+          ],
+          "assoc_companies": [
+            28
+          ],
+          "assoc_labels_companies": {
+            "28": "Principal"
+          }
+        },
+        "before": {
+          "assoc_contacts": [
+            22
+          ],
+          "assoc_companies": []
+        }
+      },
+      {
+        "id": 65,
+        "after": {
+          "company": "Cerramientos Bajío",
+          "companyId": 13,
+          "assoc_contacts": [
+            29
+          ],
+          "assoc_companies": [
+            13
+          ],
+          "assoc_labels_companies": {
+            "13": "Principal"
+          }
+        },
+        "before": {
+          "assoc_contacts": [
+            29
+          ],
+          "assoc_companies": []
+        }
+      },
+      {
+        "id": 67,
+        "after": {
+          "company": "Cristales Alba",
+          "companyId": 19,
+          "assoc_contacts": [
+            43
+          ],
+          "assoc_companies": [
+            19
+          ],
+          "assoc_labels_companies": {
+            "19": "Principal"
+          }
+        },
+        "before": {
+          "assoc_contacts": [
+            43
+          ],
+          "assoc_companies": []
+        }
+      },
+      {
+        "id": 68,
+        "after": {
+          "company": "Ventanas Monterrey",
+          "companyId": 4,
+          "assoc_contacts": [
+            50
+          ],
+          "assoc_companies": [
+            4
+          ],
+          "assoc_labels_companies": {
+            "4": "Principal"
+          }
+        },
+        "before": {
+          "assoc_contacts": [
+            50
+          ],
+          "assoc_companies": []
+        }
+      },
+      {
+        "id": 69,
+        "after": {
+          "company": "Hogar Ibérica",
+          "companyId": 25,
+          "assoc_contacts": [
+            57
+          ],
+          "assoc_companies": [
+            25
+          ],
+          "assoc_labels_companies": {
+            "25": "Principal"
+          }
+        },
+        "before": {
+          "assoc_contacts": [
+            57
+          ],
+          "assoc_companies": []
+        }
+      },
+      {
+        "id": 70,
+        "after": {
+          "company": "Fachadas del Sur",
+          "companyId": 10,
+          "assoc_contacts": [
+            64
+          ],
+          "assoc_companies": [
+            10
+          ],
+          "assoc_labels_companies": {
+            "10": "Principal"
+          }
+        },
+        "before": {
+          "assoc_contacts": [
+            64
+          ],
+          "assoc_companies": []
+        }
+      },
+      {
+        "id": 71,
+        "after": {
+          "company": "Cerramientos Castilla",
+          "companyId": 31,
+          "assoc_contacts": [
+            71
+          ],
+          "assoc_companies": [
+            31
+          ],
+          "assoc_labels_companies": {
+            "31": "Principal"
+          }
+        },
+        "before": {
+          "assoc_contacts": [
+            71
+          ],
+          "assoc_companies": []
+        }
+      },
+      {
+        "id": 72,
+        "after": {
+          "company": "Diseño Río",
+          "companyId": 16,
+          "assoc_contacts": [
+            78
+          ],
+          "assoc_companies": [
+            16
+          ],
+          "assoc_labels_companies": {
+            "16": "Principal"
+          }
+        },
+        "before": {
+          "assoc_contacts": [
+            78
+          ],
+          "assoc_companies": []
+        }
+      },
+      {
+        "id": 73,
+        "after": {
+          "company": "Cristales Norte",
+          "companyId": 1,
+          "assoc_contacts": [
+            85
+          ],
+          "assoc_companies": [
+            1
+          ],
+          "assoc_labels_companies": {
+            "1": "Principal"
+          }
+        },
+        "before": {
+          "assoc_contacts": [
+            85
+          ],
+          "assoc_companies": []
+        }
+      },
+      {
+        "id": 74,
+        "after": {
+          "company": "Ventanas Andina",
+          "companyId": 22,
+          "assoc_contacts": [
+            92
+          ],
+          "assoc_companies": [
+            22
+          ],
+          "assoc_labels_companies": {
+            "22": "Principal"
+          }
+        },
+        "before": {
+          "assoc_contacts": [
+            92
+          ],
+          "assoc_companies": []
+        }
+      },
+      {
+        "id": 76,
+        "after": {
+          "company": "Fachadas Prado S.L.",
+          "companyId": 28,
+          "assoc_contacts": [
+            106
+          ],
+          "assoc_companies": [
+            28
+          ],
+          "assoc_labels_companies": {
+            "28": "Principal"
+          }
+        },
+        "before": {
+          "assoc_contacts": [
+            106
+          ],
+          "assoc_companies": []
+        }
+      },
+      {
+        "id": 77,
+        "after": {
+          "company": "Cerramientos Bajío",
+          "companyId": 13,
+          "assoc_contacts": [
+            113
+          ],
+          "assoc_companies": [
+            13
+          ],
+          "assoc_labels_companies": {
+            "13": "Principal"
+          }
+        },
+        "before": {
+          "assoc_contacts": [
+            113
+          ],
+          "assoc_companies": []
+        }
+      },
+      {
+        "id": 78,
+        "after": {
+          "company": "Diseño Levante",
+          "companyId": 34,
+          "assoc_contacts": [
+            120
+          ],
+          "assoc_companies": [
+            34
+          ],
+          "assoc_labels_companies": {
+            "34": "Principal"
+          }
+        },
+        "before": {
+          "assoc_contacts": [
+            120
+          ],
+          "assoc_companies": []
+        }
+      },
+      {
+        "id": 79,
+        "after": {
+          "company": "Cristales Alba",
+          "companyId": 19,
+          "assoc_contacts": [
+            127
+          ],
+          "assoc_companies": [
+            19
+          ],
+          "assoc_labels_companies": {
+            "19": "Principal"
+          }
+        },
+        "before": {
+          "assoc_contacts": [
+            127
+          ],
+          "assoc_companies": []
+        }
+      },
+      {
+        "id": 80,
+        "after": {
+          "company": "Ventanas Monterrey",
+          "companyId": 4,
+          "assoc_contacts": [
+            134
+          ],
+          "assoc_companies": [
+            4
+          ],
+          "assoc_labels_companies": {
+            "4": "Principal"
+          }
+        },
+        "before": {
+          "assoc_contacts": [
+            134
+          ],
+          "assoc_companies": []
+        }
+      },
+      {
+        "id": 81,
+        "after": {
+          "company": "Hogar Ibérica",
+          "companyId": 25,
+          "assoc_contacts": [
+            141
+          ],
+          "assoc_companies": [
+            25
+          ],
+          "assoc_labels_companies": {
+            "25": "Principal"
+          }
+        },
+        "before": {
+          "assoc_contacts": [
+            141
+          ],
+          "assoc_companies": []
+        }
+      },
+      {
+        "id": 82,
+        "after": {
+          "company": "Fachadas del Sur",
+          "companyId": 10,
+          "assoc_contacts": [
+            148
+          ],
+          "assoc_companies": [
+            10
+          ],
+          "assoc_labels_companies": {
+            "10": "Principal"
+          }
+        },
+        "before": {
+          "assoc_contacts": [
+            148
+          ],
+          "assoc_companies": []
+        }
+      },
+      {
+        "id": 83,
+        "after": {
+          "company": "Cerramientos Castilla",
+          "companyId": 31,
+          "assoc_contacts": [
+            155
+          ],
+          "assoc_companies": [
+            31
+          ],
+          "assoc_labels_companies": {
+            "31": "Principal"
+          }
+        },
+        "before": {
+          "assoc_contacts": [
+            155
+          ],
+          "assoc_companies": []
+        }
+      }
+    ],
+    "updated": 74,
+    "remaining": 0
+  }
+}

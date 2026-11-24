@@ -1,0 +1,9 @@
+{
+  "executedAt": "2026-11-24T11:45:42.083Z",
+  "query": "SELECT count(*)::int AS remaining FROM public.tickets t WHERE t.deleted_at IS NULL AND t.contact_id IS NOT NULL AND (t.extra->'assoc_companies' IS NULL OR t.extra->'assoc_companies' IN ('null'::jsonb, '[]'::jsonb)) AND EXISTS (SELECT 1 FROM public.contact_companies cc WHERE cc.contact_id=t.contact_id AND cc.is_primary)",
+  "result": [
+    {
+      "remaining": 74
+    }
+  ]
+}

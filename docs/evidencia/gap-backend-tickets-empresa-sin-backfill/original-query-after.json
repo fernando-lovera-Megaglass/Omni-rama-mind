@@ -1,0 +1,17 @@
+{
+  "executedAt": "2026-11-24T11:46:02.401Z",
+  "project": "xysgvxnieigpaxtmxiui",
+  "query": "SELECT count(*)::int AS remaining FROM public.tickets t WHERE t.deleted_at IS NULL AND t.contact_id IS NOT NULL AND (t.extra->'assoc_companies' IS NULL OR t.extra->'assoc_companies' IN ('null'::jsonb, '[]'::jsonb)) AND EXISTS (SELECT 1 FROM public.contact_companies cc WHERE cc.contact_id=t.contact_id AND cc.is_primary)",
+  "result": [
+    {
+      "remaining": 0
+    }
+  ],
+  "verificationQuery": "SELECT count(*)::int AS verified, count(*) FILTER (WHERE EXISTS (SELECT 1 FROM public.contact_companies cc WHERE cc.contact_id=t.contact_id AND cc.is_primary AND t.extra->>'companyId'=cc.company_id::text AND t.extra->'assoc_companies'=jsonb_build_array(cc.company_id)))::int AS matching_primary FROM public.tickets t WHERE t.id IN (1,2,3,4,5,7,8,9,10,11,12,13,14,16,17,18,19,20,21,22,23,25,26,27,28,29,30,31,32,34,35,36,37,38,39,40,41,43,44,45,46,47,48,49,50,52,53,54,55,56,57,58,59,61,62,63,64,65,67,68,69,70,71,72,73,74,76,77,78,79,80,81,82,83)",
+  "persisted": [
+    {
+      "verified": 74,
+      "matching_primary": 74
+    }
+  ]
+}

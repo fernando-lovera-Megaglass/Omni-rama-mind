@@ -303,12 +303,17 @@
     }
   },
   "backfill-ticket-company.mjs": {
-    "status": "pendiente",
-    "nota": "Solo código local. Backfill por lotes preparado; no ejecutado contra producción. Auditoría --audit; aplicación explícita --apply. Ver docs/evidencia/gap-backend-tickets-empresa-sin-backfill/README.md.",
+    "status": "aplicado",
+    "nota": "Ejecutado en base viva con --apply --batch-size=100; una transacción, 74 actualizados. Consulta original 74 → 0; 74 asociaciones persistidas coinciden con empresa principal. Sin despliegue.",
     "localVerification": {
       "test": "node scripts/smoke-backfill-ticket-company.mjs",
       "environment": "PGlite desechable local",
       "result": "PASS: 4 elegibles a 0; lotes, idempotencia, conservación, exclusiones y rollback por ambigüedad/conflicto."
-    }
+    },
+    "appliedAt": "2026-11-24T11:46:02.401Z",
+    "project": "xysgvxnieigpaxtmxiui",
+    "evidence": "docs/evidencia/gap-backend-tickets-empresa-sin-backfill/",
+    "updated": 74,
+    "remaining": 0
   }
 }

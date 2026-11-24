@@ -1,6 +1,6 @@
 # Backfill de empresa principal en tickets históricos
 
-Estado: código y pruebas locales listos; aceptación en producción pendiente. No se ejecutó SQL remoto, no se desplegó y no se cerró la tarea en la cola.
+Estado: backfill ejecutado y verificado en la base viva el **24 de noviembre de 2026, 05:45:42 CST (America/Mexico_City, UTC−06:00)**. Verificación independiente completada a las **05:46:02 CST**. No hubo despliegue, cambios de UI ni modificación de la cola; el cierre corresponde al orquestador.
 
 ## Implementación
 
@@ -16,9 +16,9 @@ La selección usa empresas vivas; una consulta que no excluya empresas eliminada
 - `SMOKE_LIVE=0 node scripts/smoke-create-ticket.mjs`: PASS, regresión del writer y panel existentes en JSDOM. [Log](smoke-create-ticket.log).
 - `npm run build --script-shell=/tmp/omni-backfill-build-shell`: PASS. [Log](build.log). Se usó un shell temporal con el Node real y node_modules/.bin en PATH porque el wrapper de Kimi intentaba registrar un lease fuera del sandbox y fallaba con EPERM. No se cambió la configuración del proyecto.
 
-`applied-migrations.json` registra el script como **pendiente**, con validación local; no como aplicado.
+`scripts/applied-migrations.json` registra ahora el backfill como **aplicado**, con fecha, proyecto, conteos y ruta de evidencia.
 
-## Ejecución futura por operador autorizado
+## Comandos disponibles
 
 Sin flags imprime el SQL, sin conectarse. Los modos remotos requieren el token habitual de `mgmt-sql.mjs` y apuntan al proyecto definido allí.
 
@@ -31,8 +31,20 @@ node scripts/backfill-ticket-company.mjs --audit
 
 Los modos remotos guardan JSON con sello de tiempo en este directorio: auditoría, antes, cada lote y después. La ejecución --apply falla si la consulta final no devuelve cero. Los reportes contienen datos de tickets y deben permanecer en el entorno autorizado.
 
-## Pendientes de aceptación
+## Reapertura: ejecución real — 24 nov 2026
 
-La instrucción final «No despliegues nada a producción; solo código local» impide ejecutar el backfill remoto en esta tarea. Los 84/74 indicados por el hallazgo son datos aportados por el usuario, no mediciones nuevas. Falta ejecutar con autorización y adjuntar antes/después real con cero pendientes; registrar entonces la aplicación efectiva.
+La instrucción explícita de esta reapertura autorizó ejecutar el backfill en la base viva. La restricción de despliegue se respetó: se ejecutó el script existente, sin publicar código ni aplicar cambios de esquema.
 
-Existe Playwright. El carril UI debe recargar la app tras el backfill y verificar en la ficha de uno de los IDs del reporte que Empresas muestra el nombre y la etiqueta Principal; ejecutar sus pruebas Playwright aplicables. El smoke JSDOM no sustituye esa verificación en vivo. No se requiere un cambio visual: la ficha existente consume las asociaciones persistidas, por lo que no se añadió un gap-ui ni se modificaron archivos de UI.
+- Proyecto: `xysgvxnieigpaxtmxiui`, mediante `scripts/mgmt-sql.mjs` y el token local, sin exponer credenciales.
+- Consulta original: tickets vivos con contacto, `assoc_companies` ausente/null/vacío y `EXISTS contact_companies` con `is_primary`, **sin excluir empresas eliminadas en esta verificación**. Resultado **74 → 0**. SQL completo, hora y resultados: [antes](original-query-before.json) y [después](original-query-after.json).
+- Ejecución: `node scripts/backfill-ticket-company.mjs --apply --batch-size=100`, iniciada a las **2026-11-24T11:45:42.154Z / 05:45:42.154 CST**. Los 74 candidatos se actualizaron en **una sola transacción BEGIN/COMMIT** con las protecciones del script. [Antes](2026-11-24T11-45-42-154Z-0-before.json), [lote con IDs y extra antes/después](2026-11-24T11-45-42-154Z-1-batch.json), [auditoría posterior](2026-11-24T11-45-42-154Z-2-after.json).
+- Lectura independiente posterior al COMMIT: **74 de 74** tickets tienen `extra.companyId` y `extra.assoc_companies` correspondientes a la empresa principal del contacto. Resultado registrado en `original-query-after.json` a las **2026-11-24T11:46:02.401Z**.
+- `node scripts/smoke-backfill-ticket-company.mjs`: **PASS**, incluyendo conservación, exclusiones, idempotencia y rollback por conflicto/ambigüedad. [Log](smoke-backfill-reapertura.log).
+- `SMOKE_LIVE=0 node scripts/smoke-create-ticket.mjs`: **PASS**. [Log](smoke-create-ticket-reapertura.log).
+- `npm run build --script-shell=/tmp/omni-backfill-build-shell`: **PASS**, Vite completó en 1.50 s. [Log](build-reapertura.log). Se utilizó el binario Node real y el shell temporal existente para evitar el wrapper de Kimi, que falla al escribir su lease fuera del sandbox. No se cambió la configuración del proyecto.
+
+## Revisión pendiente para el carril UI
+
+Existe Playwright. El carril UI debe ejecutar las pruebas aplicables y recargar la ficha de uno de los IDs del reporte para comprobar que Empresas muestra su empresa y la etiqueta Principal. Esta comprobación visual en vivo no se ejecutó desde backend; la persistencia sí quedó verificada. No se necesita cambio visual ni ítem gap-ui: la ficha existente consume los datos corregidos.
+
+No se marcaron tareas como hechas ni se editó `scripts/build-queue.json`. El orquestador revisa esta evidencia y decide el cierre.
