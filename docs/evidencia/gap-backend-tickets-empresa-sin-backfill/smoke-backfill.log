@@ -1,0 +1,1 @@
+PASS: lotes transaccionales, 4 → 0, formato persistido, conservación, exclusiones, idempotencia y rollback por conflicto/ambigüedad. PostgreSQL local PGlite; sin acceso remoto.
