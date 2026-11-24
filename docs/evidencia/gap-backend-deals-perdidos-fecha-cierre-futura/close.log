@@ -1,0 +1,5 @@
+[deal-close] OK: bulk stage change and partial cancellation
+[deal-close] OK: required reason, cancel, reopen, extra storage mapping, import, columns, filters and record close
+[deal-close] OK: record required editors, automation once, noBack, lockClosed, noSkip and cancellation
+[deal-close] OK: About stage editor enforces rules and accepts required amounts with cents
+[deal-close] OK: association selector enforces rules, required properties and automation

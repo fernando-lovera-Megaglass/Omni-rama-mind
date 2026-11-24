@@ -71,6 +71,21 @@ data.setField('deals', d.id, 'stage', closedKey);
 if (day(get(d.id).closeDate) !== today) fail('a custom closed stage fixes the date too');
 log('custom closed stage (forecast lost): closeDate today');
 
+// Probability zero is sufficient even with an explicitly open forecast category.
+const zeroKey = 'zero_probability_regression';
+custom.stages.push([zeroKey, 'Eliminado personalizado', 0, '', 'pipeline']);
+pipe.stages.push([zeroKey, 'Abierto en otro pipeline', 40, '', 'pipeline']);
+data.saveDealPipelineDefs(defs);
+for (const [input, expected] of [[FUTURE, today], ['', today], [PAST, day(PAST)]]) {
+  const record = mk('Probabilidad cero', input, { pipeline: custom.name });
+  data.setField('deals', record.id, 'stage', zeroKey);
+  if (day(get(record.id).closeDate) !== expected) fail('zero probability must clamp only empty/future dates');
+}
+const otherPipeline = mk('Misma clave abierta', FUTURE);
+data.setField('deals', otherPipeline.id, 'stage', zeroKey);
+if (get(otherPipeline.id).closeDate !== FUTURE) fail('probability must belong to the deal pipeline');
+log('zero probability: future/empty clamped, past kept, pipeline scoped');
+
 // ---- 4) the closeDate automation of deal-close.js still works (uses the real now) ----
 pipe.automation = { won: { closeDate: true } };
 data.saveDealPipelineDefs(defs);

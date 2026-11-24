@@ -1646,7 +1646,9 @@ function afterSet(type, id, field, value, opts = {}, previousValue) {
         // is empty or still in the future, as the original does; a past close date is kept and reopening never
         // touches it. The write goes through setField (its own afterSet has no stage branch, so no recursion) and
         // leaves a system entry on the timeline instead of a property-history row.
-        if (dealStageIsClosed(d.pipeline, value) && closeDateNeedsToday(d.closeDate)) {
+        const closingStage = stagesFor(d.pipeline).find(s => s[0] === value);
+        const zeroProbability = closingStage?.[2] !== '' && closingStage?.[2] != null && Number(closingStage[2]) === 0;
+        if ((dealStageIsClosed(d.pipeline, value) || zeroProbability) && closeDateNeedsToday(d.closeDate)) {
           const today = todayNoonIso();
           setField('deals', id, 'closeDate', today);
           logSystem('deals', d.id, `Fecha de cierre fijada a «${formatDate(today)}» al cerrar el negocio.`, { closeDate: today, stage: value });
