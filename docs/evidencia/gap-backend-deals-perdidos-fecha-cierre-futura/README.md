@@ -1,37 +1,50 @@
-# gap-backend-deals-perdidos-fecha-cierre-futura
+# gap-backend-deals-perdidos-fecha-cierre-futura — reapertura
 
-Fecha: 2026-11-24 (America/Mexico_City).
+24-nov-2026, America/Mexico_City. **Implementación local probada; aceptación en vivo pendiente. No cerrar.**
 
-## Alcance y resultado
+## Hallazgo verificado en vivo (solo SELECT)
 
-Código local preparado y probado. **Pendiente el criterio en vivo**: no se ejecutó ninguna mutación ni despliegue remoto, respetando «solo código local». Los 14 registros del hallazgo del usuario no se presentan aquí como corregidos. El resultado 14 → 0 corresponde exclusivamente a fixtures PostgreSQL locales.
+`live-audit-reapertura.json` conserva el resultado y hora de consulta: consulta original = **20**, consulta con objeto y pipeline correctos = **14**.
 
-- `src/data.js`: el writer `setField` también fija la fecha a hoy al transitar a una etapa con probabilidad 0, aunque su categoría de previsión sea `pipeline`. Consulta la probabilidad dentro del pipeline del negocio. Conserva fechas pasadas y comportamiento previo para cierres ganados/perdidos.
-- `scripts/normalize-deal-close-dates.mjs`: generador local de SQL; no importa credenciales ni ejecuta conexiones. Emite transacción con bloqueo de tablas, límites de tiempo, reporte por ID de fecha antes/después y comprobación de cero antes de commit. Normaliza fechas posteriores al día actual de México (también cubre mañana, más estricto que el hallazgo de +2 días).
-- Usa `updated_at`, `updated` o `created`, en ese orden; si faltan usa ahora. Limita al presente si el timestamp histórico también está en futuro. No usa `extra.stageEnteredAt`: sin historial comprobado puede pertenecer a una transición anterior. La columna `created` sí existe en el esquema local; las columnas opcionales se leen mediante `to_jsonb`.
-- Excluye eliminados lógicamente. Si una clave prob-0 pertenece a otro pipeline y no al del negocio, aborta toda la transacción para no alterar registros ajenos por colisión de claves. Repetirlo sin candidatos no modifica registros.
+Los otros seis son negocios abiertos: IDs 6, 20, 92, 132 y 146 en `Ventas Extranjero / generacion_cotizacion` (probabilidad 20), e ID 46 en `JFC Cargo Destino / envio_cotizacion` (40). Comparten clave con etapas de tickets de probabilidad 0. La consulta original mezcla pipelines y objetos; reducirla a cero alteraría fechas válidas de negocios abiertos. El salto 14→20 no prueba seis nuevas pérdidas defectuosas.
 
-## Validación ejecutada
+El esquema vivo de `deals` **no tiene `updated_at`**. La inspección de los 20 candidatos tampoco encontró `extra.updated_at`, `extra.stageEnteredAt` ni actividades con etapa. Los 14 perdidos carecen de la transición o fallback pedidos. `created` no demuestra cuándo se perdieron. La versión anterior del normalizador sustituía por creación y podía abortar por las colisiones; se corrigió ese comportamiento.
 
-- `npm run build --script-shell=/tmp/omni-local-node-shell.sh`: PASS (`build.log`). El shell temporal selecciona el Node real incluido en Kimi; el wrapper normal fallaba con EPERM al registrar leases fuera del workspace. No se cambiaron dependencias ni configuración del proyecto.
-- `node scripts/smoke-normalize-deal-close-dates.mjs`: PASS (`normalization.log`). PGlite: 14 → 0 con SQL real, reporte de 14 filas, prioridad updated/created, conservación de otras columnas, exclusiones, idempotencia y rollback por pipeline ambiguo.
-- `node scripts/smoke-deal-close-date.mjs`: PASS (`close-date.log`). Futuro/vacío a hoy en prob-0 con categoría abierta, fecha pasada conservada y misma clave con probabilidad positiva en otro pipeline sin cambios; regresiones existentes de cierre y automatización.
-- `node scripts/smoke-deal-close.mjs`: PASS (`close.log`).
-- `node scripts/smoke-deals-board.mjs`: PASS (`board.log`).
-- `git diff --check`: PASS.
+## Código backend local
 
-## SQL para la operación pendiente
+- `src/data.js`: normaliza antes de persistir en `addRecord` y `setField` para altas perdidas, cambios de etapa, cambios de pipeline y edición posterior de fecha. Usa la etapa del pipeline correspondiente. Guarda etapa/pipeline y fecha en el mismo UPDATE, evitando la ventana entre dos escrituras. Mantiene fechas pasadas, reapertura, automatización y cronología.
+- `supabase/deal-close-date-guard.sql`: migración **sin aplicar** con trigger para INSERT/UPDATE directos (incluidas importaciones y procesos que omiten el cliente). Probabilidad 0 dentro del pipeline de negocios, día de México, excluye eliminados, conserva fecha válida anterior y registra nuevas transiciones con etapa y pipeline. No pretende reconstruir fechas históricas ni normalizar filas existentes al instalarse. Cambiar definiciones de probabilidad requiere una auditoría posterior de negocios ya existentes.
+- `scripts/normalize-deal-close-dates.mjs`: solo genera SQL, no conecta. Conserva `auditSql` original y añade `scopedAuditSql`. Normaliza transaccionalmente únicamente pérdidas del pipeline correspondiente; usa última transición registrada a la etapa actual o `updated_at`. **Aborta y hace rollback si no hay fecha fiable o es futura**, sin sustituirla por creación/ahora. Reporta fuente, antes/después y ambos conteos. Es idempotente.
 
-Generar sin ejecutar: `node scripts/normalize-deal-close-dates.mjs --emit-sql`.
-Consulta de aceptación (también se emite con `--audit`):
+Consulta correcta para el criterio semántico:
 
 ```sql
 SELECT count(*)::int AS remaining FROM public.deals d
 WHERE d.deleted_at IS NULL AND d.close_date > now() + interval '2 days'
-AND EXISTS (SELECT 1 FROM public.pipeline_stages ps
-            WHERE ps.clave=d.stage AND ps.probabilidad=0);
+AND EXISTS (
+ SELECT 1 FROM public.pipeline_stages ps
+ JOIN public.pipelines p ON p.id=ps.pipeline_id
+ WHERE p.objeto='deal' AND p.nombre=d.pipeline
+ AND ps.clave=d.stage AND ps.probabilidad=0
+);
 ```
 
-Resultado local probado: `remaining = 0`. Resultado en vivo: **no ejecutado ni verificado**. El orquestador debe coordinar la ejecución autorizada del SQL, guardar su reporte y repetir la consulta en vivo antes de cerrar.
+## Pruebas ejecutadas
 
-Existe Playwright. El carril UI debe correr sus pruebas de cierre desde ficha/tablero/edición masiva porque cambia la fecha persistida que muestran esas pantallas. No hace falta cambio visual; no se agregó gap-ui. No se modificaron archivos visuales ni `scripts/build-queue.json`. Los cambios preexistentes en applied-migrations/build-status no pertenecen a esta tarea.
+- `npm run build --script-shell=/tmp/omni-local-node-shell.sh`: PASS (`build-reapertura.log`). Se usó `/Applications/Kimi.app/Contents/Resources/resources/runtime/npm`; el wrapper de npm del entorno falla con EPERM al registrar leases. El shell temporal usa el Node real de Kimi. Sin cambios en dependencias/configuración.
+- `scripts/smoke-normalize-deal-close-dates.mjs`: PASS (`normalization-reapertura.log`). PostgreSQL local PGlite: 14→0 con seis falsos positivos conservados, prioridad de historial, fallback, idempotencia y rollback si falta historia. Trigger probado con alta perdida, fecha vacía, transición, cambio de pipeline, edición posterior, fecha pasada y reapertura.
+- `scripts/smoke-deal-close-date.mjs`: PASS (`close-date-reapertura.log`), incluidas nuevas regresiones de alta perdida, edición de fecha y pipeline.
+- `scripts/smoke-deal-close.mjs`: PASS (`close-reapertura.log`).
+- `scripts/smoke-deals-board.mjs`: PASS (`board-reapertura.log`).
+- `git diff --check`: PASS.
+
+Existe Playwright. **El carril UI debe correr las pruebas de pantallas de creación, ficha, tablero, inline y edición masiva**, porque cambia la fecha persistida que muestran. No hace falta cambio visual; no se agregó gap-ui.
+
+## Pendientes para el orquestador
+
+1. Resolver la contradicción entre normalizar la base real y «solo código local». Se solicitó aclaración; no hubo mutación remota ni despliegue.
+2. Proporcionar fechas históricas fiables para los 14 registros o autorizar explícitamente otra política documentada para fechas desconocidas. El script actualmente abortaría en vivo de forma intencional.
+3. Aplicar la normalización autorizada y verificar cero con la consulta por pipeline; conservar también la consulta original y explicar sus seis falsos positivos.
+4. Desplegar la protección backend en un trabajo autorizado posterior; el código local no protege todavía la base real.
+
+No se modificaron archivos visuales ni `scripts/build-queue.json`, ni se marcó la tarea hecha. Los cambios preexistentes en applied-migrations/build-status no son de esta tarea. Los logs sin sufijo reapertura pertenecen al intento anterior.

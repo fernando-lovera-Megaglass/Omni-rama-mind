@@ -109,6 +109,13 @@ export function closeDateNeedsToday(closeDate) {
   const endOfToday = new Date(n.getFullYear(), n.getMonth(), n.getDate(), 23, 59, 59, 999);
   return d > endOfToday;
 }
+// Apply before persistence so inserts and stage/date/pipeline updates share the invariant.
+function dealClosePatch(record) {
+  const stage = stagesFor(record.pipeline).find(s => s[0] === record.stage);
+  const zero = stage?.[2] !== '' && stage?.[2] != null && Number(stage[2]) === 0;
+  return (zero || dealStageIsClosed(record.pipeline, record.stage)) && closeDateNeedsToday(record.closeDate)
+    ? { closeDate: todayNoonIso() } : {};
+}
 export const TICKET_STATUSES = [
   ['new', 'Nuevo', 'tag--new'],
   ['waiting', 'En espera de contacto', 'tag--open'],
@@ -909,6 +916,10 @@ export function setField(type, id, field, value, opts = {}) {
     if (next === 'Sí') import('./sequences-data.js').then((m) => m.cancelOnUnsubscribe(Number(id), when)).catch((e) => console.error('[secuencias] baja de suscripción', e));
     return;
   }
+  const closePatch = type === 'deals' && ['stage', 'pipeline', 'closeDate'].includes(field)
+    ? dealClosePatch({ ...findIn(type, id), [field]: value }) : {};
+  if (field === 'closeDate' && closePatch.closeDate) value = closePatch.closeDate;
+  if (closePatch.closeDate) opts = { ...opts, automaticCloseDate: closePatch.closeDate };
   const completedAt = new Date();
   validatePropertyValuesLocal(type, { [field]: value }, id);
   if (type === 'tasks' && field === 'recur') value = normalizeRecur(value); // the editors hand over the freq string
@@ -926,13 +937,13 @@ export function setField(type, id, field, value, opts = {}) {
   }
   if (dbLive) {
     const rec = (dbRows[type] || []).find((r) => Number(r.id) === Number(id));
-    if (rec) rec[field] = value;
+    if (rec) Object.assign(rec, { [field]: value }, closePatch);
     bump();
     const col = (CAMEL_TO_DB[type] && CAMEL_TO_DB[type][field]) || field;
     dbWrite(async () => {
       if (TABLE_COLS[type].includes(col)) {
         const stored = INTEGER_COLS.has(col) && value !== null && value !== '' && Number.isFinite(Number(value)) ? Math.round(Number(value)) : value;
-        const { error } = await supabase.from(type).update({ [col]: stored }).eq('id', id);
+        const { error } = await supabase.from(type).update({ [col]: stored, ...(closePatch.closeDate ? { close_date: closePatch.closeDate } : {}) }).eq('id', id);
         if (error) reportDbError(`actualizar ${type}`, error);
         else if (type === 'tasks' && field === 'status' && value === 'done') {
           await resumeTaskSequence(findRecord('tasks', id), completedAt);
@@ -949,7 +960,7 @@ export function setField(type, id, field, value, opts = {}) {
     return;
   }
   const o = getOverrides(type);
-  o[id] = { ...(o[id] || {}), [field]: value };
+  o[id] = { ...(o[id] || {}), [field]: value, ...closePatch };
   write(K(type, 'overrides'), o);
   if (type === 'tasks' && field === 'status' && value === 'done') {
     const task = findRecord('tasks', id);
@@ -1387,6 +1398,7 @@ export function reminderFromDue(due, option = defaultReminderOption()) {
 
 // opts.origin: where the record comes from ("Creación manual", "Importación"…), for the timeline entry.
 export function addRecord(type, fields, opts = {}) {
+  if (type === 'deals') fields = { ...fields, ...dealClosePatch(fields) };
   // A new task without an explicit reminder gets the default one from Ajustes (none for completed ones).
   if (type === 'tasks' && fields && fields.reminderAt === undefined && fields.status !== 'done') fields = { ...fields, reminderAt: reminderFromDue(fields.due) };
   if (type === 'companies' && fields && fields.hs_additional_domains !== undefined) fields = { ...fields, hs_additional_domains: normalizeAdditionalDomains(fields.hs_additional_domains, fields.domain) };
@@ -1646,12 +1658,8 @@ function afterSet(type, id, field, value, opts = {}, previousValue) {
         // is empty or still in the future, as the original does; a past close date is kept and reopening never
         // touches it. The write goes through setField (its own afterSet has no stage branch, so no recursion) and
         // leaves a system entry on the timeline instead of a property-history row.
-        const closingStage = stagesFor(d.pipeline).find(s => s[0] === value);
-        const zeroProbability = closingStage?.[2] !== '' && closingStage?.[2] != null && Number(closingStage[2]) === 0;
-        if ((dealStageIsClosed(d.pipeline, value) || zeroProbability) && closeDateNeedsToday(d.closeDate)) {
-          const today = todayNoonIso();
-          setField('deals', id, 'closeDate', today);
-          logSystem('deals', d.id, `Fecha de cierre fijada a «${formatDate(today)}» al cerrar el negocio.`, { closeDate: today, stage: value });
+        if (opts.automaticCloseDate) {
+          logSystem('deals', d.id, `Fecha de cierre fijada a «${formatDate(opts.automaticCloseDate)}» al cerrar el negocio.`, { closeDate: opts.automaticCloseDate, stage: value });
         }
         // «Cuando se gana un negocio asociado, pasar a Cliente» (Ajustes › Etapa del ciclo de vida, when on).
         if (previousValue !== value && dealStageIsWon(d.pipeline, value)) { try { lifecycleOnWon(d); } catch (e) { console.error('[ciclo de vida] negocio ganado', e); } }

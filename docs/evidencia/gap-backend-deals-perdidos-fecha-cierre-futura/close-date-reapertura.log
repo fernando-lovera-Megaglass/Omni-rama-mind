@@ -1,0 +1,9 @@
+[deal-close-date] future → won: closeDate 2026-11-24
+[deal-close-date] empty → lost: today; past kept on won; reopen and open→open untouched
+[deal-close-date] custom closed stage (forecast lost): closeDate today
+[deal-close-date] zero probability: future/empty clamped, past kept, pipeline scoped
+[deal-close-date] direct insert, later date edit and pipeline change protected
+[deal-close-date] automation closeDate: still sets the real date
+[deal-close-date] board drag to Ganado: closeDate today
+[deal-close-date] view «Mis negocios ganados este mes»: the won deal qualifies (tab not shown by default)
+[deal-close-date] OK

@@ -1,0 +1,1 @@
+PASS: scoped 14→0, six false positives preserved; history priority, fallback, idempotence, missing history rollback; SQL guard insert/update/date/pipeline/reopen. Local only.

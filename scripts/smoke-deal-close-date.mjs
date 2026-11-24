@@ -85,6 +85,15 @@ const otherPipeline = mk('Misma clave abierta', FUTURE);
 data.setField('deals', otherPipeline.id, 'stage', zeroKey);
 if (get(otherPipeline.id).closeDate !== FUTURE) fail('probability must belong to the deal pipeline');
 log('zero probability: future/empty clamped, past kept, pipeline scoped');
+const direct = mk('Alta directa perdida', FUTURE, { pipeline: custom.name, stage: zeroKey });
+if (day(get(direct.id).closeDate) !== today) fail('direct lost insert must normalize');
+data.setField('deals', direct.id, 'closeDate', FUTURE);
+if (day(get(direct.id).closeDate) !== today) fail('later date edit must normalize');
+const switched = mk('Cambio de pipeline', FUTURE, { stage: zeroKey });
+data.setField('deals', switched.id, 'pipeline', custom.name);
+if (day(get(switched.id).closeDate) !== today) fail('pipeline change must normalize');
+log('direct insert, later date edit and pipeline change protected');
+
 
 // ---- 4) the closeDate automation of deal-close.js still works (uses the real now) ----
 pipe.automation = { won: { closeDate: true } };

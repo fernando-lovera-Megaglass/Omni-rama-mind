@@ -1,0 +1,57 @@
+{
+  "checkedAt": "2026-11-24T11:53:26.716Z",
+  "mode": "read-only",
+  "original": [
+    {
+      "remaining": 20
+    }
+  ],
+  "pipelineScoped": [
+    {
+      "remaining": 14
+    }
+  ],
+  "collisions": [
+    {
+      "id": 6,
+      "pipeline": "Ventas Extranjero",
+      "stage": "generacion_cotizacion",
+      "probabilidad": "20"
+    },
+    {
+      "id": 20,
+      "pipeline": "Ventas Extranjero",
+      "stage": "generacion_cotizacion",
+      "probabilidad": "20"
+    },
+    {
+      "id": 46,
+      "pipeline": "JFC Cargo Destino",
+      "stage": "envio_cotizacion",
+      "probabilidad": "40"
+    },
+    {
+      "id": 92,
+      "pipeline": "Ventas Extranjero",
+      "stage": "generacion_cotizacion",
+      "probabilidad": "20"
+    },
+    {
+      "id": 132,
+      "pipeline": "Ventas Extranjero",
+      "stage": "generacion_cotizacion",
+      "probabilidad": "20"
+    },
+    {
+      "id": 146,
+      "pipeline": "Ventas Extranjero",
+      "stage": "generacion_cotizacion",
+      "probabilidad": "20"
+    }
+  ],
+  "missingUpdatedColumn": [
+    {
+      "columns": 0
+    }
+  ]
+}
