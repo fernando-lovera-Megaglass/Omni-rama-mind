@@ -83,6 +83,9 @@ el navegador). Donde una pantalla usa un valor distinto, está en la sección 3.
 | Botón | `.btn` | 40px | 0 16px | 14px / 600 | `--r-sm` | borde 1px transparente; `inline-flex`, centrado, sin salto de línea |
 | Botón pequeño | `.btn.btn--sm` | 32px | 0 10px | 14px / 600 | `--r-sm` | fichas de registro, tablas de marketing, bandeja |
 | Botón píldora | `.btn.btn--pillx` | 40px | 0 20px | 14px / 600 | `--r-pill` | cabeceras de listas (Agregar contactos/empresas…), ancho 100 % cuando es `.btn--block` |
+| Primario píldora | `.btn--primary.btn--pillx` | 40px | 0 20px | 14px / 600 | `--r-pill` | **excepción de color**: fondo `--c-link` (verde azulado), hover `#004d4e`; es el «Agregar contactos/empresas/negocios/tickets/tareas» de las listas |
+| Botón píldora borde | `.btn.btn--pill` | 40px | 0 16px | 14px / 600 | `--r-pill` | fondo `--c-white`, texto y borde `--c-link`; es el «Acciones ▾» de las cabeceras de lista |
+| Peligro | `.btn.btn--danger` | 40px | 0 16px | 14px / 600 | `--r-sm` | fondo `#d94c53`, texto `--c-white`; confirmaciones de borrado en modales |
 | Primario | `.btn--primary` | — | — | — | — | fondo `--c-primary`, texto `--c-white`; hover `--c-primary-dark` |
 | Secundario | `.btn--secondary` | — | — | — | — | fondo `--c-white`, texto y borde `--c-primary` |
 | Fantasma | `.btn--ghost` | — | — | — | — | fondo `--c-white`, texto `--c-link`, borde `--c-border`; hover `--c-head` |
@@ -90,6 +93,8 @@ el navegador). Donde una pantalla usa un valor distinto, está en la sección 3.
 | Botón de icono | `.icon-btn` | 32 × 32px | — | 18px | `--r-sm` | con `.ico` dentro, fondo transparente |
 | Botón de icono redondo | `.icon-btn.icon-btn--round` | 40 × 40px | — | 16px | 50 % | barra de herramientas de listas (vista panel/tabla, engranaje, plegar) |
 | Botón de icono pequeño | `.icon-btn.icon-btn--sm` | 32 × 32px | — | 15px | `--r-pill` (redondo) | «+» y «✎» de la fila de filtros, acciones de la ficha |
+| Botón de icono xs | `.icon-btn.icon-btn--xs` | 22 × 22px | — | 14px | `--r-sm` | acciones discretas dentro de tarjetas (regenerar resumen, mover) |
+| Botón de acción de ficha | `.quick` + `.quick__ico` | 56px de ancho | 4px 0 | 12.8px / 600 | — | columna: icono redondo de 36px con borde `--c-border` arriba y etiqueta `--c-link` abajo; Nota, Correo, Llamar, Tarea, Reunión, Más; iconos de línea 24×24 trazo 1.8px (`action-icons.js`) |
 | Campo de formulario | `.field` (label > span + control); `.field input`, `.field select` | 40px | 0 10px | 14px | `--r-sm` | borde 1px `--c-border`, etiqueta arriba y control abajo; `textarea` 98px (importación) |
 | Buscador | `.search` + `.search input` + `.ico--search` 16px | 32px | 0 10px | 14px | `--r-sm` | ancho 300px, borde `--c-border` |
 | Buscador píldora (listas) | `.search.search--pill` | 40px | 0 16px | 14px | `--r-pill` | ancho 260px, borde `--c-nav` |
