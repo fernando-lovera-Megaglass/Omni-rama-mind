@@ -2877,12 +2877,14 @@
     },
     {
       "id": "user-iconos-mapa-useradd-apreton",
-      "status": "pending",
+      "status": "review",
       "lane": "claude",
       "created": "2026-11-25",
       "title": "Iconos nuevos: map y user-add; deal pasa de diamante a apretón de manos",
       "instruction": "Cambio de UI pedido y aprobado por el usuario (25-nov-2026, catálogo iconos.html sección 6).\n\nTRES CAMBIOS, todos en el sistema de iconos de línea (trazo 1.8px, stroke currentColor, fill none, viewBox 0 0 24 24):\n\n1. NUEVO icono `map` en src/action-icons.js (ACT_ICONS):\n   <path d=\"M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2z\"/><path d=\"M9 4v14M15 6v14\"/>\n\n2. NUEVO icono `user-add` en src/action-icons.js (ACT_ICONS), consistente con el `user` actual (cabeza r3.5, cuerpo con arco):\n   <circle cx=\"9.5\" cy=\"8\" r=\"3.5\"/><path d=\"M3 20v-1a6.5 6.5 0 0 1 12-3.5\"/><path d=\"M18.5 14v6M15.5 17h6\"/>\n\n3. REEMPLAZAR el trazo del icono `deal` (hoy un diamante, src/action-icons.js línea ~45; el alias `deals` de la línea ~60 queda igual apuntando a deal) por el apretón de manos aprobado:\n   <path d=\"m11 17 2 2a1 1 0 1 0 3-3\"/><path d=\"m14 14 2.5 2.5a1 1 0 1 0 3-3l-3.88-3.88a3 3 0 0 0-4.24 0l-.88.88a1 1 0 1 1-3-3l2.81-2.81a5.79 5.79 0 0 1 7.06-.87l.47.28a2 2 0 0 0 1.42.25L21 4\"/><path d=\"m21 3 1 11h-2\"/><path d=\"M3 3 2 14l6.5 6.5a1 1 0 1 0 3-3\"/><path d=\"M3 4h8\"/>\n   Buscar TODOS los usos (grep ACT_ICONS.deal y ACT_ICONS.deals en src/, p.ej. list.js ~2228 icono por tipo de objeto) y verificar que en cada contexto el apretón se lee bien a 20/16/13px. Si el icono de Negocios de la barra lateral oscura NO usa ACT_ICONS.deal sino una máscara CSS (clases .m-* en app.css), reemplazar también esa máscara por una versión rellena del apretón coherente con esa familia, y documentarla.\n\nDOCUMENTACIÓN: actualizar DESIGN.md sección 3 (catálogo): agregar `map` y `user-add` con su propósito, y cambiar la entrada de `deal` indicando el apretón de manos (fecha 25-nov, aprobado por el usuario). Actualizar el conteo del catálogo.\n\nVERIFICACIÓN OBLIGATORIA antes de entregar:\n- Capturas antes/después a 1440 y 1280 de cada pantalla donde aparece `deal` hoy (lista de negocios / vista previa por tipo en listas, y la barra lateral si aplica).\n- Los dos iconos nuevos renderizados al menos una vez en una página de verificación a 20/16/13 (puede ser una página temporal no versionada o la consola de pruebas).\n- Sin errores en consola; suite de pruebas en verde; ninguna otra pantalla cambió contra capturas base.\n- Si alguna captura base cambia solo por este icono, NO regenerarla: reportarlo en la evidencia para aprobación del usuario.\n\nEVIDENCIA en docs/evidencia/user-iconos-mapa-useradd-apreton/: README.md con qué cambió, capturas antes/después por pantalla, resultado de pruebas, y lista de todos los sitios donde aparecía deal.",
-      "createdAt": "2026-11-25T14:26:21-06:00"
+      "createdAt": "2026-11-25T14:26:21-06:00",
+      "workedAt": "2026-11-25T14:40:37-0600",
+      "workedBy": "claude"
     }
   ]
 }
