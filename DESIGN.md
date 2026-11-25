@@ -106,7 +106,11 @@ el navegador). Donde una pantalla usa un valor distinto, está en la sección 3.
 | Etiqueta | `.tag` (+`--done`, `--open`, `--none`) | 24px | 0 10px | 12.8px / 500 | `--r-pill` | fondos `--c-tag-*` |
 | Avatar | `.avatar` | 32 × 32px | — | 12.8px / 600 | 50 % | iniciales con color por nombre; `.avatar--xs` 24px (10px), `.avatar--sm` 24px, `.avatar--lg` 64px (20px); barra superior 28px |
 | Badge | `.badge` | 18px (mín. 18px de ancho) | 0 5px | 11px | `--r-pill` | fondo `--c-link`, texto `--c-white` |
-| Tarjeta | `.card` | — | 20px | 14px | `--r-md` | borde 1px `--c-border`; las tarjetas de ficha usan 16px 20px |
+| Tarjeta | `.card` | — | 20px | 14px | `--r-md` | borde 1px `--c-border`; las tarjetas de ficha usan 16px 20px. **Es el mismo componente en toda la app**: misma cabecera (`.card__head` + `.card__title` 16px/600), mismo borde y radio donde aparezca |
+| Tarjeta ancha | `.card.card--wide` | — | — | — | — | ocupa dos columnas de la cuadrícula de la ficha (`grid-column: span 2`); el usuario la agranda o reduce |
+| Mover tarjeta | `.card__grip` | — | 2px 5px | 13px | `--r-sm` | «⋮⋮» en la esquina superior izquierda, visible al pasar el ratón; `draggable`, reordena las tarjetas de la ficha; la que se arrastra queda al 40 % de opacidad |
+| Plegar tarjeta | `.card__toggle` + `.card.is-collapsed` | — | 2px 6px | 14px | `--r-sm` | pliega la tarjeta dejando solo la cabecera |
+| Tarjeta de asociaciones | `.assoc-card` + `.assoc-card__head` + `.assoc__logo` 28px | — | — | 16px / 600 título | — | columna derecha de la ficha (Contactos, Empresas, Negocios…): título con conteo, «+ Agregar» (`.link-btn`) y engranaje (`.icon-btn--sm`), filas con logo/avatar de 28px |
 | Panel lateral | `.drawer` > `.drawer__panel` | 100 % | cabecera 16px 24px · pie 16px 24px | título 16px / 600 | — | ancho 420px, cabecera fondo `--c-nav` y texto `--c-white`, sombra `-8px 0 28px rgba(0,0,0,.2)` |
 | Panel de creación | `.slideover` > `.slideover__panel` | 100 % | — | — | — | «Crear contacto / empresa / negocio / ticket» y filtros avanzados de workflows; cierre `.slideover__close` |
 | Modal | `.bmodal` > `.bmodal__panel` | — | cabecera 16px 20px | título 16px | `--r-md` | ancho 480px, máx. `calc(100% - 32px)`, sombra `0 16px 48px rgba(0,0,0,.3)` |
