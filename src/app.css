@@ -19063,46 +19063,85 @@ body.has-slideover {
   pointer-events: none;
 }
 
+/* Selector de propietario ligero (aprobado por el usuario el 25-nov-2026): en reposo solo avatar de 24px + nombre
+   en 600 + flecha de 13px, sin caja; hover --c-head con radio --r-sm (como .qchip). El menú se ancla bajo el nombre. */
 .osel__btn {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: var(--sp-8);
-  width: 100%;
-  height: 40px;
-  padding: 0 var(--sp-10);
-  border: 1px solid var(--c-border);
+  max-width: 100%;
+  height: 32px;
+  margin-left: calc(-1 * var(--sp-8)); /* el avatar queda alineado donde estaba el campo; el fondo del hover sobresale */
+  padding: 0 var(--sp-8);
+  border: 0;
   border-radius: var(--r-sm);
-  background: var(--c-white);
+  background: transparent;
   color: var(--c-text);
   font-family: inherit;
   font-size: var(--fs-sm);
-  font-weight: 400;
+  font-weight: 600;
   text-align: left;
   cursor: pointer;
 }
 
 .osel__btn .owner {
-  flex: 1;
+  flex: 0 1 auto;
   min-width: 0;
 }
 
-.osel__btn .caret {
-  margin-left: auto;
+.osel__btn .owner__name {
+  font-weight: 600;
 }
 
-.osel__btn:focus {
+.osel__btn .osel__arrow {
+  width: 13px;
+  height: 13px;
+  flex: none;
+}
+
+.osel__btn:hover,
+.osel.is-open .osel__btn {
+  background: var(--c-head);
+}
+
+.osel__btn:focus-visible {
   outline: 2px solid var(--c-link);
   outline-offset: 1px;
 }
 
-.osel.is-open .osel__btn {
-  border-color: var(--c-link);
+/* Donde el contexto pide un campo de formulario (formularios Crear…, Asignar, Ajustes, editor de celda): la
+   variante con borde, 40px de alto y ancho completo; el menú conserva las medidas nuevas. */
+.field .osel__btn,
+.osel--sm .osel__btn {
+  display: flex;
+  width: 100%;
+  height: 40px;
+  margin-left: 0;
+  padding: 0 var(--sp-10);
+  border: 1px solid var(--c-border);
+  background: var(--c-white);
+  font-weight: 400;
 }
 
-.props__form .osel__btn {
-  height: 36px;
-  padding: 0 var(--sp-8);
+.field .osel__btn .owner__name,
+.osel--sm .osel__btn .owner__name {
+  font-weight: 400;
+}
+
+.field .osel__btn .owner,
+.osel--sm .osel__btn .owner {
+  flex: 1;
+}
+
+.field .osel__btn .osel__arrow,
+.osel--sm .osel__btn .osel__arrow {
+  margin-left: auto;
+}
+
+.field .osel.is-open .osel__btn,
+.osel--sm.is-open .osel__btn {
   border-color: var(--c-link);
+  background: var(--c-white);
 }
 
 .osel--sm .osel__btn {
@@ -19112,15 +19151,20 @@ body.has-slideover {
 
 .osel__panel {
   position: absolute;
-  top: calc(100% + 4px);
-  left: 0;
-  right: 0;
+  top: calc(100% + var(--sp-4));
+  left: calc(-1 * var(--sp-8)); /* alineado con el borde del botón (que sobresale 8px a la izquierda) */
   z-index: 80;
-  min-width: 280px;
+  min-width: 240px;
   background: var(--c-white);
   border: 1px solid var(--c-border);
-  border-radius: var(--r-sm);
+  border-radius: var(--r-md);
   box-shadow: 0 8px 28px rgba(0, 0, 0, 0.16);
+}
+
+.field .osel__panel,
+.osel--sm .osel__panel {
+  left: 0;
+  right: 0;
 }
 
 .osel__panel[hidden] {
@@ -19152,18 +19196,34 @@ body.has-slideover {
   padding: var(--sp-4) 0;
 }
 
-.osel__opt {
+/* Opciones de 36px con el avatar de cada persona a la izquierda (centrado; con 24px de avatar el relleno vertical
+   de 8px daría 40px); la elegida con fondo --c-tag-new, 600 y ✓. */
+.osel__panel .osel__opt {
   display: flex;
   align-items: center;
+  gap: var(--sp-8);
   width: 100%;
-  padding: 10px var(--sp-16);
+  height: 36px;
+  padding: 0 calc(var(--sp-8) + var(--sp-4)); /* 12px con tokens: --sp-12 no existe y definirlo movería ~80 reglas */
   border: 0;
   background: transparent;
   color: var(--c-text);
   font-family: inherit;
-  font-size: 15px;
+  font-size: var(--fs-sm);
   text-align: left;
   cursor: pointer;
+}
+
+.osel__panel .osel__opt .owner {
+  flex: 1;
+  min-width: 0;
+}
+
+.osel__panel .osel__opt .osel__check {
+  margin-left: auto;
+  color: var(--c-link);
+  font-weight: 700;
+  visibility: hidden;
 }
 
 .osel__opt:hover,
@@ -19177,8 +19237,12 @@ body.has-slideover {
   font-weight: 600;
 }
 
+.osel__panel .osel__opt.is-selected .osel__check {
+  visibility: visible;
+}
+
 .osel__empty {
-  padding: var(--sp-10) var(--sp-12);
+  padding: var(--sp-10) calc(var(--sp-8) + var(--sp-4));
   font-size: var(--fs-sm);
 }
 

@@ -54,18 +54,36 @@ function enhance(sel) {
   const panel = doc.createElement('div');
   panel.className = 'osel__panel';
   panel.hidden = true;
-  panel.innerHTML = '<div class="osel__search"><input type="search" placeholder="Buscar usuario" aria-label="Buscar usuario" autocomplete="off" /></div><div class="osel__list" role="listbox"></div>';
+  const options = () => [...sel.options].filter((o) => !o.disabled);
+  // The search box only helps with long user lists: with 8 people or fewer every face is already in view.
+  const withSearch = options().length > 8;
+  panel.innerHTML = `${withSearch ? '<div class="osel__search"><input type="search" placeholder="Buscar usuario" aria-label="Buscar usuario" autocomplete="off" /></div>' : ''}<div class="osel__list" role="listbox"></div>`;
   wrap.append(btn, panel);
   const search = panel.querySelector('input');
   const listEl = panel.querySelector('.osel__list');
-  const options = () => [...sel.options].filter((o) => !o.disabled);
-  const renderBtn = () => { btn.innerHTML = `${ownerOptionHtml(sel.selectedOptions[0] || null)}<span class="caret" aria-hidden="true"></span>`; };
+  // Closed: avatar + name + the small arrow (ico--arrow-down, 13px); the native select keeps the value.
+  const renderBtn = () => { btn.innerHTML = `${ownerOptionHtml(sel.selectedOptions[0] || null)}<span class="ico ico--arrow-down osel__arrow" aria-hidden="true"></span>`; };
   const renderList = () => {
-    const q = search.value.trim().toLowerCase();
-    const items = options().filter((o) => !q || labelOf(o).toLowerCase().includes(q));
-    listEl.innerHTML = items.length ? items.map((o) => `<button type="button" class="osel__opt${o.selected ? ' is-selected' : ''}" role="option" aria-selected="${o.selected}" data-value="${esc(o.value)}">${ownerOptionHtml(o)}</button>`).join('') : '<div class="osel__empty muted">Ningún usuario coincide</div>';
+    const q = search ? search.value.trim().toLowerCase() : '';
+    const isEmpty = (o) => o.value === '' || EMPTY_LABELS.test(labelOf(o));
+    // «Sin asignar» goes first in the menu whatever its place in the native <select>, and only once: when the
+    // select offers both a «--» placeholder and a «Sin asignar» option they mean the same, so one entry is shown.
+    let emptyShown = false;
+    const items = options()
+      .filter((o) => !q || labelOf(o).toLowerCase().includes(q))
+      .sort((a, b) => Number(isEmpty(b)) - Number(isEmpty(a)))
+      .filter((o) => !isEmpty(o) || !emptyShown++);
+    const current = sel.selectedOptions[0];
+    const isOn = (o) => o.selected || (isEmpty(o) && Boolean(current) && isEmpty(current));
+    listEl.innerHTML = items.length ? items.map((o) => `<button type="button" class="osel__opt${isOn(o) ? ' is-selected' : ''}" role="option" aria-selected="${isOn(o)}" data-value="${esc(o.value)}">${ownerOptionHtml(o)}<span class="osel__check" aria-hidden="true">✓</span></button>`).join('') : '<div class="osel__empty muted">Ningún usuario coincide</div>';
   };
-  const open = () => { closeOwnerSelects(wrap); wrap.classList.add('is-open'); btn.setAttribute('aria-expanded', 'true'); panel.hidden = false; search.value = ''; renderList(); search.focus(); };
+  const open = () => {
+    closeOwnerSelects(wrap); wrap.classList.add('is-open'); btn.setAttribute('aria-expanded', 'true'); panel.hidden = false;
+    if (search) search.value = '';
+    renderList();
+    // Without a search box the keyboard lands on the chosen person (or the first one).
+    if (search) search.focus(); else (listEl.querySelector('.osel__opt.is-selected') || listEl.querySelector('.osel__opt'))?.focus();
+  };
   const pick = (value) => {
     if (sel.value !== value) { sel.value = value; sel.dispatchEvent(Ev('input')); sel.dispatchEvent(Ev('change')); }
     closeOsel(wrap);
@@ -76,14 +94,16 @@ function enhance(sel) {
   // Keep the focus inside the field while choosing (inline editors save when the focus leaves them).
   listEl.addEventListener('mousedown', (e) => e.preventDefault());
   listEl.addEventListener('click', (e) => { const o = e.target.closest('.osel__opt'); if (o) pick(o.dataset.value); });
-  search.addEventListener('input', renderList);
-  search.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') { e.preventDefault(); const first = listEl.querySelector('.osel__opt'); if (first) pick(first.dataset.value); } else if (e.key === 'ArrowDown') { e.preventDefault(); const first = listEl.querySelector('.osel__opt'); if (first) first.focus(); }
-  });
+  if (search) {
+    search.addEventListener('input', renderList);
+    search.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); const first = listEl.querySelector('.osel__opt'); if (first) pick(first.dataset.value); } else if (e.key === 'ArrowDown') { e.preventDefault(); const first = listEl.querySelector('.osel__opt'); if (first) first.focus(); }
+    });
+  }
   listEl.addEventListener('keydown', (e) => {
     const items = [...listEl.querySelectorAll('.osel__opt')];
     const i = items.indexOf(doc.activeElement);
-    if (e.key === 'ArrowDown' && i < items.length - 1) { e.preventDefault(); items[i + 1].focus(); } else if (e.key === 'ArrowUp') { e.preventDefault(); if (i > 0) items[i - 1].focus(); else search.focus(); }
+    if (e.key === 'ArrowDown' && i < items.length - 1) { e.preventDefault(); items[i + 1].focus(); } else if (e.key === 'ArrowUp') { e.preventDefault(); if (i > 0) items[i - 1].focus(); else (search || btn).focus(); }
   });
   sel.addEventListener('change', renderBtn);
   if (sel.form) sel.form.addEventListener('reset', () => setTimeout(renderBtn, 0));

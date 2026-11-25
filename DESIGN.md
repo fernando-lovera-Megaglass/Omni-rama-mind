@@ -55,7 +55,10 @@ token. El tema oscuro redefine los tokens: un literal rompe el modo oscuro.
 ### Espaciado
 `--sp-2` 2px · `--sp-4` 4px · `--sp-8` 8px · `--sp-10` 10px · `--sp-16` 16px ·
 `--sp-20` 20px · `--sp-24` 24px · `--sp-32` 32px. (No existe `--sp-12`: si se usa,
-la propiedad se anula entera.)
+la propiedad se anula entera. Unas 80 reglas de `app.css` lo usan y por eso hoy no
+aplican; definirlo movería Informes, Negocios, Bandeja, Configuración y Vistas, así
+que un 12px se escribe `calc(var(--sp-8) + var(--sp-4))` hasta que el usuario
+decida.)
 
 ### Radios
 `--r-sm` 6px (botones, campos, menús, chips) · `--r-md` 8px (tarjetas, paneles,
@@ -115,6 +118,7 @@ el navegador). Donde una pantalla usa un valor distinto, está en la sección 3.
 | Panel de creación | `.slideover` > `.slideover__panel` | 100 % | — | — | — | «Crear contacto / empresa / negocio / ticket» y filtros avanzados de workflows; cierre `.slideover__close` |
 | Modal | `.bmodal` > `.bmodal__panel` | — | cabecera 16px 20px | título 16px | `--r-md` | ancho 480px, máx. `calc(100% - 32px)`, sombra `0 16px 48px rgba(0,0,0,.3)` |
 | Menú desplegable | `.menu` > `.menu__panel` > `.menu__item` | ítem 42px (relleno 11px 20px) | panel 8px 0 | 15px | `--r-sm` | ancho 200–320px, borde `--c-border`; se abre con `wireMenus()` de `shell.js` |
+| Selector de propietario (aprobado por el usuario, 25-nov-2026) | `.osel` > `.osel__btn` (+ `.osel__arrow`) + `.osel__panel` > `.osel__list` > `.osel__opt` (+ `.osel__check`); `<select>` nativo oculto `.osel__native` como fuente de verdad (`src/owner-select.js`) | trigger 32px · opciones 36px | trigger 0 8px · opciones 0 12px (`calc(--sp-8 + --sp-4)`; el avatar de 24px va centrado: 8px verticales darían 40px) | 14px / 600 (trigger) · 14px (opciones) | `--r-sm` (trigger) · `--r-md` (menú) | **En reposo**: solo `.avatar--xs` 24px + nombre + `.ico--arrow-down` 13px, sin caja ni borde, fondo `--c-head` al pasar el ratón (como `.qchip`), foco `outline` 2px `--c-link`; es un `<button>` real con `aria-haspopup`/`aria-expanded`. **Menú**: anclado bajo el nombre (`top: calc(100% + 4px)`, `left: 0`), ancho mínimo 240px, borde `--c-border`, sombra `0 8px 28px rgba(0,0,0,.16)`; cada opción con su avatar, primera «Sin asignar» con avatar neutro `--c-head`, elegida con fondo `--c-tag-new`, 600 y ✓ `--c-link` a la derecha, hover `--c-row-hover`. **Buscador** solo con más de 8 personas. **Variante con borde** (`.field .osel__btn`, `.osel--sm`: formularios Crear…, Asignar, Ajustes, editor de celda): campo de 40px a todo el ancho con borde `--c-border` (`--c-link` abierto) y el mismo menú. |
 | Tooltip | `.tip` > `.tip__text` | — | 10px 14px | 14px | `--r-sm` | solo texto breve |
 | Toast | `.toast` | — | 12px 20px | 14px | `--r-sm` | fondo `--c-dark`, texto `--c-white` |
 | Texto secundario | `.muted` | — | — | — | — | color `--c-muted` |
