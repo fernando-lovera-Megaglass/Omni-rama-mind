@@ -157,7 +157,59 @@ previa») debajo del icono; el clic abre el panel de vista previa de la lista.
 - Celdas de tabla: texto alineado a la izquierda, relleno horizontal 16px, iconos y
   avatares centrados en la fila.
 
-## 3. Inconsistencias detectadas (24-nov-2026; el usuario elige cuál queda)
+## 3. Iconos
+
+### Familias (dos, cada una con su uso)
+
+| Familia | Archivo | Técnica | Cuántos | Dónde se usa |
+|---|---|---|---|---|
+| **Iconos del sistema** `.ico--*` | `src/app.css` | máscara SVG (`mask-image`) sobre `background: currentColor` | 41 | menús, barra lateral, barra superior, buscadores, filtros, botones de icono, pestañas |
+| **Iconos de línea** `ACT_ICONS` / `FIELD_ICONS` | `src/action-icons.js` | `<svg>` de línea: viewBox 24×24, **trazo 1.8px**, extremos y uniones redondos, `stroke: currentColor` | 66 | acciones de ficha (Nota, Correo…), actividades, workflows, secuencias, tipos de campo |
+
+### Color
+
+- **Siempre `currentColor`**: el icono toma el color del texto que lo rodea y cambia
+  solo con el tema claro/oscuro. Nunca un color fijo (`#xxx`) dentro del SVG.
+- Opacidad **.85** fija; **1** solo en la barra lateral.
+- Estados por color de fondo (etiquetas, avatares), no por el color del icono.
+- En botones primarios naranjas el icono hereda `--c-white`; en enlaces y `.quick`
+  hereda `--c-link`; en texto secundario hereda `--c-muted`.
+
+### Tamaños (escala aprobada 25-nov-2026)
+
+| Tamaño | Uso |
+|---|---|
+| **20px** | grande: barra lateral, acciones de página |
+| **16px** | normal: buscadores, filtros, dentro de botones, barra superior |
+| **13px** | en línea: dentro de texto o celdas (enlace externo, indicadores) |
+
+Los tamaños viejos (19, 18, 15, 14, 11px) migran al más cercano (homogeneización).
+
+### Reglas
+
+1. **Prohibido** usar caracteres («✎», «▭»…), emojis o SVG sueltos en el código:
+   todo icono sale del catálogo.
+2. Un icono nuevo se dibuja primero en `action-icons.js` (línea 1.8px) o
+   `app.css` (máscara), se agrega a esta sección, y recién entonces se usa.
+3. El catálogo visual completo está en la página de revisión `iconos.html`.
+
+### Catálogo
+
+- **Sistema (41):** arrow-down, arrow-up, automation, bell, board, bookmark, close,
+  commerce, content, copilot, crm, data, ext, filter, folder, gear, grid, hang, help,
+  highlight, home, library, lines, marketing, marketplace, mic, mic-off, moon, pad,
+  phone, pin, plus, rec, reports, rocket, sales, search, service, sun, vmail,
+  workspaces.
+- **Línea (66):** user, users, thumbsUp, thumbsDown, copy, link, image, attach,
+  expand, shrink, clock, info, alert, preview, bell, megaphone, chat, form, swap,
+  lightning, delay, goto, note, email, call, inbound, outbound, task, meeting, more,
+  invoice, quote, paylink, contract, sequence, linkedin, log, whatsapp, sms, schedule,
+  deal, ticket, workflow, list, created, stage, prop, system, companies, products,
+  custom, text, textarea, number, currency, percent, date, datetime, enum, bool,
+  phone, url, id, status, priority, **file** (nuevo), **calculation** (nuevo),
+  **rollup** (nuevo), **sync** (nuevo).
+
+## 4. Inconsistencias detectadas (24-nov-2026; el usuario elige cuál queda)
 
 Variantes del mismo componente que hoy conviven con medidas distintas. **No se
 unificaron**: se listan para decidir.
@@ -181,7 +233,7 @@ unificaron**: se listan para decidir.
 | 15 | Enlaces sin acción | — | Pantalla de acceso (`/`): el logotipo («Página principal»), «Solicitar demostración», «Política de privacidad», «Administrar las cookies» y «Política de cookies» son `href="#"` sin manejador («crear una cuenta» sí responde). Los `#` de la barra lateral (Marcadores, Contenido, Comercio, Copilot, Marketplace) y de la barra superior sí responden: abren el diálogo «En construcción». La flecha «‹» de las métricas de Negocios no hace nada al cargar (la pista ya está al principio) | Acceso, Negocios |
 | 16 | Errores de consola al pulsar | — | Ficha de tarea (`/tasks/record/?id=1`): «Notas +», «Recordatorio +» y «Repetir +» lanzan `Cannot read properties of null (reading 'scrollIntoView')` (buscan una sección que no existe en la ficha). Lista de tareas: «Crear cola» es el envío del formulario de «Cola ▾» y solo funciona con ese panel abierto. Las pruebas los omiten (`skip`) y los dejan documentados | Tareas |
 
-## 4. Sistema homogeneizado (aprobado por el usuario, 25-nov-2026)
+## 5. Sistema homogeneizado (aprobado por el usuario, 25-nov-2026)
 
 Decisiones del usuario sobre las inconsistencias de la sección 3; son la
 definición oficial y la meta de la migración por módulos:
@@ -207,7 +259,7 @@ definición oficial y la meta de la migración por módulos:
 8. **Títulos: h1 22px/600 en todas las pantallas**; h2 16px/600; el 24 de
    Workflows baja y el 20 de Datos sube.
 
-## 5. Reglas de uso
+## 6. Reglas de uso
 
 1. **Etiquetas nunca se apilan**: en filas etiqueta-valor, la etiqueta no se
    rompe por carácter; si falta espacio, el valor envuelve o baja de línea.
