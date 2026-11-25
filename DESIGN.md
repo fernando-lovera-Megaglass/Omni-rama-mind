@@ -124,6 +124,32 @@ el navegador). Donde una pantalla usa un valor distinto, está en la sección 3.
 | Barra lateral | `.sidenav` > `.sidenav__item` | 72px de ancho | — | — | — | fondo `--c-nav`, iconos `.ico` 20px, 220px al desplegar (`.app--navwide`) |
 | Barra superior | `.topbar` | 56px | 0 24px | — | — | buscador global, acciones de icono, avatar 28px |
 
+### Iconos de línea (`src/action-icons.js`)
+
+Todos los iconos de acción y de tipo de campo son SVG de 24×24 con `fill="none"`,
+`stroke="currentColor"`, trazo 1.8px y extremos redondeados (`ico()`); se muestran
+a la escala 20 / 16 / 13 del `.ico`. Los de tipo de campo (`FIELD_ICONS`, selector
+«Tipo de campo» de Ajustes › Propiedades, 18px dentro de `.ksel__ico`) son:
+
+| Tipo | Clave | Icono |
+|---|---|---|
+| Texto de una línea / varias líneas | `text` / `textarea` | «T» / líneas de párrafo |
+| Número / Número (moneda) / Porcentaje / Puntuación | `number` / `currency` / `percent` / `score` | «#» / «$» en círculo / «%» / bandera (la misma de `priority`) |
+| Selector de fecha / de fecha y hora | `date` / `datetime` | calendario / reloj |
+| Selección desplegable / Casilla de verificación | `enum` / `bool` | lista con marcas / casilla marcada |
+| Usuario | `user` | persona |
+| Número de teléfono / Correo / URL | `phone` / `email` / `url` | auricular / sobre / eslabones |
+| Archivo | `file` | hoja con esquina doblada (añadido 25-nov-2026) |
+| Cálculo | `calculation` | calculadora: marco con línea y 6 puntos (añadido 25-nov-2026) |
+| Acumulación | `rollup` | sigma Σ (añadido 25-nov-2026) |
+| Sincronización de propiedades | `sync` | dos flechas en círculo (añadido 25-nov-2026) |
+| Identificador / Etapa / Estado / Prioridad | `id` / `stage` / `status` / `priority` | tarjeta / barras / círculo con marca / bandera |
+
+El icono «Vista previa» de las filas de lista (`ACT_ICONS.preview`, panel con línea)
+va en `.preview-btn` (30×24, borde `--c-text`, `--r-sm`) a 16px, aparece al pasar
+el ratón por la fila y lleva el tooltip estándar `.tip > .tip__text` («Vista
+previa») debajo del icono; el clic abre el panel de vista previa de la lista.
+
 ### Alineación
 - Botones, píldoras, chips y campos van centrados verticalmente con `inline-flex` /
   `flex` + `align-items: center`; los textos no saltan de línea (`white-space: nowrap`).

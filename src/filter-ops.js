@@ -27,7 +27,7 @@ export const DAYS_OPS = new Set(['lastdays', 'olderdays', 'nextdays']);
 
 // Which operator family a property kind belongs to.
 export function kindGroup(kind) {
-  if (['number', 'currency', 'percent', 'id'].includes(kind)) return 'number';
+  if (['number', 'currency', 'percent', 'score', 'id'].includes(kind)) return 'number';
   if (kind === 'date' || kind === 'datetime') return 'date';
   if (['enum', 'user', 'stage', 'status', 'priority'].includes(kind)) return 'enum';
   if (kind === 'bool') return 'bool';

@@ -88,9 +88,12 @@ function fieldHtml([name, label, kind, required]) {
   return `<label class="field">${lab}<input name="${name}" type="${kind}" ${required ? 'required aria-required="true"' : ''} autocomplete="off" /></label>`;
 }
 // Custom properties flagged "visible" in Configuración › Propiedades are asked for after the standard fields.
-const INPUT_TYPE = { number: 'number', currency: 'number', date: 'date', datetime: 'datetime-local', email: 'email', phone: 'tel', url: 'url' };
+const INPUT_TYPE = { number: 'number', currency: 'number', percent: 'number', score: 'number', date: 'date', datetime: 'datetime-local', email: 'email', phone: 'tel', url: 'url' };
 function customFieldHtml(p) {
   const lab = `<span>${esc(p.label)}${p.required ? ' *' : ''}</span>`;
+  // Files are attached from the record and computed kinds are filled by the system: not asked for here.
+  if (['file', 'calculation', 'rollup', 'sync'].includes(p.kind)) return '';
+  if (p.kind === 'user') return `<label class="field" data-custom="${esc(p.key)}">${lab}<select name="${esc(p.key)}" data-owner-select><option value="">--</option>${OWNERS.map((o) => `<option value="${esc(o)}">${esc(o)}</option>`).join('')}</select></label>`;
   if (p.kind === 'enum' || p.kind === 'bool') return `<label class="field" data-custom="${esc(p.key)}">${lab}<select name="${esc(p.key)}"><option value="">--</option>${(p.options || (p.kind === 'bool' ? ['Sí', 'No'] : [])).map((o) => `<option value="${esc(o)}">${esc(o)}</option>`).join('')}</select></label>`;
   return `<label class="field" data-custom="${esc(p.key)}">${lab}<input name="${esc(p.key)}" type="${INPUT_TYPE[p.kind] || 'text'}" ${p.kind === 'number' || p.kind === 'currency' ? 'step="any"' : ''} autocomplete="off" /></label>`;
 }

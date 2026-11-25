@@ -225,7 +225,7 @@ export function mountList(cfg) {
     if (kind === 'url' || key === 'domain' || key === 'website') return 240;
     if (kind === 'phone') return 200;
     if (kind === 'date' || kind === 'datetime') return 180;
-    if (['number', 'currency', 'percent', 'id', 'bool'].includes(kind)) return 160;
+    if (['number', 'currency', 'percent', 'score', 'id', 'bool'].includes(kind)) return 160;
     if (key === 'description' || key === 'message') return 320;
     if (/company|empresa|assoc/.test(key)) return 240;
     if (kind === 'user' || key === 'owner') return 220;
@@ -263,12 +263,13 @@ export function mountList(cfg) {
       if (p.kind === 'percent') return `${v} %`;
       if (p.kind === 'date' || p.kind === 'datetime') return formatDate(v);
       if (p.kind === 'phone') return displayPhone(v);
+      if (p.kind === 'file') { const att = attachmentsFor(cfg.type, r.id).find((a) => String(a.id) === String(v)); return att ? att.name : String(v); }
       return String(v);
     };
     const sortValue = (r) => {
       const v = r[key];
       if (p.kind === 'date' || p.kind === 'datetime') return v ? new Date(v).getTime() : 0;
-      if (['number', 'currency', 'percent', 'id'].includes(p.kind)) return Number(v) || 0;
+      if (['number', 'currency', 'percent', 'score', 'id'].includes(p.kind)) return Number(v) || 0;
       return String(v ?? '');
     };
     const render = ['url', 'email', 'phone'].includes(p.kind)
@@ -303,7 +304,7 @@ export function mountList(cfg) {
     return esc(cellText(c, r));
   };
   // The number a cell counts as on the colour scale: sort value (numbers, money, dates as timestamps) or nothing.
-  const NUMERIC_KINDS = new Set(['number', 'currency', 'percent', 'id', 'date', 'datetime']);
+  const NUMERIC_KINDS = new Set(['number', 'currency', 'percent', 'score', 'id', 'date', 'datetime']);
   function numericOf(c, r) {
     const raw = r[c.key];
     if (raw === undefined || raw === null || raw === '') return null;
@@ -1302,7 +1303,7 @@ export function mountList(cfg) {
               (c, i) =>
                 `<td class="${c.className || ''}${i === 0 ? ' table__first' : ''}${isEditable(c.key) ? ' cell--editable' : ''}${i > 0 && isSystem(c.key) ? ' cell--locked' : ''}${fzClass(i)}${hlOf(c, r) ? ' cell--hl' : ''}" data-key="${c.key}" data-id="${r.id}" title="${props[c.key]?.sensitive ? 'Dato sensible' : i > 0 && isSystem(c.key) ? 'Valor calculado por el sistema (solo lectura)' : esc(cellText(c, r))}" style="${fzStyle(i)}${hlOf(c, r) ? `background:${hlOf(c, r)};` : ''}">${
                   i === 0
-                    ? `<div class="firstcell">${state.nested && depthOf.get(Number(r.id)) ? '<span class="hier__mark" aria-hidden="true">↳</span>' : ''}<div class="firstcell__content">${cellHtml(c, r)}</div><button class="preview-btn" type="button" data-preview="${r.id}" aria-label="Vista previa"><span class="preview-btn__tip">Vista previa</span>▭</button></div>`
+                    ? `<div class="firstcell">${state.nested && depthOf.get(Number(r.id)) ? '<span class="hier__mark" aria-hidden="true">↳</span>' : ''}<div class="firstcell__content">${cellHtml(c, r)}</div><button class="preview-btn tip" type="button" data-preview="${r.id}" aria-label="Vista previa">${ACT_ICONS.preview}<span class="tip__text">Vista previa</span></button></div>`
                     : `${cellHtml(c, r)}${isEditable(c.key) ? '<span class="cell__pen" aria-hidden="true">✎</span>' : isSystem(c.key) ? '<span class="cell__lock" aria-hidden="true"></span>' : ''}`
                 }</td>`,
             )
@@ -1864,7 +1865,7 @@ export function mountList(cfg) {
   });
 
   // ---------- "Ver información de la columna" ----------
-  const KIND_NAMES = { text: 'Texto de una línea', textarea: 'Texto de varias líneas', enum: 'Lista desplegable', number: 'Número', currency: 'Moneda', percent: 'Porcentaje', date: 'Selector de fecha', datetime: 'Fecha y hora', user: 'Usuario de la cuenta', bool: 'Casilla de verificación', email: 'Correo', phone: 'Número de teléfono', url: 'URL', id: 'Identificador', stage: 'Etapa del pipeline', status: 'Estado', priority: 'Prioridad' };
+  const KIND_NAMES = { text: 'Texto de una línea', textarea: 'Texto de varias líneas', enum: 'Lista desplegable', number: 'Número', currency: 'Moneda', percent: 'Porcentaje', date: 'Selector de fecha', datetime: 'Fecha y hora', user: 'Usuario de la cuenta', bool: 'Casilla de verificación', email: 'Correo', phone: 'Número de teléfono', url: 'URL', id: 'Identificador', stage: 'Etapa del pipeline', status: 'Estado', priority: 'Prioridad', score: 'Puntuación', file: 'Archivo', calculation: 'Cálculo', rollup: 'Acumulación', sync: 'Sincronización de propiedades' };
   function openColumnInfo(key) {
     const c = col(key);
     const p = props[key];
@@ -1996,7 +1997,7 @@ export function mountList(cfg) {
     if (['enum', 'user', 'bool'].includes(p.kind)) return { kind: 'select', options: (p.options || []).map((o) => [o, o]) };
     if (p.kind === 'phone') return { kind: 'phone' };
     if (p.kind === 'email') return { kind: 'email' };
-    if (['number', 'currency', 'percent'].includes(p.kind)) return { kind: 'number' };
+    if (['number', 'currency', 'percent', 'score'].includes(p.kind)) return { kind: 'number' };
     if (p.kind === 'date' || p.kind === 'datetime') return { kind: 'date' };
     if (p.kind === 'url') return { kind: 'url' };
     if (key === 'description' || key === 'message') return { kind: 'textarea' };

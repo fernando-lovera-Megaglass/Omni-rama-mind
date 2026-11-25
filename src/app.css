@@ -4071,6 +4071,12 @@ h1 {
   background: inherit;
 }
 
+/* The hovered (or previewed) row's frozen first cell goes above the other rows so its «Vista previa» tooltip shows. */
+.is-overflowing .table--frozen tbody tr:hover td.fz,
+.is-overflowing .table--frozen tbody tr.is-previewing td.fz {
+  z-index: 5;
+}
+
 .is-overflowing .table--frozen th.fz--last,
 .is-overflowing .table--frozen tbody td.fz--last {
   box-shadow: 1px 0 0 var(--c-border);
@@ -7525,33 +7531,20 @@ tr.is-previewing .preview-btn {
   opacity: 1;
 }
 
-.preview-btn__tip {
-  position: absolute;
-  bottom: calc(100% + 10px);
-  left: 50%;
-  transform: translateX(-50%);
-  padding: 8px 14px;
-  border-radius: var(--r-sm);
-  background: var(--c-nav);
-  color: var(--c-white);
-  font-size: var(--fs-sm);
-  font-weight: 500;
-  white-space: nowrap;
-  display: none;
-  z-index: 5;
+/* The row's preview icon (ACT_ICONS.preview, 16px) with the shared tooltip (.tip > .tip__text, below the icon).
+   `button.preview-btn` outranks the generic `[data-preview] { overflow: auto }`, which would clip the tooltip. */
+button.preview-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  max-height: none;
+  margin: 0;
+  overflow: visible;
 }
 
-.preview-btn__tip::after {
-  content: "";
-  position: absolute;
-  top: 100%;
-  left: 50%;
-  margin-left: -6px;
-  border: 6px solid transparent;
-  border-top-color: var(--c-nav);
-}
-
-.preview-btn:hover .preview-btn__tip {
+.preview-btn svg {
+  width: 16px;
+  height: 16px;
   display: block;
 }
 
@@ -7638,8 +7631,10 @@ tr.is-previewing td.table__first {
   text-overflow: ellipsis;
 }
 
+/* The first cell lets the «Vista previa» tooltip (.tip__text) out of the row; its text still truncates inside
+   .firstcell__content. */
 .table--fixed td.table__first {
-  overflow: hidden;
+  overflow: visible;
 }
 
 /* Narrow utility columns never truncate (no "…" next to the checkbox or the chevron). */

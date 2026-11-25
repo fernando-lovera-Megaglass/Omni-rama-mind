@@ -32,7 +32,7 @@ import {
   findRecord, setField, deleteRecords, addRecord, allContacts, allCompanies, allDeals, allTickets, allTasks, ALL,
   STATUSES, LIFECYCLES, SOURCES, OWNERS, TICKET_STATUSES, PRIORITIES, TASK_TYPES, TASK_STATUSES, RECUR_OPTIONS,
   ticketStatusIsClosed, ticketStatusesFor, ticketStatusLabel, firstOpenTicketStatus, ticketPipelines, dealPipelines, stagesFor, allDealStages, dealStageLabel, dealStageProb, isClosedStage, dealStageIsClosed,
-  formatDate, formatMoney, initials, colorFor, labelOf, toCsv, download, TODAY, assocLabels, CURRENCY_DEFS, CURRENCY_CODES, relativeTimeFine,
+  formatDate, formatDateTime, formatMoney, initials, colorFor, labelOf, toCsv, download, TODAY, assocLabels, CURRENCY_DEFS, CURRENCY_CODES, relativeTimeFine,
   activitiesFor, ensureActivitiesFor, addActivity, updateActivity, deleteActivity, restoreActivity, deletedActivitiesFor, activityIdForComment, historyFor, addHistoryEntry, getSetting, setSetting, settingsLive, settingScope, lineItemsFor, fetchLineItems, lineItemsTotal, addLineItems, updateLineItem, removeLineItem, applyLineItemsToDeal,
   parentCompanyOf, childCompaniesOf, isCompanyDescendant, dbIsLive,
 } from './data.js';
@@ -67,6 +67,7 @@ const dateInput = (iso) => (iso ? new Date(iso).toISOString().slice(0, 10) : '')
 // Two records of different objects linked through assoc_<kind> on either of them (tickets ↔ deals).
 const crossLinked = (a, aKind, b, bKind) => (a[`assoc_${bKind}`] || []).map(Number).includes(Number(b.id)) || (b[`assoc_${aKind}`] || []).map(Number).includes(Number(a.id));
 const EMPTY = '<span class="muted">--</span>';
+const COMPUTED_KINDS = new Set(['calculation', 'rollup', 'sync']); // property kinds the system fills: read-only
 const fmtTime = (d) => `${d.getDate()} de ${['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'][d.getMonth()]} de ${d.getFullYear()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 
 const CONFIG = {
@@ -479,6 +480,8 @@ function displayValue(f, r) {
   const [key, , kind, options] = f;
   const v = key === 'recur' ? ((r.recur && r.recur.freq) || '') : r[key]; // the recurrence is stored as { freq }
   if (props[key]?.sensitive) return sensitiveValue(v);
+  // Custom properties of the new kinds show as in the catalog (percent with «%», date and time, file name, computed text).
+  if (props[key]?.custom && ['percent', 'datetime', 'file', 'score', 'calculation', 'rollup', 'sync'].includes(props[key].kind)) return propValue(props[key], v);
   if (kind === 'calc') return esc(typeof options === 'function' ? options(r) : '--'); // calculated (e.g. "Negocios asociados")
   if (key === 'owner' || (props[key] && props[key].kind === 'user')) return ownerHtml(v, 'sm');
   if (v === undefined || v === null || v === '') return EMPTY;
@@ -498,7 +501,12 @@ const editor = (f, r) => propertyEditor(f, f[0] === 'recur' ? { ...r, recur: (r.
 function propValue(p, v) {
   if (p?.sensitive) return sensitiveValue(v);
   if (p && p.kind === 'user') return ownerHtml(v, 'sm');
+  // Computed kinds (cálculo, acumulación, sincronización) have no manual value: the record says so instead of «—».
+  if (p && COMPUTED_KINDS.has(p.kind) && (v === undefined || v === null || v === '')) return '<span class="muted">Se calcula automáticamente</span>';
   if (v === undefined || v === null || v === '') return EMPTY;
+  // A file property stores the id of an attachment of this record: shown by name, opens the file.
+  if (p.kind === 'file') { const att = attachmentsFor(type, id).find((a) => String(a.id) === String(v)); return att ? `<button class="link-btn" type="button" data-file-open="${esc(att.id)}">${esc(att.name)}</button>` : esc(v); }
+  if (p.kind === 'datetime') return esc(formatDateTime(v));
   if (p.hubspot?.options.length) return esc((Array.isArray(v) ? v : String(v).split(';')).map(value => p.hubspot.options.find(o => o.value === String(value))?.label ?? value).join('; '));
   if (p.kind === 'currency') return formatMoney(v, type === 'deals' && p.key === 'amount' ? rec.deal_currency_code : undefined);
   if (p.kind === 'percent') return `${v} %`;
@@ -527,9 +535,12 @@ function fieldFor(key) {
   if (p.hubspot && ['enum', 'bool'].includes(p.kind)) return p.options?.length
     ? [key, p.label, 'select', [['', '--'], ...p.hubspot.options.filter(o => !o.hidden || o.value === String(rec[key])).map(o => [o.value, o.label])]]
     : [key, p.label, 'text'];
+  if (COMPUTED_KINDS.has(p.kind)) return [key, p.label, 'ro']; // cálculo, acumulación, sincronización: solo lectura
+  if (p.kind === 'file') return [key, p.label, 'file']; // adjunto: input de archivo, se sube con attachments.js
+  if (p.kind === 'user') return [key, p.label, 'select', [['', '--'], ...ownerOpts]]; // usuario: selector de propietario
   if (['enum', 'user', 'bool'].includes(p.kind)) return [key, p.label, 'select', (p.options || []).map((o) => [o, o])];
   if (p.kind === 'date' || p.kind === 'datetime') return [key, p.label, key === 'created' ? 'date-ro' : p.kind === 'datetime' ? 'datetime' : 'date'];
-  if (['number', 'currency', 'percent'].includes(p.kind)) return [key, p.label, 'number'];
+  if (['number', 'currency', 'percent', 'score'].includes(p.kind)) return [key, p.label, 'number'];
   if (p.kind === 'phone') return [key, p.label, 'tel'];
   if (p.kind === 'email') return [key, p.label, 'email'];
   if (p.kind === 'url') return [key, p.label, 'url'];
@@ -1973,6 +1984,8 @@ function commitEdit(form) {
   const key = form.dataset.key;
   const el = form.querySelector('[data-edit]');
   if (!el) return;
+  // File property: the chosen file is uploaded as an attachment of this record and the property keeps its id.
+  if (el.type === 'file') { const f = el.files && el.files[0]; if (f) attachFileProperty(form, key, f); else cancelEdit(form); return; }
   let value = el.value;
   if (el.type === 'number') value = value === '' ? '' : Number(value) || 0;
   if (el.type === 'date') value = value ? new Date(`${value}T12:00:00`).toISOString() : '';
@@ -1986,6 +1999,19 @@ function cancelEdit(form) {
   if (!form || !form.isConnected) return;
   const inPanel = Boolean(form.closest('#allprops-panel'));
   if (inPanel) renderAllPropsPanel(); else renderProps();
+}
+async function attachFileProperty(form, key, file) {
+  await ensureAttachments().catch(() => {});
+  if (!attachmentsEnabled()) {
+    toast(attachmentsStatus() === 'missing' ? `Los adjuntos necesitan la migración ${ATTACHMENTS_MIGRATION} (Storage).` : 'Inicia sesión para subir archivos a este registro.');
+    cancelEdit(form);
+    return;
+  }
+  try {
+    const att = await uploadAttachment(type, id, file);
+    await save(key, String(att.id));
+    renderRight();
+  } catch (e) { toast(`No se pudo subir «${file.name}»: ${e.message || e}`); cancelEdit(form); }
 }
 async function save(key, value, label) {
   try { await validatePropertyValues(type, { [key]: value }, { id: rec.id }); } catch (e) { toast(e.message); return; }
@@ -2753,6 +2779,8 @@ if (!rec) {
   });
 
   mount.addEventListener('change', async (e) => {
+    // A file picked for a file property saves at once (there is nothing else to type).
+    if (e.target.matches('.props__form input[type="file"][data-edit]')) { commitEdit(e.target.closest('.props__form')); return; }
     const sel = e.target.closest('[data-lead]');
     if (sel) save(sel.dataset.lead, sel.value, sel.dataset.lead === 'lead_stage' ? 'Etapa del lead' : 'Tipo de lead');
     if (e.target.id === 'act-date' || e.target.id === 'act-who') {

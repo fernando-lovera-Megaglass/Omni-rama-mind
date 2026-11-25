@@ -573,7 +573,7 @@ const panePayments = () => constructionPane('Cuenta de pagos');
 function paneBilling() { return constructionPane('Cuenta y facturación'); }
 
 // ---------- panes: data management ----------
-const KINDS = { text: 'Texto de una línea', number: 'Número', currency: 'Número (moneda)', percent: 'Número (porcentaje)', date: 'Selector de fecha', datetime: 'Fecha y hora', enum: 'Selección desplegable', bool: 'Casilla de verificación', user: 'Usuario', email: 'Texto (correo)', phone: 'Número de teléfono', url: 'Texto (URL)', id: 'Identificador', stage: 'Etapa', status: 'Estado', priority: 'Prioridad' };
+const KINDS = { text: 'Texto de una línea', number: 'Número', currency: 'Número (moneda)', percent: 'Número (porcentaje)', date: 'Selector de fecha', datetime: 'Fecha y hora', enum: 'Selección desplegable', bool: 'Casilla de verificación', user: 'Usuario', email: 'Texto (correo)', phone: 'Número de teléfono', url: 'Texto (URL)', id: 'Identificador', stage: 'Etapa', status: 'Estado', priority: 'Prioridad', textarea: 'Texto de varias líneas', score: 'Puntuación', file: 'Archivo', calculation: 'Cálculo', rollup: 'Acumulación', sync: 'Sincronización de propiedades' };
 // Propiedades page: object card, tabs, filter chips, sortable paged table (as in the original).
 Object.assign(state, { propsTab: 'list', propsKind: '', propsUser: '', propsFilter: '', propsSort: { key: 'label', dir: 1 }, propsPage: 1, propsSize: 10, propsSel: new Set() });
 const PROP_SINGULAR = { contacts: 'Contacto', companies: 'Empresa', deals: 'Negocio', tickets: 'Ticket', tasks: 'Tarea' };
@@ -1484,7 +1484,10 @@ function promptModal(title, fields, okLabel, onOk) {
   document.getElementById('pm-form').onsubmit = (e) => { e.preventDefault(); onOk(Object.fromEntries(new FormData(e.target).entries())); closeModal(); render(); };
 }
 
-const PROP_KINDS = [['text', 'Texto de una línea'], ['textarea', 'Texto de varias líneas'], ['number', 'Número'], ['currency', 'Número (moneda)'], ['date', 'Selector de fecha'], ['enum', 'Selección desplegable'], ['bool', 'Casilla de verificación'], ['phone', 'Número de teléfono'], ['email', 'Correo'], ['url', 'URL']];
+// The 18 field types of «Crear propiedad» (icons in FIELD_ICONS, src/action-icons.js). Calculation, rollup and sync
+// are computed by the system: the property is created read-only and the record shows «Se calcula automáticamente».
+const PROP_KINDS = [['text', 'Texto de una línea'], ['textarea', 'Texto de varias líneas'], ['number', 'Número'], ['currency', 'Número (moneda)'], ['percent', 'Porcentaje'], ['score', 'Puntuación'], ['date', 'Selector de fecha'], ['datetime', 'Selector de fecha y hora'], ['enum', 'Selección desplegable'], ['bool', 'Casilla de verificación'], ['user', 'Usuario'], ['phone', 'Número de teléfono'], ['email', 'Correo'], ['url', 'URL'], ['file', 'Archivo'], ['calculation', 'Cálculo'], ['rollup', 'Acumulación'], ['sync', 'Sincronización de propiedades']];
+const COMPUTED_KINDS = new Set(['calculation', 'rollup', 'sync']);
 function propertyForm(type, existing) {
   const groups = propertyGroups(type);
   return `<form id="prop-form" class="ad-form">
@@ -1510,7 +1513,9 @@ async function saveProperty(type, existingKey) {
   const list = customProperties(type);
   const key = existingKey || `custom_${slug(d.label)}_${Date.now().toString(36)}`;
   const previous = list.find((p) => p.key === key);
-  const prop = { required: d.required === 'on', unique: d.unique === 'on', sensitive: d.sensitive === 'on', readOnly: d.readOnly === 'on', maxLength: ['text', 'textarea'].includes(d.kind) && d.maxLength ? Number(d.maxLength) : null, key, label: d.label.trim(), group: d.group, kind: d.kind === 'textarea' ? 'text' : d.kind, options: d.kind === 'enum' ? d.options.split('\n').map((s) => s.trim()).filter(Boolean) : d.kind === 'bool' ? ['Sí', 'No'] : undefined, desc: d.desc, visible: d.visible === 'on', archived: Boolean(previous && previous.archived) };
+  // Computed kinds are always read-only; computed and file kinds can't be asked for when creating a record.
+  const computed = COMPUTED_KINDS.has(d.kind);
+  const prop = { required: d.required === 'on' && !computed && d.kind !== 'file', unique: d.unique === 'on', sensitive: d.sensitive === 'on', readOnly: d.readOnly === 'on' || computed, maxLength: ['text', 'textarea'].includes(d.kind) && d.maxLength ? Number(d.maxLength) : null, key, label: d.label.trim(), group: d.group, kind: d.kind === 'textarea' ? 'text' : d.kind, options: d.kind === 'enum' ? d.options.split('\n').map((s) => s.trim()).filter(Boolean) : d.kind === 'bool' ? ['Sí', 'No'] : undefined, desc: d.desc, visible: d.visible === 'on', archived: Boolean(previous && previous.archived) };
   const i = list.findIndex((p) => p.key === key);
   if (i >= 0) list[i] = prop; else list.push(prop);
   try { await saveCustomProperties(type, list); } catch (e) { toast(`No se pudo guardar: ${e.message}`); return; }

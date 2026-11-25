@@ -83,4 +83,10 @@ export const FIELD_ICONS = {
   stage: ico('<path d="M4 5.5h4v13H4zM10.5 5.5h4v9h-4zM17 5.5h4v5h-4z"/>'),
   status: ico('<circle cx="12" cy="12" r="8.5"/><path d="M8.5 12.2l2.4 2.4 4.6-4.8"/>'),
   priority: ico('<path d="M6 21V4.5M6 4.5c2-1.2 4 1.2 6 0s4-1.2 6 0V12c-2 1.2-4-1.2-6 0s-4 1.2-6 0"/>'),
+  // Field types added on 25-nov-2026 (Ajustes › Propiedades): same 24×24 line style, stroke 1.8, currentColor.
+  file: ico('<path d="M7 3.5h7l5 5V19a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 5 19V5a1.5 1.5 0 0 1 1.5-1.5z"/><path d="M14 3.5V9h5"/>'),
+  calculation: ico('<rect x="5" y="3.5" width="14" height="17" rx="2"/><path d="M8.5 7.5h7M9 12h.01M12 12h.01M15 12h.01M9 16h.01M12 16h.01M15 16h.01"/>'),
+  rollup: ico('<path d="M17 5.5H7.5l5 6.5-5 6.5H17"/>'),
+  sync: ico('<path d="M19.5 10.5A7.5 7.5 0 0 0 6.6 7.2L4.5 9.5M4.5 4.5v5h5"/><path d="M4.5 13.5a7.5 7.5 0 0 0 12.9 3.3l2.1-2.3M19.5 19.5v-5h-5"/>'),
 };
+FIELD_ICONS.score = FIELD_ICONS.priority; // «Puntuación» uses the flag of «Prioridad»
