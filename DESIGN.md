@@ -83,7 +83,7 @@ el navegador). Donde una pantalla usa un valor distinto, está en la sección 3.
 | Botón | `.btn` | 40px | 0 16px | 14px / 600 | `--r-sm` | borde 1px transparente; `inline-flex`, centrado, sin salto de línea |
 | Botón pequeño | `.btn.btn--sm` | 32px | 0 10px | 14px / 600 | `--r-sm` | fichas de registro, tablas de marketing, bandeja |
 | Botón píldora | `.btn.btn--pillx` | 40px | 0 20px | 14px / 600 | `--r-pill` | cabeceras de listas (Agregar contactos/empresas…), ancho 100 % cuando es `.btn--block` |
-| Primario píldora | `.btn--primary.btn--pillx` | 40px | 0 20px | 14px / 600 | `--r-pill` | **excepción de color**: fondo `--c-link` (verde azulado), hover `#004d4e`; es el «Agregar contactos/empresas/negocios/tickets/tareas» de las listas |
+| Primario píldora | `.btn--primary.btn--pillx` | 40px | 0 20px | 14px / 600 | `--r-pill` | **variante oficial aprobada por el usuario (25-nov-2026)**: fondo `--c-link` (verde azulado), hover `#004d4e`; es el «Agregar contactos/empresas/negocios/tickets/tareas» de las listas |
 | Botón píldora borde | `.btn.btn--pill` | 40px | 0 16px | 14px / 600 | `--r-pill` | fondo `--c-white`, texto y borde `--c-link`; es el «Acciones ▾» de las cabeceras de lista |
 | Peligro | `.btn.btn--danger` | 40px | 0 16px | 14px / 600 | `--r-sm` | fondo `#d94c53`, texto `--c-white`; confirmaciones de borrado en modales |
 | Primario | `.btn--primary` | — | — | — | — | fondo `--c-primary`, texto `--c-white`; hover `--c-primary-dark` |
@@ -155,7 +155,33 @@ unificaron**: se listan para decidir.
 | 15 | Enlaces sin acción | — | Pantalla de acceso (`/`): el logotipo («Página principal»), «Solicitar demostración», «Política de privacidad», «Administrar las cookies» y «Política de cookies» son `href="#"` sin manejador («crear una cuenta» sí responde). Los `#` de la barra lateral (Marcadores, Contenido, Comercio, Copilot, Marketplace) y de la barra superior sí responden: abren el diálogo «En construcción». La flecha «‹» de las métricas de Negocios no hace nada al cargar (la pista ya está al principio) | Acceso, Negocios |
 | 16 | Errores de consola al pulsar | — | Ficha de tarea (`/tasks/record/?id=1`): «Notas +», «Recordatorio +» y «Repetir +» lanzan `Cannot read properties of null (reading 'scrollIntoView')` (buscan una sección que no existe en la ficha). Lista de tareas: «Crear cola» es el envío del formulario de «Cola ▾» y solo funciona con ese panel abierto. Las pruebas los omiten (`skip`) y los dejan documentados | Tareas |
 
-## 4. Reglas de uso
+## 4. Sistema homogeneizado (aprobado por el usuario, 25-nov-2026)
+
+Decisiones del usuario sobre las inconsistencias de la sección 3; son la
+definición oficial y la meta de la migración por módulos:
+
+1. **Botones: dos alturas** — 40px normal y 32px compacto (`.btn--sm`).
+   Desaparecen el 30, 36 y 44 sueltos (migran a 40 o 32 según densidad).
+2. **Color primario: naranja `--c-primary`** para toda acción primaria.
+   **Excepción oficial aprobada**: el «Agregar …» de las listas
+   (`.btn--primary.btn--pillx`) se **queda verde azulado `--c-link`**.
+   Rojo `#d94c53` solo para peligro. `.btn--green` y el azul marino
+   `#253342` se eliminan (migran a primario o secundario).
+3. **Botones de icono: 40 redondo / 32 / 22**. El de 34 (fichas) migra a
+   32; el de 18×16 (reordenar propiedades) migra a 22.
+4. **Iconos `.ico`: escala 20 / 16 / 13** (grande / normal / en línea),
+   opacidad .85 fija (1 solo en barra lateral). Los 19, 18, 15, 14 y 11
+   migran al más cercano.
+5. **Píldoras: 40 base / 32 compacta**. Los 44–48 de asistentes y envíos
+   migran a 40 salvo aprobación puntual.
+6. **Campos: 40 base / 32 compacto**. Configuración baja de 48 a 40; los
+   select de ficha suben de 28 a 32 (y letra de 12.8 a 14).
+7. **Tablas: cabecera 44 fija, fila 48 normal, 36 compacta** documentada.
+   Sin alturas fijas mayores: el contenido de varias líneas crece desde 48.
+8. **Títulos: h1 22px/600 en todas las pantallas**; h2 16px/600; el 24 de
+   Workflows baja y el 20 de Datos sube.
+
+## 5. Reglas de uso
 
 1. **Etiquetas nunca se apilan**: en filas etiqueta-valor, la etiqueta no se
    rompe por carácter; si falta espacio, el valor envuelve o baja de línea.
