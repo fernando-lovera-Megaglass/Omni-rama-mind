@@ -2850,6 +2850,14 @@
    "workedAt": "2026-11-24T18:22:13-0600",
    "workedBy": "claude",
    "note": "Cerrada por Kimi tras revisar evidencia: DESIGN.md + 58 capturas base + 120/120 pruebas + build en verde. Espera decisiones del usuario sobre inconsistencias."
+  },
+  {
+   "id": "user-tipos-de-campo-completos",
+   "status": "pending",
+   "lane": "claude",
+   "created": "2026-11-25",
+   "title": "Tipos de campo completos en Propiedades + icono Vista previa en listas",
+   "instruction": "Dos cambios pedidos por el usuario (25-nov-2026). Respeta DESIGN.md (tokens y escala de iconos 20/16/13; iconos de línea trazo 1.8px currentColor).\n\nPARTE A — Tipos de campo completos (Ajustes › Propiedades › Crear propiedad, src/settings.js PROP_KINDS y src/kind-select.js):\n1. Agregar estos tipos al selector, cada uno con su icono: datetime «Selector de fecha y hora», percent «Porcentaje», user «Usuario», score «Puntuación», file «Archivo», calculation «Cálculo», rollup «Acumulación», sync «Sincronización de propiedades».\n2. Iconos: ya existen en FIELD_ICONS (src/action-icons.js) datetime, percent, user, priority (úsalo para score). Dibuja los que faltan (file, calculation, rollup, sync) como iconos de línea 24×24, trazo 1.8px, currentColor, mismo estilo que los demás de action-icons.js, y documéntalos en DESIGN.md (sección de iconos).\n3. Cada tipo debe FUNCIONAR de punta a punta: se crea la propiedad, se guarda, y en la ficha del registro se muestra con un control acorde (datetime: selector fecha+hora; percent: número con %; user: selector de propietario; score: número; file: adjunto). Para calculation/rollup/sync, si la lógica de cálculo completa no es viable en esta tarea, el campo se crea y se muestra de solo lectura con texto explicativo («Se calcula automáticamente»), nunca un control roto o vacío.\n4. Verificación Playwright: el selector muestra los 18 tipos, cada uno con icono visible; crear una propiedad de cada tipo nuevo y verla en la ficha; sin errores de consola; capturas a 1440px y 1280px.\n\nPARTE B — Icono «Vista previa» en filas de lista (Contactos, Empresas, Negocios, Tickets):\nAl pasar el ratón sobre una fila, mostrar el icono de vista previa con su tooltip «Vista previa» (clase .tip existente); el clic abre el panel de vista previa ya existente (.pvcard). Verificar con Playwright que aparece al hover, que el tooltip dice «Vista previa» y que abre el panel, a 1440px y 1280px.\n\nNada más cambia. Evidencia en docs/evidencia/user-tipos-de-campo-completos/ con capturas antes/después y resultado de pruebas."
   }
  ]
 }
