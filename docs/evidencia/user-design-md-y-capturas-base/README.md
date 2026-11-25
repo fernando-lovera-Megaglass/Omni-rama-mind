@@ -122,7 +122,8 @@ Nota operativa: el puerto 4173 lo ocupa un servidor de desarrollo de otro carril
 `playwright.config.js` tiene `reuseExistingServer: true`, así que las corridas de esta tarea se
 hicieron con una copia temporal de la configuración en el puerto 4199 (`npx playwright test -c
 _pw-tmp.config.js`, archivo no versionado: importa `./playwright.config.js` y cambia solo el puerto
-y `baseURL`). Con el servidor del 4173 en modo demo, `npx playwright test` da el mismo resultado.
+y `baseURL`). Verificado después con el comando tal cual, `npx playwright test` (servidor del 4173 en
+modo demo): **120 / 120 en verde** en 8 minutos.
 
 ## Qué falta / decisiones del usuario
 
