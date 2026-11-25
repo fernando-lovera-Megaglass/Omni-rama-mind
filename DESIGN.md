@@ -207,7 +207,17 @@ Los tamaños viejos (19, 18, 15, 14, 11px) migran al más cercano (homogeneizaci
   deal, ticket, workflow, list, created, stage, prop, system, companies, products,
   custom, text, textarea, number, currency, percent, date, datetime, enum, bool,
   phone, url, id, status, priority, **file** (nuevo), **calculation** (nuevo),
-  **rollup** (nuevo), **sync** (nuevo).
+  **rollup** (nuevo), **sync** (nuevo), **edit** (nuevo, aprobado 25-nov-2026).
+
+### Icono de «Modificar» (`edit`, aprobado por el usuario 25-nov-2026)
+
+Lápiz con línea de base (candidato B): `<path d="M12 20h8"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 17l-4 1 1-4L16.5 3.5z"/>`
+(línea 24×24, trazo 1.8px, `currentColor`).
+
+- Reemplaza **todos** los caracteres «✎» de la app (editar nombre del registro,
+  editar propiedad en la ficha y en la vista previa, «Editar filtros rápidos»,
+  edición masiva, celdas editables `.cell__pen`).
+- Es distinto del lápiz de «Nota» (`note`), que se queda como está.
 
 ## 4. Inconsistencias detectadas (24-nov-2026; el usuario elige cuál queda)
 
