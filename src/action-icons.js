@@ -2,6 +2,8 @@
 export const ico = (paths) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths}</svg>`;
 export const ACT_ICONS = {
   user: ico('<circle cx="12" cy="8" r="3.5"/><path d="M5 20v-1a7 7 0 0 1 14 0v1"/>'),
+  // «Agregar persona» (aprobado por el usuario 25-nov-2026): la misma cabeza y arco de `user` más un «+».
+  'user-add': ico('<circle cx="9.5" cy="8" r="3.5"/><path d="M3 20v-1a6.5 6.5 0 0 1 12-3.5"/><path d="M18.5 14v6M15.5 17h6"/>'),
   users: ico('<circle cx="9" cy="8" r="3"/><path d="M3 20v-2a6 6 0 0 1 12 0v2M16 5a3 3 0 0 1 0 6M18 14a5 5 0 0 1 3 4v2"/>'),
   thumbsUp: ico('<path d="M8 10l4-7a2 2 0 0 1 2 2v4h5a2 2 0 0 1 2 2l-2 8a2 2 0 0 1-2 1H8z"/><path d="M3 10h5v10H3z"/>'),
   thumbsDown: ico('<g transform="rotate(180 12 12)"><path d="M8 10l4-7a2 2 0 0 1 2 2v4h5a2 2 0 0 1 2 2l-2 8a2 2 0 0 1-2 1H8z"/><path d="M3 10h5v10H3z"/></g>'),
@@ -23,6 +25,8 @@ export const ACT_ICONS = {
   lightning: ico('<path d="M13 3L4 14h7l-1 7 10-12h-8l1-6z"/>'),
   delay: ico('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'),
   goto: ico('<path d="M4 18v-6a5 5 0 0 1 5-5h11M15 2l5 5-5 5"/>'),
+  // «Mapa» (aprobado por el usuario 25-nov-2026): mapa plegado en tres paneles, para direcciones y ubicación.
+  map: ico('<path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2z"/><path d="M9 4v14M15 6v14"/>'),
 
   note: ico('<path d="M15.5 4.5l4 4L9 19H5v-4L15.5 4.5z"/><path d="M13.5 6.5l4 4"/>'),
   email: ico('<rect x="3.5" y="5.5" width="17" height="13" rx="2"/><path d="M4 7l8 6 8-6"/>'),
@@ -42,7 +46,8 @@ export const ACT_ICONS = {
   whatsapp: ico('<path d="M12 4a8 8 0 0 0-6.9 12L4 20l4.1-1.1A8 8 0 1 0 12 4z"/><path d="M9.5 9.2c0 3 2.3 5.3 5.3 5.3l.8-1.5-2-1-1 .7a3.6 3.6 0 0 1-1.3-1.3l.7-1-1-2-1.2.7z" stroke-width="1.2"/>'),
   sms: ico('<path d="M4 5.5h16v10H9.5L5 19v-3.5H4z" transform="translate(0 -1)"/><path d="M8 8.5h8M8 11.5h5"/>'),
   schedule: ico('<rect x="3.5" y="5" width="17" height="15.5" rx="2"/><path d="M3.5 9.5h17M8 3v3.5M16 3v3.5"/><circle cx="12" cy="14.5" r="2.6"/><path d="M12 13.2v1.3l1 .7"/>'),
-  deal: ico('<path d="M8 12.5L3.5 8 8 3.5h8L20.5 8 16 12.5"/><path d="M8 12.5V17a3.5 3.5 0 0 0 3.5 3.5h1A3.5 3.5 0 0 0 16 17v-4.5M8 12.5h8"/>'),
+  // Negocio = apretón de manos (aprobado por el usuario 25-nov-2026; antes un diamante). `OBJECT_ICONS.deals` lo reutiliza.
+  deal: ico('<path d="m11 17 2 2a1 1 0 1 0 3-3"/><path d="m14 14 2.5 2.5a1 1 0 1 0 3-3l-3.88-3.88a3 3 0 0 0-4.24 0l-.88.88a1 1 0 1 1-3-3l2.81-2.81a5.79 5.79 0 0 1 7.06-.87l.47.28a2 2 0 0 0 1.42.25L21 4"/><path d="m21 3 1 11h-2"/><path d="M3 3 2 14l6.5 6.5a1 1 0 1 0 3-3"/><path d="M3 4h8"/>'),
   ticket: ico('<path d="M4 8.5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v1.5a2 2 0 0 0 0 4v1.5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V14a2 2 0 0 0 0-4V8.5z"/><path d="M13 7.5v1.6M13 11.2v1.6M13 14.9v1.6"/>'),
   workflow: ico('<circle cx="6" cy="6" r="2.3"/><circle cx="18" cy="6" r="2.3"/><circle cx="12" cy="18" r="2.3"/><path d="M6 8.3v3.2a3 3 0 0 0 3 3h1M18 8.3v3.2a3 3 0 0 1-3 3h-1"/>'),
   list: ico('<path d="M8.5 6.5H20M8.5 12H20M8.5 17.5H20"/><circle cx="4.8" cy="6.5" r="1.15" fill="currentColor" stroke="none"/><circle cx="4.8" cy="12" r="1.15" fill="currentColor" stroke="none"/><circle cx="4.8" cy="17.5" r="1.15" fill="currentColor" stroke="none"/>'),
