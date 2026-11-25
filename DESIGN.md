@@ -120,6 +120,7 @@ el navegador). Donde una pantalla usa un valor distinto, está en la sección 3.
 | Texto secundario | `.muted` | — | — | — | — | color `--c-muted` |
 | Vacío | `emptyStateHtml()` de `src/empty-state.js` | — | — | — | — | estados sin datos, con ilustración |
 | Título de página | `h1`, `.page-title` | 28px de línea | — | 22px / 600 | — | `h1` base pesa 500; `.page-title` 600 |
+| Barra de vistas | `.views__tabs` > `.views__tabwrap` + `.views__tab` | 44px | 0 10px 0 16px | 14px / 600 | `--r-sm` superior | **componente único de todas las listas** (Contactos, Empresas, Negocios, Tickets, Tareas): pestaña activa fondo `--c-white` con borde `--c-border`, inactivas texto `--c-link`; `×` (`.views__close` 20px) solo al pasar el ratón; `+` (`.views__add` 40px, 22px) crea vista |
 | Barra lateral | `.sidenav` > `.sidenav__item` | 72px de ancho | — | — | — | fondo `--c-nav`, iconos `.ico` 20px, 220px al desplegar (`.app--navwide`) |
 | Barra superior | `.topbar` | 56px | 0 24px | — | — | buscador global, acciones de icono, avatar 28px |
 
