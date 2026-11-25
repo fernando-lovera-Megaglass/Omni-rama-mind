@@ -271,6 +271,12 @@ definición oficial y la meta de la migración por módulos:
 
 ## 6. Reglas de uso
 
+0. **Teléfonos: un solo formato en toda la app** (aprobado por el usuario,
+   25-nov-2026): código de país + dígitos agrupados con espacios + extensión
+   («+52 72 2123 2580, ext. 4»), siempre vía `displayPhone`/`formatPhone` de
+   `src/phone.js`. Prohibido mostrar `record.phone` crudo. Pendientes de corregir:
+   tabla de fusionar duplicados y detalle rápido de paneles.
+
 1. **Etiquetas nunca se apilan**: en filas etiqueta-valor, la etiqueta no se
    rompe por carácter; si falta espacio, el valor envuelve o baja de línea.
    Cuidado con `overflow-wrap: anywhere` heredado en contenedores flex.
