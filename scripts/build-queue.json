@@ -4,126 +4,162 @@
     {
       "id": "gap-backend-re-secuencias-ejecutor-ausente-segunda",
       "lane": "codex",
-      "status": "review",
+      "status": "done",
       "createdAt": "2026-11-24T03:26:00-06:00",
       "instruction": "RE-APERTURA de gap-backend-re-secuencias-ejecutor-ausente (en review, workedAt 23-nov 03:53; su propia evidencia docs/evidencia/gap-backend-re-secuencias-ejecutor-ausente/README.md admite «aceptación productiva pendiente» y que el cron quedó inactivo deliberadamente). Sigue fallando igual, verificado en vivo 24-nov-2026 ~03:15 CST vía scripts/mgmt-sql.mjs: (1) 26 sequence_enrollments con status='active' y las 26 con next_step_at vencido (min 2026-11-09 06:00 UTC — 15 días congeladas); (2) sequence_step_runs sigue con 0 filas (ningún paso procesado jamás); (3) cron.job omni-sequence-process existe con schedule '* * * * *' pero active=false y cron.job_run_details vacío — nunca ha corrido. La herramienta de activación ya existe (scripts/sequence-activate.mjs --yes, con opt-in, validación de proyecto, pausa de cron, backfill y verificación de cero vencidas). Corrección: con la autorización del operador que la propia evidencia exige, desplegar la función sequence-process actual, configurar Vault/pg_net si falta, ejecutar scripts/sequence-activate.mjs --yes contra el proyecto real, y dejar medición posterior en docs/evidencia/<id>/: 0 activas vencidas >1 día, sequence_step_runs con filas done, cron.job active=true con corridas exitosas en job_run_details y pg_net sin errores. Criterio de aceptación: esas tres mediciones en vivo y una inscripción nueva que avance de paso sola. No despliegues nada a producción; solo código local.",
       "workedAt": "2026-11-24T03:41:30-0600",
-      "workedBy": "codex"
+      "workedBy": "codex",
+      "closedAt": "2026-11-25T15:15:57-06:00",
+      "closedBy": "kimi",
+      "closeNote": "SUPERSEDIDA: sigue fallando (verificado por Kimi en vivo 25-nov). El trabajo continúa consolidado en consolidada-secuencias-ejecutor-ausente con el régimen nuevo (base de prueba + aprobación del usuario para tocar la real)."
     },
     {
       "id": "gap-backend-tickets-empresa-sin-backfill",
       "lane": "codex",
-      "status": "review",
+      "status": "done",
       "createdAt": "2026-11-24T03:26:00-06:00",
       "instruction": "HALLAZGO NUEVO (24-nov-2026 ~03:15 CST, scripts/mgmt-sql.mjs): la auto-asociación ticket→empresa principal del contacto (comprometida en el ítem done pipeline-tickets-default y cableada en src/data.js autoAssociateTicketCompany, invocada al crear ticket y al cambiar contactId) NUNCA se aplicó al histórico: los 84 tickets vivos (created 13-jul a 07-nov, anteriores a la función) tienen extra->>'companyId' y extra->'assoc_companies' vacíos — 0 de 84 — pese a que 74 tienen contact_id cuyo contacto sí tiene empresa principal en contact_companies (consulta: tickets t con contact_id no nulo, assoc_companies vacío y EXISTS contact_companies cc con cc.contact_id=t.contact_id AND cc.is_primary → 74). Consecuencia visible: la tarjeta Empresas de la ficha de ticket (src/record.js:154, associationIds lee solo lo persistido, sin fallback al contacto) muestra cero empresas en todos los tickets, y reportes/exportaciones por empresa omiten estos tickets. El camino nuevo sí funciona (smoke-create-ticket PASS hoy: la empresa elegida se persiste), así que esto es backfill, no bug del writer. Corrección: script de backfill (p. ej. scripts/backfill-ticket-company.mjs) que para cada ticket vivo con contact_id y sin assoc_companies tome la empresa primaria viva del contacto (contact_companies.is_primary, excluyendo companies con deleted_at) y escriba extra.companyId/company/assoc_companies/assoc_labels_companies con el mismo formato que create-ticket.js:188-205, en lotes transaccionales con reporte antes/después, registrado en applied-migrations.json y con evidencia en docs/evidencia/<id>/ (0 tickets con contacto-con-empresa-primaria sin asociar tras correrlo). Criterio de aceptación: la consulta anterior devuelve 0 en vivo y la ficha de un ticket backfilleado muestra su empresa. No despliegues nada a producción; solo código local.",
       "workedAt": "2026-11-24T03:47:55-0600",
-      "workedBy": "codex"
+      "workedBy": "codex",
+      "closedAt": "2026-11-25T15:15:57-06:00",
+      "closedBy": "kimi",
+      "closeNote": "Verificado en vivo 25-nov: 0 tickets con contacto y empresa principal sin vincular (antes 74)."
     },
     {
       "id": "gap-backend-deals-perdidos-fecha-cierre-futura",
       "lane": "codex",
-      "status": "review",
+      "status": "done",
       "createdAt": "2026-11-24T03:26:00-06:00",
       "instruction": "HALLAZGO NUEVO (24-nov-2026 ~03:15 CST, scripts/mgmt-sql.mjs): 14 negocios vivos en etapas con probabilidad 0 (Perdido/Eliminado de SACA SUMINISTRO, Acristala obras, etc.) tienen close_date FUTURA (consulta: deals d con deleted_at null, close_date > now()+2 días y EXISTS pipeline_stages ps con ps.clave=d.stage y ps.probabilidad=0 → 14; ejemplos: id 87 'Mampara de baño Interiores Sierra' stage lost con close_date 2027-03-05, id 136 'Fachada de vidrio Fachadas del' lost 2027-03-02, id 24 lost 2027-02-14). Un negocio perdido/eliminado con fecha de cierre futura contradice la semántica de cierre (HubSpot fija close_date al día del cierre; el ítem done gap-ui-negocios-fecha-cierre-automatica ya la fija al transitar, así que son residuo histórico, probablemente del seed). Distorsiona previsión y reportes por fecha de cierre. Corrección: script de normalización que ponga close_date = updated/created del negocio (o la fecha de entrada a la etapa si es reconstruible) en esos 14, transaccional con reporte antes/después, y añadir la guarda en el writer (src/data.js/deal-close.js): al pasar a etapa de probabilidad 0, close_date no puede quedar en futuro (clamp a hoy si viene vacía o futura). Evidencia en docs/evidencia/<id>/ con la consulta en 0 tras correrlo. Criterio de aceptación: 0 negocios en etapas prob-0 con close_date futura en vivo y smoke de cierre de negocio en verde. No despliegues nada a producción; solo código local.",
       "workedAt": "2026-11-24T03:52:49-0600",
-      "workedBy": "codex"
+      "workedBy": "codex",
+      "closedAt": "2026-11-25T15:15:57-06:00",
+      "closedBy": "kimi",
+      "closeNote": "SUPERSEDIDA: sigue fallando (verificado por Kimi en vivo 25-nov). El trabajo continúa consolidado en consolidada-deals-perdidos-fecha-cierre-futura con el régimen nuevo (base de prueba + aprobación del usuario para tocar la real)."
     },
     {
       "id": "gap-backend-re-contactos-duplicados-octava",
       "lane": "codex",
-      "status": "review",
+      "status": "done",
       "createdAt": "2026-11-24T00:03:00-06:00",
       "instruction": "RE-APERTURA de gap-backend-re-contactos-duplicados-septima (en review, workedAt 23-nov 01:44, y SIN carpeta de evidencia docs/evidencia/gap-backend-re-contactos-duplicados-septima/, lo que incumple el proceso). Verificado en vivo 24-nov-2026 ~00:00 CST vía scripts/mgmt-sql.mjs: 423 contactos activos, 385 con email, 308 emails distintos, 77 grupos duplicados (SELECT lower(email) GROUP BY 1 HAVING count(*)>1; ejemplos: santiago.ruiz@hogariberica.com, ximena.garduno@ventanasandina.com, santiago.prieto@cerramientoscastilla.com ×2 cada uno), 154 filas involucradas — cifras idénticas a las de hace 23 h: la fusión NUNCA se ejecutó contra la base viva. Además contacts_email_idx sigue NO único (pg_indexes: CREATE INDEX contacts_email_idx ON contacts (lower(email)) WHERE deleted_at IS NULL), así que cualquier alta concurrente recrea duplicados. Corrección: con la autorización ya solicitada por la evidencia de la sexta, ejecutar la fusión transaccional contra la base real trasladando TODAS las referencias (contact_companies, deals.contact_id, tickets.contact_id, tasks.contact_id y los JSON extra.assoc_deals/assoc_contacts/assoc_companies de deals, tickets y contacts), dejar las copias suprimidas en papelera, recrear contacts_email_idx como UNIQUE (misma expresión parcial) y registrar la aplicación en applied-migrations.json. Criterio de aceptación: 0 grupos duplicados en vivo, índice único visible en pg_indexes, 0 referencias colgadas y smoke-dedupe + test-contact-integrity en verde. No despliegues nada a producción; solo código local.",
       "workedAt": "2026-11-24T00:16:55-0600",
-      "workedBy": "codex"
+      "workedBy": "codex",
+      "closedAt": "2026-11-25T15:15:57-06:00",
+      "closedBy": "kimi",
+      "closeNote": "SUPERSEDIDA: sigue fallando (verificado por Kimi en vivo 25-nov). El trabajo continúa consolidado en consolidada-contactos-duplicados con el régimen nuevo (base de prueba + aprobación del usuario para tocar la real)."
     },
     {
       "id": "gap-backend-re-comunicaciones-estados-residuo-segunda",
       "lane": "codex",
-      "status": "review",
+      "status": "done",
       "createdAt": "2026-11-24T00:03:00-06:00",
       "instruction": "RE-APERTURA de gap-backend-re-comunicaciones-estados-residuo (en review, workedAt 23-nov 06:12; su propia evidencia docs/evidencia/gap-backend-re-comunicaciones-estados-residuo/README.md admite que el barrido scripts/sweep-stuck-comms.mjs «--apply... no se ejecutó en esta tarea» y que «la aceptación sobre datos reales sigue pendiente»). Verificado en vivo 24-nov-2026 ~00:00 CST vía scripts/mgmt-sql.mjs: el residuo sigue intacto — 32 call_logs en 'ringing' (created_at 18-nov 23:49 a 20-nov 00:36 UTC) y 7 en 'initiated' (18-nov 23:48 a 23-nov 19:13 UTC); 2 twilio_messages 'queued' (17-nov 17:45 y 20-nov 21:26 UTC). AGRAVANTE NUEVO: hay una llamada creada el 23-nov 19:13 UTC — POSTERIOR al fix de callbacks — también atascada en 'initiated' 5 h después, evidencia de que la cura (twilio-call-status v5) NO está actualizando estados en producción, no solo que falta barrer el histórico. Corrección: (1) ejecutar el barrido ya construido contra la base real (node scripts/sweep-stuck-comms.mjs --apply, con su transacción y reporte antes/después) y registrar la fecha real en applied-migrations.json o evidencia; (2) diagnosticar por qué la llamada del 23-nov 19:13 no recibió callbacks de estado (logs de la función twilio-call-status, firma del webhook, URL configurada en Twilio) y corregir la causa raíz; (3) dejar evidencia en docs/evidencia/<id>/ con medición en vivo después del barrido: 0 ringing/initiated anteriores a 1 h, 0 queued antiguos. Criterio de aceptación: medición en vivo con 0 estados transitorios >1 h y una llamada/SMS real posterior que termine en estado terminal. No despliegues nada a producción; solo código local.",
       "workedAt": "2026-11-24T00:22:55-0600",
-      "workedBy": "codex"
+      "workedBy": "codex",
+      "closedAt": "2026-11-25T15:15:57-06:00",
+      "closedBy": "kimi",
+      "closeNote": "Verificado en vivo 25-nov: residuo en 0. La llamada del 23-nov ya no consta atascada."
     },
     {
       "id": "gap-backend-re-account-settings-rls-vivo-tercera",
       "lane": "codex",
-      "status": "review",
+      "status": "done",
       "createdAt": "2026-11-24T00:03:00-06:00",
       "instruction": "RE-APERTURA de gap-backend-re-account-settings-rls-vivo-segunda (en review, workedAt 23-nov 01:47, SIN carpeta de evidencia propia docs/evidencia/gap-backend-re-account-settings-rls-vivo-segunda/). Sigue fallando en vivo, verificado 24-nov-2026 ~00:00 CST vía scripts/mgmt-sql.mjs: (1) pg_policies de account_settings muestra únicamente account_settings_read (SELECT) y account_settings_admin (ALL, exige JWT app_metadata role=admin que el usuario real no tiene — su rol vive en team_members.role, que la política no consulta); la política de equipo de supabase/account-settings-team.sql (escritura con is_team_member() y scope='account') NO está aplicada; (2) account_settings sigue con 0 filas; (3) scripts/applied-migrations.json mantiene account-settings-team.sql con status «pendiente» («Solo código local; no aplicada en remoto»). Consecuencia vigente: «Aplicar a todos los usuarios de la cuenta», vistas de equipo y layouts compartidos (src/layout-defaults.js, src/settings-store.js scope≠user) son rechazados por RLS o se pierden al recargar. Corrección: aplicar supabase/account-settings-team.sql contra la base real, verificar la política nueva en pg_policies, registrar fecha real en applied-migrations.json, dejar evidencia en docs/evidencia/<id>/ y hacer pasar SMOKE_LIVE=1 node scripts/smoke-record-customize.mjs. Criterio de aceptación: el smoke live pasa y una escritura de miembro no-admin persiste en account_settings (fila visible con SELECT). No despliegues nada a producción; solo código local.",
       "workedAt": "2026-11-24T00:26:21-0600",
-      "workedBy": "codex"
+      "workedBy": "codex",
+      "closedAt": "2026-11-25T15:15:57-06:00",
+      "closedBy": "kimi",
+      "closeNote": "SUPERSEDIDA: sigue fallando (verificado por Kimi en vivo 25-nov). El trabajo continúa consolidado en consolidada-account-settings-rls-vivo con el régimen nuevo (base de prueba + aprobación del usuario para tocar la real)."
     },
     {
       "id": "gap-backend-re-companies-domain-sin-indice-segunda",
       "lane": "codex",
-      "status": "review",
+      "status": "done",
       "createdAt": "2026-11-24T00:03:00-06:00",
       "instruction": "RE-APERTURA de gap-backend-re-companies-domain-sin-indice (en review, workedAt 23-nov 01:51, sin carpeta de evidencia propia — solo existe la del ítem original). Sigue fallando en vivo, verificado 24-nov-2026 ~00:00 CST vía scripts/mgmt-sql.mjs: pg_indexes de companies muestra solo companies_pkey, companies_deleted_at_idx, companies_parent_company_id_idx y companies_user_id_idx — NINGÚN índice sobre domain. scripts/applied-migrations.json mantiene company-domain-index.sql con status «pendiente» («no aplicada ni verificada en producción»). El dedupe empresa↔dominio del importador (src/import-engine.js companyIndex y la asociación cruzada de runBatchImport) hace barridos sin índice en la base real, y la creación automática de empresa por dominio de email consulta la tabla completa en cada alta de contacto. Corrección: aplicar supabase/company-domain-index.sql (CREATE INDEX IF NOT EXISTS companies_domain_idx ON public.companies (lower(domain)) WHERE deleted_at IS NULL) contra la base viva, verificar su presencia en pg_indexes, registrar la aplicación real con fecha en applied-migrations.json y dejar evidencia en docs/evidencia/<id>/. Criterio de aceptación: el índice aparece en pg_indexes de producción y EXPLAIN muestra Index Scan en SELECT ... WHERE lower(domain)=lower($1) AND deleted_at IS NULL. No despliegues nada a producción; solo código local.",
       "workedAt": "2026-11-24T00:31:43-0600",
-      "workedBy": "codex"
+      "workedBy": "codex",
+      "closedAt": "2026-11-25T15:15:57-06:00",
+      "closedBy": "kimi",
+      "closeNote": "SUPERSEDIDA: sigue fallando (verificado por Kimi en vivo 25-nov). El trabajo continúa consolidado en consolidada-companies-domain-sin-indice con el régimen nuevo (base de prueba + aprobación del usuario para tocar la real)."
     },
     {
       "id": "gap-backend-indices-contact-id-tickets-tasks",
-      "lane": "codex",
-      "status": "review",
+      "lane": "claude",
+      "status": "backlog",
       "createdAt": "2026-11-24T00:03:00-06:00",
-      "instruction": "HALLAZGO NUEVO (24-nov-2026 ~00:00 CST, scripts/mgmt-sql.mjs): tickets.contact_id y tasks.contact_id NO tienen índice en la base viva. pg_indexes de tickets solo tiene tickets_pkey, tickets_deleted_at_idx y tickets_user_id_idx; el de tasks solo tasks_pkey, tasks_parent_id_idx, tasks_queue_id_idx y tasks_user_id_idx. Sin embargo la ficha de contacto (tarjetas Tickets y Tareas, cronología y «Ver todos»), runTicketAutomation (src/ticket-rules.js) y el deshacer importaciones filtran por contact_id constantemente → Seq Scan sobre tickets (84 filas) y tasks (64 filas) en cada apertura de ficha; deals.contact_id SÍ tiene índice (deals_contact_id_idx), así que el patrón correcto ya existe en el repo. Corrección: nueva migración supabase/contact-id-indexes.sql con CREATE INDEX IF NOT EXISTS tickets_contact_id_idx ON public.tickets (contact_id) WHERE deleted_at IS NULL y CREATE INDEX IF NOT EXISTS tasks_contact_id_idx ON public.tasks (contact_id) (tasks no tiene deleted_at — verificado en information_schema), aplicarla contra la base real, registrarla en scripts/applied-migrations.json y dejar evidencia con EXPLAIN en docs/evidencia/<id>/. Criterio de aceptación: ambos índices en pg_indexes de producción y EXPLAIN con Index Scan para SELECT ... WHERE contact_id=$1 en ambas tablas. No despliegues nada a producción; solo código local.",
+      "instruction": "HALLAZGO NUEVO (24-nov-2026 ~00:00 CST, scripts/mgmt-sql.mjs): tickets.contact_id y tasks.contact_id NO tienen índice en la base viva. pg_indexes de tickets solo tiene tickets_pkey, tickets_deleted_at_idx y tickets_user_id_idx; el de tasks solo tasks_pkey, tasks_parent_id_idx, tasks_queue_id_idx y tasks_user_id_idx. Sin embargo la ficha de contacto (tarjetas Tickets y Tareas, cronología y «Ver todos»), runTicketAutomation (src/ticket-rules.js) y el deshacer importaciones filtran por contact_id constantemente → Seq Scan sobre tickets (84 filas) y tasks (64 filas) en cada apertura de ficha; deals.contact_id SÍ tiene índice (deals_contact_id_idx), así que el patrón correcto ya existe en el repo. Corrección: nueva migración supabase/contact-id-indexes.sql con CREATE INDEX IF NOT EXISTS tickets_contact_id_idx ON public.tickets (contact_id) WHERE deleted_at IS NULL y CREATE INDEX IF NOT EXISTS tasks_contact_id_idx ON public.tasks (contact_id) (tasks no tiene deleted_at — verificado en information_schema), aplicarla contra la base real, registrarla en scripts/applied-migrations.json y dejar evidencia con EXPLAIN en docs/evidencia/<id>/. Criterio de aceptación: ambos índices en pg_indexes de producción y EXPLAIN con Index Scan para SELECT ... WHERE contact_id=$1 en ambas tablas. No despliegues nada a producción; solo código local.\n\n[TRIAJE Kimi 25-nov] Verificado por Kimi 25-nov: los índices contact_id en tickets y tasks NO existen en la base real. Migración con CREATE INDEX en tickets(contact_id) y tasks(contact_id) WHERE deleted_at IS NULL si aplica; probar en base de prueba; aplicar a la real con aprobación del usuario.",
       "workedAt": "2026-11-24T00:37:29-0600",
       "workedBy": "codex"
     },
     {
       "id": "gap-backend-re-bootstrap-demo-rpc-ausente-segunda",
       "lane": "codex",
-      "status": "review",
+      "status": "done",
       "createdAt": "2026-11-24T00:03:00-06:00",
       "instruction": "RE-APERTURA de gap-backend-re-bootstrap-demo-rpc-ausente (en review, workedAt 23-nov 01:55, sin carpeta de evidencia propia — solo existe docs/evidencia/gap-backend-bootstrap-demo-rpc-ausente/ del ítem original, que declara «Aceptación remota pendiente; no cerrar»). Sigue fallando en vivo, verificado 24-nov-2026 ~00:00 CST vía scripts/mgmt-sql.mjs: pg_proc del proyecto contiene commit_app_sync e is_team_member pero NO bootstrap_demo_v1; scripts/applied-migrations.json mantiene bootstrap-demo.sql con status «pendiente» («Solo código local; no aplicada en remoto»). Mientras la RPC no exista en producción, el bootstrap de ejemplo falla en cada arranque con PGRST202 y src/data.js solo lo tolera (getDemoBootstrapStatus()=failed) — el ítem UI hermano gap-ui-bootstrap-demo-aviso-explicito sigue pending, así que el usuario no ve ningún aviso. Corrección: aplicar ÚNICAMENTE supabase/bootstrap-demo.sql en la base real (nunca schema.sql ni vaciar tablas existentes), verificar con la consulta pg_proc de la evidencia, registrar la aplicación en applied-migrations.json y dejar evidencia en docs/evidencia/<id>/. Criterio de aceptación: bootstrap_demo_v1 aparece en pg_proc y una llamada autenticada devuelve false (base ya poblada) sin error. No despliegues nada a producción; solo código local.",
       "workedAt": "2026-11-24T00:41:17-0600",
-      "workedBy": "codex"
+      "workedBy": "codex",
+      "closedAt": "2026-11-25T15:15:57-06:00",
+      "closedBy": "kimi",
+      "closeNote": "SUPERSEDIDA: sigue fallando (verificado por Kimi en vivo 25-nov). El trabajo continúa consolidado en consolidada-bootstrap-demo-rpc-ausente con el régimen nuevo (base de prueba + aprobación del usuario para tocar la real)."
     },
     {
       "id": "gap-backend-re-contactos-duplicados-septima",
       "lane": "codex",
-      "status": "review",
+      "status": "done",
       "createdAt": "2026-11-23T01:25:00-06:00",
       "instruction": "RE-APERTURA de gap-backend-re-contactos-duplicados-sexta (en review, evidencia docs/evidencia/gap-backend-re-contactos-duplicados-sexta/: la fusión NUNCA se ejecutó contra la base viva, «fusiones remotas ejecutadas = 0», pendiente de autorización). Sigue fallando: medición en vivo 23-nov-2026 ~01:15 CST vía scripts/mgmt-sql.mjs — 423 contactos activos, 385 con email, 308 emails distintos, 77 grupos duplicados (SELECT lower(email) ... GROUP BY 1 HAVING count(*)>1), 154 filas involucradas, 0 en papelera. Agravante: contacts_email_idx existe pero NO es único (pg_indexes: CREATE INDEX contacts_email_idx ON contacts (lower(email)) WHERE deleted_at IS NULL), así que el dedupe depende solo de la app y cualquier alta concurrente recrea duplicados. Corrección: con la autorización explícita ya solicitada por la sexta evidencia, ejecutar la fusión transaccional contra la base real (trasladando TODAS las referencias, incluidas las JSON extra.assoc_deals / extra.assoc_contacts de deals, tickets y demás objetos, que el reparador SQL actual no cubre), conservar las copias suprimidas en papelera, y después recrear contacts_email_idx como UNIQUE (misma expresión lower(email) parcial). Criterio de aceptación: 0 grupos duplicados en vivo, índice único verificado en pg_indexes, 0 referencias colgadas (contact_companies, deals.contact_id, tickets.contact_id, extra.assoc_*), y smoke-dedupe + test-contact-integrity en verde. No despliegues nada a producción; solo código local.",
       "workedAt": "2026-11-23T01:44:04-0600",
-      "workedBy": "codex"
+      "workedBy": "codex",
+      "closedAt": "2026-11-25T15:15:57-06:00",
+      "closedBy": "kimi",
+      "closeNote": "SUPERSEDIDA: sigue fallando (verificado por Kimi en vivo 25-nov). El trabajo continúa consolidado en consolidada-contactos-duplicados con el régimen nuevo (base de prueba + aprobación del usuario para tocar la real)."
     },
     {
       "id": "gap-backend-re-account-settings-rls-vivo-segunda",
       "lane": "codex",
-      "status": "review",
+      "status": "done",
       "createdAt": "2026-11-23T01:25:00-06:00",
       "instruction": "RE-APERTURA de gap-backend-re-account-settings-rls-vivo (en review, además SIN carpeta de evidencia docs/evidencia/gap-backend-re-account-settings-rls-vivo/, lo que incumple el proceso). Sigue fallando en vivo 23-nov-2026: (1) pg_policies de account_settings muestra solo account_settings_read (SELECT) y account_settings_admin (ALL, exige JWT app_metadata role=admin que el usuario real no tiene — su rol vive en team_members.role, que la política no consulta); (2) account_settings sigue con 0 filas; (3) supabase/account-settings-team.sql sigue pendiente remota en applied-migrations.json. Consecuencia vigente: «Aplicar a todos los usuarios de la cuenta», vistas de equipo y layouts compartidos (src/layout-defaults.js, src/settings-store.js scope≠user) son rechazados por RLS o se pierden al recargar. Corrección: aplicar supabase/account-settings-team.sql contra la base real (escritura con is_team_member() y scope='account', lectura autenticada), verificar la política nueva en pg_policies, registrar fecha real en applied-migrations.json, dejar evidencia en docs/evidencia/<id>/ y hacer pasar SMOKE_LIVE=1 node scripts/smoke-record-customize.mjs. Criterio de aceptación: el smoke live pasa y una escritura de miembro no-admin persiste en account_settings. No despliegues nada a producción; solo código local.",
       "workedAt": "2026-11-23T01:47:06-0600",
-      "workedBy": "codex"
+      "workedBy": "codex",
+      "closedAt": "2026-11-25T15:15:57-06:00",
+      "closedBy": "kimi",
+      "closeNote": "SUPERSEDIDA: sigue fallando (verificado por Kimi en vivo 25-nov). El trabajo continúa consolidado en consolidada-account-settings-rls-vivo con el régimen nuevo (base de prueba + aprobación del usuario para tocar la real)."
     },
     {
       "id": "gap-backend-re-companies-domain-sin-indice",
       "lane": "codex",
-      "status": "review",
+      "status": "done",
       "createdAt": "2026-11-23T01:25:00-06:00",
       "instruction": "RE-APERTURA de gap-backend-companies-domain-sin-indice (en review; su propia evidencia docs/evidencia/gap-backend-companies-domain-sin-indice/ admite «Aplicación y aceptación en producción pendientes»: solo se aplicó en PGlite local). Sigue fallando en vivo 23-nov-2026: pg_indexes no muestra NINGÚN índice sobre companies.domain (verificado vía scripts/mgmt-sql.mjs; solo existen los índices por defecto). El dedupe empresa↔dominio del importador (src/import-engine.js, regla de dominio) hace barridos sin índice en la base real. Corrección: aplicar supabase/company-domain-index.sql (CREATE INDEX IF NOT EXISTS companies_domain_idx ON public.companies (lower(domain)) WHERE deleted_at IS NULL) contra la base viva, verificar su presencia con pg_indexes, registrar la aplicación real con fecha en applied-migrations.json (hoy figura como pendiente remoto con verificación local separada). Criterio de aceptación: el índice aparece en pg_indexes de producción y EXPLAIN lo usa en SELECT ... WHERE lower(domain)=lower($1) AND deleted_at IS NULL. No despliegues nada a producción; solo código local.",
       "workedAt": "2026-11-23T01:51:13-0600",
-      "workedBy": "codex"
+      "workedBy": "codex",
+      "closedAt": "2026-11-25T15:15:57-06:00",
+      "closedBy": "kimi",
+      "closeNote": "SUPERSEDIDA: sigue fallando (verificado por Kimi en vivo 25-nov). El trabajo continúa consolidado en consolidada-companies-domain-sin-indice con el régimen nuevo (base de prueba + aprobación del usuario para tocar la real)."
     },
     {
       "id": "gap-backend-re-bootstrap-demo-rpc-ausente",
       "lane": "codex",
-      "status": "review",
+      "status": "done",
       "createdAt": "2026-11-23T01:25:00-06:00",
       "instruction": "RE-APERTURA de gap-backend-bootstrap-demo-rpc-ausente (en review; evidencia docs/evidencia/gap-backend-bootstrap-demo-rpc-ausente/ declara «Aceptación remota pendiente; no cerrar»). Sigue fallando en vivo 23-nov-2026: el catálogo pg_proc del proyecto no contiene bootstrap_demo_v1 (listado completo vía scripts/mgmt-sql.mjs: solo commit_app_sync, marketing_*, sequence_*, workflow_*, handle_new_user, require_invitation, is_team_*, etc.). Mientras la RPC no exista en producción, el bootstrap de ejemplo falla en cada arranque con PGRST202 y src/data.js solo lo tolera (getDemoBootstrapStatus()=failed) — el ítem UI hermano gap-ui-bootstrap-demo-aviso-explicito sigue pending, así que el usuario no ve ningún aviso todavía. Corrección: aplicar ÚNICAMENTE supabase/bootstrap-demo.sql en la base real (nunca schema.sql ni vaciar tablas existentes), verificar con la consulta pg_proc de la evidencia, registrar la aplicación en applied-migrations.json. Criterio de aceptación: bootstrap_demo_v1 aparece en pg_proc y una llamada autenticada devuelve false (base ya poblada) sin error. No despliegues nada a producción; solo código local.",
       "workedAt": "2026-11-23T01:55:54-0600",
-      "workedBy": "codex"
+      "workedBy": "codex",
+      "closedAt": "2026-11-25T15:15:57-06:00",
+      "closedBy": "kimi",
+      "closeNote": "SUPERSEDIDA: sigue fallando (verificado por Kimi en vivo 25-nov). El trabajo continúa consolidado en consolidada-bootstrap-demo-rpc-ausente con el régimen nuevo (base de prueba + aprobación del usuario para tocar la real)."
     },
     {
       "id": "gap-backend-import-historial-sin-servidor",
-      "lane": "codex",
-      "status": "review",
+      "lane": "claude",
+      "status": "backlog",
       "createdAt": "2026-11-23T01:25:00-06:00",
-      "instruction": "El monitor de importaciones (Integración de datos) no tiene respaldo en Supabase: el historial vive solo en localStorage (crm:imports y crm:imports:detail:<id>, src/import-engine.js línea ~573 y src/integration.js IMPORTS_KEY), y la base no tiene ninguna tabla de importaciones (listado information_schema 23-nov-2026: no existe import_jobs ni equivalente). Consecuencias: los conteos de nuevos/actualizados/asociaciones/errores del monitor no se pueden auditar contra la base (esta auditoría no pudo cruzarlos), el historial desaparece al cambiar de navegador/dispositivo o limpiar el sitio, y «Deshacer importación» depende de un ledger local que se pierde con él. Corrección: crear tabla import_jobs (id, user_id, objeto, nombre, fuente/sistema, estado, conteos new/updated/associations/errors, undo ledger jsonb, created_at) con RLS por equipo, escribirla desde import-engine.js en cada transición de estado y al terminar, y que integration.js lea el historial desde Supabase con fallback al localStorage existente (migrando las entradas locales al primer guardado exitoso). Mantener intacto el formato de filas que el monitor ya renderiza. Criterio de aceptación: tras una importación real, SELECT en import_jobs devuelve la fila con conteos que coinciden con los registros escritos, y el monitor muestra el mismo historial en una sesión nueva sin localStorage. No despliegues nada a producción; solo código local.",
+      "instruction": "El monitor de importaciones (Integración de datos) no tiene respaldo en Supabase: el historial vive solo en localStorage (crm:imports y crm:imports:detail:<id>, src/import-engine.js línea ~573 y src/integration.js IMPORTS_KEY), y la base no tiene ninguna tabla de importaciones (listado information_schema 23-nov-2026: no existe import_jobs ni equivalente). Consecuencias: los conteos de nuevos/actualizados/asociaciones/errores del monitor no se pueden auditar contra la base (esta auditoría no pudo cruzarlos), el historial desaparece al cambiar de navegador/dispositivo o limpiar el sitio, y «Deshacer importación» depende de un ledger local que se pierde con él. Corrección: crear tabla import_jobs (id, user_id, objeto, nombre, fuente/sistema, estado, conteos new/updated/associations/errors, undo ledger jsonb, created_at) con RLS por equipo, escribirla desde import-engine.js en cada transición de estado y al terminar, y que integration.js lea el historial desde Supabase con fallback al localStorage existente (migrando las entradas locales al primer guardado exitoso). Mantener intacto el formato de filas que el monitor ya renderiza. Criterio de aceptación: tras una importación real, SELECT en import_jobs devuelve la fila con conteos que coinciden con los registros escritos, y el monitor muestra el mismo historial en una sesión nueva sin localStorage. No despliegues nada a producción; solo código local.\n\n[TRIAJE Kimi 25-nov] Sin evidencia. Feature pendiente: el historial de importaciones vive solo en localStorage; crear tabla import_jobs en Supabase (migración), persistir historial y hacer auditable el monitor. Probar en base de prueba; aplicar con aprobación del usuario.",
       "workedAt": "2026-11-23T02:07:32-0600",
       "workedBy": "codex"
     },
@@ -137,19 +173,22 @@
     },
     {
       "id": "gap-ui-workflows-fidelidad-hubspot",
-      "status": "review",
+      "status": "done",
       "lane": "claude",
       "createdAt": "2026-11-22T12:05:00-06:00",
       "instruction": "SIGUIENTE PRIORIDAD DEL USUARIO (22-nov): el apartado de WORKFLOWS. FASE 1 de 2 — copiar la UI de HubSpot a la perfección (la fase 2, la lógica, es otro ítem: gap-backend-workflows-motor-real; no la adelantes).\n\nEl módulo ya existe (ítem done automatizacion-workflows: lista en /automatizacion, editor en src/workflow-editor.js, catálogo src/workflows-data.js). El usuario tiene el HubSpot real abierto en otra pestaña (Crear workflow) y compara. Referencia: exploracion-hubspot/ y PROGRESO.md.\n\nTRABAJO — pase completo de fidelidad visual contra el HubSpot real:\n1. LISTA (/automatizacion, tab Workflows): tabs Vista general/Workflows/Análisis/Estado, «Revisar problemas de automatización» con badge, «Crear workflow» con menú (Desde cero/Desde plantilla/Con IA), vistas como chips con conteos, filtros, tabla (selección múltiple, estado publicado con punto verde, carpeta, descripción, tipo de objeto), acciones por fila, paginación. Como HubSpot, pixel a pixel.\n2. EDITOR: barra superior oscura completa (volver, nombre editable, badge, menús Archivo/Editar/Configuración/Visualización/Ayuda, Prueba, Historial del rendimiento, toggle Publicar/Desactivar), controles de canvas (deshacer/rehacer, zoom, minimapa), nodo desencadenante con grupos de condiciones OR/AND, conectores con «+» que abren el catálogo de acciones en panel lateral (buscador + grupos Comunicación/CRM/Flujo/Tareas), tarjetas de acción con icono por tipo y pie de acciones, panel derecho de configuración al hacer clic, nodo Fin.\n3. Flujo «Crear workflow»: desde cero (elegir tipo de objeto) y desde plantilla (galería como HubSpot).\n4. Todo lo que se vea debe existir y comportarse como HubSpot; si una acción aún no tiene lógica real, que al menos abra el panel correcto honestamente (sin toasts vacíos).\n5. Verifica con build local y deja capturas comparativas en el resumen del commit.\n\nTermina con: No despliegues nada a producción; solo código local.",
       "workedAt": "2026-11-22T15:43:00-0600",
-      "workedBy": "claude"
+      "workedBy": "claude",
+      "closedAt": "2026-11-25T15:15:57-06:00",
+      "closedBy": "kimi",
+      "closeNote": "OBSOLETA: el plan del 23-nov abandona la copia de HubSpot; Omni conserva su propio estilo. La UI de workflows se trabajará cuando el usuario la pida."
     },
     {
       "id": "gap-backend-workflows-motor-real",
-      "status": "review",
-      "lane": "codex",
+      "status": "backlog",
+      "lane": "claude",
       "createdAt": "2026-11-22T12:05:00-06:00",
-      "instruction": "🔁 DEVUELTA A LA COLA (22-nov 15:55, por Kimi tras revisar la evidencia): la cerraste con trabajo de UI (automation/create, workflow-create.js, app.css) cuando este ítem es de BACKEND — el motor real NO se implementó: src/workflow-engine.js ni se tocó. Además, por las nuevas reglas del usuario tú no haces UI ni cierras tareas. Ahora sí, ejecuta los 5 puntos de abajo (triggers reales, acciones que mutan, procesamiento, historial real, smoke). La UI que ya hiciste se queda (la revisa Claude en su ítem gap-ui-workflows-fidelidad-hubspot); si notas que falta algo visual, crea un ítem gap-ui-* para Claude en vez de tocar UI.\n\nREGLA DE DEPENDENCIA: la FASE 1 (gap-ui-workflows-fidelidad-hubspot) debe estar «done» antes de trabajar esto. Si NO lo está: deja este ítem «pending», NO lo cierres, NO lo tomes, y termina tu ronda sin tocarlo.\n\nWORKFLOWS FASE 2 de 2 (empieza SOLO cuando gap-ui-workflows-fidelidad-hubspot esté done; si sigue pending o en curso, toma otro ítem y vuelve después): la LÓGICA real de workflows. El usuario pidió «primero la UI y luego lo demás».\n\nYa hay un MVP (src/workflow-engine.js, src/workflows-data.js, docs/workflow-process.md): inscripción, runs, pasos básicos. Llévalo a nivel HubSpot:\n1. TRIGGERS REALES: evaluar las condiciones de inscripción cuando un registro cambia (no solo al inscribir manual): escuchar creaciones y ediciones de los 4 objetos e inscribir a quien cumpla; respetar el toggle de reinscripción.\n2. ACCIONES QUE MUTAN DE VERDAD: editar registro, crear registro, crear tarea (aparece en Tareas y en la cronología), asignar propietario, copiar propiedad entre asociados, notificación interna (campana real), enviar correo (Gmail conectado), retraso real (próxima ejecución), rama if/then evaluando propiedades.\n3. PROCESAMIENTO: al cargar la app y cada minuto con la app abierta, procesar los runs vencidos; registrar cada acción en la cronología del registro y en el historial del workflow.\n4. Historial del rendimiento REAL: inscripciones, acciones ejecutadas, errores, tabla de inscritos con estado; desinscripción al terminar o al dejar de cumplir.\n5. Prueba smoke: workflow «propiedad cambia → retraso → tarea + notificación» se ejecuta completo contra Supabase de prueba y queda rastro en cronología e historial.\n\nTermina con: No despliegues nada a producción; solo código local.",
+      "instruction": "🔁 DEVUELTA A LA COLA (22-nov 15:55, por Kimi tras revisar la evidencia): la cerraste con trabajo de UI (automation/create, workflow-create.js, app.css) cuando este ítem es de BACKEND — el motor real NO se implementó: src/workflow-engine.js ni se tocó. Además, por las nuevas reglas del usuario tú no haces UI ni cierras tareas. Ahora sí, ejecuta los 5 puntos de abajo (triggers reales, acciones que mutan, procesamiento, historial real, smoke). La UI que ya hiciste se queda (la revisa Claude en su ítem gap-ui-workflows-fidelidad-hubspot); si notas que falta algo visual, crea un ítem gap-ui-* para Claude en vez de tocar UI.\n\nREGLA DE DEPENDENCIA: la FASE 1 (gap-ui-workflows-fidelidad-hubspot) debe estar «done» antes de trabajar esto. Si NO lo está: deja este ítem «pending», NO lo cierres, NO lo tomes, y termina tu ronda sin tocarlo.\n\nWORKFLOWS FASE 2 de 2 (empieza SOLO cuando gap-ui-workflows-fidelidad-hubspot esté done; si sigue pending o en curso, toma otro ítem y vuelve después): la LÓGICA real de workflows. El usuario pidió «primero la UI y luego lo demás».\n\nYa hay un MVP (src/workflow-engine.js, src/workflows-data.js, docs/workflow-process.md): inscripción, runs, pasos básicos. Llévalo a nivel HubSpot:\n1. TRIGGERS REALES: evaluar las condiciones de inscripción cuando un registro cambia (no solo al inscribir manual): escuchar creaciones y ediciones de los 4 objetos e inscribir a quien cumpla; respetar el toggle de reinscripción.\n2. ACCIONES QUE MUTAN DE VERDAD: editar registro, crear registro, crear tarea (aparece en Tareas y en la cronología), asignar propietario, copiar propiedad entre asociados, notificación interna (campana real), enviar correo (Gmail conectado), retraso real (próxima ejecución), rama if/then evaluando propiedades.\n3. PROCESAMIENTO: al cargar la app y cada minuto con la app abierta, procesar los runs vencidos; registrar cada acción en la cronología del registro y en el historial del workflow.\n4. Historial del rendimiento REAL: inscripciones, acciones ejecutadas, errores, tabla de inscritos con estado; desinscripción al terminar o al dejar de cumplir.\n5. Prueba smoke: workflow «propiedad cambia → retraso → tarea + notificación» se ejecuta completo contra Supabase de prueba y queda rastro en cronología e historial.\n\nTermina con: No despliegues nada a producción; solo código local.\n\n[TRIAJE Kimi 25-nov] Sin evidencia; Codex hizo UI en vez del motor. Re-encarrilada a Claude (único constructor desde el 23-nov). El motor real de workflows sigue pendiente: triggers reales, acciones que mutan, procesamiento, historial real y smoke. Es prioridad del usuario trabajar workflows; coordinar con él antes de empezar.",
       "workedAt": "2026-11-22T15:59:59-0600",
       "workedBy": "codex"
     },
@@ -2412,47 +2451,62 @@
     {
       "id": "gap-backend-re-contactos-duplicados-sexta",
       "lane": "codex",
-      "status": "review",
+      "status": "done",
       "createdAt": "2026-11-23T00:01:48-06:00",
       "instruction": "RE-APERTURA (sexta vez; calidad de datos ALTA). Cinco ítems done (gap-backend-contactos-duplicados-doble-seed, gap-backend-re-contactos-duplicados-vivos, gap-backend-re-contactos-duplicados-77, gap-backend-re-contactos-duplicados-77-vivos, gap-backend-re-contactos-duplicados-77-quinta) y el problema SIGUE IDÉNTICO. Evidencia SQL en vivo (23-nov 00:00 CST, mgmt-sql): select lower(email), count(*) from contacts where email is not null and email<>'' and deleted_at is null group by lower(email) having count(*)>1 → 77 grupos ×2 filas (154 filas de más; ej. alicia.ruiz@cerramientosbajio.com ids 5/305, alvaro.serrano@fachadaspradosl.com ids 10/310, ana.ruiz@cristalesnorte.com ids 1/301); contacts=423 y papelera=0 (nadie ejecutó la fusión). El ítem quinta se cerró done 4 minutos después de crearse (05:37→05:41) sin evidencia en docs/evidencia/ (el directorio ni existe). Consecuencias vivas: falsos «Posibles duplicados» en el panel de crear, deals/tickets asociados a copias distintas, informes inflados y el índice único de supabase/contact-integrity.sql bloqueado ('pospuesta_calidad_datos'). Hacer DE VERDAD contra la base: (1) fusionar los 77 pares con mergeRecords de src/data.js o scripts/dedupe-contacts.mjs por SQL transaccional — conservar la fila con más datos, reapuntar deals.contact_id, tickets.contact_id, contact_companies.contact_id, activities.record_id, tasks y sequence_enrollments, copias a la papelera (deleted_at, NUNCA borrado físico); (2) NO cerrar hasta que la consulta devuelva 0 grupos y 0 FKs huérfanas; (3) dejar evidencia en docs/evidencia/gap-backend-re-contactos-duplicados-sexta/ con el antes/después del SQL. Criterio de aceptación: 0 grupos de emails duplicados vivos, 0 referencias a ids suprimidos, copias restaurables en la papelera. No despliegues nada a producción; solo código local.",
       "workedAt": "2026-11-23T00:12:35-0600",
-      "workedBy": "codex"
+      "workedBy": "codex",
+      "closedAt": "2026-11-25T15:15:57-06:00",
+      "closedBy": "kimi",
+      "closeNote": "SUPERSEDIDA: sigue fallando (verificado por Kimi en vivo 25-nov). El trabajo continúa consolidado en consolidada-contactos-duplicados con el régimen nuevo (base de prueba + aprobación del usuario para tocar la real)."
     },
     {
       "id": "gap-backend-re-account-settings-rls-vivo",
       "lane": "codex",
-      "status": "review",
+      "status": "done",
       "createdAt": "2026-11-23T00:01:48-06:00",
       "instruction": "RE-APERTURA de gap-backend-account-settings-rls-layouts (cerrado done 22-nov 05:46): la personalización COMPARTIDA sigue rota. Evidencia en vivo (23-nov): (1) account_settings tiene 0 filas; (2) las políticas RLS vigentes siguen siendo solo account_settings_read (SELECT true) y account_settings_admin (exige auth.jwt()->'app_metadata'->>'role'='admin'); (3) el único usuario real fernando-lovera@megaglass.us sigue con raw_app_meta_data->>'role'=NULL (su rol admin vive en team_members.role, que la política NO consulta); (4) SMOKE_LIVE=1 node scripts/smoke-record-customize.mjs FALLÓ hoy con «new row violates row-level security policy for table account_settings» (42501) en el guardado de diseño compartido; (5) applied-migrations.json registra supabase/account-settings-team.sql como 'pendiente' («Solo código local; no aplicada en remoto») pese a ser el reemplazo decidido de account-settings-authenticated.sql ('sustituida'). Consecuencia: «Aplicar a todos los usuarios de la cuenta», las vistas de equipo y los layouts compartidos de layout-defaults.js (scope global) terminan en rechazo RLS o se pierden al recargar. Corrección: aplicar supabase/account-settings-team.sql contra la base real (escritura con is_team_member() y scope='account', lectura autenticada), verificar que la política aparece en pg_policies, registrar la aplicación con fecha en applied-migrations.json, y hacer pasar SMOKE_LIVE=1 scripts/smoke-record-customize.mjs. Criterio de aceptación: el smoke live pasa, account_settings acepta y devuelve una fila de prueba escrita por un miembro no-admin del JWT, y applied-migrations.json refleja la aplicación real. No despliegues nada a producción; solo código local.",
       "workedAt": "2026-11-23T00:17:00-0600",
-      "workedBy": "codex"
+      "workedBy": "codex",
+      "closedAt": "2026-11-25T15:15:57-06:00",
+      "closedBy": "kimi",
+      "closeNote": "SUPERSEDIDA: sigue fallando (verificado por Kimi en vivo 25-nov). El trabajo continúa consolidado en consolidada-account-settings-rls-vivo con el régimen nuevo (base de prueba + aprobación del usuario para tocar la real)."
     },
     {
       "id": "gap-backend-bootstrap-demo-rpc-ausente",
       "lane": "codex",
-      "status": "review",
+      "status": "done",
       "createdAt": "2026-11-23T00:01:48-06:00",
       "instruction": "PÉRDIDA SILENCIOSA EN BASE VACÍA (ALTA). src/data.js:2886-2893 (seedAll) llama supabase.rpc('bootstrap_demo_v1', { payload }) y el comentario dice «Never fall back to client-side inserts when the RPC/migration is unavailable» — pero la función NO EXISTE en la base: select proname from pg_proc where proname like 'bootstrap%' → solo existe is_team_member; y applied-migrations.json marca supabase/bootstrap-demo.sql como 'pendiente' («Solo código local; no aplicada en remoto»). Camino del fallo: initFromSupabase (src/data.js:3126-3131) llama seedAll() cuando contacts y companies están vacías → la RPC falla → el catch de 3136 apaga dbLive y la app trabaja en modo demo localStorage SIN aviso: todo lo que el usuario cree ahí no persiste en Supabase. Es además la mitad nunca aplicada del fix de idempotencia de seeds que los ítems de duplicados daban por hecho (el advisory lock vive dentro de bootstrap-demo.sql). Corrección: (1) aplicar supabase/bootstrap-demo.sql con la cuenta de servicio y verificar select proname from pg_proc → bootstrap_demo_v1 presente; (2) registrar la aplicación con fecha en applied-migrations.json; (3) probar el camino de base vacía (o documentar con SQL por qué no se puede) y confirmar que dos arranques concurrentes producen una sola siembra; (4) si la RPC sigue sin poder aplicarse, seedAll debe degradar con aviso explícito en UI, no con silencio. Criterio de aceptación: bootstrap_demo_v1 existe en pg_proc, applied-migrations.json lo refleja, y un arranque contra base vacía siembra una sola vez sin duplicados. No despliegues nada a producción; solo código local.",
       "workedAt": "2026-11-23T00:23:04-0600",
-      "workedBy": "codex"
+      "workedBy": "codex",
+      "closedAt": "2026-11-25T15:15:57-06:00",
+      "closedBy": "kimi",
+      "closeNote": "SUPERSEDIDA: sigue fallando (verificado por Kimi en vivo 25-nov). El trabajo continúa consolidado en consolidada-bootstrap-demo-rpc-ausente con el régimen nuevo (base de prueba + aprobación del usuario para tocar la real)."
     },
     {
       "id": "gap-backend-companies-domain-sin-indice",
       "lane": "codex",
-      "status": "review",
+      "status": "done",
       "createdAt": "2026-11-23T00:01:48-06:00",
       "instruction": "INTEGRACIÓN DE DATOS (MEDIA): companies no tiene índice por dominio pese a ser LA columna de dedupe de las importaciones de empresas (uniqueKey 'domain', src/import-engine.js:21) y de la auto-asociación contacto↔empresa por dominio del correo (companiesByDomain, src/data.js:2187). Evidencia SQL en vivo (23-nov): pg_indexes de companies = companies_pkey (id), companies_user_id_idx, companies_deleted_at_idx (parcial), companies_parent_company_id_idx — nada por domain. El par de contacts ya se hizo (contacts_email_idx sobre lower(email) WHERE deleted_at IS NULL, verificado en pg_indexes), y el ítem cerrado gap-backend-contacts-email-sin-indice solo cubrió contacts. Hoy son 39 empresas, pero el dedupe de importación hace fetchTable completo + barrido en memoria por cada fila importada; a miles de empresas cada importación deja de ser viable. Corrección: crear la migración con create index if not exists companies_domain_idx on public.companies (lower(domain)) where deleted_at is null (mismo patrón parcial que contacts_email_idx, excluye papelera), aplicarla con scripts/apply-migration.mjs, registrarla en applied-migrations.json y verificar con EXPLAIN una búsqueda por lower(domain). Ojo: si contact-integrity.sql ya incluye algo para companies, coordinar con su desbloqueo (sigue 'pospuesta_calidad_datos' por los 77 duplicados de contacts). Criterio de aceptación: pg_indexes muestra el índice de dominio en companies y EXPLAIN lo usa. No despliegues nada a producción; solo código local.",
       "workedAt": "2026-11-23T00:26:58-0600",
-      "workedBy": "codex"
+      "workedBy": "codex",
+      "closedAt": "2026-11-25T15:15:57-06:00",
+      "closedBy": "kimi",
+      "closeNote": "SUPERSEDIDA: sigue fallando (verificado por Kimi en vivo 25-nov). El trabajo continúa consolidado en consolidada-companies-domain-sin-indice con el régimen nuevo (base de prueba + aprobación del usuario para tocar la real)."
     },
     {
       "id": "gap-backend-import-e2e-regla-dominio-flake",
       "lane": "codex",
-      "status": "review",
+      "status": "done",
       "createdAt": "2026-11-23T00:01:48-06:00",
       "instruction": "IMPORTACIÓN INTERMITENTE + RESIDUO EN LA BASE REAL (MEDIA-BAJA). SMOKE_LIVE=1 node scripts/smoke-import-e2e.mjs falló la primera corrida de anoche (22-nov ~23:20 CST) en el check «contacts: rows without a known company were linked by the e-mail-domain rule» (scripts/smoke-import-e2e.mjs:221) y pasó completo en la segunda corrida idéntica — la regla de auto-asociación por dominio del correo (autoAssociateCompany, src/data.js:2203, invocada desde afterAdd 1589 con waitForSave) es no determinista bajo condiciones live (posible carrera entre el setField encolado en background de linkContactToCompany y la relectura del registro, o una instancia de contacto distinta a la mutada). Además la limpieza del smoke deja residuo EN LA BASE REAL: ahora mismo hay 2 empresas SMOKE vivas (id 47 smoke-mws26j9p-aluminios-centro.com con hs_import_ids=1795365487574, e id 56 smoke-mwsuhpme-aluminios-centro.com con hs_import_ids=1795413053517 — esta última de la corrida que SÍ pasó, pese al log «limpieza extra: empresas creadas por la regla de dominio… eliminados»). Ese residuo contamina corridas futuras y es una fuente plausible del flake (companiesBefore / companiesByDomain ven empresas de corridas anteriores). Corrección: (1) ejecutar el smoke live 3-5 veces seguidas y capturar el estado interno cuando falle el check (qué companyId recibió cada noCompanyRow y por qué), (2) corregir la carrera (p. ej. que runImport espere dbIdle() antes de reportar DONE, o que el check lea el registro fresco), (3) hacer la limpieza del smoke exhaustiva: borrar TODA empresa/contacto con hs_import_ids de la corrida o dominio smoke-*, incluidas las creadas por la regla de dominio; (4) eliminar las 2 empresas residuales actuales (ids 47 y 56, a la papelera). Criterio de aceptación: 5 corridas live consecutivas en verde y 0 filas SMOKE en companies/contacts al terminar. No despliegues nada a producción; solo código local.",
       "workedAt": "2026-11-23T00:48:07-0600",
-      "workedBy": "codex"
+      "workedBy": "codex",
+      "closedAt": "2026-11-25T15:15:57-06:00",
+      "closedBy": "kimi",
+      "closeNote": "Evidencia sólida: 5 corridas live consecutivas PASS, contrapruebas de regresión, auditoría final 0 residuo. Cierro."
     },
     {
       "id": "gap-ui-topbar-asistente-envuelve-1280",
@@ -2585,20 +2639,26 @@
     {
       "id": "gap-backend-re-secuencias-ejecutor-ausente",
       "lane": "codex",
-      "status": "review",
+      "status": "done",
       "createdAt": "2026-11-23T03:43:33-06:00",
       "instruction": "SIGUE FALLANDO (comunicaciones, ALTA) — tercera ronda. gap-backend-secuencias-sin-procesador (done 20-nov) y gap-backend-re-secuencias-produccion-congelada (done 21-nov) dejaron construidos la función, el scheduler y el backfill, pero en la base viva las secuencias NUNCA se han ejecutado. Medición 23-nov-2026 ~03:15 CST vía scripts/mgmt-sql.mjs: 26 inscripciones con status='active' y las 26 tienen next_step_at vencido (mínima 2026-11-09 06:00 UTC, ~14 días); sequence_step_runs existe pero tiene 0 filas (ningún paso procesado jamás); applied-migrations.json marca sequence-process.sql aplicada (RPCs sequence_due/claim/finish/complete_task verificadas 22-nov) pero su propia nota admite «La función sequence-process sigue sin desplegar»; no hay pg_cron en pg_extension y el scheduler (scripts/sequence-scheduler.mjs → scripts/local-scheduler.mjs) es un bucle local opt-in que nadie mantiene corriendo: en producción no existe invocador. Impacto: los contactos reales inscritos en secuencias dejaron de recibir pasos en silencio desde el 9-nov. Qué falta construir (todo local, sin desplegar): (1) migración supabase/sequence-cron.sql que programe la invocación periódica de la función sequence-process (pg_cron + pg_net, o el mecanismo nativo de Supabase para cron de edge functions), idempotente y con rollback documentado, lista para que el usuario la aplique; (2) scripts/sequence-activate.mjs de un solo comando que: verifique si la función está desplegada (y falle con la instrucción exacta si no), ejecute el backfill de scripts/sequence-backfill.mjs contra el proyecto remoto con el opt-in de entorno ya construido, y confirme por SQL que las 26 inscripciones quedan con next_step_at futuro; (3) docs/sequence-process.md actualizado con el estado real (función sin desplegar, sin cron, 26 congeladas) y el runbook de un solo paso. Criterio de aceptación: tras la activación autorizada por el usuario, SELECT en la base viva muestra 0 inscripciones active con next_step_at < now() - interval '1 day', sequence_step_runs registra los pasos ejecutados, y existe un invocador persistente verificado (fila en cron.job o log del scheduler). No despliegues nada a producción; solo código local.",
       "workedAt": "2026-11-23T03:53:14-0600",
-      "workedBy": "codex"
+      "workedBy": "codex",
+      "closedAt": "2026-11-25T15:15:57-06:00",
+      "closedBy": "kimi",
+      "closeNote": "SUPERSEDIDA: sigue fallando (verificado por Kimi en vivo 25-nov). El trabajo continúa consolidado en consolidada-secuencias-ejecutor-ausente con el régimen nuevo (base de prueba + aprobación del usuario para tocar la real)."
     },
     {
       "id": "gap-backend-re-import-smoke-residuo-actividades",
       "lane": "codex",
-      "status": "review",
+      "status": "done",
       "createdAt": "2026-11-23T03:43:33-06:00",
       "instruction": "RE-APERTURA parcial de gap-backend-import-e2e-regla-dominio-flake (en review): la limpieza mejorada del smoke sigue dejando ACTIVIDADES huérfanas en la base real. Evidencia 23-nov-2026 ~03:20 CST vía scripts/mgmt-sql.mjs: (1) activities id 1045 (type='system', «Empresa creado a partir de Importación.», occurred_at 2026-11-23 06:33:08 UTC) apunta a record_id=65 — esa empresa ya NO existe físicamente (creada durante las corridas live del propio ítem y borrada físicamente minutos después; no está ni en papelera); (2) activities 522 y 868 (mismo texto, 22-nov 16:38:09 UTC y 23-nov 05:50:57 UTC) apuntan a las empresas SMOKE 47 y 56, en papelera desde las 06:32:34 UTC. La evidencia del ítem (docs/evidencia/gap-backend-import-e2e-regla-dominio-flake/README.md) afirma que import-smoke-cleanup.mjs «limpia asociaciones y actividades en la misma transacción y verifica cero coincidencias por SQL» — contradicho por estas 3 filas: la actividad «Empresa creado» se encola vía data.js y puede escribirse DESPUÉS de la transacción de limpieza (carrera), o la consulta de verificación no incluye activities. Corrección: en scripts/import-smoke-cleanup.mjs (a) drenar la cola de escrituras (dbIdle() hasta cola estable) ANTES de borrar, (b) eliminar las activities de los registros de la corrida (record_type/record_id) en la misma transacción, (c) incluir activities en la verificación SQL de cero residuos, y (d) limpiar las 3 filas huérfanas existentes (522, 868, 1045) respetando la instrucción del usuario de conservar las empresas 47/56 físicamente en papelera (solo se borran actividades, no las empresas). Criterio de aceptación: tras 3 corridas live del smoke, SELECT de activities con record_type='companies' cuyo record_id no exista en companies (activa o en papelera) devuelve 0, y la verificación del cleanup hace fallar la corrida si queda cualquier actividad residual. No despliegues nada a producción; solo código local.",
       "workedAt": "2026-11-23T04:09:43-0600",
-      "workedBy": "codex"
+      "workedBy": "codex",
+      "closedAt": "2026-11-25T15:15:57-06:00",
+      "closedBy": "kimi",
+      "closeNote": "Verificado en vivo 25-nov: activities 522, 868 y 1045 ya no existen. 0 huérfanas."
     },
     {
       "id": "gap-ui-listas-tabla-desborda-defecto",
@@ -2658,30 +2718,36 @@
     },
     {
       "id": "gap-backend-re-ultima-actividad-backfill",
-      "lane": "codex",
-      "status": "review",
+      "lane": "claude",
+      "status": "backlog",
       "createdAt": "2026-11-23T05:57:57-06:00",
-      "instruction": "RE-APERTURA parcial de gap-ui-actividades-ultima-actividad-real (done 21-nov 16:46): el camino de escritura nuevo sí funciona (verificado en vivo 23-nov 05:50 CST: el contacto 422 recibió una actividad email el 22-nov 02:17 UTC y su last_activity/last_activity_type/notes_last_contacted quedaron correctos), pero NUNCA se hizo backfill del histórico: quedan 26 registros congelados — 11 contactos, 9 empresas y 6 negocios cuya last_activity es anterior a su actividad de engagement real más reciente (medición vía scripts/mgmt-sql.mjs: contacts/companies/deals con deleted_at null donde existe activity con type in ('note','email','call','meeting','task','message') y occurred_at > last_activity). Ejemplos vivos: contacto 109 «Carmen Ruiz» last_activity 2026-11-07 type email, pero tiene 4 llamadas reales el 17-nov 18:02–18:49 UTC (activities 172,173,175,176); contacto 423 last_activity 07-nov con actividad real 19-nov 20:48; contacto 16 «Javier Garduño» congelado desde 24-ago. Consecuencia: la columna «Última actividad» de las listas, el filtro «Con actividad reciente» (src/contacts.js:50, src/companies.js:72) y los informes (src/reports.js:177) muestran fechas que jamás avanzaron para esos 26 registros. Corrección: script local scripts/backfill-last-activity.mjs que, por cada registro de contacts/companies/deals/tickets, recalcule last_activity y last_activity_type como max(occurred_at)/type de sus activities con type de engagement (mismo ENGAGEMENT_TYPES de src/data.js:2400, excluyendo system/prop/stage), y para contacts fije notes_last_contacted con el max de ('call','email','meeting','message') respetando isMarketingActivity (src/data.js:2416); ejecutar contra la base vía mgmt-sql o la cola estándar y dejar evidencia SQL del antes/después en docs/evidencia/gap-backend-re-ultima-actividad-backfill/. Criterio de aceptación: la consulta de desfase devuelve 0 en las 4 tablas y ningún registro queda con fecha posterior a su real_max (no mover hacia atrás los que ya están bien). No despliegues nada a producción; solo código local.",
+      "instruction": "RE-APERTURA parcial de gap-ui-actividades-ultima-actividad-real (done 21-nov 16:46): el camino de escritura nuevo sí funciona (verificado en vivo 23-nov 05:50 CST: el contacto 422 recibió una actividad email el 22-nov 02:17 UTC y su last_activity/last_activity_type/notes_last_contacted quedaron correctos), pero NUNCA se hizo backfill del histórico: quedan 26 registros congelados — 11 contactos, 9 empresas y 6 negocios cuya last_activity es anterior a su actividad de engagement real más reciente (medición vía scripts/mgmt-sql.mjs: contacts/companies/deals con deleted_at null donde existe activity con type in ('note','email','call','meeting','task','message') y occurred_at > last_activity). Ejemplos vivos: contacto 109 «Carmen Ruiz» last_activity 2026-11-07 type email, pero tiene 4 llamadas reales el 17-nov 18:02–18:49 UTC (activities 172,173,175,176); contacto 423 last_activity 07-nov con actividad real 19-nov 20:48; contacto 16 «Javier Garduño» congelado desde 24-ago. Consecuencia: la columna «Última actividad» de las listas, el filtro «Con actividad reciente» (src/contacts.js:50, src/companies.js:72) y los informes (src/reports.js:177) muestran fechas que jamás avanzaron para esos 26 registros. Corrección: script local scripts/backfill-last-activity.mjs que, por cada registro de contacts/companies/deals/tickets, recalcule last_activity y last_activity_type como max(occurred_at)/type de sus activities con type de engagement (mismo ENGAGEMENT_TYPES de src/data.js:2400, excluyendo system/prop/stage), y para contacts fije notes_last_contacted con el max de ('call','email','meeting','message') respetando isMarketingActivity (src/data.js:2416); ejecutar contra la base vía mgmt-sql o la cola estándar y dejar evidencia SQL del antes/después en docs/evidencia/gap-backend-re-ultima-actividad-backfill/. Criterio de aceptación: la consulta de desfase devuelve 0 en las 4 tablas y ningún registro queda con fecha posterior a su real_max (no mover hacia atrás los que ya están bien). No despliegues nada a producción; solo código local.\n\n[TRIAJE Kimi 25-nov] Su propia evidencia dice «aplicación remota pendiente, no cerrar»: 26 registros desfasados en la base real (contacts 11, companies 9, deals 6). El script scripts/backfill-last-activity.mjs --apply ya existe con transacción y validación. Ejecutar contra la base real solo con aprobación del usuario y respaldo previo; antes, prueba en base de test.",
       "workedAt": "2026-11-23T06:08:27-0600",
       "workedBy": "codex"
     },
     {
       "id": "gap-backend-re-comunicaciones-estados-residuo",
       "lane": "codex",
-      "status": "review",
+      "status": "done",
       "createdAt": "2026-11-23T05:57:57-06:00",
       "instruction": "RE-APERTURA parcial de gap-backend-re-call-status-atascadas y gap-backend-sms-queued-eterno (ambos done 21-nov): los fixes de raíz quedaron en el código (twilio-call-status v5 desplegada, twilio-message-status creada), pero el RESIDUO histórico sigue vivo y nadie lo barrió, y desde el fix no ha entrado NI UNA llamada ni SMS nuevo que valide la cura (call_logs con created_at > 21-nov 23:06 UTC = 0). Medición en vivo 23-nov 05:50 CST vía scripts/mgmt-sql.mjs: (1) 38 de 63 call_logs atascados en estados no terminales — 32 'ringing' + 6 'initiated' — con created_at entre 18-nov 23:48 y 20-nov 04:26 UTC (3-5 días sonando «para siempre» en la UI de llamadas); (2) 3 de las 18 'completed' con duration_sec NULL o 0; (3) twilio_messages: las mismas 2 filas en 'queued' desde 17-nov 17:45 y 20-nov 21:26 UTC. Qué sigue fallando: la pantalla de llamadas muestra 38 llamadas «Sonando/Iniciando» eternas y los 2 SMS como «En cola». Corrección (todo local, sin desplegar): script scripts/sweep-stuck-comms.mjs que marque call_logs en 'ringing'/'initiated' con created_at más viejo de 1 hora como 'no-answer' (o 'failed' cuando haya last_error) con una nota en extra («barrido de residuo 23-nov»), deje duration_sec=0 donde aplique, pase los twilio_messages 'queued' >1h a 'failed' con extra.notice equivalente, y deje evidencia del antes/después en docs/evidencia/gap-backend-re-comunicaciones-estados-residuo/. Además deja documentado en la evidencia cómo validar la cura en la próxima llamada real (status terminal + duration_sec > 0). Criterio de aceptación: 0 call_logs en ringing/initiated con más de 1 h, 0 SMS queued con más de 1 h, y el smoke smoke-calls.mjs sigue pasando. No despliegues nada a producción; solo código local.",
       "workedAt": "2026-11-23T06:12:57-0600",
-      "workedBy": "codex"
+      "workedBy": "codex",
+      "closedAt": "2026-11-25T15:15:57-06:00",
+      "closedBy": "kimi",
+      "closeNote": "Verificado en vivo 25-nov: 0 call_logs atascadas, 0 twilio_messages queued (antes 32+7+2)."
     },
     {
       "id": "gap-backend-crear-contacto-empresa-sin-vinculo",
       "lane": "codex",
-      "status": "review",
+      "status": "done",
       "createdAt": "2026-11-24T01:30:16-06:00",
       "instruction": "El alta manual de contactos guarda «Empresa principal» como texto libre y NUNCA crea ni vincula la empresa: la asociación contacto↔empresa se pierde. Evidencia (24-nov-2026 ~01:15 CST, scripts/mgmt-sql.mjs): el contact id 421 «Juan Prueba» (source «Creación manual», created 2026-11-07) tiene company='Vidrios y Cristales Prueba' pero company_id NULL, cero filas en contact_companies con contact_id=421, y no existe ninguna empresa con ese nombre (select id from companies where lower(name) like '%prueba%' → 0 filas). Hoy es el único contacto vivo en ese estado (count(*) where coalesce(company,'')<>'' and company_id is null → 1), pero el camino sigue abierto: el formulario genérico de creación (src/list.js:616, cfg.createFields de src/contacts.js:120-129) incluye { name: 'company', label: 'Empresa principal' } como input de texto y al guardar solo llama addRecord('contacts', …); el texto queda en contacts.company sin resolver. afterAdd/autoAssociateCompany (src/data.js ~línea 2203) solo asocia por dominio del correo, así que un nombre de empresa tecleado jamás se vincula (el 421 tiene correo gmail.com, sin dominio empresarial). Consecuencia: rollups y fichas de empresa incompletos, y un dato que parece asociado pero no lo es. Corrección: al guardar un contacto con company en texto y sin companyId (formulario genérico y cualquier otro camino de alta/edición), resolver la empresa por nombre exacto case-insensitive (y por dominio si aplica); si no existe, crearla y escribir contacts.company_id + fila contact_companies con is_primary=true. Deja además listo un script de reparación en scripts/sql/ para el contacto 421 (no lo ejecutes contra la base viva sin autorización expresa del orquestador). Criterio de aceptación: crear un contacto con «Empresa principal» nueva produce empresa + vínculo en contact_companies verificable con SQL; teclear el nombre de una empresa existente la vincula sin duplicarla; hay prueba smoke que cubre ambos casos; el script de reparación del 421 existe y es idempotente. No despliegues nada a producción; solo código local.",
       "workedAt": "2026-11-24T01:35:56-0600",
-      "workedBy": "codex"
+      "workedBy": "codex",
+      "closedAt": "2026-11-25T15:15:57-06:00",
+      "closedBy": "kimi",
+      "closeNote": "SUPERSEDIDA: sigue fallando (verificado por Kimi en vivo 25-nov). El trabajo continúa consolidado en consolidada-crear-contacto-empresa-sin-vinculo con el régimen nuevo (base de prueba + aprobación del usuario para tocar la real)."
     },
     {
       "id": "gap-ui-dint-boton-datahub-desborda",
@@ -2750,56 +2816,74 @@
     {
       "id": "gap-backend-re-contactos-duplicados-novena",
       "lane": "codex",
-      "status": "review",
+      "status": "done",
       "createdAt": "2026-11-24T05:27:49-06:00",
       "instruction": "RE-APERTURA de gap-backend-re-contactos-duplicados-octava (en review). Sigue fallando en vivo, verificado 24-nov-2026 ~05:25 CST vía scripts/mgmt-sql.mjs: 423 contactos activos, 77 grupos de email duplicado (SELECT lower(email) ... WHERE deleted_at IS NULL AND coalesce(email,'')<>'' GROUP BY 1 HAVING count(*)>1 → 77 grupos, 154 filas; ejemplos: ximena.garduno@ventanasandina.com, santiago.prieto@cerramientoscastilla.com, diego.serrano@disenorio.com, santiago.ruiz@hogariberica.com ×2) — cifras idénticas a la octava medición: la fusión autorizada NUNCA se ejecutó contra la base viva. Agravante vigente: contacts_email_idx sigue siendo NO único (pg_indexes: CREATE INDEX contacts_email_idx ON contacts (lower(email)) WHERE deleted_at IS NULL), así que cualquier alta concurrente recrea duplicados. Corrección: ejecutar la fusión transaccional contra la base real (trasladando asociaciones, actividades y custom properties al registro superviviente, papelera suave del resto) y convertir contacts_email_idx en UNIQUE parcial sobre lower(email) WHERE deleted_at IS NULL AND coalesce(email,'')<>'' tras limpiar; verificar con el mismo SELECT (debe dar 0 grupos) y registrar fecha real en applied-migrations.json. No despliegues nada a producción; solo código local.",
       "workedAt": "2026-11-24T05:32:19-0600",
-      "workedBy": "codex"
+      "workedBy": "codex",
+      "closedAt": "2026-11-25T15:15:57-06:00",
+      "closedBy": "kimi",
+      "closeNote": "SUPERSEDIDA: sigue fallando (verificado por Kimi en vivo 25-nov). El trabajo continúa consolidado en consolidada-contactos-duplicados con el régimen nuevo (base de prueba + aprobación del usuario para tocar la real)."
     },
     {
       "id": "gap-backend-re-companies-domain-sin-indice-tercera",
       "lane": "codex",
-      "status": "review",
+      "status": "done",
       "createdAt": "2026-11-24T05:27:49-06:00",
       "instruction": "RE-APERTURA de gap-backend-re-companies-domain-sin-indice-segunda (en review). Sigue fallando en vivo, verificado 24-nov-2026 ~05:20 CST vía scripts/mgmt-sql.mjs: pg_indexes de companies muestra solo companies_pkey, companies_user_id_idx, companies_deleted_at_idx y companies_parent_company_id_idx — NINGÚN índice sobre domain. El dedupe empresa↔dominio del importador (src/import-engine.js, uniqueKey 'domain' y regla de dominio en runBatchImport) y la auto-asociación contacto↔empresa por dominio del correo (src/data.js companiesByDomain) hacen barridos sin índice en la base real. Corrección: aplicar supabase/company-domain-index.sql (CREATE INDEX IF NOT EXISTS companies_domain_idx ON public.companies (lower(domain)) WHERE deleted_at IS NULL) contra la base viva, verificar su presencia con pg_indexes y registrar la aplicación real con fecha en applied-migrations.json (hoy consta como pendiente). Criterio de aceptación: pg_indexes lista companies_domain_idx y una importación de empresas con dominios repetidos deduplica sin barrido completo. No despliegues nada a producción; solo código local.",
       "workedAt": "2026-11-24T05:37:00-0600",
-      "workedBy": "codex"
+      "workedBy": "codex",
+      "closedAt": "2026-11-25T15:15:57-06:00",
+      "closedBy": "kimi",
+      "closeNote": "SUPERSEDIDA: sigue fallando (verificado por Kimi en vivo 25-nov). El trabajo continúa consolidado en consolidada-companies-domain-sin-indice con el régimen nuevo (base de prueba + aprobación del usuario para tocar la real)."
     },
     {
       "id": "gap-backend-re-account-settings-rls-vivo-cuarta",
       "lane": "codex",
-      "status": "review",
+      "status": "done",
       "createdAt": "2026-11-24T05:27:49-06:00",
       "instruction": "RE-APERTURA de gap-backend-re-account-settings-rls-vivo-tercera (en review). Sigue fallando en vivo, verificado 24-nov-2026 ~05:25 CST vía scripts/mgmt-sql.mjs: (1) pg_policies de account_settings muestra únicamente account_settings_read (SELECT) y account_settings_admin (ALL, exige JWT app_metadata role=admin que el usuario real no tiene — su rol vive en team_members.role); la política de equipo de supabase/account-settings-team.sql (escritura con is_team_member() y scope='account') NO está aplicada; (2) la tabla sigue con 0 filas. Consecuencia vigente: «Aplicar a todos los usuarios de la cuenta», vistas de equipo y layouts compartidos (src/layout-defaults.js, src/settings-store.js scope≠user) son rechazados por RLS o se pierden al recargar — la personalización de fichas no persiste entre usuarios. Corrección: aplicar supabase/account-settings-team.sql contra la base real, verificar la política nueva en pg_policies, registrar fecha real en applied-migrations.json y escribir+leer una fila de scope='account' con un usuario no-admin como prueba de aceptación. No despliegues nada a producción; solo código local.",
       "workedAt": "2026-11-24T05:41:56-0600",
-      "workedBy": "codex"
+      "workedBy": "codex",
+      "closedAt": "2026-11-25T15:15:57-06:00",
+      "closedBy": "kimi",
+      "closeNote": "SUPERSEDIDA: sigue fallando (verificado por Kimi en vivo 25-nov). El trabajo continúa consolidado en consolidada-account-settings-rls-vivo con el régimen nuevo (base de prueba + aprobación del usuario para tocar la real)."
     },
     {
       "id": "gap-backend-re-tickets-empresa-sin-backfill",
       "lane": "codex",
-      "status": "review",
+      "status": "done",
       "createdAt": "2026-11-24T05:27:49-06:00",
       "instruction": "RE-APERTURA de gap-backend-tickets-empresa-sin-backfill (en review). Sigue fallando en vivo, verificado 24-nov-2026 ~05:25 CST vía scripts/mgmt-sql.mjs: 74 tickets vivos con contact_id cuyo contacto SÍ tiene empresa principal en contact_companies siguen con extra->>'companyId' y extra->'assoc_companies' vacíos (misma consulta y mismo conteo 74 que el reporte original — el backfill nunca se ejecutó contra la base real; solo existe scripts/backfill-ticket-company.mjs sin aplicar). Consecuencia visible: la tarjeta Empresas de la ficha de ticket (src/record.js:154 lee solo lo persistido) muestra cero empresas en esos 74 tickets. Corrección: ejecutar el backfill transaccional contra la base viva poblando extra->>'companyId' y extra->'assoc_companies' desde la empresa principal del contacto (contact_companies.is_primary), verificar con la misma consulta (debe dar 0) y documentar fecha real de ejecución. No despliegues nada a producción; solo código local.",
       "workedAt": "2026-11-24T05:46:42-0600",
-      "workedBy": "codex"
+      "workedBy": "codex",
+      "closedAt": "2026-11-25T15:15:57-06:00",
+      "closedBy": "kimi",
+      "closeNote": "Verificado en vivo 25-nov: 0. El backfill ya se aplicó."
     },
     {
       "id": "gap-backend-re-deals-perdidos-fecha-cierre-futura",
       "lane": "codex",
-      "status": "review",
+      "status": "done",
       "createdAt": "2026-11-24T05:27:49-06:00",
       "instruction": "RE-APERTURA de gap-backend-deals-perdidos-fecha-cierre-futura (en review). Sigue fallando y EMPEORÓ en vivo, verificado 24-nov-2026 ~05:25 CST vía scripts/mgmt-sql.mjs: 20 negocios vivos en etapas con probabilidad 0 tienen close_date FUTURA (antes 14; consulta: deals d con deleted_at null, close_date > now()+interval '2 days' y EXISTS pipeline_stages ps con ps.clave=d.stage AND ps.probabilidad=0 → 20; ejemplos: id 87 'Mampara de baño Interiores Sierra' lost 2027-03-05, id 136 lost 2027-03-02, id 24 lost 2027-02-14, id 73 lost 2027-02-11, id 122 lost 2027-02-08). Un negocio perdido con fecha de cierre futura contradice la semántica de cierre y distorsiona previsión y reportes; el incremento 14→20 sugiere que el camino que fija close_date al transitar a perdido (gap-ui-negocios-fecha-cierre-automatica, done) no cubre algún alta o cambio de etapa vigente. Corrección: script de normalización (close_date = fecha real de transición a etapa probabilidad 0, o updated_at si no consta) aplicado contra la base real + revisar y cerrar el camino que sigue admitiendo close_date futura en etapa perdida; verificar con la misma consulta (debe dar 0). No despliegues nada a producción; solo código local.",
       "workedAt": "2026-11-24T05:54:21-0600",
-      "workedBy": "codex"
+      "workedBy": "codex",
+      "closedAt": "2026-11-25T15:15:57-06:00",
+      "closedBy": "kimi",
+      "closeNote": "SUPERSEDIDA: sigue fallando (verificado por Kimi en vivo 25-nov). El trabajo continúa consolidado en consolidada-deals-perdidos-fecha-cierre-futura con el régimen nuevo (base de prueba + aprobación del usuario para tocar la real)."
     },
     {
       "id": "gap-backend-re-crear-contacto-empresa-sin-vinculo",
       "lane": "codex",
-      "status": "review",
+      "status": "done",
       "createdAt": "2026-11-24T05:27:49-06:00",
       "instruction": "RE-APERTURA de gap-backend-crear-contacto-empresa-sin-vinculo (en review). Sigue fallando en vivo, verificado 24-nov-2026 ~05:25 CST vía scripts/mgmt-sql.mjs: el contact id 421 'Juan Prueba' (source 'Creación manual') conserva company='Vidrios y Cristales Prueba' con company_id NULL y cero filas en contact_companies (count(*) de contacts con coalesce(company,'')<>'' AND company_id IS NULL → 1, igual que en el reporte original). El camino sigue abierto: el formulario genérico (src/list.js:616, cfg.createFields de src/contacts.js:120-129) guarda 'Empresa principal' como texto libre con addRecord('contacts', …) sin crear ni vincular la empresa — la asociación contacto↔empresa se pierde en cada alta manual. Corrección: al guardar un contacto con empresa en texto, resolver o crear la empresa (dedupe por nombre/dominio) y escribir contact_companies con is_primary + contacts.company_id; reparar el contacto 421; verificar que la consulta anterior da 0 y que una alta manual nueva crea el vínculo real. No despliegues nada a producción; solo código local.",
       "workedAt": "2026-11-24T05:57:29-0600",
-      "workedBy": "codex"
+      "workedBy": "codex",
+      "closedAt": "2026-11-25T15:15:57-06:00",
+      "closedBy": "kimi",
+      "closeNote": "SUPERSEDIDA: sigue fallando (verificado por Kimi en vivo 25-nov). El trabajo continúa consolidado en consolidada-crear-contacto-empresa-sin-vinculo con el régimen nuevo (base de prueba + aprobación del usuario para tocar la real)."
     },
     {
       "id": "gap-ui-selects-nativos-residuales",
@@ -2888,6 +2972,69 @@
       "closedAt": "2026-11-25T14:42:30-06:00",
       "closedBy": "kimi",
       "closeNote": "Evidencia verificada: map y user-add en ACT_ICONS, deal reemplazado por apreton de manos en todos sus usos (list.js, record.js, settings.js, empty-state.js), DESIGN.md actualizado (catalogo 68), rejilla 20/16/13 verificada en claro/oscuro/acento. 138/140 pruebas (2 de Bandeja pendientes de aprobacion previa). Ninguna captura base cambio."
+    },
+    {
+      "id": "consolidada-contactos-duplicados",
+      "status": "backlog",
+      "lane": "claude",
+      "created": "2026-11-25",
+      "title": "Consolidada: fusión de contactos duplicados + índice único",
+      "instruction": "CONSOLIDADA por Kimi (25-nov) de 4 rondas fallidas de Codex. Medición de HOY en la base real: 77 grupos de email duplicado (154 filas) y contacts_email_idx sigue SIN ser único. La fusión nunca se ejecutó contra la base viva.\nTRABAJO: (1) script de fusión transaccional (asociaciones, actividades y custom properties al superviviente; papelera suave del resto); (2) migración que convierte contacts_email_idx en UNIQUE parcial sobre lower(email) WHERE deleted_at IS NULL AND coalesce(email,'')<>''.\nRÉGIMEN NUEVO (obligatorio): probar todo contra base de datos de PRUEBA; la fusión borra datos reales → PROHIBIDO ejecutarla contra la base real sin aprobación explícita del usuario y respaldo previo. Entrega: scripts + migración + pruebas + evidencia de la prueba en base de test. Aceptación (cuando el usuario autorice ejecutar): el SELECT de grupos duplicados da 0.",
+      "createdAt": "2026-11-25T15:15:57-06:00"
+    },
+    {
+      "id": "consolidada-account-settings-rls-vivo",
+      "status": "backlog",
+      "lane": "claude",
+      "created": "2026-11-25",
+      "title": "Consolidada: política RLS de equipo para account_settings",
+      "instruction": "CONSOLIDADA por Kimi (25-nov) de 4 rondas fallidas. Medición de HOY: pg_policies de account_settings solo tiene account_settings_read y account_settings_admin (exige rol admin que el usuario real no tiene); la política de equipo de supabase/account-settings-team.sql NO está aplicada; la tabla tiene 0 filas. Consecuencia: «aplicar a todos los usuarios», vistas de equipo y layouts compartidos son rechazados por RLS.\nTRABAJO: revisar supabase/account-settings-team.sql, convertirla en migración, probarla en base de PRUEBA con un usuario no-admin (escribir+leer scope='account'). Aplicar a la base real solo con aprobación del usuario y respaldo previo. Aceptación: política visible en pg_policies y prueba de aceptación con usuario no-admin.",
+      "createdAt": "2026-11-25T15:15:57-06:00"
+    },
+    {
+      "id": "consolidada-companies-domain-sin-indice",
+      "status": "backlog",
+      "lane": "claude",
+      "created": "2026-11-25",
+      "title": "Consolidada: índice companies_domain_idx",
+      "instruction": "CONSOLIDADA por Kimi (25-nov) de 4 rondas fallidas. Medición de HOY: pg_indexes de companies NO incluye ningún índice sobre domain. El dedupe del importador y la auto-asociación contacto↔empresa hacen barridos completos.\nTRABAJO: migración con CREATE INDEX IF NOT EXISTS companies_domain_idx ON public.companies (lower(domain)) WHERE deleted_at IS NULL (ya existe supabase/company-domain-index.sql). No es destructiva. Probar en base de prueba; aplicar a la real con aprobación del usuario. Aceptación: pg_indexes lo lista.",
+      "createdAt": "2026-11-25T15:15:57-06:00"
+    },
+    {
+      "id": "consolidada-bootstrap-demo-rpc-ausente",
+      "status": "backlog",
+      "lane": "claude",
+      "created": "2026-11-25",
+      "title": "Consolidada: aplicar RPC bootstrap_demo_v1",
+      "instruction": "CONSOLIDADA por Kimi (25-nov) de 3 rondas fallidas. Medición de HOY: pg_proc tiene commit_app_sync e is_team_member pero NO bootstrap_demo_v1; applied-migrations.json la mantiene pendiente. El bootstrap demo falla en cada arranque (PGRST202) y el aviso al usuario (gap-ui-bootstrap-demo-aviso-explicito) sigue en backlog.\nTRABAJO: migración con ÚNICAMENTE supabase/bootstrap-demo.sql (nunca schema.sql ni vaciar tablas). Probar en base de prueba; aplicar a la real con aprobación del usuario. Aceptación: bootstrap_demo_v1 en pg_proc y llamada autenticada OK.",
+      "createdAt": "2026-11-25T15:15:57-06:00"
+    },
+    {
+      "id": "consolidada-secuencias-ejecutor-ausente",
+      "status": "backlog",
+      "lane": "claude",
+      "created": "2026-11-25",
+      "title": "Consolidada: activar el ejecutor de secuencias",
+      "instruction": "CONSOLIDADA por Kimi (25-nov) de varias rondas. Medición de HOY: 26 sequence_enrollments activas con next_step_at vencido (la más vieja del 9-nov), sequence_step_runs con 0 filas, cron omni-sequence-process existe pero active=false y nunca ha corrido. La herramienta scripts/sequence-activate.mjs --yes ya existe y la propia evidencia anterior exige AUTORIZACIÓN DEL OPERADOR.\nTRABAJO: preparar despliegue de la función sequence-process, configuración de Vault/pg_net si falta y plan de activación; probar en base de prueba. Ejecutar contra el proyecto real SOLO con autorización explícita del usuario. Aceptación: 0 activas vencidas >1 día y sequence_step_runs con filas.",
+      "createdAt": "2026-11-25T15:15:57-06:00"
+    },
+    {
+      "id": "consolidada-deals-perdidos-fecha-cierre-futura",
+      "status": "backlog",
+      "lane": "claude",
+      "created": "2026-11-25",
+      "title": "Consolidada: normalizar close_date de negocios perdidos",
+      "instruction": "CONSOLIDADA por Kimi (25-nov) de 2 rondas. Medición de HOY: 20 negocios vivos en etapas con probabilidad 0 tienen close_date FUTURA (iba en aumento: 14→20), así que algún camino sigue admitiéndolo.\nTRABAJO: (1) encontrar y cerrar el camino de código que deja close_date futura al pasar a etapa perdida (revisar altas y cambios de etapa); (2) script de normalización (close_date = fecha real de transición o updated_at). Probar en base de prueba; aplicar a la real con aprobación del usuario (modifica datos reales). Aceptación: la consulta da 0 y pruebas automáticas cubren el camino cerrado.",
+      "createdAt": "2026-11-25T15:15:57-06:00"
+    },
+    {
+      "id": "consolidada-crear-contacto-empresa-sin-vinculo",
+      "status": "backlog",
+      "lane": "claude",
+      "created": "2026-11-25",
+      "title": "Consolidada: alta manual de contacto debe vincular empresa",
+      "instruction": "CONSOLIDADA por Kimi (25-nov) de 2 rondas. Medición de HOY: sigue habiendo 1 contacto con empresa como texto y company_id NULL (id 421 'Juan Prueba'), y el formulario genérico (src/list.js:616 + src/contacts.js:120-129) sigue guardando 'Empresa principal' como texto libre sin crear ni vincular la empresa.\nTRABAJO: al guardar un contacto con empresa en texto, resolver o crear la empresa (dedupe por nombre/dominio) y escribir contact_companies con is_primary + contacts.company_id; prueba automática del flujo completo en base de prueba. Reparación del contacto 421 contra la base real solo con aprobación del usuario. Aceptación: alta manual nueva crea el vínculo real y la consulta de huérfanos da 0.",
+      "createdAt": "2026-11-25T15:15:57-06:00"
     }
   ]
 }
