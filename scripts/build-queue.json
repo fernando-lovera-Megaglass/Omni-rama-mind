@@ -3038,12 +3038,14 @@
     },
     {
       "id": "user-papelera-buscador-interno",
-      "status": "pending",
+      "status": "review",
       "lane": "claude",
       "created": "2026-11-25",
       "title": "Papelera: buscador interno (la barra superior queda bloqueada con el panel abierto)",
       "instruction": "BUG REPORTADO POR EL USUARIO (25-nov-2026, prioridad máxima). Reproducido y verificado por Kimi en modo demo con Playwright:\n\nCON EL PANEL «Restaurar registros eliminados» ABIERTO (Acciones → Restaurar registros eliminados, renderTrash/openDrawer('actions-drawer') en src/list.js ~2867-2879), la barra superior «Buscar en Omni» NO se puede usar: el diálogo bloquea toda la página (el click en la barra nunca llega; verificado: locator.click agota 30s de espera). Y el panel NO tiene buscador propio: con cientos de registros eliminados no hay forma de encontrar el que quieres restaurar.\n\nQUÉ HACER:\n1. Agregar un campo de búsqueda DENTRO del panel de la papelera (encima de la tabla), que filtre las filas por nombre, correo y propietario mientras se escribe. Diseño según DESIGN.md: campo de 32px (variante sm), icono de búsqueda, placeholder «Buscar en eliminados». Si el filtro no encuentra nada: mensaje vacío claro («Ningún registro eliminado coincide con …»).\n2. NO hace falta desbloquear la barra superior (el comportamiento modal es correcto y consistente); la necesidad del usuario se cubre con el buscador interno. Si al implementarlo notas que el drawer ya tenía un patrón de buscador en otro panel, reutilízalo.\n3. Aplica a los 4 módulos que usan renderTrash (contacts, companies, deals, tickets) — es el mismo componente, un solo cambio.\n\nVERIFICACIÓN OBLIGATORIA: prueba Playwright (modo demo, 1440 y 1280) que borre un registro, abra la papelera, filtre por su nombre, lo restaure y confirme que vuelve a la lista; caso de filtro sin resultados; Escape/cierra; sin errores en consola; capturas antes/después del panel; ninguna captura base cambia (si alguna cambia, NO regenerar: reportar). Evidencia en docs/evidencia/user-papelera-buscador-interno/.",
-      "createdAt": "2026-11-25T17:30:12-06:00"
+      "createdAt": "2026-11-25T17:30:12-06:00",
+      "workedAt": "2026-11-25T18:53:20-0600",
+      "workedBy": "claude"
     },
     {
       "id": "user-icono-papelera",
