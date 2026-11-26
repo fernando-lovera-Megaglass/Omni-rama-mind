@@ -117,7 +117,7 @@ el navegador). Donde una pantalla usa un valor distinto, está en la sección 3.
 | Panel lateral | `.drawer` > `.drawer__panel` | 100 % | cabecera 16px 24px · pie 16px 24px | título 16px / 600 | — | ancho 420px, cabecera fondo `--c-nav` y texto `--c-white`, sombra `-8px 0 28px rgba(0,0,0,.2)` |
 | Panel de creación | `.slideover` > `.slideover__panel` | 100 % | — | — | — | «Crear contacto / empresa / negocio / ticket» y filtros avanzados de workflows; cierre `.slideover__close` |
 | Modal | `.bmodal` > `.bmodal__panel` | — | cabecera 16px 20px | título 16px | `--r-md` | ancho 480px, máx. `calc(100% - 32px)`, sombra `0 16px 48px rgba(0,0,0,.3)` |
-| Menú desplegable | `.menu` > `.menu__panel` > `.menu__item` | ítem 42px (relleno 11px 20px) | panel 8px 0 | 15px | `--r-sm` | ancho 200–320px, borde `--c-border`; se abre con `wireMenus()` de `shell.js` |
+| Menú desplegable | `.menu` > `.menu__panel` > `.menu__item` (+ `.menu__ico`) | ítem 42px (relleno 11px 20px) | panel 8px 0 | 15px | `--r-sm` | ancho 200–320px, borde `--c-border`; se abre con `wireMenus()` de `shell.js`. Un ítem puede llevar delante un icono del sistema `.ico` (menús de columna, 15px) o un icono de línea de `ACT_ICONS` en `.menu__ico` (16px, opacidad .85, separación `--sp-8`; p. ej. «Restaurar registros eliminados» con `trash`) |
 | Selector de propietario (aprobado por el usuario, 25-nov-2026) | `.osel` > `.osel__btn` (+ `.osel__arrow`) + `.osel__panel` > `.osel__list` > `.osel__opt` (+ `.osel__check`); `<select>` nativo oculto `.osel__native` como fuente de verdad (`src/owner-select.js`) | trigger 32px · opciones 36px | trigger 0 8px · opciones 0 12px (`calc(--sp-8 + --sp-4)`; el avatar de 24px va centrado: 8px verticales darían 40px) | 14px / 600 (trigger) · 14px (opciones) | `--r-sm` (trigger) · `--r-md` (menú) | **En reposo**: solo `.avatar--xs` 24px + nombre + `.ico--arrow-down` 13px, sin caja ni borde, fondo `--c-head` al pasar el ratón (como `.qchip`), foco `outline` 2px `--c-link`; es un `<button>` real con `aria-haspopup`/`aria-expanded`. **Menú**: anclado bajo el nombre (`top: calc(100% + 4px)`, `left: 0`), ancho mínimo 240px, borde `--c-border`, sombra `0 8px 28px rgba(0,0,0,.16)`; cada opción con su avatar, primera «Sin asignar» con avatar neutro `--c-head`, elegida con fondo `--c-tag-new`, 600 y ✓ `--c-link` a la derecha, hover `--c-row-hover`. **Buscador** solo con más de 8 personas. **Variante con borde** (`.field .osel__btn`, `.osel--sm`: formularios Crear…, Asignar, Ajustes, editor de celda): campo de 40px a todo el ancho con borde `--c-border` (`--c-link` abierto) y el mismo menú. |
 | Tooltip | `.tip` > `.tip__text` | — | 10px 14px | 14px | `--r-sm` | solo texto breve |
 | Toast | `.toast` | — | 12px 20px | 14px | `--r-sm` | fondo `--c-dark`, texto `--c-white` |
@@ -168,7 +168,7 @@ previa») debajo del icono; el clic abre el panel de vista previa de la lista.
 | Familia | Archivo | Técnica | Cuántos | Dónde se usa |
 |---|---|---|---|---|
 | **Iconos del sistema** `.ico--*` | `src/app.css` | máscara SVG (`mask-image`) sobre `background: currentColor` | 41 | menús, barra lateral, barra superior, buscadores, filtros, botones de icono, pestañas |
-| **Iconos de línea** `ACT_ICONS` / `FIELD_ICONS` | `src/action-icons.js` | `<svg>` de línea: viewBox 24×24, **trazo 1.8px**, extremos y uniones redondos, `stroke: currentColor` | 68 | acciones de ficha (Nota, Correo…), actividades, workflows, secuencias, tipos de campo |
+| **Iconos de línea** `ACT_ICONS` / `FIELD_ICONS` | `src/action-icons.js` | `<svg>` de línea: viewBox 24×24, **trazo 1.8px**, extremos y uniones redondos, `stroke: currentColor` | 69 | acciones de ficha (Nota, Correo…), actividades, workflows, secuencias, tipos de campo, acciones destructivas (papelera) |
 
 ### Color
 
@@ -204,7 +204,7 @@ Los tamaños viejos (19, 18, 15, 14, 11px) migran al más cercano (homogeneizaci
   highlight, home, library, lines, marketing, marketplace, mic, mic-off, moon, pad,
   phone, pin, plus, rec, reports, rocket, sales, search, service, sun, vmail,
   workspaces.
-- **Línea (68):** user, **user-add** (nuevo, aprobado 25-nov-2026), users, thumbsUp,
+- **Línea (69):** user, **user-add** (nuevo, aprobado 25-nov-2026), users, thumbsUp,
   thumbsDown, copy, link, image, attach, expand, shrink, clock, info, alert, preview,
   bell, megaphone, chat, form, swap, lightning, delay, goto, **map** (nuevo, aprobado
   25-nov-2026), note, email, call, inbound, outbound, task, meeting, more, invoice,
@@ -213,7 +213,8 @@ Los tamaños viejos (19, 18, 15, 14, 11px) migran al más cercano (homogeneizaci
   un diamante), ticket, workflow, list, created, stage, prop, system, companies,
   products, custom, text, textarea, number, currency, percent, date, datetime, enum,
   bool, phone, url, id, status, priority, **file** (nuevo), **calculation** (nuevo),
-  **rollup** (nuevo), **sync** (nuevo), **edit** (nuevo, aprobado 25-nov-2026).
+  **rollup** (nuevo), **sync** (nuevo), **edit** (nuevo, aprobado 25-nov-2026),
+  **trash** (nuevo, aprobado 25-nov-2026: eliminar / papelera).
 
 ### Iconos aprobados el 25-nov-2026 (catálogo `iconos.html`, sección 6)
 
@@ -222,6 +223,7 @@ Los tamaños viejos (19, 18, 15, 14, 11px) migran al más cercano (homogeneizaci
 | `map` | mapa plegado en tres paneles: `<path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2z"/><path d="M9 4v14M15 6v14"/>` | direcciones y ubicación (dirección de empresa o contacto, «ver en el mapa») |
 | `user-add` | cabeza r3.5 y cuerpo con arco como `user`, más un «+» a la derecha: `<circle cx="9.5" cy="8" r="3.5"/><path d="M3 20v-1a6.5 6.5 0 0 1 12-3.5"/><path d="M18.5 14v6M15.5 17h6"/>` | agregar o invitar a una persona (crear contacto, añadir usuario o miembro) |
 | `deal` | apretón de manos: `<path d="m11 17 2 2a1 1 0 1 0 3-3"/><path d="m14 14 2.5 2.5a1 1 0 1 0 3-3l-3.88-3.88a3 3 0 0 0-4.24 0l-.88.88a1 1 0 1 1-3-3l2.81-2.81a5.79 5.79 0 0 1 7.06-.87l.47.28a2 2 0 0 0 1.42.25L21 4"/><path d="m21 3 1 11h-2"/><path d="M3 3 2 14l6.5 6.5a1 1 0 1 0 3-3"/><path d="M3 4h8"/>` | el objeto Negocio en toda la app: `OBJECT_ICONS.deals` (Ajustes › Objetos, estado vacío de Negocios), registros asociados del panel de vista previa, «Crear negocio» de la ficha. Reemplaza el diamante. La barra lateral no lo usa: «Negocios» cuelga de «Ventas» (`.ico--sales`), que no cambia |
+| `trash` | papelera: `<path d="M3.5 6h17"/><path d="M19 6v13.5a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8.5 6V4a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v2"/><path d="M10 11v6M14 11v6"/>` | **eliminar / papelera**: «Eliminar» de la barra masiva de las listas (16px), «Restaurar registros eliminados» del menú Acciones / ⋮ (16px), «Eliminar grupo» del editor de lógica y «Eliminar etapa» de las etapas del ciclo de vida (16px, dentro de `.icon-btn`), «Quitar grupo» del editor de workflows (13px, en línea con el texto). **Regla:** toda acción destructiva usa este icono; los emojis «🗑» quedan prohibidos (se retiraron los 4 que había el 25-nov-2026) |
 
 ### Icono de «Modificar» (`edit`, aprobado por el usuario 25-nov-2026)
 

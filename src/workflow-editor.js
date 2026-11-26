@@ -151,7 +151,7 @@ function valueInput(type, c) {
 function groupsEditorHtml(type, groups, scope) {
   return `<div class="wfg-editor" data-scope="${esc(scope)}">${(groups || []).map((g, i) => `
     <div class="wfg" data-group="${esc(g.id)}">
-      <div class="wfg__h"><strong>Grupo ${i + 1}</strong>${i ? '<span class="muted">· o</span>' : ''}<button type="button" data-grp-del="${esc(g.id)}" aria-label="Quitar grupo" title="Quitar grupo">🗑</button></div>
+      <div class="wfg__h"><strong>Grupo ${i + 1}</strong>${i ? '<span class="muted">· o</span>' : ''}<button type="button" data-grp-del="${esc(g.id)}" aria-label="Quitar grupo" title="Quitar grupo">${ACT_ICONS.trash}</button></div>
       ${(g.conditions || []).map((c, j) => `${j ? '<div class="wfg__and">y</div>' : ''}<div class="wfcond" data-cond="${esc(c.id)}"><select data-cond-prop="${esc(c.id)}" aria-label="Propiedad">${propOptions(type, c.property)}</select><select data-cond-op="${esc(c.id)}" aria-label="Operador">${OPERATORS.map(([k, l]) => `<option value="${k}" ${c.operator === k ? 'selected' : ''}>${l}</option>`).join('')}</select>${valueInput(type, c)}<button type="button" data-cond-del="${esc(c.id)}" aria-label="Quitar condición" title="Quitar condición">×</button></div>`).join('')}
       <button class="link-btn" type="button" data-cond-add="${esc(g.id)}">+ Agregar condición (y)</button>
     </div>`).join('')}<button class="link-btn wfg__addgroup" type="button" data-grp-add="1">+ Agregar grupo (o)</button></div>`;

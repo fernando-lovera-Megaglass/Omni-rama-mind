@@ -4118,6 +4118,22 @@ h1 {
   opacity: 0.9;
 }
 
+/* A line icon (ACT_ICONS) inside a menu entry, e.g. «Restaurar registros eliminados»: 16px, opacity .85. */
+.menu__item .menu__ico {
+  display: inline-flex;
+  width: 16px;
+  height: 16px;
+  margin-right: var(--sp-8);
+  flex: none;
+  vertical-align: -3px;
+  opacity: 0.85;
+}
+
+.menu__item .menu__ico svg {
+  width: 100%;
+  height: 100%;
+}
+
 .thmenu .menu__item:disabled .ico {
   opacity: 0.45;
 }
@@ -12736,6 +12752,36 @@ button.files__name:hover { text-decoration: underline; }
   font-size: 15px;
 }
 
+/* «Eliminar etapa» (.lctrash) and «Eliminar grupo» (logic editor): the trash line icon at 16px inside the 32px
+   icon button; «Quitar grupo» of the workflow groups sits inline with text, so 13px. Opacity .85 (DESIGN.md). */
+.lctrash,
+.lgroup__head .icon-btn[data-logic-group-rm] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lctrash svg,
+.lgroup__head .icon-btn[data-logic-group-rm] svg {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  opacity: 0.85;
+}
+
+.wfg__h button[data-grp-del] {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--sp-2);
+}
+
+.wfg__h button[data-grp-del] svg {
+  width: 13px;
+  height: 13px;
+  display: block;
+  opacity: 0.85;
+}
+
 .lctrash[disabled] {
   opacity: 0.35;
   cursor: default;
@@ -14752,6 +14798,20 @@ body.has-slideover {
   font: inherit;
   font-weight: 600;
   cursor: pointer;
+}
+
+/* Line icon of «Eliminar» (ACT_ICONS.trash): 16px in bars and buttons, opacity .85 like every system icon. */
+.bulk__btn .bulk__ico {
+  display: inline-flex;
+  width: 16px;
+  height: 16px;
+  flex: none;
+  opacity: 0.85;
+}
+
+.bulk__btn .bulk__ico svg {
+  width: 100%;
+  height: 100%;
 }
 
 .bulk__btn:hover {

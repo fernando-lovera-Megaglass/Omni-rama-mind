@@ -392,7 +392,7 @@ export function mountList(cfg) {
           <div class="menu__panel menu__panel--right">
             <button class="menu__item" type="button" data-action="export">Exportar</button>
             ${actionsOpt('dupes') ? '<button class="menu__item" type="button" data-action="dupes">Gestionar duplicados</button>' : ''}
-            <button class="menu__item" type="button" data-action="trash">Restaurar registros eliminados</button>
+            <button class="menu__item" type="button" data-action="trash"><span class="menu__ico" aria-hidden="true">${ACT_ICONS.trash}</span>Restaurar registros eliminados</button>
             <button class="menu__item" type="button" data-action="bulk-edit-menu">Editar propiedades en lote</button>
             ${actionsOpt('fixFormat') ? '<button class="menu__item" type="button" data-action="fix-format">Corregir problemas de formato</button>' : ''}
             <div class="menu__sep"></div>
@@ -406,7 +406,7 @@ export function mountList(cfg) {
             <button class="menu__item" type="button" data-action="columns">Editar columnas</button>
             <button class="menu__item" type="button" data-action="export">Exportar vista</button>
             <a class="menu__item" href="../data/?from=${cfg.type}">Importar</a>
-            <button class="menu__item" type="button" data-action="${softDeletes(cfg.type) ? 'trash' : 'restore'}">Restaurar registros eliminados</button>
+            <button class="menu__item" type="button" data-action="${softDeletes(cfg.type) ? 'trash' : 'restore'}"><span class="menu__ico" aria-hidden="true">${ACT_ICONS.trash}</span>Restaurar registros eliminados</button>
           </div>
         </div>`}
         ${cfg.addDirect
@@ -505,7 +505,7 @@ export function mountList(cfg) {
         <span class="bulk__actions">
           ${bulkActions.includes('assign') ? '<button class="bulk__btn" type="button" data-action="bulk-assign"><span aria-hidden="true">→</span> Asignar</button>' : ''}
           ${bulkActions.includes('edit') ? '<button class="bulk__btn" type="button" data-action="bulk-edit"><span aria-hidden="true">✎</span> Editar</button>' : ''}
-          ${bulkActions.includes('delete') ? '<button class="bulk__btn" type="button" data-action="delete"><span aria-hidden="true">🗑</span> Eliminar</button>' : ''}
+          ${bulkActions.includes('delete') ? `<button class="bulk__btn" type="button" data-action="delete"><span class="bulk__ico" aria-hidden="true">${ACT_ICONS.trash}</span> Eliminar</button>` : ''}
           ${bulkActions.includes('tasks') ? '<button class="bulk__btn" type="button" data-action="bulk-tasks"><span aria-hidden="true">+</span> Crear tareas</button>' : ''}
           ${bulkActions.some((a) => ['enroll', 'workflow', 'segment', 'export'].includes(a)) ? `<span class="menu">
             <button class="bulk__btn" type="button" aria-haspopup="true" aria-expanded="false">Más <span class="caret"></span></button>
