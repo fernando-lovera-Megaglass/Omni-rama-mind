@@ -3049,12 +3049,14 @@
     },
     {
       "id": "user-icono-papelera",
-      "status": "pending",
+      "status": "review",
       "lane": "claude",
       "created": "2026-11-25",
       "title": "Icono trash: reemplazar los 4 emojis 🗑 y dar icono a «Restaurar registros eliminados»",
       "instruction": "Pedido directo del usuario (25-nov-2026): «falta el icono de la papelera». Hoy NO existe icono de papelera en el sistema y la app usa el emoji 🗑 (fuera del sistema de iconos, contra la regla de homogeneización aprobada).\n\n1. NUEVO icono `trash` en ACT_ICONS (src/action-icons.js), familia de línea (1.8px, currentColor, viewBox 24):\n   <path d=\"M3.5 6h17\"/><path d=\"M19 6v13.5a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6\"/><path d=\"M8.5 6V4a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v2\"/><path d=\"M10 11v6M14 11v6\"/>\n   (Propuesta ya visible y aprobada por adelantado en el catálogo iconos.html sección 6; si al renderizarla a 13px se apelmaza, ajusta el trazo mínimo y documéntalo.)\n2. REEMPLAZAR los 4 usos del emoji 🗑 por el icono del sistema (16px en barras/botones, 13px en contexto compacto, opacidad .85 según DESIGN.md):\n   - src/list.js ~508: botón masivo «Eliminar» de las listas.\n   - src/settings.js ~808: «Eliminar grupo» del editor de lógica.\n   - src/settings.js ~1109: «Eliminar etapa» (.lctrash).\n   - src/workflow-editor.js ~154: «Quitar grupo».\n3. Agregar el icono `trash` a la entrada de menú «Restaurar registros eliminados» (src/list.js ~395 y ~409), como las demás entradas con icono.\n4. DESIGN.md §3: agregar `trash` al catálogo (68→69) con propósito «eliminar / papelera» y la nota de que los emojis 🗑 quedan prohibidos (regla: acciones destructivas usan siempre el icono trash).\n5. OJO: el árbol de trabajo tiene sin integrar la tarea user-papelera-buscador-interno (src/list.js renderTrash con buscador). Trabaja ENCIMA de esa versión, no la reviertas.\n\nVERIFICACIÓN: capturas antes/después a 1440 y 1280 de: barra masiva con «Eliminar», menú Acciones con la entrada de papelera, y los 3 sitios de settings/workflows; prueba de que los 4 botones siguen funcionando (abren su confirmación); sin errores en consola; suite en verde; ninguna captura base cambia (si alguna cambia por el icono, NO regenerar: reportar). Evidencia en docs/evidencia/user-icono-papelera/.",
-      "createdAt": "2026-11-25T18:36:27-06:00"
+      "createdAt": "2026-11-25T18:36:27-06:00",
+      "workedAt": "2026-11-25T19:19:08-0600",
+      "workedBy": "claude"
     }
   ]
 }
