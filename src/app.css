@@ -6593,6 +6593,17 @@ td.cell--hl .cell__pen {
   font-size: var(--fs-sm);
 }
 
+/* Search box of the trash (same .search--sm as the record panels), above its table. */
+.trash__search {
+  width: 280px;
+  max-width: 100%;
+  margin-bottom: var(--sp-16);
+}
+
+.trash__empty {
+  margin: 0;
+}
+
 .dupes__actions {
   display: flex;
   gap: var(--sp-8);

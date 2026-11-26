@@ -2818,6 +2818,8 @@ export function mountList(cfg) {
       </div>`;
     root.appendChild(d);
     d.addEventListener('click', (e) => {
+      // Created after the generic drawer wiring ran: «×», «Cerrar» and the scrim close it from here.
+      if (e.target === d || e.target.closest('[data-close="actions-drawer"]')) { closeDrawer(d.id); return; }
       const merge = e.target.closest('[data-dupe-merge]');
       if (merge) {
         const gi = merge.dataset.dupeMerge;
@@ -2839,6 +2841,8 @@ export function mountList(cfg) {
       if (one) { const n = restoreRecords(cfg.type, [Number(one.dataset.trashRestore)]); toast(n ? 'Registro restaurado' : 'No se pudo restaurar'); renderTrash(); render(); return; }
       if (e.target.closest('[data-trash-restore-all]')) { const n = restoreRecords(cfg.type, trashedRecords(cfg.type).map((r) => r.id)); toast(`${n} ${n === 1 ? 'registro restaurado' : 'registros restaurados'}`); renderTrash(); render(); }
     });
+    // Typing in the trash search filters its rows (name, e-mail/domain, owner) without re-drawing the field.
+    d.addEventListener('input', (e) => { if (e.target.id === 'trash-q') { trashQuery = e.target.value; renderTrashList(); } });
     return d;
   }
   const keyCol = cfg.type === 'companies' ? ['Dominio', (r) => r.domain || ''] : ['Correo', (r) => r.email || ''];
@@ -2864,19 +2868,34 @@ export function mountList(cfg) {
     $('actions-foot').innerHTML = '<button class="btn btn--ghost" type="button" data-close="actions-drawer">Cerrar</button>';
   }
   function openDupes() { renderDupes(); openDrawer('actions-drawer'); }
+  // The trash has its own search box (name, e-mail/domain and owner) because the drawer is modal: with hundreds
+  // of deleted records the top bar can't be used to find the one to restore. Only the table re-draws while typing.
+  let trashQuery = '';
+  const trashMatches = (r, q) => !q || [r.name, keyCol[1](r), r.owner].some((v) => String(v || '').toLowerCase().includes(q));
+  function renderTrashList() {
+    const box = $('trash-list');
+    if (!box) return;
+    const q = trashQuery.trim().toLowerCase();
+    const rows = trashedRecords(cfg.type).filter((r) => trashMatches(r, q));
+    box.innerHTML = rows.length
+      ? `<table class="table trash__table"><thead><tr><th>Nombre</th><th>${keyCol[0]}</th><th>Propietario</th><th>Eliminado</th><th></th></tr></thead><tbody>
+          ${rows.map((r) => `<tr data-id="${r.id}"><td>${esc(r.name)}</td><td>${esc(keyCol[1](r))}</td><td>${ownerHtml(r.owner)}</td><td>${r.deletedAt ? esc(formatDate(r.deletedAt)) : '<span class="muted">--</span>'}</td><td><button class="btn btn--ghost btn--sm" type="button" data-trash-restore="${r.id}">Restaurar</button></td></tr>`).join('')}
+        </tbody></table>`
+      : `<p class="muted trash__empty" role="status">Ningún registro eliminado coincide con «${esc(trashQuery.trim())}».</p>`;
+  }
   function renderTrash() {
     actionsDrawer();
     const rows = trashedRecords(cfg.type);
     $('actions-title').textContent = `Restaurar registros eliminados · ${rows.length}`;
     $('actions-body').innerHTML = rows.length
       ? `<p class="muted">Los registros eliminados se guardan en la papelera${softDeletes(cfg.type) ? ' (con su fecha de eliminación en Supabase)' : ''}. Restaura los que necesites.</p>
-        <table class="table trash__table"><thead><tr><th>Nombre</th><th>${keyCol[0]}</th><th>Propietario</th><th>Eliminado</th><th></th></tr></thead><tbody>
-          ${rows.map((r) => `<tr data-id="${r.id}"><td>${esc(r.name)}</td><td>${esc(keyCol[1](r))}</td><td>${ownerHtml(r.owner)}</td><td>${r.deletedAt ? esc(formatDate(r.deletedAt)) : '<span class="muted">--</span>'}</td><td><button class="btn btn--ghost btn--sm" type="button" data-trash-restore="${r.id}">Restaurar</button></td></tr>`).join('')}
-        </tbody></table>`
+        <div class="search search--sm trash__search"><span class="ico ico--search" aria-hidden="true"></span><input type="search" id="trash-q" value="${esc(trashQuery)}" placeholder="Buscar en eliminados" aria-label="Buscar en eliminados" autocomplete="off" /></div>
+        <div id="trash-list"></div>`
       : '<p class="muted">La papelera está vacía.</p>';
+    renderTrashList();
     $('actions-foot').innerHTML = `${rows.length ? '<button class="btn btn--primary" type="button" data-trash-restore-all>Restaurar todos</button>' : ''}<button class="btn btn--ghost" type="button" data-close="actions-drawer">Cerrar</button>`;
   }
-  function openTrash() { renderTrash(); openDrawer('actions-drawer'); }
+  function openTrash() { trashQuery = ''; renderTrash(); openDrawer('actions-drawer'); }
   // "Corregir problemas de formato": names in title case and phones in a single format, for the selection.
   function fixFormat() {
     if (!state.selected.size) { toast('Selecciona primero en la tabla los registros que quieres corregir'); return; }
