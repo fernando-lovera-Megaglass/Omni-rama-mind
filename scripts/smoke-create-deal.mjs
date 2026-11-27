@@ -72,7 +72,7 @@ if (names.join(',') !== 'name,pipeline,stage,amount,deal_currency_code,closeDate
 const f = form().elements;
 log('defaults: pipeline', f.pipeline.value, '| stage', f.stage.value, `(${f.stage.options[f.stage.selectedIndex].textContent})`, '| currency', f.deal_currency_code.value, 'prefix', text($('cd-prefix')), '| owner', f.owner.value, '| created', f.created.value, '| close', JSON.stringify(f.closeDate.value), '| date inputs:', f.closeDate.type, f.created.type, '| textarea:', f.description.tagName);
 if (f.pipeline.value !== 'FUERZA DE VENTAS' || f.stage.value !== 'oferta' || f.stage.options[0].textContent !== 'OFERTA A+W') fail('pipeline / first stage defaults');
-if (f.deal_currency_code.value !== 'MXN' || text($('cd-prefix')) !== 'MX$' || f.owner.value !== 'Fernando L.' || f.created.value !== '2026-11-07' || f.closeDate.value !== '') fail('currency / owner / created defaults');
+if (f.deal_currency_code.value !== 'MXN' || text($('cd-prefix')) !== 'MX$' || f.owner.value !== 'Fernando L.' || f.created.value !== new Date().toLocaleDateString('en-CA') || f.closeDate.value !== '') fail('currency / owner / created defaults (created must be the real day, not data.TODAY)');
 if (f.closeDate.type !== 'date' || f.created.type !== 'date' || f.description.tagName !== 'TEXTAREA') fail('date pickers and textarea');
 const label = (n) => text(f[n].closest('label, .field').querySelector('span'));
 log('labels:', ['name', 'description', 'created'].map(label).join(' | '));

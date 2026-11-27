@@ -1409,7 +1409,7 @@ export function addRecord(type, fields, opts = {}) {
   if (dbLive) {
     const id = nextId[type];
     nextId[type] += 1;
-    const rec = { id, created: TODAY.toISOString(), ...fields };
+    const rec = { id, created: new Date().toISOString(), ...fields };
     (dbRows[type] = dbRows[type] || []).unshift(augment(type, { ...rec }));
     bump();
     const pending = dbWrite(async () => {
@@ -1443,7 +1443,7 @@ export function addRecord(type, fields, opts = {}) {
     return afterAdd(type, rec, opts);
   }
   const extra = getExtra(type);
-  const rec = { id: 1000 + extra.length + 1, created: TODAY.toISOString(), ...fields };
+  const rec = { id: 1000 + extra.length + 1, created: new Date().toISOString(), ...fields };
   extra.unshift(rec);
   write(K(type, 'extra'), extra);
   return afterAdd(type, rec, opts);
@@ -2648,7 +2648,7 @@ export async function fetchLineItems(dealId) {
 export function addLineItems(dealId, items) {
   const lines = (items || []).map(normLine).filter((x) => x.name);
   if (!lines.length) return [];
-  const stamp = TODAY.toISOString();
+  const stamp = new Date().toISOString();
   if (dbLive) {
     const base = Date.now();
     const recs = lines.map((x, i) => ({ id: -(base + i), dealId: Number(dealId), ...x, created: stamp }));

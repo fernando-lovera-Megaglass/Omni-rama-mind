@@ -191,7 +191,7 @@ export function mountCreateDeal({ root = document.getElementById('list-root') ||
     fillStages();
     form.elements.deal_currency_code.value = HOME;
     setPrefix();
-    form.elements.created.value = dateInput(TODAY);
+    form.elements.created.value = dateInput(new Date()); // the real day, never the sample anchor
     setOwner();
     update();
   };
@@ -237,7 +237,8 @@ export function mountCreateDeal({ root = document.getElementById('list-root') ||
       closeDate: fromDateInput(d.closeDate, new Date(TODAY.getTime() + 30 * DAY).toISOString()),
       owner: d.owner || ownerForUser(null),
       description: d.description || '',
-      created: fromDateInput(d.created, TODAY.toISOString()),
+      // untouched date picker → the real moment (date and time); a date the user chose → that day
+      created: d.created && d.created !== dateInput(new Date()) ? fromDateInput(d.created, new Date().toISOString()) : new Date().toISOString(),
       contactId: first ? first.id : '',
       companyId: primary ? primary.id : '',
       company: primary ? primary.name : '',

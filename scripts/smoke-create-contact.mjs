@@ -17,9 +17,13 @@ await liveSmoke('create-contact', async ({ data, one, check, log, stamp }) => {
   // what the «Crear contacto» panel inserts (src/create-contact.js → addRecord)
   const c = data.addRecord('contacts', { name: `SMOKE Contacto ${stamp}`, first: 'SMOKE', last: `Contacto ${stamp}`, email, phone: '', owner: 'Fernando L.', lifecycle: 'Lead', status: 'new', source: 'Formulario', hs_buying_role: 'Influenciador', lastActivity: data.TODAY.toISOString() }, { origin: 'Creación manual' });
   await data.dbIdle();
-  let row = await one(`select id, name, first, last, email, owner from public.contacts where lower(email) = ${lit(email)}`);
+  let row = await one(`select id, name, first, last, email, owner, created from public.contacts where lower(email) = ${lit(email)}`);
   check(row && row.name === c.name && row.first === 'SMOKE' && row.owner === 'Fernando L.', `la fila del contacto creado existe en contacts (${JSON.stringify(row)})`);
   log(`contacto «${row.name}» en la base (id ${row.id}, ${row.email})`);
+  // the creation date is the real moment (user decision 27-nov-2026), not the sample anchor data.TODAY
+  const age = Math.abs(Date.now() - new Date(row.created).getTime());
+  check(row.created && age < 10 * 60000 && new Date(row.created).toDateString() !== data.TODAY.toDateString(), `created en la base es la fecha real (${row.created}, hace ${Math.round(age / 1000)} s), no el ancla ${data.TODAY.toISOString().slice(0, 10)}`);
+  log(`created en la base: ${row.created} (hace ${Math.round(age / 1000)} s; ancla demo ${data.TODAY.toISOString().slice(0, 10)})`);
   data.setField('contacts', c.id, 'city', `SMOKE Ciudad ${stamp}`);
   await data.dbIdle();
   row = await one(`select city from public.contacts where lower(email) = ${lit(email)}`);

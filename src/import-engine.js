@@ -4,7 +4,7 @@
 // de-duplication (e-mail, domain or record ID), the three import modes, associations by company, the error
 // catalogue with its impact, the import states (STARTED → PROCESSING → DONE / FAILED / CANCELED, DEFERRED when
 // three are running), the limits and the downloads.
-import { dbIdle, ALL, deleteRecords, addRecord, setField, OWNERS, TODAY, getViewStore, setViewStore, strip, dealPipelines, stagesFor, ticketPipelines, ticketStatusesFor, TICKET_STATUSES, TASK_STATUSES, DEAL_STAGES, companyDomains, settingsLive, getSetting, setSetting } from './data.js';
+import { dbIdle, ALL, deleteRecords, addRecord, setField, OWNERS, getViewStore, setViewStore, strip, dealPipelines, stagesFor, ticketPipelines, ticketStatusesFor, TICKET_STATUSES, TASK_STATUSES, DEAL_STAGES, companyDomains, settingsLive, getSetting, setSetting } from './data.js';
 import { propertyList, customProperties, saveCustomProperties } from './properties.js';
 import { addSegment } from './segments-data.js';
 import { currentUser } from './auth.js';
@@ -173,7 +173,8 @@ export function importError(code, detail) {
 // ---------- property catalogue and auto-mapping ----------
 export const props = (type = 'contacts') => propertyList(type);
 export const propByKey = (type, key) => props(type).find((p) => p.key === key);
-const COMMON_EN = { hs_object_id: ['record id', 'id'], owner: ['owner'], hs_import_ids: [] };
+// «Create Date» is the header of HubSpot's exports: the original creation date travels with the record.
+const COMMON_EN = { hs_object_id: ['record id', 'id'], owner: ['owner'], created: ['create date', 'created date', 'createdate', 'created'], hs_import_ids: [] };
 const EN_LABELS = {
   contacts: { ...COMMON_EN, first: ['first name', 'first', 'given name'], last: ['last name', 'last', 'surname', 'family name'], name: ['full name', 'name', 'contact name'], email: ['email', 'email address', 'e-mail'], alt_email: ['alternate email', 'secondary email'], hs_additional_emails: ['additional email addresses', 'additional emails'], phone: ['phone number', 'phone', 'telephone'], mobilephone: ['mobile phone number', 'mobile phone', 'mobile', 'cell phone'], company: ['company name', 'company', 'organization', 'company domain name', 'company domain', 'associated company'], jobTitle: ['job title', 'title', 'position'], city: ['city'], state: ['state/region', 'state', 'region', 'province'], country: ['country/region', 'country'], zip: ['postal code', 'zip', 'zip code'], address: ['street address', 'address'], website: ['website url', 'website', 'web'], owner: ['contact owner', 'owner'], lifecycle: ['lifecycle stage', 'lifecycle'], status: ['lead status', 'status'], hs_object_id: ['record id', 'id', 'contact id'], source: ['original source', 'source'], industry: ['industry'], customer_type: ['customer type'], hs_department: ['department'], date_of_birth: ['date of birth', 'birthday'], message: ['message', 'notes'], annualrevenue: ['annual revenue'], hs_marketable_status: ['marketing contact status'], hs_buying_role: ['buying role'], salutation: ['salutation'] },
   companies: { ...COMMON_EN, name: ['company name', 'name', 'company'], domain: ['company domain name', 'domain', 'company domain', 'website domain'], hs_additional_domains: ['additional domains'], website: ['website url', 'website'], phone: ['phone number', 'phone'], owner: ['company owner', 'owner'], industry: ['industry'], type: ['type', 'company type'], description: ['description', 'about'], address: ['street address', 'address'], city: ['city'], state: ['state/region', 'state', 'region'], zip: ['postal code', 'zip'], country: ['country/region', 'country'], employees: ['number of employees', 'employees'], revenue: ['annual revenue', 'revenue'], lifecycle: ['lifecycle stage'], hs_lead_status: ['lead status'], founded_year: ['year founded'], hs_object_id: ['record id', 'id', 'company id'] },
@@ -707,11 +708,11 @@ export function registerImport({ name, table, plan, options }) {
 
 // Defaults of a new record per object (the properties the file didn't provide).
 function newRecordDefaults(type, data) {
-  const now = TODAY.toISOString();
+  const now = new Date().toISOString(); // the real moment of the import, never the sample anchor
   switch (type) {
     case 'contacts': return { owner: 'Sin asignar', status: 'new', lifecycle: 'Lead', source: 'Importación', lastActivity: now, name: data.name || [data.first, data.last].filter(Boolean).join(' ') || data.email || 'Sin nombre' };
     case 'companies': return { owner: 'Sin asignar', lifecycle: 'Lead', lastActivity: now, name: data.name || data.domain || 'Sin nombre', domain: data.domain || '' };
-    case 'deals': return { owner: 'Sin asignar', amount: 0, deal_currency_code: undefined, priority: 'medium', type: 'Nuevo negocio', closeDate: new Date(TODAY.getTime() + 30 * 86400000).toISOString(), lastActivity: now, company: '', companyId: '' };
+    case 'deals': return { owner: 'Sin asignar', amount: 0, deal_currency_code: undefined, priority: 'medium', type: 'Nuevo negocio', closeDate: new Date(Date.now() + 30 * 86400000).toISOString(), lastActivity: now, company: '', companyId: '' };
     case 'tickets': return { owner: 'Sin asignar', priority: 'medium', source: 'Importación', lastActivity: now, contactId: '' };
     case 'tasks': return { owner: ME, status: 'todo', priority: 'medium', type: 'Tarea', lastActivity: now, contact: '', contactId: '' };
     default: return {};
