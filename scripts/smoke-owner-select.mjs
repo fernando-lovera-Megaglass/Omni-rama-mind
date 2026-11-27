@@ -2,8 +2,10 @@
 // the record's «Acerca de» panel, the create forms (dedicated panel and generic drawer), the bulk «Asignar»
 // dialog, the list's inline cell editor, the inbox assignment and the sequence enrolment — the native select is
 // wrapped by a dropdown whose options carry the avatar (.avatar, initials or the empty placeholder for «Sin
-// asignar»), the closed field shows avatar + name, typing filters the options, and picking one updates the
-// select (change event) so the existing save paths run. Run: node scripts/smoke-owner-select.mjs
+// asignar»), the closed field shows avatar + name, typing filters the options when the directory has more than
+// 8 people (light selector approved by the user on 25-nov-2026: with 8 or fewer there is no search box and the
+// focus lands on the chosen person), and picking one updates the select (change event) so the existing save
+// paths run. Run: node scripts/smoke-owner-select.mjs
 import { JSDOM } from 'jsdom';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
@@ -69,10 +71,19 @@ if (!o1.btn.querySelector('.owner .avatar') || text(o1.btn) !== `${text(o1.btn.q
 if (document.activeElement !== o1.btn) fail('the dropdown button should get the focus when the editor opens');
 const opts1 = checkOptions(o1, 'record');
 if (opts1.length !== data.OWNERS.length) fail(`record: ${opts1.length} options, expected ${data.OWNERS.length}`);
-// contact 3 belongs to Sofía R.: search another user and pick her/him
-input(o1.search, 'lau');
-const filtered = o1.opts();
-if (filtered.length !== 1 || !text(filtered[0]).includes('Laura M.')) fail(`search filter: ${filtered.map(text).join('|')}`);
+// contact 3 belongs to Sofía R.: pick another user. Since 25-nov-2026 (light owner selector, approved by the
+// user) the search box only exists with more than 8 people; with the demo directory (5) every face is listed
+// and the keyboard lands on the chosen person instead.
+if (opts1.length > 8) {
+  if (!o1.search) fail('record: more than 8 people need the search box');
+  input(o1.search, 'lau');
+  if (o1.opts().length !== 1) fail(`search filter: ${o1.opts().map(text).join('|')}`);
+} else {
+  if (o1.search) fail(`record: ${opts1.length} people must not show a search box (rule: only with more than 8)`);
+  if (document.activeElement !== o1.opts().find((b) => b.classList.contains('is-selected'))) fail('record: without a search box the focus must land on the chosen person');
+}
+const filtered = o1.opts().filter((b) => text(b).includes('Laura M.'));
+if (filtered.length !== 1) fail(`pick: ${o1.opts().map(text).join('|')}`);
 let changed = 0;
 sel.addEventListener('change', () => { changed += 1; });
 click(filtered[0]);
@@ -82,7 +93,7 @@ row.querySelector('.props__form').dispatchEvent(new window.Event('submit', { bub
 await wait(10);
 const rowAfter = q('#rec-props .props__row[data-key="owner"]'); // the card re-renders after saving
 if (data.findRecord('contacts', 3).owner !== 'Laura M.' || rowAfter.querySelector('.props__form') || !rowAfter.querySelector('dd .owner .avatar') || !text(rowAfter).includes('Laura M.')) fail(`saving must store the owner and show it with the avatar (owner now ${data.findRecord('contacts', 3).owner})`);
-log('record: owner editor = dropdown with avatars, search «lau» → Laura M., change + save stored');
+log(`record: owner editor = dropdown with avatars, ${opts1.length > 8 ? 'search «lau» → Laura M.' : `${opts1.length} people → no search box, focus on the chosen one, pick Laura M.`}, change + save stored`);
 
 // ===== 2) Contacts list: dedicated create panel, bulk «Asignar», inline cell editor =====
 useDom('<!doctype html><body class="app"><aside id="sidenav"></aside><header id="topbar"></header><main id="list-root"></main><div id="scrim"></div></body>', 'http://localhost/contacts/');
