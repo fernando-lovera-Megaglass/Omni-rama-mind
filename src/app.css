@@ -20992,3 +20992,36 @@ body[data-type="contacts"] .pencil svg,
 body[data-type="contacts"] .icon-btn--sm[data-action="edit-quick"] svg { display: block; width: 16px; height: 16px; opacity: 0.85; }
 body[data-type="contacts"] .cell__pen svg,
 body[data-type="contacts"] .props__edit svg { display: block; width: 13px; height: 13px; opacity: 0.85; }
+
+/* Escala por tamaño de pantalla (DESIGN.md §1, aprobada por el usuario 27-nov-2026): solo se mueven tokens de
+   :root; la densidad normal (1280–1919px) queda intacta, ahí corren las pruebas y las capturas base. El logo de
+   las tarjetas de asociación es la única medida por componente que la regla fija (24px / 32px). */
+@media (max-width: 1180px) {
+  :root {
+    --fs-xs: 12px;
+    --fs-sm: 13px;
+    --sp-8: 6px;
+    --sp-10: 8px;
+    --sp-16: 12px;
+  }
+
+  .assoc-card__head .assoc__logo {
+    width: 24px;
+    height: 24px;
+  }
+}
+
+@media (min-width: 1920px) {
+  :root {
+    --fs-xs: 14px;
+    --fs-sm: 16px;
+    --sp-8: 10px;
+    --sp-10: 12px;
+    --sp-16: 20px;
+  }
+
+  .assoc-card__head .assoc__logo {
+    width: 32px;
+    height: 32px;
+  }
+}
