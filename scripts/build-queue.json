@@ -3146,10 +3146,12 @@
     },
     {
       "id": "gap-smoke-import-e2e-conteos",
-      "status": "pending",
+      "status": "review",
       "instruction": "smoke-import-e2e falla tras el cambio de historial a import_jobs (46b2c78): la vista previa/revisión muestra 100 filas · 88 nuevos · 3 actualizaciones · 9 no importables · 15 errores y la prueba espera otros conteos. Verifica si los conteos nuevos son correctos y actualiza la prueba, o corrige la lógica. OJO: el working tree tiene cambios sin commitear del frontend de Contactos (27-nov); trabaja sobre el código más reciente. Ejecuta la prueba con node scripts/<smoke>.mjs DESPUÉS de tu cambio e itera hasta que termine con código 0. Determina si es regresión o prueba desactualizada. No despliegues nada a producción; solo código local.",
       "createdAt": "2026-11-27T13:48:55-06:00",
-      "lane": "claude"
+      "lane": "claude",
+      "workedAt": "2026-11-27T17:54:17-0600",
+      "workedBy": "claude"
     },
     {
       "id": "gap-smoke-owner-select-nulo",
