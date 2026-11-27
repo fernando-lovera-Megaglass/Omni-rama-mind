@@ -96,6 +96,14 @@
       "workedBy": "claude"
     },
     {
+      "id": "user-ficha-empresa-principal",
+      "status": "pending",
+      "lane": "claude",
+      "createdAt": "2026-11-27T20:25:20.755Z",
+      "title": "Ficha: mostrar cuál es la empresa principal cuando hay varias",
+      "instruction": "REPORTE DEL USUARIO (27-nov-2026, viendo la revisión de Contactos): «el contacto Alicia Prieto está asociado a dos empresas; me gustaría que apareciera la principal». Verificado en vivo: contacto id 55, sección «Empresas (2)» de la ficha, ninguna tarjeta muestra etiqueta de principal. Trabajo: 1) En la tarjeta de asociaciones de la ficha (todos los módulos con multi-asociación), el registro principal aparece PRIMERO y con la etiqueta visible «Principal» (.tag.tag--done, según DESIGN.md §2 tarjeta de asociaciones). 2) El criterio de principal: el campo company_id/etiqueta guardada (assoc_labels) si existe; si no hay etiqueta explícita, el primero sigue siendo el principal implícito — y debe verse la etiqueta igual. 3) Los demás asociados muestran «Sin etiqueta» o ninguna, como ya esté en el sistema, pero el principal SIEMPRE visible. 4) Sin tocar lógica de asociación ni backend; solo presentación. 5) Evidencia en docs/evidencia/user-ficha-empresa-principal/: captura antes/después de la sección Empresas de una ficha con 2+ asociados a 1440 y 1280, pruebas en verde. No integrar a main sin aprobación del usuario."
+    },
+    {
       "id": "user-espaciado-fantasma-sp12",
       "status": "pending",
       "lane": "claude",
