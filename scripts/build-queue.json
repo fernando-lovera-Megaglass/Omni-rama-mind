@@ -123,11 +123,13 @@
     },
     {
       "id": "user-fecha-creacion-real",
-      "status": "pending",
+      "status": "review",
       "lane": "claude",
       "createdAt": "2026-11-27T17:36:13.371Z",
       "title": "Fecha de creación real en todos los módulos",
-      "instruction": "DECISIÓN DEL USUARIO (27-nov, sobre hallazgo 2 de la auditoría backend 26-nov-0512): la fecha de creación debe ser la real. Hoy src/data.js:493 fija TODAY = new Date(2026,10,7) y todo registro nuevo sella created con esa fecha fija (data.js:1412 y 1446); newRecordDefaults de import-engine.js sella lastActivity con TODAY y en negocios closeDate = TODAY+30. Trabajo: 1) Los registros creados desde la app sellan created con la fecha/hora real del momento. 2) Los defaults de importación usan la fecha real para lastActivity y closeDate. 3) Cuando se importe desde HubSpot y el archivo traiga la fecha de creación original, se conserva la original (no la de la importación). 4) NO reescribir las fechas ya sembradas en registros existentes (contacts 4, companies 4, deals 1, tickets 3 con 2026-11-07): esa corrección es decisión aparte del usuario. OJO: revisar dónde más se usa TODAY antes de tocarlo; si la siembra demo lo necesita, aislarlo ahí. Cerrar con pruebas en verde en docs/evidencia/user-fecha-creacion-real/."
+      "instruction": "DECISIÓN DEL USUARIO (27-nov, sobre hallazgo 2 de la auditoría backend 26-nov-0512): la fecha de creación debe ser la real. Hoy src/data.js:493 fija TODAY = new Date(2026,10,7) y todo registro nuevo sella created con esa fecha fija (data.js:1412 y 1446); newRecordDefaults de import-engine.js sella lastActivity con TODAY y en negocios closeDate = TODAY+30. Trabajo: 1) Los registros creados desde la app sellan created con la fecha/hora real del momento. 2) Los defaults de importación usan la fecha real para lastActivity y closeDate. 3) Cuando se importe desde HubSpot y el archivo traiga la fecha de creación original, se conserva la original (no la de la importación). 4) NO reescribir las fechas ya sembradas en registros existentes (contacts 4, companies 4, deals 1, tickets 3 con 2026-11-07): esa corrección es decisión aparte del usuario. OJO: revisar dónde más se usa TODAY antes de tocarlo; si la siembra demo lo necesita, aislarlo ahí. Cerrar con pruebas en verde en docs/evidencia/user-fecha-creacion-real/.",
+      "reviewAt": "2026-11-27T20:12:30.653Z",
+      "evidence": "docs/evidencia/user-fecha-creacion-real/README.md"
     },
     {
       "id": "gap-backend-indices-contact-id-tickets-tasks",
