@@ -608,17 +608,21 @@ export const importSyncStatus = () => ({ error: importJobs.error });
 const TERMINAL = new Set(['DONE', 'FAILED', 'CANCELED']);
 const rank = (r) => (r.undone ? 3 : TERMINAL.has(r.state) ? 2 : r.state === 'PROCESSING' ? 1 : 0);
 const newer = (a, b) => (rank(a) !== rank(b) ? (rank(a) > rank(b) ? a : b) : String(b.updatedAt || b.finishedAt || b.when) > String(a.updatedAt || a.finishedAt || a.when) ? b : a);
+// The history the monitor shows: the import_jobs rows of the database are the durable source (decision of
+// 27-nov-2026); the browser copy only adds what is still pending to sync, and the settings copy is the legacy
+// fallback. For one id the most advanced state wins (`newer`), so an offline browser never hides a finished job.
 export const importHistory = () => {
   const local = localRead(IMPORTS_KEY, null);
   const remote = remoteRead(IMPORTS_KEY);
-  if (!Array.isArray(remote)) return Array.isArray(local) ? local : [];
-  if (!Array.isArray(local)) return remote;
+  const durable = [...importJobs.rows.values()];
+  if (!durable.length && !Array.isArray(remote)) return Array.isArray(local) ? local : [];
   const byId = new Map();
-  [...remote, ...local].forEach((r) => { if (!r) return; const prev = byId.get(Number(r.id)); byId.set(Number(r.id), prev ? newer(prev, r) : r); });
+  [...(Array.isArray(remote) ? remote : []), ...(Array.isArray(local) ? local : []), ...durable].forEach((r) => { if (!r) return; const prev = byId.get(Number(r.id)); byId.set(Number(r.id), prev ? newer(prev, r) : r); });
   return [...byId.values()].sort((a, b) => new Date(b.when) - new Date(a.when));
 };
 export const saveHistory = (list) => { localWrite(IMPORTS_KEY, list); remoteWrite(IMPORTS_KEY, list); };
-export const importDetail = (id) => localRead(DETAIL_KEY(id), null) ?? remoteRead(DETAIL_KEY(id));
+// The detail (timeline, errors, undo ledger): the local copy while the job is being written, then the database.
+export const importDetail = (id) => localRead(DETAIL_KEY(id), null) ?? importJobs.details.get(Number(id)) ?? remoteRead(DETAIL_KEY(id));
 export const saveDetail = (id, d) => { localWrite(DETAIL_KEY(id), d); remoteWrite(DETAIL_KEY(id), d); };
 export function updateImport(id, patch) {
   const list = importHistory();

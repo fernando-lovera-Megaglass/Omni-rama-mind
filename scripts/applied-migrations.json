@@ -319,5 +319,9 @@
   "deal-close-date-guard.sql": {
     "status": "aplicada",
     "at": "2026-11-24T05:54:22-0600"
+  },
+  "import-stamps-residue.sql": {
+    "status": "aplicada",
+    "at": "2026-11-27T19:09:10.889Z"
   }
 }

@@ -259,6 +259,12 @@ async function scenario({ data, E, P, check, log, live = false, stamp = '', one 
     check(remoteEntry && remoteEntry.state === 'DONE' && remoteEntry.newRecords === fxA.expect.created, `live: the history is in user_settings with the real counts (${JSON.stringify(remoteEntry && { state: remoteEntry.state, newRecords: remoteEntry.newRecords })})`);
     const det = await one(`select value from public.user_settings where user_id = ${lit(session.uid)} and key = ${lit(E.DETAIL_KEY(A.id))}`);
     check(det?.value?.createdIds?.contacts?.length === created.length, `live: the detail (ledger) is in user_settings (${det?.value?.createdIds?.contacts?.length})`);
+    // Decision of 27-nov-2026: the durable history is the import_jobs table (user, file, state, counts, ledger).
+    const jobRow = await one(`select estado, nombre, objeto, new_count, updated_count, errors_count, user_id::text as user_id, jsonb_array_length(coalesce(undo_ledger->'contacts', '[]'::jsonb))::int as ledger from public.import_jobs where id = ${Number(A.id)}`);
+    check(jobRow && jobRow.estado === 'DONE' && jobRow.objeto === 'contacts' && jobRow.new_count === fxA.expect.created && jobRow.updated_count === fxA.expect.updated && jobRow.user_id === session.uid && jobRow.ledger === created.length, `live: import_jobs has the finished run with its counts, file and user (${JSON.stringify(jobRow && { estado: jobRow.estado, nombre: jobRow.nombre, new_count: jobRow.new_count, updated_count: jobRow.updated_count, errors_count: jobRow.errors_count, ledger: jobRow.ledger })})`);
+    const monitor = E.importHistory().find((r) => Number(r.id) === Number(A.id));
+    check(monitor && monitor.state === 'DONE' && monitor.newRecords === fxA.expect.created, `live: importHistory() (what the monitor shows) agrees with the database (${JSON.stringify(monitor && { state: monitor.state, newRecords: monitor.newRecords })})`);
+    log(`live: import_jobs row ${A.id} → ${jobRow.estado}, «${jobRow.nombre}», new ${jobRow.new_count}, updated ${jobRow.updated_count}, errors ${jobRow.errors_count}, ledger ${jobRow.ledger}, user ${jobRow.user_id === session.uid ? 'ok' : jobRow.user_id}; importHistory() shows ${monitor.state} with ${monitor.newRecords} new`);
   }
   // undo: exactly the created records (and the company the rule created) go to the trash; the updated ones stay
   const updatedNow = existing.map((c) => JSON.stringify(data.findRecord('contacts', c.id)));

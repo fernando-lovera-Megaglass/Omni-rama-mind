@@ -95,11 +95,13 @@
     },
     {
       "id": "user-importaciones-persisten-en-base",
-      "status": "pending",
+      "status": "review",
       "lane": "claude",
       "createdAt": "2026-11-27T17:36:13.371Z",
       "title": "Importaciones: todo el historial y los datos quedan en la base",
-      "instruction": "DECISIÓN DEL USUARIO (27-nov, sobre hallazgo 3 de la auditoría backend 26-nov-0512): las importaciones deben quedar y todos los datos en la base de datos; el historial de importaciones debe quedar en la base de datos, no en localStorage. Trabajo: 1) El monitor de Integración de datos (src/integration.js) debe leer/escribir el historial contra la tabla import_jobs de Supabase (hoy importHistory() lee localStorage + settings y import_jobs tiene 0 filas). 2) Cada corrida de importación inserta su fila en import_jobs al terminar (totales, creados, actualizados, errores, archivo, usuario). 3) Los registros importados conservan su sello hs_import_ids en extra para que «Ver segmento» y «Deshacer importación» tengan registros reales a los que apuntar. 4) Migración perezosa: subir a import_jobs lo que hoy exista en localStorage del navegador del usuario. 5) Limpiar el residuo: 2 empresas en papelera con sello huérfano. Backend + base de datos: cambios a la base SOLO por migración con respaldo previo; prohibido borrar datos del usuario. Cerrar con pruebas automáticas en verde adjuntas en docs/evidencia/user-importaciones-persisten-en-base/."
+      "instruction": "DECISIÓN DEL USUARIO (27-nov, sobre hallazgo 3 de la auditoría backend 26-nov-0512): las importaciones deben quedar y todos los datos en la base de datos; el historial de importaciones debe quedar en la base de datos, no en localStorage. Trabajo: 1) El monitor de Integración de datos (src/integration.js) debe leer/escribir el historial contra la tabla import_jobs de Supabase (hoy importHistory() lee localStorage + settings y import_jobs tiene 0 filas). 2) Cada corrida de importación inserta su fila en import_jobs al terminar (totales, creados, actualizados, errores, archivo, usuario). 3) Los registros importados conservan su sello hs_import_ids en extra para que «Ver segmento» y «Deshacer importación» tengan registros reales a los que apuntar. 4) Migración perezosa: subir a import_jobs lo que hoy exista en localStorage del navegador del usuario. 5) Limpiar el residuo: 2 empresas en papelera con sello huérfano. Backend + base de datos: cambios a la base SOLO por migración con respaldo previo; prohibido borrar datos del usuario. Cerrar con pruebas automáticas en verde adjuntas en docs/evidencia/user-importaciones-persisten-en-base/.",
+      "reviewAt": "2026-11-27T19:29:28.305Z",
+      "evidence": "docs/evidencia/user-importaciones-persisten-en-base/"
     },
     {
       "id": "user-fecha-creacion-real",
