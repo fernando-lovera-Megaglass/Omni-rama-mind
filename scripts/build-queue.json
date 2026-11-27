@@ -110,6 +110,14 @@
       "instruction": "DECISIÓN DEL USUARIO (27-nov, sobre hallazgos UI 1 y 2 de la auditoría 26-nov-0547): hay que borrar el espaciado fantasma; todo de acuerdo a DESIGN.md. Hoy var(--sp-12) se usa en 80 declaraciones de src/app.css y var(--sp-48) en 2 (líneas 11470 y 11893) sin existir en :root (la escala real es 2/4/8/10/16/20/24/32); cada declaración que los usa queda anulada en silencio. Trabajo: 1) Eliminar las declaraciones muertas que usan --sp-12 o --sp-48 (hoy ya no pintan nada, así que el cambio visual debe ser CERO). 2) Si al quitar una declaración un elemento queda visiblemente sin espaciado (verificar con Playwright a 1440px y 1280px), reemplazar SOLO esa por el token existente más cercano (--sp-10 para 12, --sp-32 para 48) y reportarlo en la evidencia. 3) Prohibido agregar --sp-12 o --sp-48 a :root. 4) Pruebas visuales y funcionales en verde; capturas antes/después de las pantallas tocadas (Informes, Negocios, Bandeja, Configuración, Vistas) en docs/evidencia/user-espaciado-fantasma-sp12/. No integrar a main sin aprobación del usuario."
     },
     {
+      "id": "user-escalas-pantalla",
+      "status": "backlog",
+      "lane": "claude",
+      "createdAt": "2026-11-27T18:56:07.409Z",
+      "title": "Escalas de pantalla: compacta (≤1180px) y grande (≥1920px)",
+      "instruction": "DECISIÓN DEL USUARIO (27-nov-2026): aplicar la regla «Escala por tamaño de pantalla» ya escrita en DESIGN.md (§1, tras Estructura). Dos media queries sobre :root en src/app.css: @media (max-width:1180px) baja los tokens ~-10% (--fs-sm 13px, --fs-xs 12px, --sp-16 12px, --sp-10 8px, --sp-8 6px; .assoc__logo 24px) y @media (min-width:1920px) los sube ~+14% (--fs-sm 16px, --fs-xs 14px, --sp-16 20px, --sp-10 12px, --sp-8 10px; .assoc__logo 32px). IMPORTANTE: 1) Las tarjetas del centro de la ficha (.card) deben ajustarse DE LA MISMA MANERA que las laterales (.assoc-card): todo sale de los tokens, prohibido valores sueltos por componente; si alguna medida de .card no usa token, primero pásala a token en la misma tarea. 2) Entre 1280px y 1919px nada cambia: las capturas base y las pruebas deben seguir en verde SIN actualizar snapshots. 3) La escala compacta solo ajusta medidas (fuentes, espaciados, tarjetas); no cambiar disposición (columnas, menús) — eso es fase aparte. 4) Evidencia: capturas de Contactos, ficha de contacto, Negocios e Informes a 1180px, 1920px y 2560px (además de las de siempre a 1440/1280) en docs/evidencia/user-escalas-pantalla/. No integrar a main sin aprobación del usuario."
+    },
+    {
       "id": "gap-backend-indices-contact-id-tickets-tasks",
       "lane": "claude",
       "status": "backlog",

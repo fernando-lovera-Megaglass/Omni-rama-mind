@@ -76,6 +76,28 @@ rgba(0,0,0,.2)` (paneles laterales) · `0 16px 48px rgba(0,0,0,.3)` (modales) ·
 `--topbar-h` 56px (barra superior, relleno 0 24px) · `.content` relleno 24px 32px
 32px · `.page-head` separación 16px, margen inferior 16px.
 
+### Escala por tamaño de pantalla (aprobada por el usuario, 27-nov-2026)
+La interfaz escala entera según el ancho de la ventana, moviendo **solo tokens** en
+`:root` — nunca valores sueltos por componente. Tres densidades:
+
+| Densidad | Ancho de ventana | Ajuste de tokens |
+|---|---|---|
+| Compacta | ≤ 1180px | ≈ −10 %: `--fs-sm` 13px, `--fs-xs` 12px, `--sp-16` 12px, `--sp-10` 8px, `--sp-8` 6px; logos `.assoc__logo` 24px |
+| Normal (referencia) | 1280–1919px | los tokens tal como están en esta tabla; **aquí corren las pruebas y las capturas base** |
+| Grande | ≥ 1920px | ≈ +14 %: `--fs-sm` 16px, `--fs-xs` 14px, `--sp-16` 20px, `--sp-10` 12px, `--sp-8` 10px; logos `.assoc__logo` 32px |
+
+Se implementa con dos media queries sobre `:root`:
+`@media (max-width: 1180px)` y `@media (min-width: 1920px)`.
+
+Reglas:
+- **Todo escala parejo**: las tarjetas del centro de la ficha (`.card`) se ajustan de la
+  misma manera que las tarjetas laterales (`.assoc-card`), y lo mismo tablas, botones y
+  campos — porque todos salen de los mismos tokens.
+- A 1280px y 1440px nada cambia: las capturas base de Playwright siguen válidas.
+- La densidad compacta de esta regla solo ajusta **medidas** (fuentes, espaciados,
+  tarjetas). Cambios de disposición para pantallas chicas (columnas que se apilan, menús
+  que colapsan) son una fase aparte que requiere su propia aprobación.
+
 ## 2. Componentes base: medidas reales
 
 Alturas, rellenos y tamaños tal como se renderizan hoy (`src/app.css` + medición en
