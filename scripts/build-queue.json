@@ -3137,10 +3137,12 @@
     },
     {
       "id": "gap-smoke-empty-states-workflows",
-      "status": "pending",
+      "status": "review",
       "instruction": "smoke-empty-states falla: «workflows: Crear workflow opens the Desde cero dialog» — el botón Crear workflow ya no abre el diálogo «Desde cero» que espera la prueba. OJO: el working tree tiene cambios sin commitear del frontend de Contactos (27-nov); trabaja sobre el código más reciente. Ejecuta la prueba con node scripts/<smoke>.mjs DESPUÉS de tu cambio e itera hasta que termine con código 0. Determina si es regresión o prueba desactualizada. No despliegues nada a producción; solo código local.",
       "createdAt": "2026-11-27T13:48:55-06:00",
-      "lane": "codex"
+      "lane": "codex",
+      "workedAt": "2026-11-27T17:43:11-0600",
+      "workedBy": "claude"
     },
     {
       "id": "gap-smoke-import-e2e-conteos",
