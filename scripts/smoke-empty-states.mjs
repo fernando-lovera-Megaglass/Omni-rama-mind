@@ -2,7 +2,8 @@
 // title, a line of help and the module's primary action instead of loose text — the lists («Crear contacto»),
 // Llamadas («Abrir el marcador» / «Borrar filtros»), the Bandeja de entrada (list and thread pane, «Nueva
 // conversación»), Plantillas («Nueva plantilla»), Secuencias («Crear secuencia») and Workflows («Crear
-// workflow»); the actions work; the illustration is an inline SVG drawn with currentColor (dark theme).
+// workflow», which goes to the create page since 22-nov-2026); the actions work; the illustration is an inline
+// SVG drawn with currentColor (dark theme).
 // Run: node scripts/smoke-empty-states.mjs
 import { JSDOM } from 'jsdom';
 import { fileURLToPath } from 'node:url';
@@ -155,6 +156,13 @@ log('sequences: illustration + «Crear secuencia» (link to create/)');
 
 // ===== 6) Workflows =====
 useDom('<!doctype html><body class="app"><aside id="sidenav"></aside><header id="topbar"></header><main class="content" id="wf-root"></main><div id="scrim"></div></body>', 'http://localhost/automation/?tab=workflows');
+// Since 22-nov-2026 (workflows engine, commit 78a2fb9) «Crear workflow» no longer opens a «Desde cero» dialog: it
+// goes to the create page (create/?mode=blank), like the «Desde cero» entry of the header menu. jsdom cannot
+// navigate, so the module gets a stand-in for the global `location` that records the address it is sent to.
+const nav = [];
+const real = window.location;
+globalThis.location = { href: real.href, search: real.search, pathname: real.pathname, origin: real.origin, hash: real.hash, assign: (u) => nav.push(u), replace: (u) => nav.push(u) };
+Object.defineProperty(globalThis.location, 'href', { get: () => real.href, set: (u) => nav.push(u) });
 await import(resolve(here, '../src/automation.js'));
 await wait(40);
 input($('wf-q'), 'zzzz-sin-workflows');
@@ -162,12 +170,12 @@ await wait(20);
 const wfBtn = checkState(q('.tpls__empty .estate'), 'workflows', { title: 'Ningún workflow coincide con los filtros', cta: 'Crear workflow', art: true });
 click(wfBtn);
 await wait(20);
-if (!q('#wf-modal.is-open') || !$('wfm-name')) fail('workflows: «Crear workflow» opens the «Desde cero» dialog');
-click(q('#wf-modal [data-bm="close"]'));
+if (nav[0] !== 'create/?mode=blank') fail(`workflows: «Crear workflow» goes to the create page (create/?mode=blank), got ${JSON.stringify(nav[0] ?? null)}`);
+if (q('#wf-modal.is-open')) fail('workflows: «Crear workflow» must not open a dialog any more');
 click(q('[data-view="deleted"]'));
 await wait(20);
 checkState(q('.tpls__empty .estate'), 'workflows (deleted view)', { title: 'No hay workflows eliminados', cta: 'Ver todos los workflows', art: true });
-log('workflows: illustration + «Crear workflow» (opens the dialog); deleted view → «Ver todos los workflows»');
+log('workflows: illustration + «Crear workflow» (goes to create/?mode=blank); deleted view → «Ver todos los workflows»');
 
 console.log('[empty-states] OK');
 process.exit(0);
