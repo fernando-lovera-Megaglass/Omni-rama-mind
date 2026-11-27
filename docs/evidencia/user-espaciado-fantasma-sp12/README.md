@@ -61,7 +61,19 @@ caso**: ninguna de las 82 declaraciones aportaba espaciado, así que quitarlas n
    informes, negocios-lista, negocios-ficha, bandeja, configuracion y administrar-vistas. 11 de los 12 pares son
    **byte a byte idénticos**; `administrar-vistas-1440` difiere en 35 píxeles de 1 296 000 con una diferencia máxima
    de 2/255 por canal (suavizado de texto; invisible).
-5. **Suite oficial** (`npx playwright test`, 174 pruebas a 1440 y 1280): __SUITE__
+5. **Suite oficial** (los 7 specs permanentes: `contactos`, `pantallas`, `tipos-de-campo`, `selector-propietario`,
+   `papelera`, `icono-papelera`, `frontend-contactos`; 166 pruebas a 1440 y 1280; corrida con el carril de empresa
+   principal editando `record.js`/`contacts.js` en el mismo árbol): **157 en verde, 9 en rojo**, y ninguno de los 9
+   es de esta tarea:
+   - 6 esperados de tareas anteriores, pendientes de aprobación del usuario: `contactos-lista` ×2 y `contactos-ficha`
+     ×2 (homogeneización de Contactos), Bandeja ×2 (17 px, selector de propietario).
+   - `tickets-ficha` (369 px) y `tareas-ficha` (352 px) a 1440: el diff es la etiqueta «Principal» de la tarjeta de
+     asociaciones que está metiendo la tarea user-ficha-empresa-principal (otro carril, `src/record.js` sin
+     commitear); a 1280 pasan porque la ficha pliega la columna derecha. Esta tarea no toca esas pantallas (los 218
+     estados medidos las incluyen y dieron idénticas).
+   - `tickets-lista` funcional a 1440: ruido de la corrida concurrente; repetida sola, pasa (6 / 6 con las dos
+     visuales anteriores de nuevo en rojo por lo mismo).
+   El spec `tests/empresa-principal.spec.js` (de esa otra tarea, en construcción) se excluyó de la corrida.
 6. `npm run build` en verde.
 
 ## Qué cambió en el código
@@ -74,6 +86,11 @@ caso**: ninguna de las 82 declaraciones aportaba espaciado, así que quitarlas n
   `--sp-12`, porque ya no es cierto; la regla (12px se escribe `calc(var(--sp-8) + var(--sp-4))` hasta que el usuario
   decida) no cambia.
 - No se tocó ninguna captura base ni otro archivo.
+- Nota de orden: el commit `cb21008` del orquestador («Claude: user-ficha-empresa-principal», 15:09) arrastró
+  al repo esta carpeta de evidencia a medias y los scripts temporales de medición de la raíz (`_sp12-*.mjs`,
+  `_pw-sp12.config.js`, `_sp12-tests/`); en el commit de esta tarea se retiran del repo (las copias de trabajo
+  están en `herramientas/`) y `_pw-tmp.config.js` vuelve a no versionarse. `src/app.css` no entró en ese commit:
+  el cambio real de la tarea está en el commit propio.
 
 ## Qué falta / decisiones del usuario
 
