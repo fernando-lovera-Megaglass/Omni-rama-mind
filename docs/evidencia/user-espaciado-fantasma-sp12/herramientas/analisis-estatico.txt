@@ -1,0 +1,372 @@
+L691 .acrop { margin: var(--sp-12) 0 }  → <div class="acrop">
+      (nada tomaría el relevo: quitarla no cambia nada)
+L720 .acrop__zoom { gap: var(--sp-12) }  → <label class="acrop__zoom">
+      (nada tomaría el relevo: quitarla no cambia nada)
+L1517 .estate--compact { padding: var(--sp-16) var(--sp-12) }  → <div class="estate ` : ''} estate--compact">
+      ANTES  L1454 .estate { padding: var(--sp-32) var(--sp-16) }
+L2690 .seg__searchrow { margin-bottom: var(--sp-12) }  → <div class="seg__searchrow">
+      (nada tomaría el relevo: quitarla no cambia nada)
+L2816 .seg__stat { padding: var(--sp-12) var(--sp-16) }  → <div class="seg__stat">
+      (nada tomaría el relevo: quitarla no cambia nada)
+L2964 .sedit__filters-head { margin-bottom: var(--sp-12) }  → <div class="sedit__filters-head">
+L2964 .sedit__preview-head { margin-bottom: var(--sp-12) }  → <div class="sedit__preview-head">
+      (nada tomaría el relevo: quitarla no cambia nada)
+L2980 .sedit__ai { margin-bottom: var(--sp-12) }  → <details/div class="adv-help sedit__ai sedit__ai-row">
+      (nada tomaría el relevo: quitarla no cambia nada)
+L3048 .sedit__addmember { margin-bottom: var(--sp-12) }  → <div class="sedit__addmember">
+      (nada tomaría el relevo: quitarla no cambia nada)
+L3320 .imp__map th { padding: var(--sp-10) var(--sp-12) }  → <th> (hijo <th> de .imp__map)
+L3320 .imp__map td { padding: var(--sp-10) var(--sp-12) }  → <td> (hijo <td> de .imp__map)
+      ANTES  L1182 .table th, .table td { padding: 0 var(--sp-16) }
+      ANTES  L2208 .mini-table th, .mini-table td { padding: var(--sp-10) var(--sp-8) }
+      NAVEGADOR <th> { padding: 1px }
+      ANTES  L2452 .dint__table td { padding: 0 var(--sp-8) }
+      NAVEGADOR <td> { padding: 1px }
+L3371 .imp__consent { padding: var(--sp-12) var(--sp-16) }  → <label class="imp__check imp__check--big imp__consent">
+      (nada tomaría el relevo: quitarla no cambia nada)
+L3544 .imp__stat { padding: var(--sp-12) var(--sp-16) }  → <div class="imp__stat">
+      (nada tomaría el relevo: quitarla no cambia nada)
+L3566 .imp__errors td { padding: var(--sp-8) var(--sp-12) }  → <td> (hijo <td> de .imp__errors)
+L3566 .imp__failed td { padding: var(--sp-8) var(--sp-12) }  → <td> (hijo <td> de .imp__failed)
+L3566 .imp__errors th { padding: var(--sp-8) var(--sp-12) }  → <th> (hijo <th> de .imp__errors)
+L3566 .imp__failed th { padding: var(--sp-8) var(--sp-12) }  → <th> (hijo <th> de .imp__failed)
+      ANTES  L1182 .table th, .table td { padding: 0 var(--sp-16) }
+      ANTES  L2208 .mini-table th, .mini-table td { padding: var(--sp-10) var(--sp-8) }
+      ANTES  L2452 .dint__table td { padding: 0 var(--sp-8) }
+      ANTES  L3320 .imp__map th, .imp__map td { padding: var(--sp-10) var(--sp-12) }
+      NAVEGADOR <td> { padding: 1px }
+      NAVEGADOR <th> { padding: 1px }
+L4959 .kcol--collapsed.tip .tip__text { top: var(--sp-12) }  → <span class="tip__text">
+      ANTES  L499 .sidenav__collapse .tip__text { top: 50% }
+      ANTES  L507 .sidenav__collapse .tip__text::before { top: 50% }
+      ANTES  L2349 .dint__art--import span:nth-child(1) { top: 6px }
+      ANTES  L2350 .dint__art--import span:nth-child(2) { top: 22px }
+      ANTES  L2351 .dint__art--import span:nth-child(3) { top: 32px }
+      ANTES  L2352 .dint__art--sync span:nth-child(1) { top: 14px }
+      ANTES  L2353 .dint__art--sync span:nth-child(2) { top: 20px }
+      ANTES  L2354 .dint__art--sync span:nth-child(3) { top: 28px }
+      ANTES  L2355 .dint__art--transfer span:nth-child(1) { top: 36px }
+      ANTES  L2356 .dint__art--transfer span:nth-child(2) { top: 6px }
+      ANTES  L2357 .dint__art--transfer span:nth-child(3) { top: 44px }
+      ANTES  L2358 .dint__art--hub span:nth-child(1) { top: 10px }
+      ANTES  L2359 .dint__art--hub span:nth-child(2) { top: 26px }
+      ANTES  L2360 .dint__art--hub span:nth-child(3) { top: 70px }
+      ANTES  L4682 .tip__text { top: calc(100% + 10px) }
+      después L10265 .snav__collapse .tip__text, .snav__railback .tip__text { top: 50% }
+L5027 .pmenu { padding: var(--sp-12) 0 0 }  → <div class="menu__panel menu__panel--right pmenu">
+      ANTES  L1370 .menu__panel { padding: var(--sp-8) 0 }
+L5032 .pmenu__search { margin: 0 var(--sp-12) var(--sp-8) }  → <div class="pmenu__search">
+      (nada tomaría el relevo: quitarla no cambia nada)
+L5062 .pmenu__item { gap: var(--sp-12) }  → <button class="pmenu__item">
+      (nada tomaría el relevo: quitarla no cambia nada)
+L5087 .pmenu__empty { padding: var(--sp-12) var(--sp-20) }  → <p class="muted pmenu__empty">
+      (nada tomaría el relevo: quitarla no cambia nada)
+L5093 .pmenu__foot { padding: var(--sp-12) var(--sp-20) }  → <div class="pmenu__foot">
+      (nada tomaría el relevo: quitarla no cambia nada)
+L5122 .kpis { padding: var(--sp-12) var(--sp-8) }  → <div class="kpis kpis--static">
+      (nada tomaría el relevo: quitarla no cambia nada)
+L5195 .kpi__value { margin-top: var(--sp-12) }  → <p/div/span class="kpi__value">
+      NAVEGADOR <p> { margin: 1em 0 (≈14–16px) }
+L10290 .snav--rail { gap: var(--sp-12) }  → <nav class="snav snav--rail">
+      (nada tomaría el relevo: quitarla no cambia nada)
+L10465 .gsave { padding: var(--sp-12) 0 }  → <div class="sform__btns gsave">
+      (nada tomaría el relevo: quitarla no cambia nada)
+L10918 .ofield .muted { margin: 0 0 var(--sp-12) }  → <li/p/span/div/label/small/td/em class="muted seqan__sub callrec__note callmenu__row dialer__hint callreview__meta calls__empty calls__count compose__latertz cem__err sigm__hint cw__helptext oauth__fine cw__privacy cc-dups__hint advc__novalue chart__empty funnel__meta funnel__note inbox__formerror inbox__insempty inbox__toolhint inbox__threadsub dint__count dint__empty llist__empty lfixed coled__hint adv-intro adv-summary pmenu__empty allf__none allf__empty trash__empty mv__empty mv__hint mk-sub mk-foot mk-editor__status owner__name osel__empty more-menu__empty stages__note cd-internal cd-filter__novalue chart__total card__note sedit__meta seg__empty seqed__tplmeta seqed__hint seqstep__tpl enr__hint enr__starthint enr__from seqs__steps tpls__folderchip gformat num pidcell rowdash cp__note menu__note tpe__sig tokpick__empty tokpick__hint wfb__join wfe__log">
+      ANTES  L960 .picker__item .muted { margin-left: var(--sp-8) }
+      ANTES  L2272 .dint__card p { margin: 0 0 var(--sp-20) }
+      ANTES  L2502 .dint__count { margin: var(--sp-10) 0 0 }
+      ANTES  L3870 .coled__hint { margin: 0 0 var(--sp-8) }
+      ANTES  L3898 .colgrp__head .muted { margin-left: auto }
+      ANTES  L4449 .adv-summary { margin: 0 }
+      ANTES  L5088 .pmenu__empty { margin: 0 }
+      ANTES  L5495 .mk-table .mk-sub { margin-top: 2px }
+      ANTES  L5510 .mk-foot { margin: var(--sp-8) 0 0 }
+      ANTES  L5670 .mk-tpl__card p { margin: 0 0 var(--sp-8) }
+      ANTES  L6463 .inbox__editor p { margin: 0 0 var(--sp-4) }
+      ANTES  L6483 .inbox__toolhint { margin-left: auto }
+      ANTES  L6503 .msg__bubble p { margin: 0 0 var(--sp-4) }
+      ANTES  L6620 .trash__empty { margin: 0 }
+      ANTES  L8635 .ai-box p { margin: var(--sp-8) 0 }
+      ANTES  L9312 .cd-internal { margin: var(--sp-10) 0 0 }
+      ANTES  L9943 .llist__empty { margin: 0 }
+      ANTES  L10404 .gfield > label { margin-bottom: var(--sp-8) }
+      ANTES  L10414 .gfield--row > label { margin: 0 }
+      ANTES  L10471 .gformat { margin: -4px 0 var(--sp-8) }
+      después L11309 .cp__note { margin: 0 }
+      después L11597 .pvmock__card dd, .pvmock__card p, .pvmock__card ul { margin: 0 }
+      después L11636 .pvcard p { margin: 0 }
+      después L11722 .seat > p { margin: 0 0 var(--sp-12) }
+      después L11889 .mv__empty { margin: var(--sp-8) 0 }
+      después L11990 .mv__hint { margin: var(--sp-16) 0 0 }
+      después L12696 .lpreview__field > span { margin-bottom: 4px }
+      después L13149 .more-menu__empty { margin: var(--sp-8) var(--sp-20) }
+      después L13668 .compose__latertz { margin: 0 }
+      después L14223 .card__note { margin-left: var(--sp-8) }
+      después L14316 .funnel__meta, .funnel__note { margin: 0 0 var(--sp-8) }
+      después L14321 .funnel__note { margin: var(--sp-8) 0 0 }
+      después L14385 .funnel--empty p { margin: var(--sp-8) 0 0 }
+      después L14408 .chart__empty { margin: var(--sp-8) 0 0 }
+      después L14437 .chart__total { margin: var(--sp-8) 0 0 }
+      después L14461 .imp__dups > p { margin: 0 0 var(--sp-10) }
+      después L14530 .imp__dupvalues li { margin-bottom: var(--sp-4) }
+      después L14575 .stages__note { margin: var(--sp-8) 0 0 }
+      después L14700 .cc-dups__hint { margin: 0 }
+      después L15075 .allf__empty { margin: var(--sp-8) }
+      después L15413 .tpls__libitem p { margin: var(--sp-4) 0 0 }
+      después L15570 .tpe__sig { margin: var(--sp-10) 0 0 }
+      después L16202 .seqauto__card p { margin: 0 0 12px }
+      después L16309 .seqed__start p, .seqed__tpl p { margin: var(--sp-4) 0 0 }
+      después L16352 .seqed__tplmeta { margin-top: var(--sp-4) }
+      después L16733 .enr__ph p { margin: 0 0 var(--sp-8) }
+      después L16747 .enr__hint { margin: 0 }
+      después L16815 .enr__starthint { margin: 0 0 var(--sp-8) }
+      después L17012 .cem__cfg p { margin: var(--sp-4) 0 var(--sp-8) }
+      después L17159 .cw__detect p { margin: 0 0 var(--sp-4) }
+      después L17248 .cw__verifying p { margin: var(--sp-8) 0 0 }
+      después L17310 .enr__from { margin: 0 0 var(--sp-8) }
+      después L18083 .wfe__steps li { margin-bottom: var(--sp-4) }
+      después L18519 .wfe__help p { margin: 0 }
+      después L18666 .wfc__card p { margin: 0 }
+      después L18965 .callrec__note { margin: 2px 0 0 22px }
+      después L19035 .calls-transcript p { margin: 0 }
+      después L19062 .callreview__meta { margin-bottom: var(--sp-8) }
+      después L19067 .callreview__player label { margin-top: 4px }
+      después L19920 .cw__notice p { margin: var(--sp-4) 0 0 }
+      después L19938 .cem__err { margin-top: var(--sp-4) }
+      después L20563 .calls__count { margin: 8px 2px 0 }
+      después L20840 .custom-library-row p { margin: 0 }
+      después L20860 .subtasks__suggestion p { margin: 0 0 8px }
+      después L20867 .activity-comments li p { margin: 6px 0 }
+      NAVEGADOR <p> { margin: 1em 0 (≈14–16px) }
+L10934 .ginput--xs { padding: 0 var(--sp-12) }  → <input class="ginput ginput--xs">
+      ANTES  L10420 .ginput { padding: 0 var(--sp-20) }
+      NAVEGADOR <input> { padding: 1px 2px (texto) }
+L10940 .ocheck { gap: var(--sp-12) }  → <label class="ocheck ocheck--sm cem__unsub cardprops__scope">
+      (nada tomaría el relevo: quitarla no cambia nada)
+L10978 .oradio { gap: var(--sp-12) }  → <label class="oradio">
+      (nada tomaría el relevo: quitarla no cambia nada)
+L10979 .oradio { margin: var(--sp-12) 0 }  → <label class="oradio">
+      (nada tomaría el relevo: quitarla no cambia nada)
+L11061 .opreview { gap: var(--sp-12) }  → <div class="opreview">
+      (nada tomaría el relevo: quitarla no cambia nada)
+L11062 .opreview { padding: var(--sp-12) }  → <div class="opreview">
+      (nada tomaría el relevo: quitarla no cambia nada)
+L11114 .opreview__tabs { gap: var(--sp-12) }  → <div class="opreview__tabs">
+      (nada tomaría el relevo: quitarla no cambia nada)
+L11346 .acc__radio { gap: var(--sp-12) }  → <label class="acc__radio">
+      (nada tomaría el relevo: quitarla no cambia nada)
+L11389 .acc__tabs { margin: var(--sp-12) 0 var(--sp-16) }  → <div class="acc__tabs">
+      (nada tomaría el relevo: quitarla no cambia nada)
+L11470 .pvedit { padding: var(--sp-24) var(--sp-32) var(--sp-48) }  → <div class="pvedit pvedit--single">
+      (nada tomaría el relevo: quitarla no cambia nada)
+L11505 .pvedit__mockhead { gap: var(--sp-12) }  → <? class="pvedit__mockhead">
+      (nada tomaría el relevo: quitarla no cambia nada)
+L11537 .pvmock__head { gap: var(--sp-12) }  → <? class="pvmock__head">
+      (nada tomaría el relevo: quitarla no cambia nada)
+L11556 .pvmock__quick { padding: var(--sp-12) var(--sp-16) }  → <? class="pvmock__quick">
+      (nada tomaría el relevo: quitarla no cambia nada)
+L11568 .pvmock__card { padding: var(--sp-12) var(--sp-16) }  → <? class="pvmock__card">
+      (nada tomaría el relevo: quitarla no cambia nada)
+L11605 .pvmock__foot { padding: var(--sp-12) var(--sp-16) }  → <? class="pvmock__foot">
+      (nada tomaría el relevo: quitarla no cambia nada)
+L11619 .pvcard { padding: var(--sp-12) var(--sp-20) }  → <section class="pvcard">
+      (nada tomaría el relevo: quitarla no cambia nada)
+L11650 .uname { gap: var(--sp-12) }  → <div class="uname">
+      (nada tomaría el relevo: quitarla no cambia nada)
+L11722 .seat > p { margin: 0 0 var(--sp-12) }  → <p> (hijo <p> de .seat)
+      ANTES  L2272 .dint__card p { margin: 0 0 var(--sp-20) }
+      ANTES  L5670 .mk-tpl__card p { margin: 0 0 var(--sp-8) }
+      ANTES  L6463 .inbox__editor p { margin: 0 0 var(--sp-4) }
+      ANTES  L6503 .msg__bubble p { margin: 0 0 var(--sp-4) }
+      ANTES  L8635 .ai-box p { margin: var(--sp-8) 0 }
+      ANTES  L11597 .pvmock__card dd, .pvmock__card p, .pvmock__card ul { margin: 0 }
+      ANTES  L11636 .pvcard p { margin: 0 }
+      NAVEGADOR <p> { margin: 1em 0 (≈14–16px) }
+L11745 .seat__foot { margin-top: var(--sp-12) }  → <div class="seat__foot">
+      (nada tomaría el relevo: quitarla no cambia nada)
+L11749 .permgroup { margin: 0 0 var(--sp-12) }  → <fieldset class="permgroup">
+      NAVEGADOR <fieldset> { margin: 0 2px }
+L11750 .permgroup { padding: var(--sp-12) var(--sp-16) }  → <fieldset class="permgroup">
+      NAVEGADOR <fieldset> { padding: 0.35em 0.75em 0.625em }
+L11767 #s-modal .pgrid { gap: var(--sp-12) var(--sp-16) }  → <div class="pgrid">
+      ANTES  L4158 .colinfo > div { gap: var(--sp-16) }
+      ANTES  L11586 .pvmock__card dl > div { gap: var(--sp-8) }
+      después L12341 .peditor .pgrid { gap: var(--sp-16) var(--sp-24) }
+      después L12447 .pdesc > div { gap: var(--sp-8) }
+      después L19879 .dtag__summary > div { gap: var(--sp-8) }
+L11858 .mv__list { margin: var(--sp-12) 0 var(--sp-16) }  → <div class="mv__list">
+      (nada tomaría el relevo: quitarla no cambia nada)
+L11885 .mv__search { margin: var(--sp-12) 0 }  → <div class="search search--sm mv__search">
+      (nada tomaría el relevo: quitarla no cambia nada)
+L11893 .mv__main { padding: var(--sp-24) var(--sp-24) var(--sp-48) }  → <section class="mv__main">
+      (nada tomaría el relevo: quitarla no cambia nada)
+L11899 .mv__banner { gap: var(--sp-12) }  → <div/span class="mv__banner mv__banner-ico">
+      (nada tomaría el relevo: quitarla no cambia nada)
+L11923 .mv__title { margin-bottom: var(--sp-12) }  → <button class="mv__title">
+      (nada tomaría el relevo: quitarla no cambia nada)
+L11942 .mv__tab { gap: var(--sp-12) }  → <div class="mv__tab">
+      (nada tomaría el relevo: quitarla no cambia nada)
+L11945 .mv__tab { padding: var(--sp-12) var(--sp-12) var(--sp-12) var(--sp-16) }  → <div class="mv__tab">
+      (nada tomaría el relevo: quitarla no cambia nada)
+L12022 .mvtable td { padding-top: var(--sp-12) }  → <td> (hijo <td> de .mvtable)
+      ANTES  L1182 .table th, .table td { padding: 0 var(--sp-16) }
+      ANTES  L2208 .mini-table th, .mini-table td { padding: var(--sp-10) var(--sp-8) }
+      ANTES  L2452 .dint__table td { padding: 0 var(--sp-8) }
+      ANTES  L3320 .imp__map th, .imp__map td { padding: var(--sp-10) var(--sp-12) }
+      ANTES  L3566 .imp__errors td, .imp__failed td, .imp__errors th, .imp__failed th { padding: var(--sp-8) var(--sp-12) }
+      ANTES  L5379 .lineitems td { padding: var(--sp-4) }
+      ANTES  L6608 .dupes__table td, .dupes__table th, .trash__table td, .trash__table th { padding: var(--sp-8) var(--sp-10) }
+      ANTES  L7019 .cd-items td { padding: var(--sp-4) }
+      ANTES  L11212 .proptable td { padding-top: var(--sp-16) }
+      NAVEGADOR <td> { padding: 1px }
+L12023 .mvtable td { padding-bottom: var(--sp-12) }  → <td> (hijo <td> de .mvtable)
+      ANTES  L1182 .table th, .table td { padding: 0 var(--sp-16) }
+      ANTES  L2208 .mini-table th, .mini-table td { padding: var(--sp-10) var(--sp-8) }
+      ANTES  L2452 .dint__table td { padding: 0 var(--sp-8) }
+      ANTES  L3320 .imp__map th, .imp__map td { padding: var(--sp-10) var(--sp-12) }
+      ANTES  L3566 .imp__errors td, .imp__failed td, .imp__errors th, .imp__failed th { padding: var(--sp-8) var(--sp-12) }
+      ANTES  L5379 .lineitems td { padding: var(--sp-4) }
+      ANTES  L6608 .dupes__table td, .dupes__table th, .trash__table td, .trash__table th { padding: var(--sp-8) var(--sp-10) }
+      ANTES  L7019 .cd-items td { padding: var(--sp-4) }
+      ANTES  L11213 .proptable td { padding-bottom: var(--sp-16) }
+      NAVEGADOR <td> { padding: 1px }
+L12099 .ixpick__sel li { padding: var(--sp-8) var(--sp-12) }  → <li> (hijo <li> de .ixpick__sel)
+      ANTES  L3074 .sedit__candidates li { padding: var(--sp-8) var(--sp-10) }
+      ANTES  L9024 .ad-labels li { padding: var(--sp-10) 0 }
+      ANTES  L9567 .dup-list li { padding: var(--sp-8) 0 }
+      ANTES  L9664 .files li, .guides li { padding: var(--sp-8) 0 }
+      ANTES  L10536 .updates li { padding: var(--sp-10) 0 }
+      ANTES  L11418 .acc__list li { padding: var(--sp-8) 0 }
+      ANTES  L12079 .ixlinks li { padding: var(--sp-10) 0 }
+L12176 .ptabs button { padding: var(--sp-12) var(--sp-24) }  → <button> (hijo <button> de .ptabs)
+      ANTES  L5353 .kcard__actions a, .kcard__actions button { padding: 0 }
+      ANTES  L6698 .hier__results button { padding: var(--sp-8) var(--sp-10) }
+      ANTES  L6934 .cd-search__results button { padding: var(--sp-8) var(--sp-10) }
+      ANTES  L7434 .pill--adv button { padding: 0 var(--sp-8) 0 0 }
+      ANTES  L8658 .ai-box__foot button, .ai-feedback button { padding: 0 }
+      ANTES  L9806 .ledit__tabs button { padding: 0 var(--sp-16) }
+      ANTES  L10007 .ltab > button { padding: 0 var(--sp-24) }
+      ANTES  L10361 .gtabs button { padding: 0 var(--sp-32) }
+      ANTES  L10735 .stabs button { padding: var(--sp-10) 0 }
+      ANTES  L10826 .otabs__tabs button { padding: 0 var(--sp-24) }
+      ANTES  L10840 [@media (max-width: 1500px)] .otabs__tabs button { padding: 0 var(--sp-16) }
+      ANTES  L11393 .acc__tabs button { padding: var(--sp-8) var(--sp-24) }
+      ANTES  L11811 .mv__nav button { padding: var(--sp-16) var(--sp-24) }
+      NAVEGADOR <button> { padding: 1px 6px }
+L12196 .pcolors { margin-top: var(--sp-12) }  → <div class="pcolors">
+      (nada tomaría el relevo: quitarla no cambia nada)
+L12381 .ptabs--sub button { padding: var(--sp-12) var(--sp-16) }  → <button> (hijo <button> de .ptabs--sub)
+      ANTES  L5353 .kcard__actions a, .kcard__actions button { padding: 0 }
+      ANTES  L6698 .hier__results button { padding: var(--sp-8) var(--sp-10) }
+      ANTES  L6934 .cd-search__results button { padding: var(--sp-8) var(--sp-10) }
+      ANTES  L7434 .pill--adv button { padding: 0 var(--sp-8) 0 0 }
+      ANTES  L8658 .ai-box__foot button, .ai-feedback button { padding: 0 }
+      ANTES  L9806 .ledit__tabs button { padding: 0 var(--sp-16) }
+      ANTES  L10007 .ltab > button { padding: 0 var(--sp-24) }
+      ANTES  L10361 .gtabs button { padding: 0 var(--sp-32) }
+      ANTES  L10735 .stabs button { padding: var(--sp-10) 0 }
+      ANTES  L10826 .otabs__tabs button { padding: 0 var(--sp-24) }
+      ANTES  L10840 [@media (max-width: 1500px)] .otabs__tabs button { padding: 0 var(--sp-16) }
+      ANTES  L11393 .acc__tabs button { padding: var(--sp-8) var(--sp-24) }
+      ANTES  L11811 .mv__nav button { padding: var(--sp-16) var(--sp-24) }
+      ANTES  L12176 .ptabs button { padding: var(--sp-12) var(--sp-24) }
+      NAVEGADOR <button> { padding: 1px 6px }
+L12401 .ptable--stages th { padding: var(--sp-12) var(--sp-16) var(--sp-16) }  → <th> (hijo <th> de .ptable--stages)
+      ANTES  L1182 .table th, .table td { padding: 0 var(--sp-16) }
+      ANTES  L2208 .mini-table th, .mini-table td { padding: var(--sp-10) var(--sp-8) }
+      ANTES  L3320 .imp__map th, .imp__map td { padding: var(--sp-10) var(--sp-12) }
+      ANTES  L3566 .imp__errors td, .imp__failed td, .imp__errors th, .imp__failed th { padding: var(--sp-8) var(--sp-12) }
+      ANTES  L5371 .lineitems th { padding: 0 var(--sp-4) var(--sp-4) }
+      ANTES  L6608 .dupes__table td, .dupes__table th, .trash__table td, .trash__table th { padding: var(--sp-8) var(--sp-10) }
+      ANTES  L7011 .cd-items th { padding: 0 var(--sp-4) var(--sp-4) }
+      NAVEGADOR <th> { padding: 1px }
+L12577 .logic__btns { gap: var(--sp-12) }  → <div class="logic__btns">
+      (nada tomaría el relevo: quitarla no cambia nada)
+L12629 .lcond { gap: var(--sp-12) }  → <div class="lcond lcond--edit">
+      (nada tomaría el relevo: quitarla no cambia nada)
+L12630 .lcond { margin: var(--sp-10) var(--sp-12) }  → <div class="lcond lcond--edit">
+      (nada tomaría el relevo: quitarla no cambia nada)
+L12631 .lcond { padding: var(--sp-12) var(--sp-16) }  → <div class="lcond lcond--edit">
+      (nada tomaría el relevo: quitarla no cambia nada)
+L12650 .lgroup > .pill { margin: 0 var(--sp-12) var(--sp-12) }  → <div/button/a/span class="search search--pill pill pill--send pill--send-caret pill--dark pill--light pill--primary pill--pipeline pill--adv pill--total pill--save btn btn--pill btn--sm pill--xs pill--next seg__adv pill--sm rowact pill--lg">
+      ANTES  L5506 .mk-rowactions .btn, .mk-rowactions .menu { margin-left: var(--sp-4) }
+      ANTES  L5931 .mk-module__tools button { margin-left: 4px }
+      ANTES  L10362 .gtabs button { margin-bottom: -1px }
+      ANTES  L10827 .otabs__tabs button { margin-bottom: -1px }
+      ANTES  L11394 .acc__tabs button { margin-bottom: -1px }
+      ANTES  L11812 .mv__nav button { margin-bottom: -1px }
+      ANTES  L12018 .mv__toolbar .btn { margin-left: auto }
+      ANTES  L12177 .ptabs button { margin-bottom: -1px }
+      ANTES  L12296 .pdesccell .rowact, .pidcell .rowact { margin-left: var(--sp-8) }
+      ANTES  L12510 .ptable .rowact { margin-left: var(--sp-8) }
+      después L12696 .lpreview__field > span { margin-bottom: 4px }
+      después L17996 .wfg__h button { margin-left: auto }
+L12691 .lpreview__field { margin: var(--sp-12) 0 }  → <label class="gfield lpreview__field">
+      (nada tomaría el relevo: quitarla no cambia nada)
+L12727 .lcinfo { padding: var(--sp-12) var(--sp-20) }  → <div class="lcinfo">
+      (nada tomaría el relevo: quitarla no cambia nada)
+L14258 .log-attendees { margin: 0 0 var(--sp-12) }  → <fieldset class="log-attendees">
+      NAVEGADOR <fieldset> { margin: 0 2px }
+L14334 .funnel__row { gap: var(--sp-12) }  → <li class="funnel__row">
+      (nada tomaría el relevo: quitarla no cambia nada)
+L14375 .funnel__conv { padding: 0 0 var(--sp-4) calc(140px + var(--sp-12)) }  → <li class="funnel__conv">
+      (nada tomaría el relevo: quitarla no cambia nada)
+L18265 .wfl__head { margin-bottom: var(--sp-12) }  → <header class="tpls__head wfl__head">
+      ANTES  L15164 .tpls__head { margin-bottom: var(--sp-16) }
+L18350 .wfe__bar { gap: var(--sp-12) }  → <header class="wfe__bar">
+      ANTES  L17461 .wfe__bar { gap: var(--sp-16) }
+L18502 .wfe__help section + section { margin-top: var(--sp-12) }  → <section> (hijo <section> de .undefined)
+      (nada tomaría el relevo: quitarla no cambia nada)
+L19064 .callreview__section { padding-top: var(--sp-12, 12px) }  → <div class="callreview__section">
+      (nada tomaría el relevo: quitarla no cambia nada)
+L19509 .dtags__bar { gap: var(--sp-12) }  → <div class="dtags__bar">
+      (nada tomaría el relevo: quitarla no cambia nada)
+L19510 .dtags__bar { margin-bottom: var(--sp-12) }  → <div class="dtags__bar">
+      (nada tomaría el relevo: quitarla no cambia nada)
+L19573 .dtags__name { gap: var(--sp-12) }  → <div class="dtags__name">
+      (nada tomaría el relevo: quitarla no cambia nada)
+L19595 .dtags__list { margin: 0 0 var(--sp-12) }  → <ul class="dtags__list">
+      NAVEGADOR <ul> { margin: 1em 0 }
+L19617 .dtag__body { gap: var(--sp-12) }  → <div class="drawer__body dtag__body">
+      ANTES  L1639 .drawer__body { gap: var(--sp-16) }
+L19790 .dtag__empty { gap: var(--sp-12) }  → <div class="dtag__empty">
+      (nada tomaría el relevo: quitarla no cambia nada)
+L20650 .record__left.is-collapsed .record__colbar { padding: var(--sp-8) var(--sp-12) } [@media (max-width: 900px)]  → <div/span class="record__colbar record__colbar--left record__colbar-title record__colbar--right">
+L20650 .record__right.is-collapsed .record__colbar { padding: var(--sp-8) var(--sp-12) } [@media (max-width: 900px)]  → <div/span class="record__colbar record__colbar--left record__colbar-title record__colbar--right">
+      ANTES  L4159 .colinfo > div { padding-bottom: var(--sp-10) }
+      ANTES  L4490 .advg__or span { padding: 2px 10px }
+      ANTES  L11045 .ocols > div { padding: var(--sp-16) }
+      ANTES  L11123 .opreview__tabs span { padding-bottom: var(--sp-8) }
+      ANTES  L11562 .pvmock__quick span { padding: 4px 8px }
+      ANTES  L11587 .pvmock__card dl > div { padding: 4px 0 }
+      ANTES  L13003 .record__left.is-collapsed .record__colbar, .record__right.is-collapsed .record_ { padding: var(--sp-8) 0 }
+      ANTES  L14954 .allf__and span { padding: 2px 10px }
+      ANTES  L19880 .dtag__summary > div { padding: var(--sp-8) 0 }
+L20834 .custom-library .search { margin: var(--sp-12) 0 }  → <div/span class="search search--sm wfl__search ico ico--search search--pill cd-search inbox__search inbox__inssearch dint__search coled__search picker__search trash__search mv__search mk-tpl__search allprops__search acard-search ad-search seg__search ptoolbar__search snav__search menu__panel menu__panel--search">
+      ANTES  L956 .picker__search { margin: 0 var(--sp-16) var(--sp-8) }
+      ANTES  L2432 .dint__search { margin-bottom: var(--sp-10) }
+      ANTES  L3866 .coled__search { margin-bottom: var(--sp-8) }
+      ANTES  L5647 .mk-tpl__search { margin-bottom: var(--sp-16) }
+      ANTES  L6163 .inbox__search { margin: 0 var(--sp-16) var(--sp-8) }
+      ANTES  L6494 .inbox__inssearch { margin: var(--sp-4) var(--sp-8) }
+      ANTES  L6616 .trash__search { margin-bottom: var(--sp-16) }
+      ANTES  L6734 .allprops__search { margin-bottom: var(--sp-10) }
+      ANTES  L8950 .ad-search { margin-bottom: var(--sp-24) }
+      ANTES  L9169 .acard-search { margin-bottom: var(--sp-10) }
+      ANTES  L10185 .snav__search { margin-bottom: var(--sp-16) }
+      ANTES  L11885 .mv__search { margin: var(--sp-12) 0 }
+      ANTES  L12014 .mv__toolbar .mv__search { margin: 0 }
+      ANTES  L12696 .lpreview__field > span { margin-bottom: 4px }
+L20836 .custom-library form > .field { margin-bottom: var(--sp-12) }  → <label/div/fieldset class="field cw__port cd-assoc__label imp__lang share-field dtag__namefield enr__previewfor">
+      ANTES  L1021 .share-field { margin: 0 }
+      ANTES  L3266 .imp__lang { margin-bottom: var(--sp-16) }
+      ANTES  L10404 .gfield > label { margin-bottom: var(--sp-8) }
+      ANTES  L10414 .gfield--row > label { margin: 0 }
+      ANTES  L16842 .enr__previewfor { margin-bottom: var(--sp-8) }
+      después L20957 .enr__options .field { margin-bottom: 16px }
+      NAVEGADOR <fieldset> { margin: 0 2px }
+L20841 .custom-library-row__actions { gap: var(--sp-12) }  → <div class="custom-library-row__actions">
+      (nada tomaría el relevo: quitarla no cambia nada)
+
+
+27 declaraciones con candidato a tomar el relevo

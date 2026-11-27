@@ -1,0 +1,16 @@
+workflow-crear-w1280.json 18350|.wfe__bar|0: row-gap=normal column-gap=normal → row-gap=0px column-gap=0px
+workflow-crear-w1440.json 18350|.wfe__bar|0: row-gap=normal column-gap=normal → row-gap=0px column-gap=0px
+workflow-editor-w1280.json 18350|.wfe__bar|0: row-gap=normal column-gap=normal → row-gap=0px column-gap=0px
+workflow-editor-w1440.json 18350|.wfe__bar|0: row-gap=normal column-gap=normal → row-gap=0px column-gap=0px
+x-workflows-editor-ayuda-w1280.json 18350|.wfe__bar|0: row-gap=normal column-gap=normal → row-gap=0px column-gap=0px
+x-workflows-editor-ayuda-w1440.json 18350|.wfe__bar|0: row-gap=normal column-gap=normal → row-gap=0px column-gap=0px
+
+== 218 archivos comparados · 6 estilos cambiados · 0 cajas movidas · 0 sin después
+
+L18350 .wfe__bar { gap: var(--sp-12) }
+    workflow-crear-w1280.json: row-gap=normal column-gap=normal → row-gap=0px column-gap=0px
+    workflow-crear-w1440.json: row-gap=normal column-gap=normal → row-gap=0px column-gap=0px
+    workflow-editor-w1280.json: row-gap=normal column-gap=normal → row-gap=0px column-gap=0px
+    workflow-editor-w1440.json: row-gap=normal column-gap=normal → row-gap=0px column-gap=0px
+    x-workflows-editor-ayuda-w1280.json: row-gap=normal column-gap=normal → row-gap=0px column-gap=0px
+    x-workflows-editor-ayuda-w1440.json: row-gap=normal column-gap=normal → row-gap=0px column-gap=0px

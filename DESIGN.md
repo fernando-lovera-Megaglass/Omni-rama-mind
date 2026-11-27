@@ -54,10 +54,10 @@ token. El tema oscuro redefine los tokens: un literal rompe el modo oscuro.
 
 ### Espaciado
 `--sp-2` 2px · `--sp-4` 4px · `--sp-8` 8px · `--sp-10` 10px · `--sp-16` 16px ·
-`--sp-20` 20px · `--sp-24` 24px · `--sp-32` 32px. (No existe `--sp-12`: si se usa,
-la propiedad se anula entera. Unas 80 reglas de `app.css` lo usan y por eso hoy no
-aplican; definirlo movería Informes, Negocios, Bandeja, Configuración y Vistas, así
-que un 12px se escribe `calc(var(--sp-8) + var(--sp-4))` hasta que el usuario
+`--sp-20` 20px · `--sp-24` 24px · `--sp-32` 32px. (No existen `--sp-12` ni `--sp-48`:
+si se usan, la propiedad se anula entera. Las 82 declaraciones de `app.css` que los
+usaban se limpiaron el 27-nov-2026 (tarea user-espaciado-fantasma-sp12) sin cambio
+visual; un 12px se escribe `calc(var(--sp-8) + var(--sp-4))` hasta que el usuario
 decida.)
 
 ### Radios
