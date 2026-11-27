@@ -3105,6 +3105,48 @@
       "closedAt": "2026-11-27T17:25:10.517Z",
       "closedBy": "kimi",
       "closeNote": "Icono trash en ACT_ICONS; reemplaza los 4 emojis; menú con icono; DESIGN.md 68→69. Evidencia con capturas verificada."
+    },
+    {
+      "id": "gap-smoke-bulk-acciones-27nov",
+      "status": "pending",
+      "instruction": "smoke-bulk falla en «contact actions»: la barra de acciones masivas de contactos no coincide con lo que espera la prueba. Revisa qué acciones muestra hoy (posible cambio del frontend de Contactos en curso) y alinea. OJO: el working tree tiene cambios sin commitear del frontend de Contactos (27-nov); trabaja sobre el código más reciente. Ejecuta la prueba con node scripts/<smoke>.mjs DESPUÉS de tu cambio e itera hasta que termine con código 0. Determina si es regresión o prueba desactualizada. No despliegues nada a producción; solo código local.",
+      "createdAt": "2026-11-27T13:48:55-06:00",
+      "lane": "claude"
+    },
+    {
+      "id": "gap-smoke-empty-states-workflows",
+      "status": "pending",
+      "instruction": "smoke-empty-states falla: «workflows: Crear workflow opens the Desde cero dialog» — el botón Crear workflow ya no abre el diálogo «Desde cero» que espera la prueba. OJO: el working tree tiene cambios sin commitear del frontend de Contactos (27-nov); trabaja sobre el código más reciente. Ejecuta la prueba con node scripts/<smoke>.mjs DESPUÉS de tu cambio e itera hasta que termine con código 0. Determina si es regresión o prueba desactualizada. No despliegues nada a producción; solo código local.",
+      "createdAt": "2026-11-27T13:48:55-06:00",
+      "lane": "codex"
+    },
+    {
+      "id": "gap-smoke-import-e2e-conteos",
+      "status": "pending",
+      "instruction": "smoke-import-e2e falla tras el cambio de historial a import_jobs (46b2c78): la vista previa/revisión muestra 100 filas · 88 nuevos · 3 actualizaciones · 9 no importables · 15 errores y la prueba espera otros conteos. Verifica si los conteos nuevos son correctos y actualiza la prueba, o corrige la lógica. OJO: el working tree tiene cambios sin commitear del frontend de Contactos (27-nov); trabaja sobre el código más reciente. Ejecuta la prueba con node scripts/<smoke>.mjs DESPUÉS de tu cambio e itera hasta que termine con código 0. Determina si es regresión o prueba desactualizada. No despliegues nada a producción; solo código local.",
+      "createdAt": "2026-11-27T13:48:55-06:00",
+      "lane": "claude"
+    },
+    {
+      "id": "gap-smoke-owner-select-nulo",
+      "status": "pending",
+      "instruction": "smoke-owner-select falla: TypeError «Cannot set properties of null (setting value)» — el selector de propietario que la prueba busca no existe (posible cambio en list.js/record.js del frontend de Contactos). OJO: el working tree tiene cambios sin commitear del frontend de Contactos (27-nov); trabaja sobre el código más reciente. Ejecuta la prueba con node scripts/<smoke>.mjs DESPUÉS de tu cambio e itera hasta que termine con código 0. Determina si es regresión o prueba desactualizada. No despliegues nada a producción; solo código local.",
+      "createdAt": "2026-11-27T13:48:55-06:00",
+      "lane": "codex"
+    },
+    {
+      "id": "gap-smoke-record-inline-propiedad",
+      "status": "pending",
+      "instruction": "smoke-record-inline falla: «the customised card should show the saved custom property value» — la tarjeta personalizada no muestra el valor guardado de la propiedad personalizada. OJO: el working tree tiene cambios sin commitear del frontend de Contactos (27-nov); trabaja sobre el código más reciente. Ejecuta la prueba con node scripts/<smoke>.mjs DESPUÉS de tu cambio e itera hasta que termine con código 0. Determina si es regresión o prueba desactualizada. No despliegues nada a producción; solo código local.",
+      "createdAt": "2026-11-27T13:48:55-06:00",
+      "lane": "claude"
+    },
+    {
+      "id": "gap-smoke-task-reminders-vencimiento",
+      "status": "pending",
+      "instruction": "smoke-task-reminders falla en «not due yet»: tareas con recordatorio del 24 y 26-nov aparecen como no vencidas. Parece prueba sensible a la fecha (los datos de prueba envejecieron) — hazla robusta con fechas relativas a hoy, o corrige la lógica de vencidos si es real. OJO: el working tree tiene cambios sin commitear del frontend de Contactos (27-nov); trabaja sobre el código más reciente. Ejecuta la prueba con node scripts/<smoke>.mjs DESPUÉS de tu cambio e itera hasta que termine con código 0. Determina si es regresión o prueba desactualizada. No despliegues nada a producción; solo código local.",
+      "createdAt": "2026-11-27T13:48:55-06:00",
+      "lane": "codex"
     }
   ]
 }
