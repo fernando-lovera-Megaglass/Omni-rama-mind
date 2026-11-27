@@ -83,8 +83,24 @@ consola (las pruebas de captura usan los fixtures de la suite, que fallan ante c
 - `node scripts/smoke-import-e2e.mjs` (local): igual que antes de esta tarea: falla solo la aserción (d)
   «assoc: an ambiguous company name does not associate», ya reportada como preexistente en la evidencia de
   user-importaciones-persisten-en-base; todo lo demás pasa.
-- Suite Playwright completa (`npx playwright test`, 1440 y 1280, sin tocar capturas base): __SUITE__
+- Suite Playwright completa (`npx playwright test`, 1440 y 1280, sin tocar capturas base, corrida en el árbol de
+  trabajo compartido): **164 en verde, 8 fallan, 2 no corren**, ninguna por este cambio:
+  - Bandeja ×2 (17 píxeles de la flecha de «Asignar a», pendientes de aprobación del usuario desde la tarea del
+    selector de propietario).
+  - Contactos-lista ×2 y Contactos-ficha ×2: diferencias visuales de la tarea `user-frontend-contactos`, que otro
+    carril está construyendo en este mismo árbol (sus cambios en `src/list.js`, `src/record.js`, `src/app.css`,
+    `contacts/index.html` están sin commit; su propia evidencia prevé exactamente esos fallos).
+  - `_captura-contactos` y `_captura-inventario` ×1 cada uno (+ 2 que no corren): especificaciones temporales de
+    captura de ese mismo carril, sin versionar.
+  Este cambio no crea registros en ninguna prueba (todas corren con reloj fijo y datos demo), así que ninguna
+  captura base cambia; las capturas de evidencia de arriba se hicieron con una especificación temporal que no se
+  versiona.
 - `npm run build` en verde.
+- `rebuild_check`: no pudo correr en esta tarea («checks/round-0 already exists»: otro carril dejó su comprobación
+  de las 14:03 en esa carpeta, que el verificador no sobrescribe). Esa comprobación de las 14:03 es del mismo árbol
+  de trabajo con este cambio ya aplicado: la build sirve «Inicio de sesión | Omni» a 1440/768/390 sin
+  desplazamiento lateral. Este cambio no toca HTML ni CSS, así que no afecta la comparación visual del
+  verificador (90 % en la tarea anterior del mismo día).
 
 ## Qué falta / para decidir
 
