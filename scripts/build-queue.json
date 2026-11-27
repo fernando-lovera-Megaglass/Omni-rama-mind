@@ -87,7 +87,7 @@
     },
     {
       "id": "user-importaciones-persisten-en-base",
-      "status": "backlog",
+      "status": "pending",
       "lane": "claude",
       "createdAt": "2026-11-27T17:36:13.371Z",
       "title": "Importaciones: todo el historial y los datos quedan en la base",
@@ -95,7 +95,7 @@
     },
     {
       "id": "user-fecha-creacion-real",
-      "status": "backlog",
+      "status": "pending",
       "lane": "claude",
       "createdAt": "2026-11-27T17:36:13.371Z",
       "title": "Fecha de creación real en todos los módulos",
@@ -103,7 +103,7 @@
     },
     {
       "id": "user-espaciado-fantasma-sp12",
-      "status": "backlog",
+      "status": "pending",
       "lane": "claude",
       "createdAt": "2026-11-27T17:36:13.371Z",
       "title": "Borrar el espaciado fantasma (--sp-12 y --sp-48)",
@@ -111,11 +111,19 @@
     },
     {
       "id": "user-escalas-pantalla",
-      "status": "backlog",
+      "status": "pending",
       "lane": "claude",
       "createdAt": "2026-11-27T18:56:07.409Z",
       "title": "Escalas de pantalla: compacta (≤1180px) y grande (≥1920px)",
       "instruction": "DECISIÓN DEL USUARIO (27-nov-2026): aplicar la regla «Escala por tamaño de pantalla» ya escrita en DESIGN.md (§1, tras Estructura). Dos media queries sobre :root en src/app.css: @media (max-width:1180px) baja los tokens ~-10% (--fs-sm 13px, --fs-xs 12px, --sp-16 12px, --sp-10 8px, --sp-8 6px; .assoc__logo 24px) y @media (min-width:1920px) los sube ~+14% (--fs-sm 16px, --fs-xs 14px, --sp-16 20px, --sp-10 12px, --sp-8 10px; .assoc__logo 32px). IMPORTANTE: 1) Las tarjetas del centro de la ficha (.card) deben ajustarse DE LA MISMA MANERA que las laterales (.assoc-card): todo sale de los tokens, prohibido valores sueltos por componente; si alguna medida de .card no usa token, primero pásala a token en la misma tarea. 2) Entre 1280px y 1919px nada cambia: las capturas base y las pruebas deben seguir en verde SIN actualizar snapshots. 3) La escala compacta solo ajusta medidas (fuentes, espaciados, tarjetas); no cambiar disposición (columnas, menús) — eso es fase aparte. 4) Evidencia: capturas de Contactos, ficha de contacto, Negocios e Informes a 1180px, 1920px y 2560px (además de las de siempre a 1440/1280) en docs/evidencia/user-escalas-pantalla/. No integrar a main sin aprobación del usuario."
+    },
+    {
+      "id": "user-frontend-contactos",
+      "status": "pending",
+      "lane": "claude",
+      "createdAt": "2026-11-27T19:03:21.866Z",
+      "title": "Frontend de Contactos: homogeneización del módulo (lista + ficha)",
+      "instruction": "DECISIÓN DEL USUARIO (27-nov-2026): «podemos empezar a trabajar en el frontend de contactos». Aplicar al módulo Contactos (lista /contacts/ y ficha de contacto) la migración del sistema homogeneizado de DESIGN.md §5 (aprobada 25-nov-2026): 1) Botones a 40px normales y 32px compactos; EXCEPCIÓN: el «Agregar contacto» se queda píldora verde azulado --c-link (.btn--primary.btn--pillx). 2) Botones de icono a 40 redondo / 32 / 22. 3) Iconos .ico a la escala 20/16/13 (los 19/18/15/14/11 al más cercano), opacidad .85 fija. 4) Reemplazar los caracteres ✎ por el icono edit del catálogo en la lista y la ficha de contacto. 5) Teléfonos con displayPhone. 6) Todo con tokens de DESIGN.md §1, prohibido valores sueltos. NO tocar: lógica, backend, ni otras pantallas (los cambios en clases compartidas deben quedar limitados al módulo Contactos; si una clase compartida afecta otra pantalla, reportarlo en la evidencia en vez de cambiarla). Evidencia en docs/evidencia/user-frontend-contactos/: capturas antes/después de la lista y la ficha a 1440px y 1280px, pruebas visuales y funcionales en verde, lista de lo que cambió y de lo que no se pudo hacer y por qué. No integrar a main sin aprobación del usuario."
     },
     {
       "id": "gap-backend-indices-contact-id-tickets-tasks",
