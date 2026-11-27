@@ -20972,3 +20972,23 @@ td[data-key="deal_tags"] .dtag {
 }
 .enr__editor { min-height: 150px; padding: 12px; border: 1px solid var(--c-border); border-radius: 4px; line-height: 1.6; background: var(--c-white); overflow-wrap: anywhere; }
 .enr__editor:focus { outline: 2px solid #00a4bd; outline-offset: 2px; }
+
+/* ---------- Contactos: sistema homogeneizado (DESIGN.md §5, aprobado 25-nov-2026; módulo migrado 27-nov-2026) ----------
+   Solo la lista y la ficha de Contactos (body[data-type="contacts"]): los demás módulos migran con su propia tarea, así que
+   sus pantallas no cambian. Medidas = las documentadas en DESIGN.md §2/§5: botones 40/32, botones de icono 40/32/22,
+   iconos 20/16/13 con opacidad .85. */
+body[data-type="contacts"] .preview__foot .btn { height: 40px; } /* «Ver registro» de la vista previa: 44 → 40 */
+body[data-type="contacts"] .icon-btn--ico .ico { width: 16px; height: 16px; opacity: 0.85; } /* engranaje «Ver configuración»: 18 → 16 */
+body[data-type="contacts"] .thmenu .menu__item .ico { width: 16px; height: 16px; opacity: 0.85; } /* menú de columna: 15 → 16 */
+body[data-type="contacts"] .views__tab .ico--grid { opacity: 0.85; }
+body[data-type="contacts"] .cell-link .ico--ext { opacity: 0.85; }
+body[data-type="contacts"] .card__head--about .icon-btn--round { width: 32px; height: 32px; flex: none; } /* «Personalizar la tarjeta»: 34 → 32 */
+/* Icono «edit» (DESIGN.md §3) donde iba el carácter ✎: 16px dentro de botones, 13px en línea (celdas y filas de propiedades). */
+body[data-type="contacts"] .pencil,
+body[data-type="contacts"] .props__edit,
+body[data-type="contacts"] .icon-btn--sm[data-action="edit-quick"] { display: inline-flex; align-items: center; justify-content: center; }
+body[data-type="contacts"] .props__edit { height: 20px; }
+body[data-type="contacts"] .pencil svg,
+body[data-type="contacts"] .icon-btn--sm[data-action="edit-quick"] svg { display: block; width: 16px; height: 16px; opacity: 0.85; }
+body[data-type="contacts"] .cell__pen svg,
+body[data-type="contacts"] .props__edit svg { display: block; width: 13px; height: 13px; opacity: 0.85; }

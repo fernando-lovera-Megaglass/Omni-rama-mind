@@ -71,6 +71,9 @@ function normalizeHighlights(h) {
 
 export function mountList(cfg) {
   const root = document.getElementById('list-root');
+  // Icono «Modificar» (DESIGN.md §3, aprobado 25-nov-2026): la lista de Contactos ya migró (27-nov-2026); los demás
+  // objetos conservan el carácter ✎ hasta su propia tarea de homogeneización.
+  const PEN = cfg.type === 'contacts' ? ACT_ICONS.edit : '✎';
   const prefs = getPrefs(cfg.type);
   const groups = propertyGroups(cfg.type);
   const props = propertyMap(cfg.type);
@@ -491,7 +494,7 @@ export function mountList(cfg) {
             )
             .join('')}
           <button class="icon-btn icon-btn--round icon-btn--sm" type="button" data-action="advanced" aria-label="Añadir filtro" title="Añadir filtro">+</button>
-          <button class="icon-btn icon-btn--round icon-btn--sm" type="button" data-action="edit-quick" aria-label="Editar filtros rápidos" title="Editar filtros rápidos">✎</button>
+          <button class="icon-btn icon-btn--round icon-btn--sm" type="button" data-action="edit-quick" aria-label="Editar filtros rápidos" title="Editar filtros rápidos">${PEN}</button>
           <span class="pill pill--adv" id="adv-pill" hidden><button type="button" data-action="advanced"><span class="ico ico--filter"></span> Filtros avanzados <span class="badge" id="adv-count">0</span></button><button type="button" data-action="adv-clear-all" aria-label="Quitar filtros avanzados">×</button></span>
           <button class="link-btn" type="button" id="filters-clear-all" data-action="filters-clear-all" hidden>Borrar todo</button>
         </div>
@@ -504,7 +507,7 @@ export function mountList(cfg) {
         <button class="bulk__clear" type="button" data-action="bulk-clear" aria-label="Limpiar selección" title="Limpiar selección">×</button>
         <span class="bulk__actions">
           ${bulkActions.includes('assign') ? '<button class="bulk__btn" type="button" data-action="bulk-assign"><span aria-hidden="true">→</span> Asignar</button>' : ''}
-          ${bulkActions.includes('edit') ? '<button class="bulk__btn" type="button" data-action="bulk-edit"><span aria-hidden="true">✎</span> Editar</button>' : ''}
+          ${bulkActions.includes('edit') ? `<button class="bulk__btn" type="button" data-action="bulk-edit">${cfg.type === 'contacts' ? `<span class="bulk__ico" aria-hidden="true">${ACT_ICONS.edit}</span>` : '<span aria-hidden="true">✎</span>'} Editar</button>` : ''}
           ${bulkActions.includes('delete') ? `<button class="bulk__btn" type="button" data-action="delete"><span class="bulk__ico" aria-hidden="true">${ACT_ICONS.trash}</span> Eliminar</button>` : ''}
           ${bulkActions.includes('tasks') ? '<button class="bulk__btn" type="button" data-action="bulk-tasks"><span aria-hidden="true">+</span> Crear tareas</button>' : ''}
           ${bulkActions.some((a) => ['enroll', 'workflow', 'segment', 'export'].includes(a)) ? `<span class="menu">
@@ -1304,7 +1307,7 @@ export function mountList(cfg) {
                 `<td class="${c.className || ''}${i === 0 ? ' table__first' : ''}${isEditable(c.key) ? ' cell--editable' : ''}${i > 0 && isSystem(c.key) ? ' cell--locked' : ''}${fzClass(i)}${hlOf(c, r) ? ' cell--hl' : ''}" data-key="${c.key}" data-id="${r.id}" title="${props[c.key]?.sensitive ? 'Dato sensible' : i > 0 && isSystem(c.key) ? 'Valor calculado por el sistema (solo lectura)' : esc(cellText(c, r))}" style="${fzStyle(i)}${hlOf(c, r) ? `background:${hlOf(c, r)};` : ''}">${
                   i === 0
                     ? `<div class="firstcell">${state.nested && depthOf.get(Number(r.id)) ? '<span class="hier__mark" aria-hidden="true">↳</span>' : ''}<div class="firstcell__content">${cellHtml(c, r)}</div><button class="preview-btn tip" type="button" data-preview="${r.id}" aria-label="Vista previa">${ACT_ICONS.preview}<span class="tip__text">Vista previa</span></button></div>`
-                    : `${cellHtml(c, r)}${isEditable(c.key) ? '<span class="cell__pen" aria-hidden="true">✎</span>' : isSystem(c.key) ? '<span class="cell__lock" aria-hidden="true"></span>' : ''}`
+                    : `${cellHtml(c, r)}${isEditable(c.key) ? `<span class="cell__pen" aria-hidden="true">${PEN}</span>` : isSystem(c.key) ? '<span class="cell__lock" aria-hidden="true"></span>' : ''}`
                 }</td>`,
             )
             .join('')}
@@ -2260,7 +2263,7 @@ export function mountList(cfg) {
         const v = c ? cellText(c, r) : r[key];
         const isUser = key === 'owner' || (props[key] && props[key].kind === 'user');
         const value = props[key]?.sensitive ? sensitiveValue(r[key]) : isUser ? ownerHtml(v, 'sm') : v === '' || v === undefined || v === null ? '<span class="muted">--</span>' : esc(v);
-        const pencil = previewEditable(key) ? `<button class="props__edit" type="button" data-pv-edit="${esc(key)}" aria-label="Editar ${esc(String(label))}">✎</button>` : '';
+        const pencil = previewEditable(key) ? `<button class="props__edit" type="button" data-pv-edit="${esc(key)}" aria-label="Editar ${esc(String(label))}">${PEN}</button>` : '';
         return `<div class="props__row" data-key="${esc(key)}"><dt>${esc(label)}${props[key]?.desc ? `<span class="preview__info" tabindex="0" title="${esc(props[key].desc)}" aria-label="${esc(props[key].desc)}">${ACT_ICONS.info}</span>` : ''}</dt><dd class="props__value">${value}${pencil}</dd></div>`;
       })
       .join('');
@@ -2858,7 +2861,7 @@ export function mountList(cfg) {
           return `<section class="dupes__group" data-dupe-group="${gi}">
           <div class="dupes__head"><strong>${g.records.length} registros · ${esc(g.keys.map(why).join(' y '))}</strong></div>
           <table class="table dupes__table"><thead><tr><th>Conservar</th><th>Nombre</th><th>${keyCol[0]}</th><th>Teléfono</th><th>Propietario</th><th>Creado</th></tr></thead><tbody>
-            ${g.records.map((r) => `<tr data-id="${r.id}"><td><input type="radio" name="keep-${gi}" value="${r.id}" ${Number(r.id) === Number(keep.id) ? 'checked' : ''} aria-label="Conservar ${esc(r.name)}" /></td><td><a href="./record/?id=${r.id}">${esc(r.name)}</a></td><td>${esc(keyCol[1](r))}</td><td>${esc(r.phone || '')}</td><td>${ownerHtml(r.owner)}</td><td>${esc(formatDate(r.created))}</td></tr>`).join('')}
+            ${g.records.map((r) => `<tr data-id="${r.id}"><td><input type="radio" name="keep-${gi}" value="${r.id}" ${Number(r.id) === Number(keep.id) ? 'checked' : ''} aria-label="Conservar ${esc(r.name)}" /></td><td><a href="./record/?id=${r.id}">${esc(r.name)}</a></td><td>${esc(keyCol[1](r))}</td><td>${esc(cfg.type === 'contacts' ? displayPhone(r.phone || '') : r.phone || '')}</td><td>${ownerHtml(r.owner)}</td><td>${esc(formatDate(r.created))}</td></tr>`).join('')}
           </tbody></table>
           <div class="dupes__actions"><button class="btn btn--primary btn--sm" type="button" data-dupe-merge="${gi}">Fusionar</button><button class="btn btn--ghost btn--sm" type="button" data-dupe-skip="${gi}">Omitir</button></div>
         </section>`;

@@ -58,6 +58,9 @@ import { mountQueueBar, dueText, dueClass, completeTaskWithLog } from './task-qu
 import { datetimeInput, reminderText } from './task-reminders.js';
 
 const type = document.body.dataset.type;
+// Icono «Modificar» (DESIGN.md §3, aprobado 25-nov-2026): la ficha de Contactos ya migró (27-nov-2026); los demás
+// objetos conservan el carácter ✎ hasta su propia tarea de homogeneización.
+const PEN = type === 'contacts' ? ACT_ICONS.edit : '✎';
 const root = '../../';
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
 const opt = (list) => list.map((x) => (Array.isArray(x) ? [x[0], x[1]] : [x, x]));
@@ -248,7 +251,7 @@ mount.innerHTML = `
         <div class="record__identity">
           <span class="avatar avatar--lg avatar--soft" id="rec-avatar">··</span>
           <div class="record__who">
-            <h1 id="rec-name">Registro <button class="pencil" type="button" data-act="rename" aria-label="Editar nombre">✎</button></h1>
+            <h1 id="rec-name">Registro <button class="pencil" type="button" data-act="rename" aria-label="Editar nombre">${PEN}</button></h1>
             <p class="record__sub" id="rec-sub"></p>
             <p class="record__mail" id="rec-mail"></p>
             <p class="record__mail" id="rec-phone"></p>
@@ -618,7 +621,7 @@ function renderProps() {
       const ro = f[2] === 'ro' || f[2] === 'date-ro' || f[2] === 'calc';
       return `<div class="props__row" data-key="${f[0]}">
         <dt>${f[1]}</dt>
-        <dd class="props__value">${displayValue(f, rec)}${ro ? '' : `<button class="props__edit" type="button" data-edit-key="${f[0]}" aria-label="Editar ${f[1]}">✎</button>`}</dd>
+        <dd class="props__value">${displayValue(f, rec)}${ro ? '' : `<button class="props__edit" type="button" data-edit-key="${f[0]}" aria-label="Editar ${f[1]}">${PEN}</button>`}</dd>
       </div>`;
     })
     .join('');
@@ -660,7 +663,7 @@ function renderAllPropsPanel() {
         .map(([k, l]) => {
           const f = fieldFor(k);
           const ro = !f || f[2] === 'ro' || f[2] === 'date-ro' || f[2] === 'calc';
-          return `<div class="props__row" data-key="${esc(k)}"><dt>${esc(l)}</dt><dd class="props__value">${f ? displayValue(f, rec) : propValue(props[k], rec[k])}${ro ? '' : `<button class="props__edit" type="button" data-edit-key="${esc(k)}" aria-label="Editar ${esc(l)}">✎</button>`}</dd></div>`;
+          return `<div class="props__row" data-key="${esc(k)}"><dt>${esc(l)}</dt><dd class="props__value">${f ? displayValue(f, rec) : propValue(props[k], rec[k])}${ro ? '' : `<button class="props__edit" type="button" data-edit-key="${esc(k)}" aria-label="Editar ${esc(l)}">${PEN}</button>`}</dd></div>`;
         })
         .join('')}</dl></section>`;
     })
@@ -814,6 +817,8 @@ function kindValue(kind, key, r) {
   if (key === 'priority') return labelOf(PRIORITIES, v);
   const p = propsOf(kind)[key];
   const kindOf = p ? p.kind : '';
+  // Teléfonos con un solo formato (DESIGN.md §6.0): tarjetas de asociación de la ficha de Contactos (migrada 27-nov-2026).
+  if (kindOf === 'phone' && type === 'contacts') return displayPhone(v);
   if (kindOf === 'currency' || key === 'amount' || key === 'revenue') return formatMoney(v, kind === 'deals' && key === 'amount' ? r.deal_currency_code : undefined);
   if (kindOf === 'percent') return `${v} %`;
   if (kindOf === 'date' || kindOf === 'datetime' || /Date|^due$|^created$/.test(key)) return formatDate(v);
@@ -960,7 +965,7 @@ function renderAcardEditor() {
           </div>
           <p class="muted cd-internal">Nombre int… <span class="info" title="Nombre interno: solo se usa en la configuración, no lo ven los usuarios.">ⓘ</span>: ${cd.editInternal
             ? `<input class="cd-input cd-input--inline" id="cd-internal" type="text" maxlength="80" value="${esc(cd.internal)}" aria-label="Nombre interno" />`
-            : `<span id="cd-internal-text">${esc(cd.internal)}</span> <button class="pencil" type="button" data-cd="rename-internal" aria-label="Editar nombre interno">✎</button>`}</p>
+            : `<span id="cd-internal-text">${esc(cd.internal)}</span> <button class="pencil" type="button" data-cd="rename-internal" aria-label="Editar nombre interno">${PEN}</button>`}</p>
           <hr class="cd-sep" />
           <label class="ocheck ocheck--sm cardprops__scope"><input type="checkbox" data-cd="global" ${cd.global ? 'checked' : ''} /><span><strong>Aplicar a todos los usuarios de la cuenta</strong><small>${settingsLive() ? 'Guarda esta configuración para ti o para toda la cuenta.' : 'Sin conexión se guarda en este navegador.'}</small></span></label>
           <h3 class="cd-h">Propiedades</h3>

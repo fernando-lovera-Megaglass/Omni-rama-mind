@@ -29,6 +29,8 @@ export const ACT_ICONS = {
   map: ico('<path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2z"/><path d="M9 4v14M15 6v14"/>'),
   // «Papelera» (aprobado por el usuario 25-nov-2026): toda acción destructiva lo usa; el emoji de papelera queda prohibido.
   trash: ico('<path d="M3.5 6h17"/><path d="M19 6v13.5a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8.5 6V4a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v2"/><path d="M10 11v6M14 11v6"/>'),
+  // «Modificar» (aprobado por el usuario 25-nov-2026, DESIGN.md §3): lápiz con línea de base; reemplaza el carácter ✎.
+  edit: ico('<path d="M12 20h8"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 17l-4 1 1-4L16.5 3.5z"/>'),
 
   note: ico('<path d="M15.5 4.5l4 4L9 19H5v-4L15.5 4.5z"/><path d="M13.5 6.5l4 4"/>'),
   email: ico('<rect x="3.5" y="5.5" width="17" height="13" rx="2"/><path d="M4 7l8 6 8-6"/>'),
