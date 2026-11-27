@@ -67,7 +67,13 @@ prueba se expande con el botón «Expandir columna derecha»; no es un cambio de
      igual que las 12 primeras filas, y el enlace de la empresa sigue llevando a su ficha.
   Sin errores en consola (fixture).
 - Suite completa (`contactos`, `pantallas`, `tipos-de-campo`, `selector-propietario`, `papelera`, `icono-papelera`,
-  `frontend-contactos`, `empresa-principal`; 182 pruebas a 1440 y 1280): __SUITE__
+  `frontend-contactos`, `empresa-principal`; 174 pruebas a 1440 y 1280): **164 en verde**. En rojo solo las
+  capturas base que esta tarea cambia a propósito (ver abajo) más Bandeja ×2 (17 px, pendiente de la tarea del
+  selector de propietario). Nota operativa: en la primera corrida un bloque de 25 pruebas a 1280 (diseño de registro
+  … fragmentos) falló en 1 s cada una porque otro carril tumbó el servidor de desarrollo compartido del puerto 4199
+  a mitad de corrida; repetido solo, ese bloque da 25 / 26 con la única excepción de Bandeja. Diferencias medidas:
+  contactos-ficha 479 px (ya cambiaba por la homogeneización de Contactos), tickets-ficha 369 px y tareas-ficha
+  352 px a 1440 (etiqueta «Principal»); a 1280 las fichas no cambian porque la columna derecha va plegada.
 - `npm run build` en verde.
 - Herramientas: `herramientas/_captura-empresa.spec.js` (spec temporal de capturas, `FASE=antes|despues`; se saca de
   `tests/` para que no corra con la suite).
