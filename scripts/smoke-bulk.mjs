@@ -48,7 +48,10 @@ checkRows([0, 1]);
 log('after 2 rows: bar hidden?', $('bulk').hidden, '| count:', $('bulk-count').textContent, '| highlighted rows:', document.querySelectorAll('#rows tr.is-selected').length, '| actions:', [...document.querySelectorAll('.bulk__btn')].map((b) => b.textContent.trim()).join(' | '));
 if ($('bulk').hidden || $('bulk-count').textContent !== '2 contactos seleccionados' || document.querySelectorAll('#rows tr.is-selected').length !== 2) fail('bar and highlight');
 // Secondary actions live in Más; sequence/workflow behavior has dedicated smoke tests.
-if ([...document.querySelectorAll('#bulk .bulk__btn')].map((b) => b.textContent.trim()).join('|') !== '→ Asignar|✎ Editar|🗑 Eliminar|+ Crear tareas|Más') fail('contact actions');
+// «Editar» and «Eliminar» carry the catalogue's SVG icons (`edit`, `trash`; user decisions of 25/27-nov-2026)
+// instead of the old ✎ / 🗑 characters, so their text is just the label; the icon is checked apart.
+if ([...document.querySelectorAll('#bulk .bulk__btn')].map((b) => b.textContent.trim()).join('|') !== '→ Asignar|Editar|Eliminar|+ Crear tareas|Más') fail('contact actions');
+if (!document.querySelector('#bulk [data-action="bulk-edit"] .bulk__ico svg') || !document.querySelector('#bulk [data-action="delete"] .bulk__ico svg')) fail('contact actions icons (edit, trash)');
 const more = document.querySelector('#bulk .menu > button');
 click(more);
 if (more.getAttribute('aria-expanded') !== 'true' || !more.parentElement.classList.contains('is-open')) fail('contact actions menu opens');

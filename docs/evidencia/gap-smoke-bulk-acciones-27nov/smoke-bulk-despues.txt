@@ -1,0 +1,21 @@
+[bulk] after 2 rows: bar hidden? false | count: 2 contactos seleccionados | highlighted rows: 2 | actions: → Asignar | Editar | Eliminar | + Crear tareas | Más
+[bulk] check-all: selected 25 of page 25 | offer: Seleccionar los 420 contactos de la vista completa
+[bulk] whole view: selected 420 | total: 420 | bar: 420 contactos seleccionados | Los 420 contactos de la vista están seleccionados. Limpiar selección
+[bulk] assign dialog: true | Asignar 3 contactos | owners: 5
+[bulk] after assign: owners Laura M.,Laura M.,Laura M. | toast: 3 contactos asignados a Laura M. | bar hidden: true | modal closed: true
+[bulk] edit dialog: Editar 2 contactos | properties: 95 | has city/lifecycle/owner: true | excludes email/name: true
+[bulk] value field for lifecycle: SELECT 8 options
+[bulk] after edit: lifecycle/city Cliente/Toledo, Cliente/Toledo
+[bulk] tasks dialog: Crear 2 tareas | fields: title,type,due,owner
+[bulk] tasks created: 2 | Llamar: Camila Serrano → contacto 378 (Llamada, todo) | Llamar: Ana Ruiz → contacto 1 (Llamada, todo)
+[bulk] segment dialog: Agregar 2 contactos a un segmento | static options: 14
+[bulk] new segment: static · contacts · miembros 1,378 | toast: 2 contactos agregados al segmento "Lista masiva de prueba"
+[bulk] after adding to existing: 4 members
+[bulk] delete dialog: Eliminar 2 contactos | ok: Eliminar 2 contactos | danger: true
+[bulk] after delete: total 420 → 418 | still present: 0
+[bulk] [contacts] OK
+[bulk] companies: count "1 empresa seleccionada" | actions: → Asignar | ✎ Editar | Eliminar | + Crear tareas | Más
+[bulk] companies: assigned ok | delete 36 → 35
+[bulk] deals: count "1 negocio seleccionado" | actions: → Asignar | ✎ Editar | Eliminar | + Crear tareas | Más
+[bulk] deals: assigned ok | delete 29 → 28
+[bulk] OK
