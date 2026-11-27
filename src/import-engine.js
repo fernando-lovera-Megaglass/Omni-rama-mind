@@ -519,7 +519,15 @@ export function planImport(table, mapping, options = {}) {
       const key = strip(companyText);
       const found = companies.byName.get(key) || companies.byDomain.get(normalizeDomain(companyText) || '') || [];
       if (found.length === 1) { data.companyId = found[0].id; data.company = found[0].name; }
-      else if (found.length > 1) rowErrors.push([active.find((m) => m.key === 'company' || m.key === 'associatedcompany'), 'MULTIPLE_COMPANIES_WITH_DOMAIN']);
+      else if (found.length > 1) {
+        rowErrors.push([active.find((m) => m.key === 'company' || m.key === 'associatedcompany'), 'MULTIPLE_COMPANIES_WITH_DOMAIN']);
+        // «Empresa no actualizada»: the ambiguous text must not reach the record either, or addRecord/setField would
+        // resolve it by name to the first company with that name (data.js, 24-nov). Without it the row behaves like
+        // one without the column: no association from the file, the e-mail-domain rule may still apply.
+        delete data.company;
+        delete data.associatedcompany;
+        if (matchInfo.changes) matchInfo.changes = matchInfo.changes.filter((k) => k !== 'company' && k !== 'associatedcompany');
+      }
       else if (type === 'deals') rowErrors.push([active.find((m) => m.key === 'company'), 'ASSOCIATION_RECORD_NOT_FOUND']);
     }
     rowErrors.forEach(([m, code]) => addErr(rowNumber, m, code));
