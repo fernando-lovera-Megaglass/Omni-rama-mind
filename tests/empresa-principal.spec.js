@@ -11,6 +11,12 @@ const open = async (page, url, ready) => {
   await page.evaluate(() => document.fonts.ready);
   await page.waitForTimeout(300);
 };
+// En ventanas de menos de 1440px la ficha pliega sola la columna derecha (record.js, NARROW_QUERY): se expande
+// para comprobar que la etiqueta se ve.
+const expandRight = async (page) => {
+  const t = page.locator('#col-toggle-right');
+  if (await t.count() && (await t.getAttribute('aria-expanded')) === 'false') { await t.click(); await page.waitForTimeout(250); }
+};
 
 // La tarjeta de un tipo: sus filas (.assoc-card) y cuál lleva la etiqueta «Principal».
 const cardInfo = (page, kind) => page.locator(`.card--assoc[data-kind="${kind}"]`).first().evaluate((card) => {
@@ -27,6 +33,7 @@ const cardInfo = (page, kind) => page.locator(`.card--assoc[data-kind="${kind}"]
 test.describe('Empresa principal — ficha', () => {
   test('contacto con dos empresas (Alicia Prieto, id 55): la principal primero y con «Principal»', async ({ page }) => {
     await open(page, '/contacts/record/?id=55', 'h1:visible');
+    await expandRight(page);
     const c = await cardInfo(page, 'companies');
     expect(c.count).toBeGreaterThanOrEqual(2);
     // La empresa principal del contacto (campo «Empresa principal» de la ficha) es la primera fila.
@@ -42,6 +49,7 @@ test.describe('Empresa principal — ficha', () => {
 
   test('empresa con varios contactos (id 1): el contacto principal primero y con «Principal»', async ({ page }) => {
     await open(page, '/companies/record/?id=1', 'h1:visible');
+    await expandRight(page);
     const c = await cardInfo(page, 'contacts');
     expect(c.count).toBeGreaterThanOrEqual(2);
     expect(c.principal[0]).toEqual(['Principal']);
@@ -51,6 +59,7 @@ test.describe('Empresa principal — ficha', () => {
 
   test('negocio (id 1): tarjetas de contactos y empresas con la etiqueta «Principal» en la primera fila', async ({ page }) => {
     await open(page, '/deals/record/?id=1', 'h1:visible');
+    await expandRight(page);
     for (const kind of ['contacts', 'companies']) {
       const c = await cardInfo(page, kind);
       if (!c.count) continue;

@@ -93,7 +93,8 @@ const list = mountList({
     { key: 'email', label: 'Correo' },
     { key: 'phone', label: 'Número de teléfono', text: (r) => displayPhone(r.phone) },
     { key: 'owner', label: 'Propietario del contacto', render: (r) => ownerHtml(r.owner) },
-    // The primary company and, when the contact belongs to more, "N registros" (click to see them all).
+    // Only the primary company, in one line: the other companies live in the association card of the record
+    // (user decision 27-nov-2026: every row stays at 48px).
     {
       key: 'assoc_company',
       label: 'Contacto → Empresas',
@@ -105,7 +106,7 @@ const list = mountList({
         const all = companiesOf(r);
         if (!all.length) return '<span class="muted">--</span>';
         const p = all[0];
-        return `<span class="name"><span class="avatar avatar--sm avatar--soft">${initialsOf(p.company.name)}</span>${link(`../companies/record/?id=${p.company.id}`, p.company.name)}</span>${all.length > 1 ? `<button class="assoc-more" type="button" data-assoc-more="${r.id}" aria-haspopup="dialog" title="Ver las ${all.length} empresas asociadas">${all.length} registros</button>` : ''}`;
+        return `<span class="name"><span class="avatar avatar--sm avatar--soft">${initialsOf(p.company.name)}</span>${link(`../companies/record/?id=${p.company.id}`, p.company.name)}</span>`;
       },
     },
     { key: 'company', label: 'Empresa principal', default: false },
@@ -139,32 +140,5 @@ const list = mountList({
   }),
 });
 createPanel = mountCreateContact({ list });
-
-// "N registros" in the companies column opens a small card with every company of the contact.
-const closeAssocPop = () => document.querySelectorAll('.assoc-pop').forEach((p) => p.remove());
-document.addEventListener('click', (e) => {
-  const btn = e.target.closest('[data-assoc-more]');
-  if (!btn) { if (!e.target.closest('.assoc-pop')) closeAssocPop(); return; }
-  e.preventDefault();
-  const wasOpen = document.querySelector(`.assoc-pop[data-for="${btn.dataset.assocMore}"]`);
-  closeAssocPop();
-  if (wasOpen) return;
-  const r = allContacts().find((c) => Number(c.id) === Number(btn.dataset.assocMore));
-  if (!r) return;
-  const all = companiesOf(r);
-  const pop = document.createElement('div');
-  pop.className = 'assoc-pop';
-  pop.dataset.for = String(r.id);
-  pop.setAttribute('role', 'dialog');
-  pop.setAttribute('aria-label', `Empresas de ${r.name}`);
-  pop.innerHTML = `<h4 class="assoc-pop__title">Empresas (${all.length})</h4><ul>${all
-    .map((l) => `<li><span class="avatar avatar--xs avatar--soft" aria-hidden="true">${esc(initialsOf(l.company.name))}</span><a href="../companies/record/?id=${l.company.id}">${esc(l.company.name)}</a>${l.isPrimary ? '<span class="tag tag--done">Principal</span>' : l.label && l.label !== 'Sin etiqueta' ? `<span class="tag tag--none">${esc(l.label)}</span>` : ''}</li>`)
-    .join('')}</ul>`;
-  const rect = btn.getBoundingClientRect();
-  pop.style.top = `${rect.bottom + 4}px`;
-  pop.style.left = `${Math.max(8, rect.left)}px`;
-  document.body.appendChild(pop);
-});
-document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeAssocPop(); });
 
 export { SOURCES, list, createPanel };

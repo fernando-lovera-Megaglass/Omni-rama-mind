@@ -860,7 +860,11 @@ function assocCard(title, rows, kind) {
   const href = (r) => `${root}${kind}/record/?id=${r.id}`;
   const sortKey = ui.sortKey || s.sortKey;
   const sortDir = ui.sortDir || s.sortDir;
-  let list = rows.map((r, i) => ({ ...r, assocLabel: r.assocLabel || (i === 0 ? 'Principal' : 'Sin etiqueta') }));
+  // Principal (decisión del usuario 27-nov-2026): la etiqueta guardada «Principal» si existe; si no, la primera fila
+  // implícita. Las tareas no tienen «principal»: conservan su comportamiento.
+  const withPrimary = kind !== 'tasks';
+  const savedPrimary = rows.some((r) => r.assocLabel === 'Principal');
+  let list = rows.map((r, i) => ({ ...r, assocLabel: r.assocLabel || (i === 0 && (!withPrimary || !savedPrimary) ? 'Principal' : 'Sin etiqueta') }));
   list = applyCardFilters(list, kind, s.filters);
   const filteredCount = list.length;
   if (ui.q) list = list.filter((r) => `${r.name} ${s.props.map((k) => kindValue(kind, k, r)).join(' ')}`.toLowerCase().includes(ui.q.toLowerCase()));
@@ -876,6 +880,8 @@ function assocCard(title, rows, kind) {
   // Tasks can be completed right here: pending ones first, a checkbox instead of the initials.
   const isTask = kind === 'tasks';
   if (isTask) list.sort((a, b) => Number(a.status === 'done') - Number(b.status === 'done'));
+  // El registro principal va siempre primero, sea cual sea el orden configurado de la tarjeta (como HubSpot).
+  if (withPrimary) { const primaryAt = list.findIndex((r) => r.assocLabel === 'Principal'); if (primaryAt > 0) list.unshift(list.splice(primaryAt, 1)[0]); }
   const head = (r) => isTask
     ? `<input type="checkbox" class="assoc-card__check" data-task-done="${r.id}" ${r.status === 'done' ? 'checked' : ''} aria-label="${r.status === 'done' ? 'Reabrir tarea' : 'Marcar como completada'}" title="${r.status === 'done' ? 'Reabrir tarea' : 'Marcar como completada'}" /><a href="${href(r)}"><strong>${esc(r.name)}</strong></a><span class="assoc-card__due ${r.status === 'done' ? '' : dueClass(r)}">${r.status === 'done' ? 'Completada' : esc(dueText(r))}</span>`
     : `${kind === 'companies' ? companyAvatarHtml(r) : `<span class="assoc__logo">${esc(initials(r.name))}</span>`}<a href="${href(r)}"><strong>${esc(r.name)}</strong></a>`;
@@ -910,7 +916,9 @@ function assocCard(title, rows, kind) {
             ${lines.map((k) => (kind === 'deals' && k === 'stage'
               ? `<div class="assoc-card__row"><span class="muted">${esc(kindLabel(kind, k))}:</span> <select class="acard-stage" data-deal-stage="${r.id}" aria-label="Etapa de ${esc(r.name)}">${stagesFor(r.pipeline).map((s) => `<option value="${esc(s[0])}" ${s[0] === r.stage ? 'selected' : ''}>${esc(s[1])}</option>`).join('')}</select></div>`
               : `<div class="assoc-card__row"><span class="muted">${esc(kindLabel(kind, k))}:</span> <a href="#">${esc(kindValue(kind, k, r))}</a> <button class="copy" type="button" data-copy="${esc(kindValue(kind, k, r))}" aria-label="Copiar">⧉</button></div>`)).join('')}
-            ${s.quick ? `<span class="tag ${r.assocLabel === 'Principal' ? 'tag--done' : 'tag--none'} assoc-card__label">${esc(r.assocLabel === 'Principal' ? `${(KIND_META[kind] || { s: kind }).s} con ${cfg.singular} principal` : r.assocLabel)}</span>` : ''}
+            ${withPrimary
+              ? (r.assocLabel === 'Principal' ? '<span class="tag tag--done assoc-card__label">Principal</span>' : s.quick && r.assocLabel && r.assocLabel !== 'Sin etiqueta' ? `<span class="tag tag--none assoc-card__label">${esc(r.assocLabel)}</span>` : '')
+              : s.quick ? `<span class="tag ${r.assocLabel === 'Principal' ? 'tag--done' : 'tag--none'} assoc-card__label">${esc(r.assocLabel === 'Principal' ? `${(KIND_META[kind] || { s: kind }).s} con ${cfg.singular} principal` : r.assocLabel)}</span>` : ''}
           </div>`,
             )
             .join('') + `<a class="link-btn assoc-more" href="${root}${kind}/?assoc=${type}:${rec.id}">Ver todos los elementos asociados del tipo ${esc(s.title)} ↗</a>`

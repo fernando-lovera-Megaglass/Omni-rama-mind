@@ -13,6 +13,11 @@ const open = async (page, url, ready) => {
   await page.evaluate(() => document.fonts.ready);
   await page.waitForTimeout(400);
 };
+// En ventanas de menos de 1440px la ficha pliega sola la columna derecha (record.js NARROW_QUERY): se expande para ver la tarjeta.
+const expandRight = async (page) => {
+  const t = page.locator('#col-toggle-right');
+  if (await t.count() && (await t.getAttribute('aria-expanded')) === 'false') { await t.click(); await page.waitForTimeout(250); }
+};
 const clip = async (page, sel, pad = 8) => {
   const b = await page.locator(sel).first().evaluate((el) => { const r = el.getBoundingClientRect(); return { x: r.left, y: r.top, width: r.width, height: r.height }; });
   return { x: Math.max(0, b.x - pad), y: Math.max(0, b.y - pad), width: Math.min(b.width + pad * 2, 1440), height: Math.max(1, Math.min(b.height + pad * 2, 900)) };
@@ -21,6 +26,7 @@ const clip = async (page, sel, pad = 8) => {
 test('ficha de contacto con dos empresas', async ({ page }, testInfo) => {
   const w = testInfo.project.use.viewport.width;
   await open(page, '/contacts/record/?id=55', 'h1:visible');
+  await expandRight(page);
   await page.locator('.card--assoc[data-kind="companies"]').first().scrollIntoViewIfNeeded();
   await page.waitForTimeout(200);
   await page.screenshot({ path: `${DIR}/${FASE}-ficha-contacto-55-${w}.png`, animations: 'disabled', caret: 'hide' });
@@ -30,6 +36,7 @@ test('ficha de contacto con dos empresas', async ({ page }, testInfo) => {
 test('ficha de empresa con varios contactos', async ({ page }, testInfo) => {
   const w = testInfo.project.use.viewport.width;
   await open(page, '/companies/record/?id=1', 'h1:visible');
+  await expandRight(page);
   await page.locator('.card--assoc[data-kind="contacts"]').first().scrollIntoViewIfNeeded();
   await page.waitForTimeout(200);
   await page.screenshot({ path: `${DIR}/${FASE}-ficha-empresa-1-tarjeta-contactos-recorte-${w}.png`, clip: await clip(page, '.card--assoc[data-kind="contacts"]'), animations: 'disabled', caret: 'hide' });
