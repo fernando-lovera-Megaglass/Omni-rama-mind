@@ -1,0 +1,526 @@
+{
+ "viewport": 1440,
+ "docScrollW": 1440,
+ "record": {
+  "rect": {
+   "x": 104,
+   "y": 72,
+   "w": 1304,
+   "h": 1877.1
+  },
+  "grid-template-columns": "340px 592px 340px",
+  "gap": "16px",
+  "className": "record",
+  "cols": [
+   {
+    "cls": "record__left",
+    "rect": {
+     "x": 104,
+     "y": 72,
+     "w": 340,
+     "h": 1352
+    }
+   },
+   {
+    "cls": "slideover",
+    "rect": {
+     "x": 0,
+     "y": 0,
+     "w": 1440,
+     "h": 900
+    }
+   },
+   {
+    "cls": "record__middle",
+    "rect": {
+     "x": 460,
+     "y": 72,
+     "w": 592,
+     "h": 1877.1
+    }
+   },
+   {
+    "cls": "record__right",
+    "rect": {
+     "x": 1068,
+     "y": 72,
+     "w": 340,
+     "h": 1845.8
+    }
+   }
+  ]
+ },
+ "rtabs": {
+  "rect": {
+   "x": 460,
+   "y": 72,
+   "w": 592,
+   "h": 54
+  },
+  "scrollW": 590,
+  "clientW": 590,
+  "isScroll": false,
+  "moreHidden": true,
+  "moreRect": {
+   "x": 0,
+   "y": 0,
+   "w": 0,
+   "h": 0
+  },
+  "tabs": [
+   {
+    "text": "Información destacada",
+    "cls": "rtabs__tab is-active",
+    "hidden": false,
+    "rect": {
+     "x": 461,
+     "y": 73,
+     "w": 162.7,
+     "h": 52
+    },
+    "font-size": "12.8px",
+    "font-weight": "500",
+    "padding-left": "4px",
+    "padding-right": "4px",
+    "border-right-width": "1px",
+    "flex": "1 0 auto",
+    "textW": 149.4,
+    "textW128": 149.4
+   },
+   {
+    "text": "Descripción",
+    "cls": "rtabs__tab",
+    "hidden": false,
+    "rect": {
+     "x": 624,
+     "y": 73,
+     "w": 86,
+     "h": 52
+    },
+    "font-size": "12.8px",
+    "font-weight": "400",
+    "padding-left": "4px",
+    "padding-right": "4px",
+    "border-right-width": "1px",
+    "flex": "1 0 auto",
+    "textW": 72.7,
+    "textW128": 72.7
+   },
+   {
+    "text": "Actividades",
+    "cls": "rtabs__tab",
+    "hidden": false,
+    "rect": {
+     "x": 710,
+     "y": 73,
+     "w": 86.1,
+     "h": 52
+    },
+    "font-size": "12.8px",
+    "font-weight": "400",
+    "padding-left": "4px",
+    "padding-right": "4px",
+    "border-right-width": "1px",
+    "flex": "1 0 auto",
+    "textW": 72.9,
+    "textW128": 72.9
+   },
+   {
+    "text": "Información avanzada",
+    "cls": "rtabs__tab",
+    "hidden": false,
+    "rect": {
+     "x": 796,
+     "y": 73,
+     "w": 155.4,
+     "h": 52
+    },
+    "font-size": "12.8px",
+    "font-weight": "400",
+    "padding-left": "4px",
+    "padding-right": "4px",
+    "border-right-width": "1px",
+    "flex": "1 0 auto",
+    "textW": 142.1,
+    "textW128": 142.1
+   },
+   {
+    "text": "Más",
+    "cls": "rtabs__tab rtabs__more-btn",
+    "hidden": false,
+    "rect": {
+     "x": 0,
+     "y": 0,
+     "w": 0,
+     "h": 0
+    },
+    "font-size": "12.8px",
+    "font-weight": "500",
+    "padding-left": "4px",
+    "padding-right": "4px",
+    "border-right-width": "1px",
+    "flex": "1 0 auto",
+    "textW": 25.5,
+    "textW128": 25.5
+   },
+   {
+    "text": "⚙ Personalizar",
+    "cls": "rtabs__custom",
+    "hidden": false,
+    "rect": {
+     "x": 951,
+     "y": 73,
+     "w": 99.8,
+     "h": 52
+    },
+    "font-size": "12.8px",
+    "font-weight": "600",
+    "padding-left": "4px",
+    "padding-right": "4px",
+    "border-right-width": "0px",
+    "flex": "0 0 auto",
+    "textW": 91.8,
+    "textW128": 91.8
+   }
+  ]
+ },
+ "quick": {
+  "rect": {
+   "x": 125,
+   "y": 289,
+   "w": 298,
+   "h": 64
+  },
+  "flex-wrap": "nowrap",
+  "gap": "4px",
+  "column-gap": "4px",
+  "card": {
+   "x": 104,
+   "y": 112,
+   "w": 340,
+   "h": 258
+  },
+  "cardPadding": {
+   "padding-left": "20px",
+   "padding-right": "20px"
+  },
+  "btns": [
+   {
+    "text": "Nota",
+    "rect": {
+     "x": 125,
+     "y": 289,
+     "w": 47.4,
+     "h": 64
+    },
+    "font-size": "12.8px",
+    "font-weight": "600",
+    "width": "47.4375px",
+    "flex": "1 1 0px",
+    "white-space": "normal",
+    "ico": {
+     "x": 131,
+     "y": 293,
+     "w": 36,
+     "h": 36
+    },
+    "svg": {
+     "x": 139,
+     "y": 301,
+     "w": 20,
+     "h": 20
+    },
+    "textW": 31.7,
+    "textW128": 31.7
+   },
+   {
+    "text": "Correo",
+    "rect": {
+     "x": 176,
+     "y": 289,
+     "w": 47.5,
+     "h": 64
+    },
+    "font-size": "12.8px",
+    "font-weight": "600",
+    "width": "47.4531px",
+    "flex": "1 1 0px",
+    "white-space": "normal",
+    "ico": {
+     "x": 182,
+     "y": 293,
+     "w": 36,
+     "h": 36
+    },
+    "svg": {
+     "x": 190,
+     "y": 301,
+     "w": 20,
+     "h": 20
+    },
+    "textW": 43.4,
+    "textW128": 43.4
+   },
+   {
+    "text": "Llamar",
+    "rect": {
+     "x": 228,
+     "y": 289,
+     "w": 47.4,
+     "h": 64
+    },
+    "font-size": "12.8px",
+    "font-weight": "600",
+    "width": "47.4375px",
+    "flex": "1 1 0px",
+    "white-space": "normal",
+    "ico": {
+     "x": 234,
+     "y": 293,
+     "w": 36,
+     "h": 36
+    },
+    "svg": {
+     "x": 242,
+     "y": 301,
+     "w": 20,
+     "h": 20
+    },
+    "textW": 45.7,
+    "textW128": 45.7
+   },
+   {
+    "text": "Tarea",
+    "rect": {
+     "x": 279,
+     "y": 289,
+     "w": 47.5,
+     "h": 64
+    },
+    "font-size": "12.8px",
+    "font-weight": "600",
+    "width": "47.4531px",
+    "flex": "1 1 0px",
+    "white-space": "normal",
+    "ico": {
+     "x": 285,
+     "y": 293,
+     "w": 36,
+     "h": 36
+    },
+    "svg": {
+     "x": 293,
+     "y": 301,
+     "w": 20,
+     "h": 20
+    },
+    "textW": 36.3,
+    "textW128": 36.3
+   },
+   {
+    "text": "Reunión",
+    "rect": {
+     "x": 331,
+     "y": 289,
+     "w": 52.2,
+     "h": 64
+    },
+    "font-size": "12.8px",
+    "font-weight": "600",
+    "width": "52.2188px",
+    "flex": "1 1 0px",
+    "white-space": "normal",
+    "ico": {
+     "x": 339,
+     "y": 293,
+     "w": 36,
+     "h": 36
+    },
+    "svg": {
+     "x": 347,
+     "y": 301,
+     "w": 20,
+     "h": 20
+    },
+    "textW": 52.2,
+    "textW128": 52.2
+   },
+   {
+    "text": "Más",
+    "rect": {
+     "x": 387,
+     "y": 289,
+     "w": 36,
+     "h": 64
+    },
+    "font-size": "12.8px",
+    "font-weight": "600",
+    "width": "36px",
+    "flex": "1 1 0px",
+    "white-space": "normal",
+    "ico": {
+     "x": 387,
+     "y": 293,
+     "w": 36,
+     "h": 36
+    },
+    "svg": {
+     "x": 395,
+     "y": 301,
+     "w": 20,
+     "h": 20
+    },
+    "textW": 25.8,
+    "textW128": 25.8
+   }
+  ]
+ },
+ "props": [
+  {
+   "key": "notes",
+   "rect": {
+    "x": 125,
+    "y": 455,
+    "w": 298,
+    "h": 69
+   },
+   "padding-top": "10px",
+   "padding-bottom": "10px",
+   "dt": {
+    "x": 125,
+    "y": 465,
+    "w": 298,
+    "h": 20
+   },
+   "dd": {
+    "x": 125,
+    "y": 493,
+    "w": 298,
+    "h": 20
+   },
+   "ddMarginTop": "8px"
+  },
+  {
+   "key": "status",
+   "rect": {
+    "x": 125,
+    "y": 524,
+    "w": 298,
+    "h": 69
+   },
+   "padding-top": "10px",
+   "padding-bottom": "10px",
+   "dt": {
+    "x": 125,
+    "y": 534,
+    "w": 298,
+    "h": 20
+   },
+   "dd": {
+    "x": 125,
+    "y": 562,
+    "w": 298,
+    "h": 20
+   },
+   "ddMarginTop": "8px"
+  },
+  {
+   "key": "type",
+   "rect": {
+    "x": 125,
+    "y": 593,
+    "w": 298,
+    "h": 69
+   },
+   "padding-top": "10px",
+   "padding-bottom": "10px",
+   "dt": {
+    "x": 125,
+    "y": 603,
+    "w": 298,
+    "h": 20
+   },
+   "dd": {
+    "x": 125,
+    "y": 631,
+    "w": 298,
+    "h": 20
+   },
+   "ddMarginTop": "8px"
+  },
+  {
+   "key": "due",
+   "rect": {
+    "x": 125,
+    "y": 662,
+    "w": 298,
+    "h": 69
+   },
+   "padding-top": "10px",
+   "padding-bottom": "10px",
+   "dt": {
+    "x": 125,
+    "y": 672,
+    "w": 298,
+    "h": 20
+   },
+   "dd": {
+    "x": 125,
+    "y": 700,
+    "w": 298,
+    "h": 20
+   },
+   "ddMarginTop": "8px"
+  }
+ ],
+ "propsCount": 13,
+ "assocRows": [
+  {
+   "text": "Correo: ana.ruiz@cristalesnorte.com ⧉",
+   "rect": {
+    "x": 1106,
+    "y": 394,
+    "w": 264,
+    "h": 65
+   },
+   "padding-top": "10px",
+   "padding-bottom": "10px",
+   "gap": "8px",
+   "row-gap": "8px",
+   "column-gap": "8px"
+  },
+  {
+   "text": "Número de teléfono: +57 1 321 4008 ⧉",
+   "rect": {
+    "x": 1106,
+    "y": 465,
+    "w": 264,
+    "h": 65
+   },
+   "padding-top": "10px",
+   "padding-bottom": "10px",
+   "gap": "8px",
+   "row-gap": "8px",
+   "column-gap": "8px"
+  }
+ ],
+ "assocCard": {
+  "x": 1089,
+  "y": 343,
+  "w": 298,
+  "h": 236
+ },
+ "assocCardGap": {
+  "gap": "6px"
+ },
+ "leftCard": {
+  "rect": {
+   "x": 104,
+   "y": 112,
+   "w": 340,
+   "h": 258
+  },
+  "padding-left": "20px",
+  "padding-right": "20px"
+ }
+}

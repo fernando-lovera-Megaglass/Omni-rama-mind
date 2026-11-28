@@ -1,0 +1,554 @@
+{
+ "viewport": 1280,
+ "docScrollW": 1280,
+ "record": {
+  "rect": {
+   "x": 104,
+   "y": 72,
+   "w": 1144,
+   "h": 1939.1
+  },
+  "grid-template-columns": "300px 768px 44px",
+  "gap": "16px",
+  "className": "record is-right-collapsed",
+  "cols": [
+   {
+    "cls": "record__left",
+    "rect": {
+     "x": 104,
+     "y": 72,
+     "w": 300,
+     "h": 1573
+    }
+   },
+   {
+    "cls": "slideover",
+    "rect": {
+     "x": 0,
+     "y": 0,
+     "w": 1280,
+     "h": 800
+    }
+   },
+   {
+    "cls": "record__middle",
+    "rect": {
+     "x": 420,
+     "y": 72,
+     "w": 768,
+     "h": 1939.1
+    }
+   },
+   {
+    "cls": "record__right is-collapsed",
+    "rect": {
+     "x": 1204,
+     "y": 72,
+     "w": 44,
+     "h": 180
+    }
+   }
+  ]
+ },
+ "rtabs": {
+  "rect": {
+   "x": 420,
+   "y": 72,
+   "w": 768,
+   "h": 54
+  },
+  "scrollW": 766,
+  "clientW": 766,
+  "isScroll": false,
+  "moreHidden": true,
+  "moreRect": {
+   "x": 0,
+   "y": 0,
+   "w": 0,
+   "h": 0
+  },
+  "tabs": [
+   {
+    "text": "Información destacada",
+    "cls": "rtabs__tab is-active",
+    "hidden": false,
+    "rect": {
+     "x": 421,
+     "y": 73,
+     "w": 206.7,
+     "h": 52
+    },
+    "font-size": "12.8px",
+    "font-weight": "500",
+    "padding-left": "4px",
+    "padding-right": "4px",
+    "border-right-width": "1px",
+    "flex": "1 0 auto",
+    "textW": 149.4,
+    "textW128": 149.4
+   },
+   {
+    "text": "Descripción",
+    "cls": "rtabs__tab",
+    "hidden": false,
+    "rect": {
+     "x": 628,
+     "y": 73,
+     "w": 130,
+     "h": 52
+    },
+    "font-size": "12.8px",
+    "font-weight": "400",
+    "padding-left": "4px",
+    "padding-right": "4px",
+    "border-right-width": "1px",
+    "flex": "1 0 auto",
+    "textW": 72.7,
+    "textW128": 72.7
+   },
+   {
+    "text": "Actividades",
+    "cls": "rtabs__tab",
+    "hidden": false,
+    "rect": {
+     "x": 758,
+     "y": 73,
+     "w": 130.1,
+     "h": 52
+    },
+    "font-size": "12.8px",
+    "font-weight": "400",
+    "padding-left": "4px",
+    "padding-right": "4px",
+    "border-right-width": "1px",
+    "flex": "1 0 auto",
+    "textW": 72.9,
+    "textW128": 72.9
+   },
+   {
+    "text": "Información avanzada",
+    "cls": "rtabs__tab",
+    "hidden": false,
+    "rect": {
+     "x": 888,
+     "y": 73,
+     "w": 199.4,
+     "h": 52
+    },
+    "font-size": "12.8px",
+    "font-weight": "400",
+    "padding-left": "4px",
+    "padding-right": "4px",
+    "border-right-width": "1px",
+    "flex": "1 0 auto",
+    "textW": 142.1,
+    "textW128": 142.1
+   },
+   {
+    "text": "Más",
+    "cls": "rtabs__tab rtabs__more-btn",
+    "hidden": false,
+    "rect": {
+     "x": 0,
+     "y": 0,
+     "w": 0,
+     "h": 0
+    },
+    "font-size": "12.8px",
+    "font-weight": "500",
+    "padding-left": "4px",
+    "padding-right": "4px",
+    "border-right-width": "1px",
+    "flex": "1 0 auto",
+    "textW": 25.5,
+    "textW128": 25.5
+   },
+   {
+    "text": "⚙ Personalizar",
+    "cls": "rtabs__custom",
+    "hidden": false,
+    "rect": {
+     "x": 1087,
+     "y": 73,
+     "w": 99.8,
+     "h": 52
+    },
+    "font-size": "12.8px",
+    "font-weight": "600",
+    "padding-left": "4px",
+    "padding-right": "4px",
+    "border-right-width": "0px",
+    "flex": "0 0 auto",
+    "textW": 91.8,
+    "textW128": 91.8
+   }
+  ]
+ },
+ "quick": {
+  "rect": {
+   "x": 125,
+   "y": 349,
+   "w": 258,
+   "h": 136
+  },
+  "flex-wrap": "wrap",
+  "gap": "8px",
+  "column-gap": "8px",
+  "card": {
+   "x": 104,
+   "y": 112,
+   "w": 300,
+   "h": 390
+  },
+  "cardPadding": {
+   "padding-left": "20px",
+   "padding-right": "20px"
+  },
+  "btns": [
+   {
+    "text": "Nota",
+    "rect": {
+     "x": 125,
+     "y": 349,
+     "w": 56,
+     "h": 64
+    },
+    "font-size": "12.8px",
+    "font-weight": "600",
+    "width": "56px",
+    "flex": "0 1 auto",
+    "white-space": "normal",
+    "ico": {
+     "x": 135,
+     "y": 353,
+     "w": 36,
+     "h": 36
+    },
+    "svg": {
+     "x": 144,
+     "y": 362,
+     "w": 18,
+     "h": 18
+    },
+    "textW": 31.7,
+    "textW128": 31.7
+   },
+   {
+    "text": "Correo",
+    "rect": {
+     "x": 189,
+     "y": 349,
+     "w": 56,
+     "h": 64
+    },
+    "font-size": "12.8px",
+    "font-weight": "600",
+    "width": "56px",
+    "flex": "0 1 auto",
+    "white-space": "normal",
+    "ico": {
+     "x": 199,
+     "y": 353,
+     "w": 36,
+     "h": 36
+    },
+    "svg": {
+     "x": 208,
+     "y": 362,
+     "w": 18,
+     "h": 18
+    },
+    "textW": 43.4,
+    "textW128": 43.4
+   },
+   {
+    "text": "Llamar",
+    "rect": {
+     "x": 253,
+     "y": 349,
+     "w": 56,
+     "h": 64
+    },
+    "font-size": "12.8px",
+    "font-weight": "600",
+    "width": "56px",
+    "flex": "0 1 auto",
+    "white-space": "normal",
+    "ico": {
+     "x": 263,
+     "y": 353,
+     "w": 36,
+     "h": 36
+    },
+    "svg": {
+     "x": 272,
+     "y": 362,
+     "w": 18,
+     "h": 18
+    },
+    "textW": 45.7,
+    "textW128": 45.7
+   },
+   {
+    "text": "Tarea",
+    "rect": {
+     "x": 317,
+     "y": 349,
+     "w": 56,
+     "h": 64
+    },
+    "font-size": "12.8px",
+    "font-weight": "600",
+    "width": "56px",
+    "flex": "0 1 auto",
+    "white-space": "normal",
+    "ico": {
+     "x": 327,
+     "y": 353,
+     "w": 36,
+     "h": 36
+    },
+    "svg": {
+     "x": 336,
+     "y": 362,
+     "w": 18,
+     "h": 18
+    },
+    "textW": 36.3,
+    "textW128": 36.3
+   },
+   {
+    "text": "Reunión",
+    "rect": {
+     "x": 125,
+     "y": 421,
+     "w": 56,
+     "h": 64
+    },
+    "font-size": "12.8px",
+    "font-weight": "600",
+    "width": "56px",
+    "flex": "0 1 auto",
+    "white-space": "normal",
+    "ico": {
+     "x": 135,
+     "y": 425,
+     "w": 36,
+     "h": 36
+    },
+    "svg": {
+     "x": 144,
+     "y": 434,
+     "w": 18,
+     "h": 18
+    },
+    "textW": 52.2,
+    "textW128": 52.2
+   },
+   {
+    "text": "Más",
+    "rect": {
+     "x": 189,
+     "y": 421,
+     "w": 56,
+     "h": 64
+    },
+    "font-size": "12.8px",
+    "font-weight": "600",
+    "width": "56px",
+    "flex": "0 1 auto",
+    "white-space": "normal",
+    "ico": {
+     "x": 199,
+     "y": 425,
+     "w": 36,
+     "h": 36
+    },
+    "svg": {
+     "x": 208,
+     "y": 434,
+     "w": 18,
+     "h": 18
+    },
+    "textW": 25.8,
+    "textW128": 25.8
+   }
+  ]
+ },
+ "props": [
+  {
+   "key": "closedLostReason",
+   "rect": {
+    "x": 125,
+    "y": 587,
+    "w": 258,
+    "h": 69
+   },
+   "padding-top": "10px",
+   "padding-bottom": "10px",
+   "dt": {
+    "x": 125,
+    "y": 597,
+    "w": 258,
+    "h": 20
+   },
+   "dd": {
+    "x": 125,
+    "y": 625,
+    "w": 258,
+    "h": 20
+   },
+   "ddMarginTop": "8px"
+  },
+  {
+   "key": "closedWonReason",
+   "rect": {
+    "x": 125,
+    "y": 656,
+    "w": 258,
+    "h": 69
+   },
+   "padding-top": "10px",
+   "padding-bottom": "10px",
+   "dt": {
+    "x": 125,
+    "y": 666,
+    "w": 258,
+    "h": 20
+   },
+   "dd": {
+    "x": 125,
+    "y": 694,
+    "w": 258,
+    "h": 20
+   },
+   "ddMarginTop": "8px"
+  },
+  {
+   "key": "amount",
+   "rect": {
+    "x": 125,
+    "y": 725,
+    "w": 258,
+    "h": 69
+   },
+   "padding-top": "10px",
+   "padding-bottom": "10px",
+   "dt": {
+    "x": 125,
+    "y": 735,
+    "w": 258,
+    "h": 20
+   },
+   "dd": {
+    "x": 125,
+    "y": 763,
+    "w": 258,
+    "h": 20
+   },
+   "ddMarginTop": "8px"
+  },
+  {
+   "key": "deal_currency_code",
+   "rect": {
+    "x": 125,
+    "y": 794,
+    "w": 258,
+    "h": 69
+   },
+   "padding-top": "10px",
+   "padding-bottom": "10px",
+   "dt": {
+    "x": 125,
+    "y": 804,
+    "w": 258,
+    "h": 20
+   },
+   "dd": {
+    "x": 125,
+    "y": 832,
+    "w": 258,
+    "h": 20
+   },
+   "ddMarginTop": "8px"
+  }
+ ],
+ "propsCount": 14,
+ "assocRows": [
+  {
+   "text": "Correo: ana.ruiz@cristalesnorte.com ⧉",
+   "rect": {
+    "x": 0,
+    "y": 0,
+    "w": 0,
+    "h": 0
+   },
+   "padding-top": "10px",
+   "padding-bottom": "10px",
+   "gap": "8px",
+   "row-gap": "8px",
+   "column-gap": "8px"
+  },
+  {
+   "text": "Número de teléfono: +57 1 321 4008 ⧉",
+   "rect": {
+    "x": 0,
+    "y": 0,
+    "w": 0,
+    "h": 0
+   },
+   "padding-top": "10px",
+   "padding-bottom": "10px",
+   "gap": "8px",
+   "row-gap": "8px",
+   "column-gap": "8px"
+  },
+  {
+   "text": "Nombre de dominio de la empresa: cristalesnorte.co",
+   "rect": {
+    "x": 0,
+    "y": 0,
+    "w": 0,
+    "h": 0
+   },
+   "padding-top": "10px",
+   "padding-bottom": "10px",
+   "gap": "8px",
+   "row-gap": "8px",
+   "column-gap": "8px"
+  },
+  {
+   "text": "Número de teléfono: +34 974 542 329 ⧉",
+   "rect": {
+    "x": 0,
+    "y": 0,
+    "w": 0,
+    "h": 0
+   },
+   "padding-top": "10px",
+   "padding-bottom": "10px",
+   "gap": "8px",
+   "row-gap": "8px",
+   "column-gap": "8px"
+  }
+ ],
+ "assocCard": {
+  "x": 0,
+  "y": 0,
+  "w": 0,
+  "h": 0
+ },
+ "assocCardGap": {
+  "gap": "6px"
+ },
+ "leftCard": {
+  "rect": {
+   "x": 104,
+   "y": 112,
+   "w": 300,
+   "h": 390
+  },
+  "padding-left": "20px",
+  "padding-right": "20px"
+ }
+}
