@@ -128,13 +128,16 @@
     },
     {
       "id": "user-escalas-pantalla",
-      "status": "review",
+      "status": "done",
       "lane": "claude",
       "createdAt": "2026-11-27T18:56:07.409Z",
       "title": "Escalas de pantalla: compacta (≤1180px) y grande (≥1920px)",
       "instruction": "DECISIÓN DEL USUARIO (27-nov-2026): aplicar la regla «Escala por tamaño de pantalla» ya escrita en DESIGN.md (§1, tras Estructura). Dos media queries sobre :root en src/app.css: @media (max-width:1180px) baja los tokens ~-10% (--fs-sm 13px, --fs-xs 12px, --sp-16 12px, --sp-10 8px, --sp-8 6px; .assoc__logo 24px) y @media (min-width:1920px) los sube ~+14% (--fs-sm 16px, --fs-xs 14px, --sp-16 20px, --sp-10 12px, --sp-8 10px; .assoc__logo 32px). IMPORTANTE: 1) Las tarjetas del centro de la ficha (.card) deben ajustarse DE LA MISMA MANERA que las laterales (.assoc-card): todo sale de los tokens, prohibido valores sueltos por componente; si alguna medida de .card no usa token, primero pásala a token en la misma tarea. 2) Entre 1280px y 1919px nada cambia: las capturas base y las pruebas deben seguir en verde SIN actualizar snapshots. 3) La escala compacta solo ajusta medidas (fuentes, espaciados, tarjetas); no cambiar disposición (columnas, menús) — eso es fase aparte. 4) Evidencia: capturas de Contactos, ficha de contacto, Negocios e Informes a 1180px, 1920px y 2560px (además de las de siempre a 1440/1280) en docs/evidencia/user-escalas-pantalla/. No integrar a main sin aprobación del usuario.",
       "reviewAt": "2026-11-27T20:42:56.558Z",
-      "evidence": "docs/evidencia/user-escalas-pantalla/README.md"
+      "evidence": "docs/evidencia/user-escalas-pantalla/README.md",
+      "closedAt": "2026-11-28T06:30:08.547Z",
+      "closedBy": "kimi",
+      "closeNote": "Aprobada por el usuario 28-nov 00:29. Regla de escalas (compacta ≤1180 / normal 1280-1919 / grande ≥1920) ya documentada en DESIGN.md; no mueve capturas base (las media queries no se activan a 1440/1280)."
     },
     {
       "id": "user-importaciones-persisten-en-base",
