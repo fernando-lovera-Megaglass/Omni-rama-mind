@@ -3173,10 +3173,12 @@
     },
     {
       "id": "gap-smoke-record-inline-propiedad",
-      "status": "pending",
+      "status": "review",
       "instruction": "smoke-record-inline falla: «the customised card should show the saved custom property value» — la tarjeta personalizada no muestra el valor guardado de la propiedad personalizada. OJO: el working tree tiene cambios sin commitear del frontend de Contactos (27-nov); trabaja sobre el código más reciente. Ejecuta la prueba con node scripts/<smoke>.mjs DESPUÉS de tu cambio e itera hasta que termine con código 0. Determina si es regresión o prueba desactualizada. No despliegues nada a producción; solo código local.",
       "createdAt": "2026-11-27T13:48:55-06:00",
-      "lane": "claude"
+      "lane": "claude",
+      "workedAt": "2026-11-27T18:04:07-0600",
+      "workedBy": "claude"
     },
     {
       "id": "gap-smoke-task-reminders-vencimiento",
