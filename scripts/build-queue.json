@@ -3182,10 +3182,12 @@
     },
     {
       "id": "gap-smoke-task-reminders-vencimiento",
-      "status": "pending",
+      "status": "review",
       "instruction": "smoke-task-reminders falla en «not due yet»: tareas con recordatorio del 24 y 26-nov aparecen como no vencidas. Parece prueba sensible a la fecha (los datos de prueba envejecieron) — hazla robusta con fechas relativas a hoy, o corrige la lógica de vencidos si es real. OJO: el working tree tiene cambios sin commitear del frontend de Contactos (27-nov); trabaja sobre el código más reciente. Ejecuta la prueba con node scripts/<smoke>.mjs DESPUÉS de tu cambio e itera hasta que termine con código 0. Determina si es regresión o prueba desactualizada. No despliegues nada a producción; solo código local.",
       "createdAt": "2026-11-27T13:48:55-06:00",
-      "lane": "codex"
+      "lane": "codex",
+      "workedAt": "2026-11-27T18:09:09-0600",
+      "workedBy": "claude"
     }
   ]
 }
