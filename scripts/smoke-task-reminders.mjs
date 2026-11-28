@@ -61,6 +61,12 @@ const click = (el) => { if (!el) fail('missing element to click'); el.dispatchEv
 const change = (el, v) => { if (v !== undefined) el.value = v; el.dispatchEvent(new window.Event('change', { bubbles: true })); };
 const submit = (form) => form.dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true }));
 const local = (y, m, d, h = 0, mi = 0) => new Date(y, m - 1, d, h, mi).toISOString();
+// The tasks of section 1 live a few days AHEAD OF TODAY, so section 2 («nothing is due yet at the real clock»)
+// holds whenever the smoke runs; fixed dates aged and turned those reminders into due ones (27-nov-2026).
+const base = new Date(); base.setHours(0, 0, 0, 0);
+const pad2 = (n) => String(n).padStart(2, '0');
+const at = (days, h = 0, mi = 0) => new Date(base.getFullYear(), base.getMonth(), base.getDate() + days, h, mi).toISOString();
+const ymd = (days) => { const d = new Date(base.getFullYear(), base.getMonth(), base.getDate() + days); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; };
 
 // ===== 1) The tasks list: default from Ajustes, reminder saved from the create drawer =====
 useDom('<!doctype html><body class="app"><aside id="sidenav"></aside><header id="topbar"></header><main id="list-root"></main><div id="scrim"></div></body>', 'http://localhost/tasks/');
@@ -73,8 +79,8 @@ if (TR.reminderFromDue(local(2026, 11, 25, 15, 30), '1 hora antes') !== local(20
 if (TR.reminderFromDue(new Date('2026-11-25').toISOString(), 'El día de vencimiento a las 9:00') !== local(2026, 11, 25, 9, 0)) fail('9:00 of a date-only due (UTC midnight)');
 if (TR.reminderFromDue(local(2026, 11, 25), '1 día antes') !== local(2026, 11, 24, 9, 0)) fail('1 día antes of a date-only due (local midnight → 9:00)');
 if (TR.reminderFromDue(local(2026, 11, 25), 'Sin recordatorio') !== '' || TR.reminderFromDue('', '1 hora antes') !== '') fail('no reminder cases');
-const auto = data.addRecord('tasks', { name: 'Tarea sin recordatorio explícito', type: 'Tarea', status: 'todo', priority: 'medium', owner: 'Fernando L.', contactId: '', contact: '', due: local(2026, 11, 30, 11, 0), lastActivity: data.TODAY.toISOString() });
-if (auto.reminderAt !== local(2026, 11, 30, 10, 0)) fail(`a task created anywhere gets the default reminder: ${auto.reminderAt}`);
+const auto = data.addRecord('tasks', { name: 'Tarea sin recordatorio explícito', type: 'Tarea', status: 'todo', priority: 'medium', owner: 'Fernando L.', contactId: '', contact: '', due: at(6, 11, 0), lastActivity: data.TODAY.toISOString() });
+if (auto.reminderAt !== at(6, 10, 0)) fail(`a task created anywhere gets the default reminder: ${auto.reminderAt}`);
 await import(resolve(here, '../src/tasks.js'));
 await wait(20);
 click(q('[data-action="create"]'));
@@ -84,30 +90,30 @@ const remAt = form.querySelector('input[name="reminderAt"]');
 if (!remSel || !remAt || remAt.type !== 'datetime-local') fail('create drawer must offer Recordatorio + custom date-time');
 if (remSel.options[0].value !== '1 hora antes' || !text(remSel.options[0]).includes('(predeterminado)') || [...remSel.options].map((o) => o.value).join('|') !== '1 hora antes|Sin recordatorio|El día de vencimiento a las 9:00|1 día antes|custom') fail(`reminder options: ${[...remSel.options].map((o) => o.value).join('|')}`);
 form.elements.name.value = 'Visita técnica Cristales Norte';
-form.elements.due.value = '2026-11-25';
+form.elements.due.value = ymd(3);
 change(remSel, '1 día antes');
 submit(form);
 await wait(40);
 const t1 = data.allTasks().find((t) => t.name === 'Visita técnica Cristales Norte');
-if (!t1 || t1.reminderAt !== local(2026, 11, 24, 9, 0) || t1.reminderFiredAt) fail(`preset reminder saved on the task: ${t1 && t1.reminderAt}`);
+if (!t1 || t1.reminderAt !== at(2, 9, 0) || t1.reminderFiredAt) fail(`preset reminder saved on the task: ${t1 && t1.reminderAt}`);
 click(q('[data-action="create"]'));
 form.elements.name.value = 'Llamar al arquitecto';
-form.elements.due.value = '2026-11-26';
+form.elements.due.value = ymd(4);
 change(form.querySelector('select[name="reminder"]'), 'custom');
-form.querySelector('input[name="reminderAt"]').value = '2026-11-26T15:30';
+form.querySelector('input[name="reminderAt"]').value = `${ymd(4)}T15:30`;
 submit(form);
 await wait(40);
 const t2 = data.allTasks().find((t) => t.name === 'Llamar al arquitecto');
-if (!t2 || t2.reminderAt !== local(2026, 11, 26, 15, 30)) fail(`custom reminder saved: ${t2 && t2.reminderAt}`);
+if (!t2 || t2.reminderAt !== at(4, 15, 30)) fail(`custom reminder saved: ${t2 && t2.reminderAt}`);
 click(q('[data-action="create"]'));
 form.elements.name.value = 'Sin aviso';
-form.elements.due.value = '2026-11-27';
+form.elements.due.value = ymd(5);
 change(form.querySelector('select[name="reminder"]'), 'Sin recordatorio');
 submit(form);
 await wait(40);
 const t3 = data.allTasks().find((t) => t.name === 'Sin aviso');
 if (!t3 || t3.reminderAt !== '') fail('«Sin recordatorio» stores no reminder');
-log('list: default «1 hora antes» from Ajustes, drawer with Recordatorio (default first) + custom date-time; saved as 24 nov 09:00 (1 día antes), 26 nov 15:30 (custom), none');
+log(`list: default «1 hora antes» from Ajustes, drawer with Recordatorio (default first) + custom date-time; saved as ${TR.reminderText(t1.reminderAt)} (1 día antes), ${TR.reminderText(t2.reminderAt)} (custom), none`);
 
 // ===== 2) A reminder in 1 minute fires when the minute passes: browser notification, bubble, chime, bell =====
 const now = Date.now();
