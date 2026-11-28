@@ -3206,6 +3206,15 @@
       "closedAt": "2026-11-28T06:24:10.992Z",
       "closedBy": "kimi",
       "closeNote": "Aprobada por el usuario 28-nov 00:23 en la vista de revisión (laterales 340px, filas holgadas, botones en una fila, 5 pestañas visibles). Relleno de pestañas --sp-4 (desviación documentada y aceptada). Capturas base de las 5 fichas actualizadas."
+    },
+    {
+      "id": "user-vista-previa-lateral",
+      "status": "pending",
+      "area": "frontend",
+      "summary": "Vista previa lateral de Contactos: alinear su diseño al DESIGN.md y corregir que el icono de la fila no cierra el panel al presionarlo de nuevo",
+      "requestedBy": "usuario",
+      "createdAt": "2026-11-28T14:20:36.497Z",
+      "instruction": "Reporte del usuario (28-nov, con captura de su app real): en la lista de Contactos, el panel lateral de vista previa (el que abre el icono de la fila) tiene dos problemas:\n\n1) BUG (toggle): presionar el icono de vista previa de la fila cuando el panel YA esta abierto con ese contacto NO cierra el panel (verificado con Playwright en modo demo: has-preview sigue activo tras el segundo clic). Debe alternar: abierto -> cerrado. Presionar el icono de OTRA fila debe cambiar el contenido al nuevo contacto sin cerrar (hoy ya lo hace; no romperlo).\n\n2) DISENO: el panel lateral de vista previa debe seguir el DESIGN.md al 100% (decision del usuario: «de acuerdo a la que este en el design.md»). Revisar la tarjeta contra los componentes documentados y alinearla: tokens de color/letra/espaciado (prohibido valores sueltos), filas de propiedades con el ritmo de la fila de propiedad de la ficha (.props__row de la columna izquierda, --sp-10 vertical, --sp-8 etiqueta-valor), tarjetas de asociaciones (Empresas, Negocios, Tickets) con el mismo estilo que las de la ficha incluida la etiqueta «Principal» .tag.tag--done donde aplique, iconos del catalogo .ico--*, anchos y radios de las tarjetas laterales (DESIGN.md §2.1). Si el panel necesita algun componente que DESIGN.md aun no documenta, documentarlo ahi (seccion Componentes) en vez de inventar valores.\n\nReglas: no tocar logica de datos ni backend; evidencia en docs/evidencia/user-vista-previa-lateral/ con capturas antes/despues a 1440 y 1280 (panel abierto sobre la lista, recorte de la tarjeta) y prueba del toggle (abrir, cerrar con el mismo icono, cambiar de contacto con otra fila, y que el estado no se pierda al navegar entre vistas de la lista); suite en verde (unicos rojos permitidos: Bandeja x2 ya pendientes de aprobacion); npm run build en verde; marcar review al terminar. No actualizar capturas base. No integrar a main."
     }
   ]
 }
