@@ -1836,6 +1836,17 @@ h1 {
   margin: 2px 0 0;
 }
 
+/* Ficha, columna izquierda (aprobado por el usuario, 27-nov-2026): filas de propiedad con más aire — relleno
+   vertical --sp-10 y --sp-8 entre etiqueta y valor. Solo aquí: la vista previa de listas, la bandeja y los ajustes
+   comparten .props__row y conservan sus medidas. */
+.record__left .props__row {
+  padding: var(--sp-10) 0;
+}
+
+.record__left .props dd {
+  margin: var(--sp-8) 0 0;
+}
+
 .tabs {
   display: flex;
   gap: var(--sp-2);
@@ -8532,7 +8543,9 @@ textarea.cellpop__input {
 }
 
 /* Las pestañas que no caben pasan al menú «Más» (record.js las mide); solo si ni así caben, la barra se
-   desplaza en horizontal. Nunca se cortan ni se aprietan: una pestaña no encoge por debajo de su texto. */
+   desplaza en horizontal. Nunca se cortan ni se aprietan: una pestaña no encoge por debajo de su texto.
+   Medida aprobada por el usuario (27-nov-2026): letra --fs-xs y relleno lateral --sp-4, para que las cinco
+   pestañas de la ficha quepan a 1440px con el centro de 592px (suman 573px; con --sp-8 sumarían 613px). */
 .rtabs.is-scroll {
   overflow-x: auto;
   overflow-y: hidden;
@@ -8544,11 +8557,12 @@ textarea.cellpop__input {
   flex: 1 0 auto;
   min-width: 0;
   height: 52px;
-  padding: 0 var(--sp-16);
+  padding: 0 var(--sp-4);
   border: 0;
   border-right: 1px solid var(--c-border);
   background: var(--c-head);
   color: var(--c-text);
+  font-size: var(--fs-xs);
   font-weight: 400;
   white-space: nowrap;
 }
@@ -8561,10 +8575,11 @@ textarea.cellpop__input {
 .rtabs__custom {
   flex: none;
   margin-left: auto;
-  padding: 0 var(--sp-16);
+  padding: 0 var(--sp-4);
   border: 0;
   background: var(--c-white);
   color: var(--c-text);
+  font-size: var(--fs-xs);
   font-weight: 600;
   white-space: nowrap;
 }
@@ -8831,6 +8846,13 @@ textarea.cellpop__input {
   display: flex;
   align-items: center;
   gap: 6px;
+}
+
+/* Ficha, columna derecha (aprobado por el usuario, 27-nov-2026): mismo ritmo que las filas de propiedad de la
+   izquierda — relleno vertical --sp-10 y --sp-8 entre etiqueta y valor. */
+.record__right .assoc-card__row {
+  padding: var(--sp-10) 0;
+  gap: var(--sp-8);
 }
 
 .copy {
@@ -20520,6 +20542,39 @@ td[data-key="deal_tags"] .dtag {
 
   .record.is-right-collapsed .record__right {
     grid-column: auto;
+  }
+}
+
+/* Ventanas anchas (aprobado por el usuario, 27-nov-2026): laterales de 340px. El centro conserva su mínimo de
+   560px: a 1440px queda en 592px (1440 − nav 72 − márgenes 64 − 2×340 − 2×16); el corte coincide con el de las tres
+   columnas (cabría desde 1408px). Por debajo, laterales de 300px como siempre. Con la tarjeta a 340px los seis
+   botones de acción van en una sola fila, repartidos a partes iguales, con el icono de 20px de la escala. */
+@media (min-width: 1440px) {
+  .record {
+    grid-template-columns: 340px minmax(560px, 1fr) 340px;
+  }
+
+  .record.is-left-collapsed {
+    grid-template-columns: 44px minmax(560px, 1fr) 340px;
+  }
+
+  .record.is-right-collapsed {
+    grid-template-columns: 340px minmax(560px, 1fr) 44px;
+  }
+
+  .record__quick {
+    flex-wrap: nowrap;
+    gap: var(--sp-4);
+  }
+
+  .quick {
+    flex: 1 1 0;
+    width: auto;
+  }
+
+  .quick__ico svg {
+    width: 20px;
+    height: 20px;
   }
 }
 

@@ -76,6 +76,15 @@ rgba(0,0,0,.2)` (paneles laterales) · `0 16px 48px rgba(0,0,0,.3)` (modales) ·
 `--topbar-h` 56px (barra superior, relleno 0 24px) · `.content` relleno 24px 32px
 32px · `.page-head` separación 16px, margen inferior 16px.
 
+**Ficha de registro (`.record`)**: cuadrícula de tres columnas con separación
+`--sp-16`: `300px minmax(560px, 1fr) 300px`. **Laterales de 340px a partir de
+1440px de ventana** (aprobado por el usuario, 27-nov-2026): `@media (min-width:
+1440px)` pone `340px minmax(560px, 1fr) 340px`; a 1440px el centro queda en 592px
+(1440 − nav 72 − márgenes 64 − 2×340 − 2×16), nunca por debajo de su mínimo de
+560px (cabrían desde 1408px; el corte coincide con el de las tres columnas). Por
+debajo de 1440px la derecha se apila bajo el centro y la izquierda sigue en 300px;
+una lateral plegada mide 44px.
+
 ### Escala por tamaño de pantalla (aprobada por el usuario, 27-nov-2026)
 La interfaz escala entera según el ancho de la ventana, moviendo **solo tokens** en
 `:root` — nunca valores sueltos por componente. Tres densidades:
@@ -119,7 +128,10 @@ el navegador). Donde una pantalla usa un valor distinto, está en la sección 3.
 | Botón de icono redondo | `.icon-btn.icon-btn--round` | 40 × 40px | — | 16px | 50 % | barra de herramientas de listas (vista panel/tabla, engranaje, plegar) |
 | Botón de icono pequeño | `.icon-btn.icon-btn--sm` | 32 × 32px | — | 15px | `--r-pill` (redondo) | «+» y «✎» de la fila de filtros, acciones de la ficha |
 | Botón de icono xs | `.icon-btn.icon-btn--xs` | 22 × 22px | — | 14px | `--r-sm` | acciones discretas dentro de tarjetas (regenerar resumen, mover) |
-| Botón de acción de ficha | `.quick` + `.quick__ico` | 56px de ancho | 4px 0 | 12.8px / 600 | — | columna: icono redondo de 36px con borde `--c-border` arriba y etiqueta `--c-link` abajo; Nota, Correo, Llamar, Tarea, Reunión, Más; iconos de línea 24×24 trazo 1.8px (`action-icons.js`) |
+| Botón de acción de ficha | `.quick` + `.quick__ico` | 64px; 56px de ancho con laterales de 300px (dos filas, separación `--sp-8`) · **≥ 1440px**: los seis en una sola fila, `flex: 1 1 0`, separación `--sp-4` (aprobado 27-nov-2026) | 4px 0 | 12.8px / 600 | — | columna: icono redondo de 36px con borde `--c-border` arriba (glifo de 18px; 20px, el de la escala, a ≥ 1440px) y etiqueta `--c-link` abajo; Nota, Correo, Llamar, Tarea, Reunión, Más; iconos de línea 24×24 trazo 1.8px (`action-icons.js`) |
+| Fila de propiedad (ficha, columna izquierda) | `.record__left .props__row` (`dt` etiqueta + `dd` valor) | 69px con un valor de una línea (20 + 8 + 20 + 2×10 + borde) | `--sp-10` 0 | etiqueta 12.8px `--c-muted`; valor 14px | — | aprobado 27-nov-2026: `--sp-8` entre etiqueta y valor; borde inferior 1px `--c-border` (la última sin borde); lápiz `.props__edit` al pasar el ratón. Fuera de la ficha (vista previa de listas, bandeja, ajustes) `.props__row` conserva 8px 0 y 2px entre etiqueta y valor |
+| Fila de tarjeta de asociación (ficha, columna derecha) | `.record__right .assoc-card__row` | 40px con un valor de una línea (20 + 2×10) | `--sp-10` 0 | 14px | — | aprobado 27-nov-2026: etiqueta `.muted` + valor o enlace (+ copiar), separación `--sp-8`; la etiqueta no se parte (regla 1); la tarjeta `.assoc-card` separa sus filas 6px |
+| Barra de pestañas de ficha | `.rtabs` > `.rtabs__tab` (+ `.rtabs__more` «Más», `.rtabs__custom` «Personalizar») | 52px | 0 `--sp-4` | 12.8px / 400 (activa 500; Personalizar 600) | `--r-md` | aprobado 27-nov-2026: fondo `--c-head`, activa `--c-white`, separadores 1px `--c-border`; `flex: 1 0 auto` (se estiran a llenar la barra, nunca encogen bajo su texto); las que no caben pasan a «Más» (`record.js` las mide). A 1440px las cinco pestañas (Información destacada, Descripción, Actividades, Información avanzada, Personalizar) suman 573px y caben en el centro de 592px |
 | Campo de formulario | `.field` (label > span + control); `.field input`, `.field select` | 40px | 0 10px | 14px | `--r-sm` | borde 1px `--c-border`, etiqueta arriba y control abajo; `textarea` 98px (importación) |
 | Buscador | `.search` + `.search input` + `.ico--search` 16px | 32px | 0 10px | 14px | `--r-sm` | ancho 300px, borde `--c-border` |
 | Buscador píldora (listas) | `.search.search--pill` | 40px | 0 16px | 14px | `--r-pill` | ancho 260px, borde `--c-nav` |
