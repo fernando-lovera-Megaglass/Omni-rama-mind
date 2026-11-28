@@ -165,5 +165,9 @@ if (JSON.stringify(savedCard.keys) !== JSON.stringify(chosenKeys)) fail('the sav
 // date where the person left them, and no forced marketing reason.
 if (JSON.stringify(keysNow) !== JSON.stringify(chosenKeys)) fail(`the customised card should show exactly the chosen properties in order (${keysNow.slice(0, 5).join(',')} vs ${chosenKeys.slice(0, 5).join(',')})`);
 if (keysNow.includes('marketingOptOutReason')) fail('a deselected marketing property is not forced back onto the card');
-if (text(row('asesor_de_ventas').querySelector('dd')) !== 'Sofía R.✎') fail('the customised card should show the saved custom property value');
+// The pencil of a contact's property rows is the «edit» line icon since 27-nov-2026 (Contacts homogenisation,
+// approved by the user): an SVG has no text, other objects still use the «✎» character. Compare the value only.
+const customDd = row('asesor_de_ventas').querySelector('dd');
+if (text(customDd).replace(/✎$/, '').trim() !== 'Sofía R.') fail(`the customised card should show the saved custom property value (got «${text(customDd)}»)`);
+if (!customDd.querySelector('.props__edit svg, .props__edit')) fail('the customised row keeps its pencil');
 log('OK');
